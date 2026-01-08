@@ -1,13 +1,35 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{% static 'css/landingpage.css' %}">
+    <link rel="stylesheet" href="{% static 'UTrade_app/css/landingpage.css' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'UTrade_app/img/U.png' %}">
     <title>Document</title>
 </head>
-<body>
-    <nav> <h1 class="text-4xl font-bold">If this is blue, it's working!</h1></nav>
+
+<body class="bg-green-50">
+    <section>
+        <div class="container justify-self-center text-lg">
+            <nav class="bg-green-400 p-4 mt-6 rounded-full">
+                <div class="flex justify-between items-center px-4">
+                    <ul class="flex text-white font-medium space-x-6">
+                        <li class="hover:text-green-100 cursor-pointer">Home</li>
+                        <li class="hover:text-green-100 cursor-pointer">About</li>
+                        <li class="hover:text-green-100 cursor-pointer">Contact</li>
+                    </ul>
+                    <div class="flex text-white font-medium space-x-6">
+                        <button type="button" class="hover:underline">Register</button>
+                        <button type="button"
+                            class="bg-white text-green-500 px-4 py-1 rounded-full font-bold">Login</button>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </section>
 </body>
+<!--  npx @tailwindcss/cli -i ./UTrade_app/static/UTrade_app/css/src.css -o ./UTrade_app/static/UTrade_app/css/landingpage.css --watch -->
+
 </html>

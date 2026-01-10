@@ -32,12 +32,14 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'UTrade_app.middleware.CustomUniMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -80,7 +82,7 @@ TIME_INPUT_FORMATS = [
 
 DATE_FORMAT = "Y/M/d"
 
-LOGOUT_REDIRECT_URL = 'landing_page'
+LOGOUT_REDIRECT_URL = 'landingpage'
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 

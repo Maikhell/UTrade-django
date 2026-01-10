@@ -1,5 +1,13 @@
 from django.db import models
+from django.contrib.auth import get_user_model
+from django.conf import settings
 
+User = get_user_model()
+class UserProfile(models.Model):
+    user = models.OneToOneField( settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='Profile')
+    user_image = models.ImageField(upload_to='user_images/', blank=True, null= True)
+    user_number = models.IntegerField(verbose_name='Contact')
+    
 class Products(models.Model):
     product_name = models.CharField(max_length=255, verbose_name='Name')
     product_description = models.TextField(blank=True, null=True, verbose_name='Description')

@@ -1,0 +1,52 @@
+{% load static %}
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{% static 'UTrade_app/css/style.css' %}" />
+    <link rel="icon" type="image/x-icon" href="{% static 'UTrade_app/img/U.png' %}" />
+    <title>
+      {% block title %}
+        My Site
+      {% endblock %}
+    </title>
+  </head>
+  <body>
+    {% with url_name=request.resolver_match.url_name %}
+<nav class="p-4 transition-all duration-300 
+  {% if url_name == 'user.login' or url_name == 'user.register' %} bg-white shadow-md {% else %} bg-green-400 {% endif %}">
+  
+  <div class="flex justify-between items-center px-4">
+    <ul class="flex font-medium space-x-6 
+      {% if url_name == 'user.login' or url_name == 'user.register' %} text-green-500 {% else %} text-white {% endif %}">
+      <li class="hover:opacity-70 cursor-pointer">Home</li>
+      <li class="hover:opacity-70 cursor-pointer">About</li>
+    </ul>
+
+    <div class="flex font-medium space-x-2">
+      <a href="{% url 'user.register' %}" 
+         class="px-3 py-2 rounded-lg transition
+         {% if url_name == 'user.login' or url_name == 'user.register' %} text-green-600 hover:bg-green-50 {% else %} text-white hover:bg-green-500 {% endif %}">
+         Register
+      </a>
+      <a href="{% url 'user.login' %}" 
+         class="px-3 py-2 rounded-lg transition
+         {% if url_name == 'user.login' or url_name == 'user.register' %} text-green-600 hover:bg-green-50 {% else %} text-white hover:bg-green-500 {% endif %}">
+         Login
+      </a>
+    </div>
+  </div>
+</nav>
+{% endwith %}
+    <main>
+      {% block content %}
+
+      {% endblock %}
+    </main>
+
+    <footer>
+      <p>© 2026 My Website</p>
+    </footer>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </body>
+</html>

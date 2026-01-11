@@ -7,7 +7,7 @@ from ..forms import UserRegistrationForm
 class UserCreateView(CreateView):
     model = User 
     form_class = UserRegistrationForm
-    template_name = 'UTrade_app/register.html'
+    template_name = 'UTrade_app/users/account/register.html'
     success_url = reverse_lazy('product.show')
     
     def form_valid(self,form):

@@ -1,4 +1,7 @@
 from django.shortcuts import redirect, render
+from django.contrib.auth.views import LoginView
 
-def user_login(request):
-    next_url = request.GET.get('products.show')
+
+class Login(LoginView):
+    template_name = 'UTrade_app/users/account/login.html'
+    

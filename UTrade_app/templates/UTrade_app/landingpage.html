@@ -1,32 +1,6 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="{% static 'UTrade_app/css/style.css' %}" />
-    <link rel="icon" type="image/x-icon" href="{% static 'UTrade_app/img/U.png' %}" />
-    <title>Landing Page</title>
-  </head>
+{% extends "UTrade_app/base.html" %}
+{% block title %}Landing Page{% endblock %}
+{% block content %}
 
-  <body class="bg-green-50">
-    <section>
-      <div class="container justify-self-center text-lg">
-        <nav class="bg-green-400 p-4 mt-6 rounded-full">
-          <div class="flex justify-between items-center px-4">
-            <ul class="flex text-white font-medium space-x-6">
-              <li class="hover:text-green-100 cursor-pointer">Home</li>
-              <li class="hover:text-green-100 cursor-pointer">About</li>
-              <li class="hover:text-green-100 cursor-pointer">Contact</li>
-            </ul>
-            <div class="flex text-white font-medium space-x-6">
-              <a href="{% url 'user.register' %}" class="inline-block px-4 py-2 bg-blue-500 text-white rounded hover:underline">Register</a>
-              <a href="{% url 'user.login' %}" class="inline-block px-4 py-2 bg-blue-500 text-white rounded hover:underline">Login</a>
-            </div>
-          </div>
-        </nav>
-      </div>
-    </section>
-  </body>
+{% endblock %}
   <!-- npx @tailwindcss/cli -i ./UTrade_app/static/UTrade_app/css/src.css -o ./UTrade_app/static/UTrade_app/css/landingpage.css --watch  -->
-</html>

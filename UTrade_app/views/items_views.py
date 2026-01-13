@@ -7,12 +7,7 @@ def landing_page(request):
 
 class ProductCreateView(CreateView):
     form_class = ProductForm
-    template_name = 'Utrade_app/listproduct.html'
-    
-    def form_valid(self, form):
-        form.instance.owner = self.request.user
-        return super().form_valid(form)
-    
+    template_name = 'Utrade_app/products/actions/addproduct.html'
     
 class ProductListView(ListView):
     model = Products

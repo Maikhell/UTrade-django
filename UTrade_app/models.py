@@ -15,6 +15,6 @@ class Products(models.Model):
     product_quantity = models.IntegerField(verbose_name= 'Quantity')
     product_rating = models.DecimalField(max_digits = 3, decimal_places=2, verbose_name='Rating')
     product_image = models.ImageField(upload_to= 'products_images/', blank= True ,null= True, verbose_name='Image')
-    
 
-
+    def __str__(self):
+        return self.product_name

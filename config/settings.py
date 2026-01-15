@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'UTrade_app',
 ]
+AUTH_USER_MODEL = 'UTrade_app.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

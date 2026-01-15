@@ -1,13 +1,18 @@
 from django.db import models
-from django.contrib.auth import get_user_model
-from django.conf import settings
+from django.contrib.auth.models import AbstractUser
+from django.core.validators import RegexValidator
 
-User = get_user_model()
-class UserProfile(models.Model):
-    user = models.OneToOneField( settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='Profile')
+class User(AbstractUser):
+    student_no = models.CharField(max_length=20, unique=True, validators=[RegexValidator(r'^\d+$', message = "Studen number must be numeric")]
+    )
+    USERNAME_FIELD = 'student_no'
+    username = models.CharField(max_length=150,blank=True, unique=True, null=True)
+    email = models.EmailField(blank=True, null=True)
     user_image = models.ImageField(upload_to='user_images/', blank=True, null= True)
-    user_number = models.IntegerField(verbose_name='Contact')
-    
+    user_number = models.IntegerField(blank=True, null=True, verbose_name='Contact')
+    def __str__(self):
+       return str(self.username) if self.username else str(self.student_no)
+   
 class Products(models.Model):
     product_name = models.CharField(max_length=255, verbose_name='Name')
     product_description = models.TextField(blank=True, null=True, verbose_name='Description')
@@ -15,6 +20,6 @@ class Products(models.Model):
     product_quantity = models.IntegerField(verbose_name= 'Quantity')
     product_rating = models.DecimalField(max_digits = 3, decimal_places=2, verbose_name='Rating')
     product_image = models.ImageField(upload_to= 'products_images/', blank= True ,null= True, verbose_name='Image')
-
+    
     def __str__(self):
         return self.product_name

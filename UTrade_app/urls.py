@@ -6,6 +6,7 @@ urlpatterns = [
      path('register/', user_views.UserCreateView.as_view(), name = 'user.register'),
      path('login/', authenticate.Login.as_view(), name = 'user.login'),
      
-     path('browse/', items_views.ProductListView.as_view(), name = 'product.show'),
-     path('addproduct/', items_views.ProductCreateView.as_view(), name = 'product.create')
+     path('browse/', items_views.ProductListView.as_view(), name = 'product.list'),
+     path('addproduct/', items_views.ProductCreateView.as_view(), name = 'product.create'),
+     
 ]

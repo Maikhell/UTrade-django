@@ -83,6 +83,7 @@ TIME_INPUT_FORMATS = [
 
 DATE_FORMAT = "Y/M/d"
 
+LOGIN_REDIRECT_URL = 'product.list'
 LOGOUT_REDIRECT_URL = 'landingpage'
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

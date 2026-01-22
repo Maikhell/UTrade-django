@@ -1,6 +1,6 @@
 from django import forms
 from .models import Products, User
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm , AuthenticationForm
 
 class ProductForm(forms.ModelForm):
     class Meta:
@@ -28,8 +28,21 @@ class UserRegistrationForm(UserCreationForm):
             raise forms.ValidationError("Student number is required.")
         return student_no
     
+    
+class UserLoginForm(AuthenticationForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # update the label so the user knows to enter their Student No
+        self.fields['username'].label = "Student Number"
+        self.fields['username'].widget.attrs.update({
+            'placeholder': 'Enter Student Number'
+        })
+    
+    
 class UserAccountForm(forms.ModelForm):
     class Meta:
         model = User
         fields = ['student_no']
+
+
         

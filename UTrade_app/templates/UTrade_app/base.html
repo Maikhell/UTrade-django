@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="{% static 'UTrade_app/css/style.css' %}" />
+    <link rel="stylesheet" href="{% static 'UTrade_app/css/style.css' %}?v=1" />
     <link rel="icon" type="image/x-icon" href="{% static 'UTrade_app/img/U.png' %}" />
     <title>
       {% block title %}
@@ -13,31 +13,61 @@
   </head>
   <body>
     {% with url_name=request.resolver_match.url_name %}
-<nav class="p-4 transition-all duration-300 
-  {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' %} bg-white shadow-md {% else %} bg-green-400 {% endif %}">
-  
-  <div class="flex justify-between items-center px-4">
-    <ul class="flex font-medium space-x-6 
-      {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' %} text-green-500 {% else %} text-white {% endif %}">
-      <li class="hover:opacity-70 cursor-pointer">Home</li>
-      <li class="hover:opacity-70 cursor-pointer">About</li>
-    </ul>
+      <nav class="p-4 transition-all duration-300 
+  {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' %}
+           bg-white shadow-md
+        {% else %}
+           bg-green-400
+        {% endif %}">
+        <div class="flex justify-between items-center px-4">
+          <ul class="flex font-medium space-x-6 
+      {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' %}
+               text-green-500
+            {% else %}
+               text-white
+            {% endif %}">
+            <li class="hover:opacity-70 cursor-pointer">Home</li>
+            <li class="hover:opacity-70 cursor-pointer">About</li>
+          </ul>
 
-    <div class="flex font-medium space-x-2">
-      <a href="{% url 'user.register' %}" 
-         class="px-3 py-2 rounded-lg transition
-         {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' %} text-green-600 hover:bg-green-50 {% else %} text-white hover:bg-green-500 {% endif %}">
-         Register
-      </a>
-      <a href="{% url 'user.login' %}" 
-         class="px-3 py-2 rounded-lg transition
-         {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' %} text-green-600 hover:bg-green-50 {% else %} text-white hover:bg-green-500 {% endif %}">
-         Login
-      </a>
-    </div>
-  </div>
-</nav>
-{% endwith %}
+          <div class="flex font-medium space-x-2">
+            {% if user.is_authenticated %}
+              <form action="{% url 'user.logout' %}" method="post" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit"
+                  class="px-3 py-2 rounded-lg transition
+              {% if url_name == 'product.create' %}
+                     text-green-600 hover:bg-green-50
+                  {% else %}
+                     text-white hover:bg-green-500
+                  {% endif %}">
+                  Logout
+                </button>
+              </form>
+            {% else %}
+              <a href="{% url 'user.register' %}"
+                class="px-3 py-2 rounded-lg transition
+       {% if url_name == 'user.login' or url_name == 'user.register' %}
+                   text-green-600 hover:bg-green-50
+                {% else %}
+                   text-white hover:bg-green-500
+                {% endif %}">
+                Register
+              </a>
+              <a href="{% url 'user.login' %}"
+                class="px-3 py-2 rounded-lg transition
+       {% if url_name == 'user.login' or url_name == 'user.register' %}
+                   text-green-600 hover:bg-green-50
+                {% else %}
+                   text-white hover:bg-green-500
+                {% endif %}">
+                Login
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </nav>
+    {% endwith %}
     <main>
       {% block content %}
 
@@ -47,6 +77,5 @@
     <footer>
       <p>© 2026 My Website</p>
     </footer>
-    <script src="https://cdn.tailwindcss.com"></script>
   </body>
 </html>

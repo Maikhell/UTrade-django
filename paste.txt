@@ -1,0 +1,1 @@
+npx tailwindcss -i ./UTrade_app/static/UTrade_app/css/src.css -o ./UTrade_app/static/UTrade_app/css/style.css --watch

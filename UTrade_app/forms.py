@@ -10,8 +10,8 @@ class ProductForm(forms.ModelForm):
             'product_description',
             'product_price',
             'product_quantity',
-            'product_rating',
             'product_image',
+            'product_category',
         ]
         widgets = {
             'product_description': forms.Textarea(attrs={'cols': 80, 'rows': 5})

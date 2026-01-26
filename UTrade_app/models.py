@@ -33,6 +33,8 @@ class Products(models.Model):
         ('Rejected', 'Rejected'),
     ]
     product_status = models.CharField(max_length=120, verbose_name='Status', choices=STATUS_CHOICES, default='Pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
         return self.product_name

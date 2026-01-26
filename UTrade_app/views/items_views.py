@@ -27,5 +27,11 @@ class ProductCreateView(CreateView):
 class ProductListView(ListView):
     model = Products
     template_name = 'UTrade_app/homepage.html'
-    
-    
+    context_object_name = 'products'
+    def get_queryset(self):
+        queryset = Products.objects.filter(product_status = 'Pending').order_by('-created_at')
+        return queryset
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
+    #     context ['']
+    #     return context    

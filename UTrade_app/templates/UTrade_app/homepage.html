@@ -1,47 +1,71 @@
 {% extends 'UTrade_app/base.html' %}
 
-{% block title %} Browse Items {% endblock %}
+{% block title %}
+  Browse Items
+{% endblock %}
 
 {% block content %}
-<div class="bg-gray-50 min-h-screen py-10">
-  <div class="max-w-7xl mx-auto px-4">
-    
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-gray-900">Available Items</h1>
-      <div class="h-1 w-12 bg-green-500 mt-2"></div>
-    </div>
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      
-      {% for product in products %}
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col group hover:shadow-md transition-shadow">
-        
-        <div class="h-56 w-full overflow-hidden bg-gray-200">
-          {% if product.image %}
-            <img src="{{ product.image.url }}" alt="{{ product.product_name }}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
-          {% else %}
-            <div class="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
-          {% endif %}
-        </div>
-
-        <div class="p-5 flex flex-col flex-grow">
-          <span class="text-xs font-semibold text-green-600 uppercase tracking-wider mb-1">{{ product.product_category }}</span>
-          <h3 class="text-lg font-bold text-gray-900 mb-2 truncate">{{ product.product_name }}</h3>
-          
-          <div class="mt-auto flex items-center justify-between pt-4">
-            <span class="text-xl font-black text-gray-900">₱{{ product.product_price }}</span>
-            <a href="" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors">
-              View Item
-            </a>
-          </div>
-        </div>
-
+  <div class="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8 dark:bg-gray-100">
+    <div class="max-w-7xl mx-auto">
+      <div class="mb-10">
+        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-green-600 tracking-tight">Categories</h1>
+        <div class="h-1.5 w-16 bg-green-500 mt-2 rounded-full"></div>
       </div>
-      {% empty %}
-      <p class="col-span-full text-center text-gray-500 py-10">No items found.</p>
-      {% endfor %}
 
+      <div class="mb-10">
+        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-green-600 tracking-tight">Marketplace</h1>
+        <div class="h-1.5 w-16 bg-green-500 mt-2 rounded-full"></div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        {% for product in products %}
+          <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border border-gray-100 dark:border-slate-700 flex flex-col">
+            <div class="relative group h-56 overflow-hidden bg-gray-200">
+              <a href="">
+                {% if product.product_image %}
+                  <img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="{{ product.image.url }}" alt="{{ product.name }}" />
+                {% else %}
+                  <div class="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
+                {% endif %}
+              </a>
+
+              <div class="absolute top-3 right-3">
+                <span class="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider">{{ product.category|default:'New' }}</span>
+              </div>
+
+              <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span class="bg-white/90 text-gray-900 px-4 py-2 rounded-full text-sm font-semibold">Quick View</span>
+              </div>
+            </div>
+
+            <div class="p-5 flex flex-col flex-grow">
+              <div class="mb-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white truncate capitalize">{{ product.name }}</h2>
+                <p class="text-2xl font-black text-green-600 mt-1">₱{{ product.price }}</p>
+              </div>
+
+              <div class="space-y-2 mb-6 flex-grow">
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-500 dark:text-gray-400">Condition</span>
+                  <span class="font-medium text-gray-700 dark:text-gray-300">Pending</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                  <span class="text-gray-500 dark:text-gray-400">Listed</span>
+                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ product.created_at|date:'M d' }}</span>
+                </div>
+              </div>
+
+              <div class="mt-auto">
+                <a href="" class="block w-full text-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-green-100 dark:shadow-none">View More Details</a>
+              </div>
+            </div>
+          </div>
+        {% empty %}
+          <div class="col-span-full text-center py-20">
+            <p class="text-gray-400 text-lg italic">No products available at the moment.</p>
+          </div>
+        {% endfor %}
+      </div>
     </div>
   </div>
-</div>
 {% endblock %}

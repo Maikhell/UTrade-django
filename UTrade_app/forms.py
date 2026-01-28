@@ -6,15 +6,15 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model = Products
         fields = [
-            'product_name',
-            'product_description',
-            'product_price',
-            'product_quantity',
-            'product_image',
-            'product_category',
+            'name',
+            'description',
+            'price',
+            'stocks',
+            'image',
+            'category',
         ]
         widgets = {
-            'product_description': forms.Textarea(attrs={'cols': 80, 'rows': 5})
+            'description': forms.Textarea(attrs={'cols': 80, 'rows': 5})
         }
         
 class UserRegistrationForm(UserCreationForm):

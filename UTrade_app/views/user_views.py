@@ -1,4 +1,4 @@
-from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView
+from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
 from ..models import User
 from django.urls import reverse_lazy
 from django.contrib.auth import login
@@ -14,4 +14,7 @@ class UserCreateView(CreateView):
         user = form.save()
         login(self.request, user)
         return super().form_valid(form)
+    
+class UserAccountView(TemplateView):
+    template_name = 'UTrade_app/users/account/accounts.html'
     

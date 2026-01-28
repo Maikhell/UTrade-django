@@ -14,74 +14,47 @@
   <body>
     {% with url_name=request.resolver_match.url_name %}
       <nav class="p-4 transition-all duration-300 
-    {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' %} 
+    {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' or url_name == 'product.list' %} 
        bg-white shadow-md
-        {% else %}   
+        {% else %}      
        bg-green-400
         {% endif %}">
         <div class="flex justify-between items-center px-4">
           <ul class="flex font-medium space-x-6 
-        {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' %} 
+        {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' or url_name == 'product.list' %}
            text-green-500
             {% else %}
            text-white
             {% endif %}">
-            {% if url_name == 'product.list' %}
-              <li>
-                <a href="{% url 'product.create' %}" class="hover:opacity-70 transition-all">Add Products</a>
-              </li>
-              <li>
-                <a href="" class="hover:opacity-70 transition-all">My Account</a>
-              </li>
-            {% else %}
+            {% if url_name == 'landingpage' or url_name == 'user.login' or url_name == 'user.register' %}
               <li class="hover:opacity-70 cursor-pointer">Home</li>
               <li class="hover:opacity-70 cursor-pointer">About</li>
+              <li class="hover:opacity-70 cursor-pointer">Contact</li>
+              <li class="hover:opacity-70 cursor-pointer">
+                <a href="{% url 'user.login' %}" class="hover:opacity-70 transition-all">Login</a>
+              </li>
+              <li class="hover:opacity-70 cursor-pointer">
+                <a href="{% url 'user.register' %}" class="hover:opacity-70 transition-all">Register</a>
+              </li>
+            {% else %}
+              <li>
+                <a href="{% url 'product.list' %}" class="hover:opacity-70 transition-all">Browse</a>
+              </li>
+              {% comment %} <li>
+                <a href="{% url 'product.create' %}" class="hover:opacity-70 transition-all">Add Products</a>
+              </li> {% endcomment %}
+              <li>
+                <a href="{% url 'user.account' %}" class="hover:opacity-70 transition-all">Account</a>
+              </li>
             {% endif %}
           </ul>
-          <div class="flex font-medium space-x-2">
-            {% if user.is_authenticated %}
-              <form action="{% url 'user.logout' %}" method="post" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit"
-                  class="px-3 py-2 rounded-lg transition
-              {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' %}
-                 text-green-600 hover:bg-green-50
-                  {% else %}
-                 text-white hover:bg-green-500
-                  {% endif %}">
-                  Logout
-                </button>
-              </form>
-            {% else %}
-              <a href="{% url 'user.register' %}"
-                class="px-3 py-2 rounded-lg transition
-            {% if url_name == 'user.login' or url_name == 'user.register' %}                 
-               text-green-600 hover:bg-green-50
-                {% else %}   
-               text-white hover:bg-green-500
-                {% endif %}">
-                Register
-              </a>
-              <a href="{% url 'user.login' %}"
-                class="px-3 py-2 rounded-lg transition
-            {% if url_name == 'user.login' or url_name == 'user.register' %}    
-               text-green-600 hover:bg-green-50
-                {% else %}   
-               text-white hover:bg-green-500
-                {% endif %}">
-                Login
-              </a>
-            {% endif %}
-          </div>
         </div>
       </nav>
     {% endwith %}
     <main>
       {% block content %}
-
       {% endblock %}
     </main>
-
     <footer>
       <p>© 2026 My Website</p>
     </footer>

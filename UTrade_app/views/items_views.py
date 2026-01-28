@@ -18,7 +18,7 @@ class ProductCreateView(CreateView):
         return context
     def form_valid (self,form):
         self.object = form.save(commit=False)
-        self.object.product_status = 'Pending'
+        self.object.product_status = 'Approved'
         self.object.product_rating = 0.0
         self.object.owner = self.request.user
         self.object.save()
@@ -29,7 +29,7 @@ class ProductListView(ListView):
     template_name = 'UTrade_app/homepage.html'
     context_object_name = 'products'
     def get_queryset(self):
-        queryset = Products.objects.filter(product_status = 'Pending').order_by('-created_at')
+        queryset = Products.objects.filter(status = 'Approved').order_by('-created_at')
         return queryset
     # def get_context_data(self, **kwargs):
     #     context = super().get_context_data(**kwargs)

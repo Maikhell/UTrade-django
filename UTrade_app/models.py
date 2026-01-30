@@ -11,6 +11,7 @@ class User(AbstractUser):
     email = models.EmailField(blank=True, null=True)
     image = models.ImageField(upload_to='images/', blank=True, null= True)
     number = models.IntegerField(blank=True, null=True, verbose_name='contact')
+    status = models.CharField( null=True, blank=True,default='unverified')
     def __str__(self):
        return str(self.username) if self.username else str(self.student_no)
 

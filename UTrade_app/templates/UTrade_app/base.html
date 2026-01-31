@@ -1,62 +1,60 @@
 {% load static %}
+<!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="{% static 'UTrade_app/css/style.css' %}?v=1" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="icon" type="image/x-icon" href="{% static 'UTrade_app/img/U.png' %}" />
-    <title>
-      {% block title %}
-        My Site
-      {% endblock %}
-    </title>
-  </head>
-  <body>
+    <title>{% block title %}Base{% endblock %}</title>
+</head>
+<body>
     {% with url_name=request.resolver_match.url_name %}
-      <nav class="p-4 transition-all duration-300 
-    {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' or url_name == 'product.list' %} 
-       bg-white shadow-md
-        {% else %}      
-       bg-green-400
-        {% endif %}">
-        <div class="flex justify-between items-center px-4">
-          <ul class="flex font-medium space-x-6 
-        {% if url_name == 'user.login' or url_name == 'user.register' or url_name == 'product.create' or url_name == 'product.list' %}
-           text-green-500
-            {% else %}
-           text-white
-            {% endif %}">
-            {% if url_name == 'landingpage' or url_name == 'user.login' or url_name == 'user.register' %}
-              <li class="hover:opacity-70 cursor-pointer">Home</li>
-              <li class="hover:opacity-70 cursor-pointer">About</li>
-              <li class="hover:opacity-70 cursor-pointer">Contact</li>
-              <li class="hover:opacity-70 cursor-pointer">
-                <a href="{% url 'user.login' %}" class="hover:opacity-70 transition-all">Login</a>
-              </li>
-              <li class="hover:opacity-70 cursor-pointer">
-                <a href="{% url 'user.register' %}" class="hover:opacity-70 transition-all">Register</a>
-              </li>
-            {% else %}
-              <li>
-                <a href="{% url 'product.list' %}" class="hover:opacity-70 transition-all">Browse</a>
-              </li>
-              {% comment %} <li>
-                <a href="{% url 'product.create' %}" class="hover:opacity-70 transition-all">Add Products</a>
-              </li> {% endcomment %}
-              <li>
-                <a href="{% url 'user.account' %}" class="hover:opacity-70 transition-all">Account</a>
-              </li>
-            {% endif %}
-          </ul>
+    
+    <nav class="navbar navbar-expand-lg nav-transition py-3 bg-success navbar-dark"> 
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">UTrade</a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto fw-medium">
+                    {% if url_name == 'landingpage' or url_name == 'user.login' or url_name == 'user.register' %}
+                        <li class="nav-item"><a class="nav-link px-3" href="#">Home</a></li>
+                        <li class="nav-item"><a class="nav-link px-3" href="#">About</a></li>
+                        <li class="nav-item"><a class="nav-link px-3" href="#">Contact</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 {% if url_name == 'user.login' %}active {% endif %}" href="{% url 'user.login' %}">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 {% if url_name == 'user.register' %}active {% endif %}" href="{% url 'user.register' %}">Register</a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link px-3 {% if url_name == 'product.list' %}active{% endif %}" href="{% url 'product.list' %}">Browse</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link px-3 {% if url_name == 'user.account' %}active{% endif %}" href="{% url 'user.account' %}">Account</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
         </div>
-      </nav>
+    </nav>
     {% endwith %}
-    <main>
-      {% block content %}
-      {% endblock %}
+
+    <main class="container mt-4">
+        {% block content %}
+        {% endblock %}
     </main>
-    <footer>
-      <p>© 2026 My Website</p>
+
+    <footer class="container py-4 text-center border-top mt-5">
+        <p class="text-muted small">© 2026 My Website</p>
     </footer>
-  </body>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
 </html>

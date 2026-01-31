@@ -1,71 +1,121 @@
 {% extends 'UTrade_app/base.html' %}
+{% load static %}
 
 {% block title %}
   Browse Items
 {% endblock %}
 
 {% block content %}
-  <div class="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8 dark:bg-gray-100">
-    <div class="max-w-7xl mx-auto">
-      <div class="mb-10">
-        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-green-600 tracking-tight">Categories</h1>
-        <div class="h-1.5 w-16 bg-green-500 mt-2 rounded-full"></div>
-      </div>
+  <style>
+    /* Custom hover effects to match your Tailwind design */
+    .product-card {
+      transition: all 0.3s ease-in-out;
+      border: 1px solid #f1f1f1;
+      border-radius: 1.25rem;
+    }
+    .product-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.1) !important;
+    }
+    .category-line {
+      height: 6px;
+      width: 60px;
+      background-color: #198754;
+      border-radius: 50px;
+      margin-top: 8px;
+    }
+    .img-container {
+      height: 220px;
+      overflow: hidden;
+      position: relative;
+    }
+    .img-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+    .product-card:hover .img-container img {
+      transform: scale(1.1);
+    }
+    .quick-view-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .product-card:hover .quick-view-overlay {
+      opacity: 1;
+    }
+  </style>
 
-      <div class="mb-10">
-        <h1 class="text-3xl font-extrabold text-gray-900 dark:text-green-600 tracking-tight">Marketplace</h1>
-        <div class="h-1.5 w-16 bg-green-500 mt-2 rounded-full"></div>
-      </div>
+  <div class="container py-5">
+    <div class="mb-5">
+      <h1 class="fw-bolder text-dark mb-0">Categories</h1>
+      <div class="category-line"></div>
+    </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {% for product in products %}
-          <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 border border-gray-100 dark:border-slate-700 flex flex-col">
-            <div class="relative group h-56 overflow-hidden bg-gray-200">
-              <a href="">
-                {% if product.product_image %}
-                  <img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" src="{{ product.image.url }}" alt="{{ product.name }}" />
+    <div class="mb-5">
+      <h1 class="fw-bolder text-dark mb-0">Marketplace</h1>
+      <div class="category-line"></div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+      {% for product in products %}
+        <div class="col">
+          <div class="card h-100 shadow-sm product-card border-0 overflow-hidden">
+            <div class="img-container bg-light">
+              <a href="#">
+                {% if product.image %}
+                  <img src="{{ product.image.url }}" alt="{{ product.name }}" />
                 {% else %}
-                  <div class="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
+                  <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                    <i class="bi bi-image h1"></i>
+                  </div>
                 {% endif %}
               </a>
 
-              <div class="absolute top-3 right-3">
-                <span class="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider">{{ product.category|default:'New' }}</span>
+              <div class="position-absolute top-0 end-0 m-3">
+                <span class="badge rounded-pill bg-success px-3 py-2 text-uppercase fw-bold shadow-sm" style="font-size: 0.7rem; letter-spacing: 1px;">{{ product.category|default:'New' }}</span>
               </div>
 
-              <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span class="bg-white/90 text-gray-900 px-4 py-2 rounded-full text-sm font-semibold">Quick View</span>
+              <div class="quick-view-overlay">
+                <span class="btn btn-light btn-sm rounded-pill fw-bold px-3">Quick View</span>
               </div>
             </div>
 
-            <div class="p-5 flex flex-col flex-grow">
-              <div class="mb-4">
-                <h2 class="text-xl font-bold text-gray-900 dark:text-white truncate capitalize">{{ product.name }}</h2>
-                <p class="text-2xl font-black text-green-600 mt-1">₱{{ product.price }}</p>
+            <div class="card-body d-flex flex-column p-4">
+              <div class="mb-3">
+                <h5 class="card-title fw-bold text-dark text-truncate capitalize mb-1">{{ product.name }}</h5>
+                <p class="h4 fw-black text-success">₱{{ product.price }}</p>
               </div>
 
-              <div class="space-y-2 mb-6 flex-grow">
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-500 dark:text-gray-400">Condition</span>
-                  <span class="font-medium text-gray-700 dark:text-gray-300">Pending</span>
+              <div class="mt-2 mb-4 flex-grow-1">
+                <div class="d-flex justify-content-between small mb-2">
+                  <span class="text-muted">Condition</span>
+                  <span class="fw-semibold text-dark">Pending</span>
                 </div>
-                <div class="flex justify-between text-sm">
-                  <span class="text-gray-500 dark:text-gray-400">Listed</span>
-                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ product.created_at|date:'M d' }}</span>
+                <div class="d-flex justify-content-between small">
+                  <span class="text-muted">Listed</span>
+                  <span class="fw-semibold text-dark">{{ product.created_at|date:'M d' }}</span>
                 </div>
               </div>
-
               <div class="mt-auto">
-                <a href="" class="block w-full text-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition-colors shadow-lg shadow-green-100 dark:shadow-none">View More Details</a>
+                <a href="" class="btn btn-success w-100 fw-bold py-2 shadow-sm rounded-3">View More Details</a>
               </div>
             </div>
           </div>
-        {% empty %}
-          <div class="col-span-full text-center py-20">
-            <p class="text-gray-400 text-lg italic">No products available at the moment.</p>
-          </div>
-        {% endfor %}
-      </div>
+        </div>
+      {% empty %}
+        <div class="col-12 text-center py-5">
+          <i class="bi bi-bag-x display-1 text-light"></i>
+          <p class="text-muted fs-5 fst-italic mt-3">No products available at the moment.</p>
+        </div>
+      {% endfor %}
     </div>
   </div>
 {% endblock %}

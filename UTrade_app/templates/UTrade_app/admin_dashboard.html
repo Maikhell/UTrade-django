@@ -52,7 +52,6 @@
             <div>
               <h6 class="text-uppercase small fw-bold opacity-75">Verified Users</h6>
               <h2 class="fw-bold mb-0">{{ verified.count|default:'0' }}</h2>
-              {% comment %}Count the verified users{% endcomment %}
             </div>
             <i class="bi bi-person-check fs-1 opacity-50"></i>
           </div>
@@ -75,7 +74,6 @@
             <div>
               <h6 class="text-uppercase small fw-bold opacity-75">Admins</h6>
               <h2 class="fw-bold mb-0">{{ admin|default:"0" }}</h2>
-              {% comment %}Count the users with Admin role{% endcomment %}
             </div>
             <i class="bi bi-person-gear fs-1 opacity-50"></i>
           </div>

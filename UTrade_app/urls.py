@@ -7,6 +7,7 @@ urlpatterns = [
      path('login/', authenticate.Login.as_view(), name = 'user.login'),
      path('logout/', authenticate.Logout.as_view(), name = 'user.logout'),
      path('account/', user_views.UserAccountView.as_view(), name = 'user.account'),
+     path('userprofile/', user_views.UserProfileView.as_view(), name = 'user.profile'),
      
      #Admin
      path("admindashboard/", admin_views.AdminDashboard.as_view(), name="admin.dashboard"),

@@ -1,0 +1,101 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  Edit Profile
+{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/profile.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-10">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="row g-0">
+            <div class="col-md-4 bg-light border-end p-4 text-center">
+              <h6 class="fw-bold text-muted mb-4 text-uppercase small">Profile Photo</h6>
+              <div class="position-relative d-inline-block mb-3">
+                <img id="profile_preview"
+                  src="{% if user.image %}
+                    {{ user.image.url }}
+                  {% else %}
+                    {% static 'UTrade_app/img/default-user.png' %}
+                  {% endif %}"
+                  class="rounded-circle shadow-sm border border-4 border-white"
+                  style="width: 150px; height: 150px; object-fit: cover;" />
+
+                <label for="id_profile_picture" class="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 shadow"><i class="bi bi-camera"></i></label>
+              </div>
+              <p class="small text-muted">Click the camera icon to upload a new photo.</p>
+            </div>
+
+            <div class="col-md-8 p-4 p-md-5">
+              <h4 class="fw-bold mb-1">Account Settings</h4>
+              <p class="text-muted small mb-4">Update your university identity and contact information.</p>
+
+              <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <input type="file" name="image" id="id_profile_picture" class="d-none" onchange="previewAvatar(event)" />
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">First Name</label>
+                    <input type="text" name="first_name" class="form-control rounded-3" value="{{ user.first_name }}" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">Last Name</label>
+                    <input type="text" name="last_name" class="form-control rounded-3" value="{{ user.last_name }}" />
+                  </div>
+
+                  <div class="col-12">
+                    <label class="form-label small fw-bold text-secondary">Display Name (Public)</label>
+                    <input type="text" name="display_name" class="form-control rounded-3" value="{{ user.display_name }}" placeholder="How others see you..." />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">Student Number</label>
+                    <input type="text" name="student_no" class="form-control rounded-3" value="{{ user.student_no }}" placeholder="202X-XXXXX-XX" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">Contact Number</label>
+                    <input type="text" name="contact_number" class="form-control rounded-3" value="{{ user.contact_number }}" placeholder="09XXXXXXXXX" />
+                  </div>
+
+                  <div class="col-12">
+                    <label class="form-label small fw-bold text-secondary">Email Address</label>
+                    <input type="email" name="email" class="form-control rounded-3 bg-light" value="{{ user.email }}" readonly />
+                    <div class="form-text mt-1" style="font-size: 0.75rem;">University email cannot be changed.</div>
+                  </div>
+                  <div class="col-12">
+                    {% if user.status == 'unverified' %}
+                      <span class="badge bg-danger rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">{{ user.status }}</span>
+                    {% else %}
+                      <span class="badge bg-success rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">{{ user.status }}</span>
+                    {% endif %}
+                    {% if user.is_staff %}
+                      <span class="badge bg-info rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Admin</span>
+                    {% else %}
+
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="mt-5 d-flex gap-2">
+                  <button type="submit" class="btn btn-success px-4 fw-bold rounded-3">Save Changes</button>
+                  <a href="{% url 'user.profile' %}" class="btn btn-outline-secondary px-4 rounded-3">Cancel</a>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% block extra_js %}
+    <script src="{% static 'UTrade_app/js/profile.js' %}"></script>
+  {% endblock %}
+{% endblock %}

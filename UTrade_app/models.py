@@ -8,6 +8,7 @@ class User(AbstractUser):
     USERNAME_FIELD = 'student_no'
     REQUIRED_FIELDS = ['username', 'email']
     username = models.CharField(max_length=150,blank=True, unique=True, null=True)
+    display_name = models.CharField(max_length = 150, blank= True, unique = True, null = True)
     email = models.EmailField(blank=True, null=True)
     image = models.ImageField(upload_to='images/', blank=True, null= True)
     number = models.IntegerField(blank=True, null=True, verbose_name='contact')

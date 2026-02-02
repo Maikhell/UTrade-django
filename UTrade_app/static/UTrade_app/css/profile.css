@@ -1,0 +1,19 @@
+.rounded-4 { border-radius: 1rem !important; }
+
+.form-control:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.15);
+}
+
+#profile_preview {
+    transition: transform 0.3s ease;
+}
+
+#profile_preview:hover {
+    transform: scale(1.02);
+}
+
+.btn-dark:hover {
+    background-color: #198754;
+    border-color: #198754;
+}

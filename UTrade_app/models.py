@@ -40,6 +40,11 @@ class Products(models.Model):
     
     def __str__(self):
         return self.product_name
+    
+class ProductImage(models.Model):
+    product = models.ForeignKey(Products, related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='images/')
+    
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True )
     created_at = models.DateTimeField(auto_now_add=True)

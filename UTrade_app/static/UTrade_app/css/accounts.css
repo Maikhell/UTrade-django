@@ -1,0 +1,43 @@
+.rounded-4 {
+    border-radius: 1.5rem !important;
+}
+
+.profile-img-container {
+    width: 112px;
+    height: 112px;
+    position: relative;
+}
+
+.profile-img {
+    width: 112px;
+    height: 112px;
+    object-fit: cover;
+    border-radius: 1.25rem;
+}
+
+/* Card Hover Lift */
+.action-card {
+    transition: all 0.3s ease;
+    text-decoration: none;
+    border: 1px solid transparent;
+}
+
+.action-card:hover {
+    background-color: #fff !important;
+    transform: translateY(-5px);
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.08) !important;
+}
+
+.icon-box {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+}
+
+.action-card:hover .icon-box {
+    transform: scale(1.1);
+}

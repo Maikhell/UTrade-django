@@ -1,85 +1,69 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %} Register {% endblock %}
-
+{% block title %}
+  Register
+{% endblock %}
 {% block content %}
-<style>
-    /* Consistent custom styles from Login */
-    .glass-bg {
-        background: rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(8px);
-        border-radius: 50%;
-    }
-    .rounded-3xl { border-radius: 1.5rem !important; }
-    .btn-xl { border-radius: 0.75rem !important; padding: 0.75rem; }
-    .form-control-xl { border-radius: 0.75rem !important; padding: 0.75rem 1rem; border: 1px solid #dee2e6; }
-    .form-control-xl:focus { 
-        box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25); 
-        border-color: #198754; 
-    }
-</style>
-
-<section class="row g-0 min-vh-100 align-items-center bg-success">
-    
+  {% block extra_css %}
+    <link rel="stylesheet" href="{% static 'UTrade_app/css/register.css' %}" />
+  {% endblock %}
+  <section class="row g-0 min-vh-100 align-items-center bg-success">
     <div class="col-md-6 d-flex flex-column justify-content-center align-items-center p-5 text-center">
-        <div class="glass-bg p-4 mb-4">
-            <img src="{% static 'UTrade_app/img/U.png' %}" alt="Logo" class="img-fluid" style="max-width: 180px; filter: drop-shadow(0 10px 8px rgba(0,0,0,0.2));" />
-        </div>
-        <h1 class="display-4 fw-black text-white tracking-tight mb-0">UTRADE</h1>
-        <p class="text-dark opacity-75 fw-medium mt-2">Your gateway to smarter trading.</p>
+      <div class="glass-bg p-4 mb-4">
+        <img src="{% static 'UTrade_app/img/U.png' %}" alt="Logo" class="img-fluid" style="max-width: 180px; filter: drop-shadow(0 10px 8px rgba(0,0,0,0.2));" />
+      </div>
+      <h1 class="display-4 fw-black text-white tracking-tight mb-0">UTRADE</h1>
+      <p class="text-dark opacity-75 fw-medium mt-2">Your gateway to smarter trading.</p>
     </div>
 
     <div class="col-md-6 d-flex justify-content-center align-items-center p-4">
-        <div class="card border-0 shadow-lg p-4 p-md-5 rounded-3xl w-100" style="max-width: 480px;">
-            
-            <h2 class="fw-bold text-dark mb-1">Welcome</h2>
-            <p class="text-muted mb-4">Please enter your details to sign up.</p>
+      <div class="card border-0 shadow-lg p-4 p-md-5 rounded-3xl w-100" style="max-width: 480px;">
+        <h2 class="fw-bold text-dark mb-1">Welcome</h2>
+        <p class="text-muted mb-4">Please enter your details to sign up.</p>
 
-            {% if form.errors %}
-                <div class="alert alert-danger rounded-3 small py-2">
-                    <ul class="mb-0 ps-3">
-                        {% for field, errors in form.errors.items %}
-                            {% for error in errors %}
-                                <li>{{ error }}</li>
-                            {% endfor %}
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endif %}
+        {% if form.errors %}
+          <div class="alert alert-danger rounded-3 small py-2">
+            <ul class="mb-0 ps-3">
+              {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                  <li>{{ error }}</li>
+                {% endfor %}
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
 
-            <form method="post" action="{% url 'user.register' %}">
-                {% csrf_token %}
+        <form method="post" action="{% url 'user.register' %}">
+          {% csrf_token %}
 
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-secondary">Student No</label>
-                    <input type="text" name="student_no" placeholder="000000000" class="form-control form-control-xl bg-light" required />
-                </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-secondary">Student No</label>
+            <input type="text" name="student_no" placeholder="000000000" class="form-control form-control-xl bg-light" required />
+          </div>
 
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-secondary">Email</label>
-                    <input type="email" name="email" placeholder="johndoe@gmail.com" class="form-control form-control-xl bg-light" required />
-                </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-secondary">Email</label>
+            <input type="email" name="email" placeholder="johndoe@gmail.com" class="form-control form-control-xl bg-light" required />
+          </div>
 
-                <div class="mb-3">
-                    <label class="form-label small fw-bold text-secondary">Password</label>
-                    <input type="password" name="password1" placeholder="••••••••" class="form-control form-control-xl bg-light" required />
-                </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-secondary">Password</label>
+            <input type="password" name="password1" placeholder="••••••••" class="form-control form-control-xl bg-light" required />
+          </div>
 
-                <div class="mb-4">
-                    <label class="form-label small fw-bold text-secondary">Confirm Password</label>
-                    <input type="password" name="password2" placeholder="••••••••" class="form-control form-control-xl bg-light" required />
-                </div>
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-secondary">Confirm Password</label>
+            <input type="password" name="password2" placeholder="••••••••" class="form-control form-control-xl bg-light" required />
+          </div>
 
-                <button type="submit" class="btn btn-success w-100 fw-bold btn-xl shadow-sm">
-                    Sign Up
-                </button>
-            </form>
+          <button type="submit" class="btn btn-success w-100 fw-bold btn-xl shadow-sm">Sign Up</button>
+        </form>
 
-            <p class="text-center text-muted mt-5 mb-0">
-                Already have an account? <a href="{% url 'user.login' %}" class="text-success fw-bold text-decoration-none">Login</a>
-            </p>
-        </div>
+        <p class="text-center text-muted mt-5 mb-0">
+          Already have an account? <a href="{% url 'user.login' %}" class="text-success fw-bold text-decoration-none">Login</a>
+        </p>
+      </div>
     </div>
-</section>
+  </section>
 {% endblock %}

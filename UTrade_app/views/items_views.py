@@ -26,7 +26,7 @@ class ProductCreateView(CreateView):
     
 class ProductListView(ListView):
     model = Products
-    template_name = 'UTrade_app/homepage.html'
+    template_name = 'UTrade_app/marketplace.html'
     context_object_name = 'products'
 
     def get_queryset(self):

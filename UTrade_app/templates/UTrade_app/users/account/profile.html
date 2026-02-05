@@ -4,12 +4,10 @@
 {% block title %}
   Edit Profile
 {% endblock %}
-
-{% block extra_css %}
-  <link rel="stylesheet" href="{% static 'UTrade_app/css/profile.css' %}" />
-{% endblock %}
-
 {% block content %}
+  {% block extra_css %}
+    <link rel="stylesheet" href="{% static 'UTrade_app/css/profile.css' %}" />
+  {% endblock %}
   <div>
     <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
   </div>

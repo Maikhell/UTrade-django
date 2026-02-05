@@ -1,0 +1,66 @@
+.product-card {
+    transition: all 0.3s ease-in-out;
+    border: 1px solid #f1f1f1;
+    border-radius: 1.25rem;
+}
+
+.product-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.1) !important;
+}
+
+.category-line {
+    height: 6px;
+    width: 60px;
+    background-color: #198754;
+    border-radius: 50px;
+    margin-top: 8px;
+}
+
+.img-container {
+    height: 220px;
+    overflow: hidden;
+    position: relative;
+}
+
+.img-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.product-card:hover .img-container img {
+    transform: scale(1.1);
+}
+
+.quick-view-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.product-card:hover .quick-view-overlay {
+    opacity: 1;
+}
+
+.category-pill {
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    text-decoration: none !important;
+}
+
+.category-pill:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.active-filter {
+    background-color: #0d6efd !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}

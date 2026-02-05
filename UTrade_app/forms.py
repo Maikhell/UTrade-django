@@ -1,5 +1,5 @@
 from django import forms
-from .models import Products, User
+from .models import Products, User, Services
 from django.contrib.auth.forms import UserCreationForm , AuthenticationForm
 
 class ProductForm(forms.ModelForm):
@@ -12,9 +12,17 @@ class ProductForm(forms.ModelForm):
             'stocks',
             'image',
             'category',
+            
         ]
         widgets = {
             'description': forms.Textarea(attrs={'cols': 80, 'rows': 5})
+        }
+class ServiceForm(forms.ModelForm):
+    class Meta:
+        model = Services
+        fields = ['turnaround_time']
+        widgets = {
+            'turnaround_time': forms.TextInput(attrs={'placeholder': '3-5 days'}),
         }
         
 class UserRegistrationForm(UserCreationForm):

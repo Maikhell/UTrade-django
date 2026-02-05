@@ -1,19 +1,17 @@
 from django.shortcuts import render,redirect
 from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView
-from ..forms import ProductForm
-from ..models import Products, Category
-def landing_page(request):
-    return render(request, 'UTrade_app/landingpage.html')
+from ..forms import ServiceForm
+from ..models import Services, ServiceCategory
 
-class ProductCreateView(CreateView):
-    form_class = ProductForm
-    template_name = 'Utrade_app/products/actions/addproduct.html'
-    success_url = reverse_lazy ('product.list')
+class ServiceCreateView(CreateView):
+    form_class = ServiceForm
+    template_name = 'Utrade_app/products/actions/services.html'
+    success_url = reverse_lazy ('service.list')
     
     def get_context_data(self, **kwargs):
         context  = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.all()
+        context['categories'] = ServiceCategory.objects.all()
         
         return context
     def form_valid (self,form):
@@ -24,13 +22,13 @@ class ProductCreateView(CreateView):
         self.object.save()
         return super().form_valid(form)
     
-class ProductListView(ListView):
-    model = Products
+class ServiceListView(ListView):
+    model = Services
     template_name = 'UTrade_app/homepage.html'
-    context_object_name = 'products'
+    context_object_name = 'service'
 
     def get_queryset(self):
-        queryset = Products.objects.filter(status='Approved').order_by('-created_at')
+        queryset = Services.objects.filter(status='Approved').order_by('-created_at')
         category_id = self.request.GET.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -38,5 +36,5 @@ class ProductListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.all()
+        context['categories'] = ServiceCategory.objects.all()
         return context

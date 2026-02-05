@@ -8,6 +8,9 @@
   {% block extra_css %}
     <link rel="stylesheet" href="{% static 'UTrade_app/css/workshop.css' %}" />
   {% endblock %}
+  <div class="container mb-2">
+    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
+  </div>
   <div class="container-fluid py-4 workshop-container">
     <div class="row g-4">
       <div class="col-lg-3">

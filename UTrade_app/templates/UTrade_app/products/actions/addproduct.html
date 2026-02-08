@@ -15,7 +15,7 @@
     <div class="row g-4">
       <div class="col-lg-3">
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <h6 class="fw-bold text-uppercase small text-muted mb-3"><i class="bi bi-images me-2"></i>1. Product Gallery</h6>
+          <h6 class="fw-bold text-uppercase small text-muted mb-3"><i class="bi bi-images me-2"></i>1. Product Gallery <i class="bi bi-info-circle ms-2 text-muted" data-bs-toggle="tooltip" data-bs-placement="top" title="The first image you select will automatically become your product's cover photo."></i></h6>
 
           <div class="mb-3">
             <label class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill"><i class="bi bi-plus-lg me-1"></i> Select Photos<input type="file" id="image_input" class="d-none" accept="image/*" multiple onchange="previewMultipleImages(event)" /></label>
@@ -35,6 +35,7 @@
           <h5 class="fw-bold mb-4">2. Product Details</h5>
 
           <form id="product_form">
+            {% csrf_token %}
             <div class="mb-3">
               <label class="form-label small fw-bold text-secondary">Product Name</label>
               <input type="text" id="name" class="form-control bg-light border-0 py-2" placeholder="e.g. Mechanical Keyboard" />

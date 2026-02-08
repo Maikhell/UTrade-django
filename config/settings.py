@@ -31,9 +31,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'UTrade_app.middleware.CustomUniMiddleware',
+    'UTrade_app.middleware.LoginRequiredMiddleware',
 ]
-
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [

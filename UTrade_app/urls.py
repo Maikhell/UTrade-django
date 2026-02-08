@@ -16,6 +16,6 @@ urlpatterns = [
      path('browse/', items_views.ProductListView.as_view(), name = 'product.list'),
      path('addproduct/', items_views.ProductCreateView.as_view(), name = 'product.create'),
      #Services
-     path('addservices/', services_views.ServiceCreateView.as_view(), name = 'service.create'),
+     path('addservices/', services_views.ServiceCreateView.as_view(), name = 'services.create'),
      path('services/', services_views.ServiceListView.as_view(), name = 'services.list'),
 ]

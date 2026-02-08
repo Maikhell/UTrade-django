@@ -1,0 +1,198 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %} Service Workshop {% endblock %}
+
+{% block content %}
+  {% block extra_css %}
+    <link rel="stylesheet" href="{% static 'UTrade_app/css/workshop.css' %}" />
+  {% endblock %}
+
+  <div class="container mb-2">
+    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4">
+      <i class="bi bi-arrow-left me-2"></i>Back to Account
+    </a>
+  </div>
+
+  <div class="container-fluid py-4 workshop-container">
+    <div class="row g-4">
+      
+      <div class="col-lg-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+          <h6 class="fw-bold text-uppercase small text-muted mb-3">
+            <i class="bi bi-palette me-2"></i>1. Service Samples
+          </h6>
+
+          <div class="mb-3">
+            <label class="btn btn-outline-primary btn-sm w-100 fw-bold rounded-pill">
+              <i class="bi bi-plus-lg me-1"></i> Upload Portfolio
+              <input type="file" id="image_input" class="d-none" accept="image/*" multiple onchange="previewMultipleImages(event)" />
+            </label>
+          </div>
+
+          <div id="image_preview_container" class="image-preview-grid column-scroll">
+            <div class="text-center py-5 text-muted small w-100" style="grid-column: span 2;">
+              <i class="bi bi-cloud-arrow-up display-6 d-block mb-2"></i>
+              Showcase your best work
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card border-0 shadow-lg rounded-4 p-4 h-100">
+          <h5 class="fw-bold mb-4">2. Service Details</h5>
+
+          <form id="product_form"> <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Service Title</label>
+              <input type="text" id="name" class="form-control bg-light border-0 py-2" placeholder="e.g. Digital Portrait Commission" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Description & Terms</label>
+              <textarea id="description" rows="3" class="form-control bg-light border-0" placeholder="Describe your service, inclusions, and limitations..."></textarea>
+            </div>
+
+            <label class="form-label small fw-bold text-secondary">Customization Options</label>
+            <div class="d-flex gap-2 mb-4">
+              <button type="button" class="btn btn-outline-dark btn-sm flex-grow-1 py-2 rounded-3" data-bs-toggle="modal" data-bs-target="#sizeModal"><i class="bi bi-aspect-ratio me-1"></i> Formats</button>
+              <button type="button" class="btn btn-outline-dark btn-sm flex-grow-1 py-2 rounded-3" data-bs-toggle="modal" data-bs-target="#varietyModal"><i class="bi bi-layers me-1"></i> Add-ons</button>
+              <button type="button" class="btn btn-outline-dark btn-sm flex-grow-1 py-2 rounded-3" data-bs-toggle="modal" data-bs-target="#colorModal"><i class="bi bi-brush me-1"></i> Styles</button>
+            </div>
+
+            <div id="attribute_pills" class="mb-3 d-flex flex-wrap gap-1"></div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-4">
+                <label class="form-label small fw-bold text-secondary">Base Price (₱)</label>
+                <input type="number" id="price" class="form-control bg-light border-0" placeholder="0.00" />
+              </div>
+              <div class="col-4">
+                <label class="form-label small fw-bold text-secondary">Daily Slots</label>
+                <input type="number" id="stocks" class="form-control bg-light border-0" placeholder="Max" />
+              </div>
+              <div class="col-4">
+                <label class="form-label small fw-bold text-secondary">Category</label>
+                <select id="category" class="form-select bg-light border-0">
+                  {% for category in categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label small fw-bold text-secondary">Delivery Method</label>
+                <select id="condition" class="form-select bg-light border-0">
+                  <option>Digital Only</option>
+                  <option>Physical Delivery</option>
+                  <option>On-Site Service</option>
+                  <option>Labor/Gig</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold text-secondary">Lead Time</label>
+                <select id="meetup" class="form-select bg-light border-0">
+                  <option>Same Day</option>
+                  <option>1-3 Days</option>
+                  <option>1 Week</option>
+                  <option>Flexible</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label small fw-bold text-secondary d-block">Downpayment Method</label>
+              <div class="btn-group w-100">
+                <input type="radio" class="btn-check" name="payment" id="p_cash" value="Cash" checked />
+                <label class="btn btn-outline-success" for="p_cash">Cash</label>
+                <input type="radio" class="btn-check" name="payment" id="p_gcash" value="GCash" />
+                <label class="btn btn-outline-primary" for="p_gcash">GCash</label>
+                <input type="radio" class="btn-check" name="payment" id="p_both" value="Both" />
+                <label class="btn btn-outline-secondary" for="p_both">Both</label>
+              </div>
+            </div>
+
+            <button type="button" onclick="addToStaging()" class="btn btn-primary w-100 py-3 fw-bold rounded-3 shadow">List Service</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold text-uppercase small text-muted mb-0">3. Services to Publish</h6>
+            <span id="item_count" class="badge bg-primary rounded-pill">0</span>
+          </div>
+
+          <div id="staging_area" class="column-scroll mb-3">
+            <div class="text-center py-5 text-muted empty-msg">No services staged.</div>
+          </div>
+
+          <div class="mt-auto">
+            <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">Submit for Approval</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="sizeModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h6 class="fw-bold mb-0">Add Formats</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="input-group mb-2">
+            <input type="text" id="size_input" class="form-control" placeholder="e.g. .PNG, .PDF, A4" />
+            <button class="btn btn-primary" onclick="addTag('size')">Add</button>
+          </div>
+          <div id="size_tags" class="d-flex flex-wrap gap-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="varietyModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h6 class="fw-bold mb-0">Add-ons</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="input-group mb-2">
+            <input type="text" id="variety_input" class="form-control" placeholder="e.g. Extra Figure, Rush" />
+            <button class="btn btn-dark" onclick="addTag('variety')">Add</button>
+          </div>
+          <div id="variety_tags" class="d-flex flex-wrap gap-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="colorModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h6 class="fw-bold mb-0">Themes/Styles</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="input-group mb-2">
+            <input type="text" id="color_input" class="form-control" placeholder="e.g. Anime, Minimalist" />
+            <button class="btn btn-dark" onclick="addTag('color')">Add</button>
+          </div>
+          <div id="color_tags" class="d-flex flex-wrap gap-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% block extra_js %}
+    <script src="{% static 'UTrade_app/js/services.js' %}"></script>
+  {% endblock %}
+{% endblock %}

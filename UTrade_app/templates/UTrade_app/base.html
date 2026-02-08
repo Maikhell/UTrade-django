@@ -54,6 +54,21 @@
           </div>
         </div>
       </nav>
+      {% if url_name == 'product.list' or url_name == 'services.list' %}
+        <div class="d-flex justify-content-end mt-2 me-2">
+          <ul class="nav flex-row bg-success rounded-pill p-1 shadow-sm d-inline-flex">
+            <li class="nav-item">
+              <a class="nav-link px-3 text-white" href=""><i class="bi bi-chat fs-6"></i></a>
+            </li>
+            <div class="border-start border-white border-opacity-25 my-1"></div>
+            <li class="nav-item">
+              <a class="nav-link px-3 text-white" href=""><i class="bi bi-cart fs-6"></i></a>
+            </li>
+          </ul>
+        </div>
+      {% else %}
+
+      {% endif %}
     {% endwith %}
 
     <main class="container mt-4">

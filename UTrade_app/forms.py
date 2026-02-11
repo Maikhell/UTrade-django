@@ -20,9 +20,13 @@ class ProductForm(forms.ModelForm):
 class ServiceForm(forms.ModelForm):
     class Meta:
         model = Services
-        fields = ['turnaround_time']
+        fields = ['name', 'description', 'category', 'base_price', 'turnaround_time']        
         widgets = {
-            'turnaround_time': forms.TextInput(attrs={'placeholder': '3-5 days'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Service Title'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'base_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00'}),
+            'turnaround_time': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 3-5 days'}),
         }
         
 class UserRegistrationForm(UserCreationForm):

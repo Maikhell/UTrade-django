@@ -1,7 +1,9 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %} Service Workshop {% endblock %}
+{% block title %}
+  Service Workshop
+{% endblock %}
 
 {% block content %}
   {% block extra_css %}
@@ -9,25 +11,17 @@
   {% endblock %}
 
   <div class="container mb-2">
-    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4">
-      <i class="bi bi-arrow-left me-2"></i>Back to Account
-    </a>
+    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
   </div>
 
   <div class="container-fluid py-4 workshop-container">
     <div class="row g-4">
-      
       <div class="col-lg-3">
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <h6 class="fw-bold text-uppercase small text-muted mb-3">
-            <i class="bi bi-palette me-2"></i>1. Service Samples
-          </h6>
+          <h6 class="fw-bold text-uppercase small text-muted mb-3"><i class="bi bi-palette me-2"></i>1. Service Samples</h6>
 
           <div class="mb-3">
-            <label class="btn btn-outline-primary btn-sm w-100 fw-bold rounded-pill">
-              <i class="bi bi-plus-lg me-1"></i> Upload Portfolio
-              <input type="file" id="image_input" class="d-none" accept="image/*" multiple onchange="previewMultipleImages(event)" />
-            </label>
+            <label class="btn btn-outline-primary btn-sm w-100 fw-bold rounded-pill"><i class="bi bi-plus-lg me-1"></i> Upload Portfolio<input type="file" id="image_input" class="d-none" accept="image/*" multiple onchange="previewMultipleImages(event)" /></label>
           </div>
 
           <div id="image_preview_container" class="image-preview-grid column-scroll">
@@ -43,7 +37,9 @@
         <div class="card border-0 shadow-lg rounded-4 p-4 h-100">
           <h5 class="fw-bold mb-4">2. Service Details</h5>
 
-          <form id="product_form"> <div class="mb-3">
+          <form id="product_form">
+            {% csrf_token %}
+            <div class="mb-3">
               <label class="form-label small fw-bold text-secondary">Service Title</label>
               <input type="text" id="name" class="form-control bg-light border-0 py-2" placeholder="e.g. Digital Portrait Commission" />
             </div>

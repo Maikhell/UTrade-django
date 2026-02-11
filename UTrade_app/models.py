@@ -25,7 +25,8 @@ class ServiceCategory(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name='Category')
     def __str__(self):
         return self.name
-    
+
+
 class Services(models.Model):
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
@@ -33,6 +34,7 @@ class Services(models.Model):
         ('Rejected', 'Rejected'),
     ]
     name = models.CharField(max_length=255)
+    image = models.ImageField(upload_to= 'images/', blank= True ,null= True, verbose_name='image')
     description = models.TextField(blank=True, null=True)
     category = models.ForeignKey(ServiceCategory, on_delete=models.SET_NULL, null=True)
     seller = models.ForeignKey(User, on_delete=models.CASCADE) 
@@ -43,7 +45,11 @@ class Services(models.Model):
 
     def __str__(self):
         return f"{self.name} by {self.seller.username}"
-    
+
+class ServicesImage(models.Model):
+    service = models.ForeignKey(Services, related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='images/')
+
 class Products(models.Model):
     name = models.CharField(max_length=255, verbose_name='name')
     description = models.TextField(blank=True, null=True, verbose_name='description')

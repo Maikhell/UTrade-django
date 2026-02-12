@@ -71,7 +71,14 @@ class Products(models.Model):
     
     def __str__(self):
         return self.name
-    
+class Wishlist(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
+    product = models.ForeignKey(Products, on_delete=models.CASCADE)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'product')
+        
 class ProductImage(models.Model):
     product = models.ForeignKey(Products, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='images/')

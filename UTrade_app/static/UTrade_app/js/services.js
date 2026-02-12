@@ -38,8 +38,8 @@ function addToStaging() {
     const categoryName = categoryEl.options[categoryEl.selectedIndex].text;
     const categoryId = categoryEl.value;
     const delivery = document.getElementById('condition').value;
-    const leadTime = document.getElementById('meetup').value; 
-    
+    const leadTime = document.getElementById('meetup').value;
+
     const serviceId = Date.now();
     const paymentEl = document.querySelector('input[name="payment"]:checked');
     const payment = paymentEl ? paymentEl.value : 'Not Specified';
@@ -104,11 +104,40 @@ function addToStaging() {
 }
 
 async function submitToAdmin() {
-    if (allStagedServices.length === 0) return alert("Add a service first!");
-    
-    const formData = new FormData();
+    if (allStagedServices.length === 0) {
+        return Swal.fire({
+            icon: 'warning',
+            title: 'No Services Added',
+            text: 'Please add at least one service to the list before submitting.',
+            confirmButtonColor: '#198754'
+        });
+    }
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    if (!csrftoken) {
+        return Swal.fire('Error', 'CSRF Token missing. Please refresh the page.', 'error');
+    }
+    const confirmation = await Swal.fire({
+        title: 'Submit Services?',
+        text: `You are about to send ${allStagedServices.length} service(s) for review.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, submit for review',
+        cancelButtonText: 'Not yet'
+    });
 
+    if (!confirmation.isConfirmed) return;
+    Swal.fire({
+        title: 'Uploading Services...',
+        text: 'This may take a moment depending on your image sizes.',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    const formData = new FormData();
     allStagedServices.forEach((service, index) => {
         formData.append(`serv_${index}_name`, service.name);
         formData.append(`serv_${index}_price`, service.price);
@@ -117,15 +146,13 @@ async function submitToAdmin() {
         formData.append(`serv_${index}_lead_time`, service.leadTime);
         formData.append(`serv_${index}_delivery`, service.delivery);
         formData.append(`serv_${index}_payment`, service.payment);
-        
+
         service.files.forEach((file, fileIndex) => {
             formData.append(`serv_${index}_image_${fileIndex}`, file);
         });
         formData.append(`serv_${index}_image_count`, service.files.length);
     });
-
     formData.append('total_services', allStagedServices.length);
-
     try {
         const response = await fetch(window.location.href, {
             method: 'POST',
@@ -134,14 +161,27 @@ async function submitToAdmin() {
         });
         const result = await response.json();
         if (result.status === 'success') {
-            alert("Services submitted for review!");
+            await Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: 'Your services have been submitted for review.',
+                confirmButtonColor: '#198754'
+            });
             window.location.reload();
         } else {
-            alert("Error: " + result.message);
+            Swal.fire({
+                icon: 'error',
+                title: 'Submission Error',
+                text: result.message || 'Something went wrong on the server.'
+            });
         }
     } catch (error) {
-        console.error(error);
-        alert("Server connection failed.");
+        console.error("Submission Error:", error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Connection Failed',
+            text: 'Could not connect to the server. Please check your internet.'
+        });
     }
 }
 

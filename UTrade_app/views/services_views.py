@@ -56,10 +56,10 @@ class ServiceCreateView(CreateView):
 class ServiceListView(ListView):
     model = Services
     template_name = 'UTrade_app/services.html'
-    context_object_name = 'service'
+    context_object_name = 'services'
 
     def get_queryset(self):
-        queryset = Services.objects.filter(status='Approved').order_by('-created_at')
+        queryset = Services.objects.filter(status='Pending').order_by('-created_at')
         category_id = self.request.GET.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)

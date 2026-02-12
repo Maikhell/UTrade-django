@@ -133,16 +133,40 @@ function addToStaging() {
 }
 async function submitToAdmin() {
     if (allStagedProducts.length === 0) {
-        return alert("Your staging list is empty! Add items first.");
+        return Swal.fire({
+            title: 'Empty List',
+            text: 'Your staging list is empty! Add items first.',
+            icon: 'error', 
+            confirmButtonColor: '#198754'
+        });
     }
-    if (!confirm(`Are you sure you want to send ${allStagedProducts.length} item(s) for authorization?`)) {
-        return;
-    }
-    const formData = new FormData();
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     if (!csrftoken) {
-        return alert("CSRF Token missing. Make sure {% csrf_token %} is in your HTML form.");
+        return Swal.fire('Error', 'CSRF Token missing. Check your HTML template!', 'error');
     }
+    const confirmation = await Swal.fire({
+        title: 'Submit for Authorization?',
+        text: `Are you sure you want to send ${allStagedProducts.length} item(s) for review?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, submit it!',
+        cancelButtonText: 'Wait, let me check'
+    });
+
+    if (!confirmation.isConfirmed) return;
+    Swal.fire({
+        title: 'Sending to Admin...',
+        text: 'Please wait while we process your request.',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    const formData = new FormData();
+
     allStagedProducts.forEach((product, index) => {
         formData.append(`prod_${index}_name`, product.name);
         formData.append(`prod_${index}_price`, product.price);
@@ -167,32 +191,41 @@ async function submitToAdmin() {
         });
         const result = await response.json();
         if (result.status === 'success') {
-            alert("Success! Your items have been sent for review.");
+            await Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: 'Your items have been sent for review.',
+                confirmButtonColor: '#198754'
+            });
             window.location.reload();
         } else {
-            alert("Error: " + (result.message || "Failed to save items."));
+            Swal.fire({
+                icon: 'error',
+                title: 'Submission Failed',
+                text: result.message || "Failed to save items."
+            });
         }
     } catch (error) {
         console.error("Submission Error:", error);
-        alert("Something went wrong while connecting to the server.");
+        Swal.fire({
+            icon: 'error',
+            title: 'Connection Error',
+            text: 'Something went wrong while connecting to the server.'
+        });
     }
 }
 function removeItem(btn, productId) {
     btn.closest('.staged-item').remove();
-
     allStagedProducts = allStagedProducts.filter(item => item.id !== productId);
     itemCount = allStagedProducts.length;
     document.getElementById('item_count').innerText = itemCount;
-
     if (itemCount === 0) {
         document.getElementById('staging_area').innerHTML = '<div class="text-center py-5 text-muted small empty-msg">List is empty.</div>';
     }
 }
 function removeTag(type, value, element) {
-
     currentAttributes[`${type}s`] = currentAttributes[`${type}s`].filter(val => val !== value);
     element.parentElement.remove();
-
     const mainPills = document.getElementById('attribute_pills').querySelectorAll('.badge');
     mainPills.forEach(pill => {
         if (pill.innerText.trim().includes(value)) {

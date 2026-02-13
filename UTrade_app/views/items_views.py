@@ -68,6 +68,13 @@ class ProductListView(ListView):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
         context['current_category'] = self.request.GET.get('category')
+        if self.request.user.is_authenticated:
+            user_wishlist_ids = Wishlist.objects.filter(
+                user=self.request.user
+            ).values_list('product_id', flat=True)
+            context['user_wishlist_ids'] = list(user_wishlist_ids)
+        else:
+            context['user_wishlist_ids'] = []
         return context
     
 class SellerProductsView(ListView):

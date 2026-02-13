@@ -79,6 +79,9 @@ class Wishlist(models.Model):
     class Meta:
         unique_together = ('user', 'product')
         
+    def __str__(self):
+        return f"{self.user.username} - {self.product.name}"    
+    
 class ProductImage(models.Model):
     product = models.ForeignKey(Products, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='images/')

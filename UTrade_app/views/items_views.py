@@ -1,8 +1,10 @@
 from django.shortcuts import render,redirect
+from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView
 from ..forms import ProductForm
-from ..models import Products, Category, ProductImage 
+from django.contrib.auth.mixins import LoginRequiredMixin
+from ..models import Products, Category, ProductImage, Wishlist 
 from django.http import JsonResponse
 def landing_page(request):
     return render(request, 'UTrade_app/landingpage.html')
@@ -75,3 +77,28 @@ class SellerProductsView(ListView):
 
     def get_queryset(self):
         return Products.objects.filter(seller=self.request.user).order_by('-created_at')
+
+class WishlistListView(LoginRequiredMixin, ListView):
+    model = Wishlist
+    template_name = 'Utrade_app/products/actions/wishlist.html'
+    context_object_name = 'wishlists'
+    
+    def get_queryset(self):
+        return Wishlist.objects.filter(user=self.request.user).order_by('-added_at')
+
+@login_required
+def toggle_wishlist(request, product_id):
+    try:
+        product = Products.objects.get(id=product_id)
+        wishlist_item, created = Wishlist.objects.get_or_create(user=request.user, product=product)
+        
+        if not created:
+            wishlist_item.delete()
+            status = 'removed'
+        else:
+            status = 'added'
+            
+        return JsonResponse({'status':'success', 'action': status})
+    except Products.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Product not found'})
+        

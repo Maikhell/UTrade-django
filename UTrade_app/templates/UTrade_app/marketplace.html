@@ -8,6 +8,7 @@
   {% block extra_css %}
     <link rel="stylesheet" href="{% static 'UTrade_app/css/marketplace.css' %}" />
   {% endblock %}
+  {% csrf_token %}
   <div class="container py-5">
     <div class="mb-5">
       <h1 class="fw-bolder text-dark mb-0">Categories</h1>
@@ -20,26 +21,14 @@
               <a href="{% url 'product.list' %}" class="category-pill">
                 <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if not request.GET.category %}
                     
-                    
-                    
-                    
                                                      
                     bg-dark
 
 
-
-
-
                   {% else %}
                     
-                    
-                    
-                    
-                                                                          
+                                                                              
                     bg-secondary
-
-
-
 
 
                   {% endif %}"
@@ -52,26 +41,14 @@
                   <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold 
       {% if request.GET.category == category.id|stringformat:'i' %}
                       
-                      
-                      
-                      
-                                                    
+                                                              
         bg-success
-
-
-
 
 
                     {% else %}
                       
-                      
-                      
-                      
-                                                  
+                                                             
         bg-secondary opacity-50
-
-
-
 
 
                     {% endif %}">
@@ -84,12 +61,10 @@
         </div>
       </div>
     </div>
-
     <div class="mb-5">
       <h1 class="fw-bolder text-dark mb-0">Marketplace</h1>
       <div class="category-line"></div>
     </div>
-
     <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
       {% for product in products %}
         <div class="col">
@@ -113,7 +88,7 @@
                 <span class="btn btn-light btn-sm rounded-pill fw-bold px-3">Quick View</span>
               </div>
             </div>
-            
+
             <div class="card-body d-flex flex-column p-4">
               <div class="mb-3">
                 <div class="d-flex justify-content-end gap-2 mb-3">
@@ -148,4 +123,7 @@
       {% endfor %}
     </div>
   </div>
+  {% block extra_js %}
+    <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
+  {% endblock %}
 {% endblock %}

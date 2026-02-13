@@ -1,0 +1,48 @@
+async function toggleWishlist(productId, buttonElement, isWishlistPage = false) {
+    const icon = buttonElement.querySelector('i');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    try {
+        const response = await fetch(`/wishlist/toggle/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            if (data.action === 'added') {
+                icon.classList.replace('bi-heart', 'bi-heart-fill');
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Added to Wishlist',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            } else {
+                icon.classList.replace('bi-heart-fill', 'bi-heart');
+                if (isWishlistPage) {
+                    const card = document.getElementById(`wishlist-item-${productId}`);
+                    if (card) {
+                        card.style.transition = '0.3s';
+                        card.style.opacity = '0';
+                        card.style.transform = 'scale(0.9)';
+                        setTimeout(() => card.remove(), 300);
+                    }
+                }
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'info',
+                    title: 'Removed from Wishlist',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
+        }
+    } catch (error) {
+        Swal.fire('Oops!', 'Something went wrong. Are you logged in?', 'error');
+    }
+}

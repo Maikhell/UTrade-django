@@ -1,0 +1,34 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+{% block content %}
+  {% csrf_token %}
+  <div class="container py-5">
+    <h2 class="fw-bold mb-4">My Wishlist</h2>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+      {% for item in wishlists %}
+        <div class="col" id="wishlist-item-{{ item.product.id }}">
+          <div class="card h-100 shadow-sm border-0 rounded-4">
+            {% if item.product.images.all %}
+              <img src="{{ item.product.images.first.image.url }}" class="card-img-top" style="height: 200px; object-fit: cover;" />
+            {% endif %}
+
+            <div class="card-body">
+              <h5 class="fw-bold">{{ item.product.name }}</h5>
+              <p class="text-success h5">₱{{ item.product.price }}</p>
+
+              <button onclick="toggleWishlist('{{ item.product.id }}', this, true)" class="btn btn-outline-danger w-100 rounded-pill"><i class="bi bi-trash"></i> Remove</button>
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        <div class="text-center w-100 py-5">
+          <p class="text-muted">You haven't saved anything yet.</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% block extra_js %}
+    <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
+  {% endblock %}
+{% endblock %}

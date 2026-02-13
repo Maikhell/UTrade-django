@@ -45,7 +45,7 @@ class ServiceCreateView(CreateView):
                             if j == 0 and hasattr(service, 'image'):
                                 service.image = image_file
                                 service.save()
-                            ServicesImage.objects.create(service=service, image=image_file)
+                            ServicesImage.objects.create(product=service, image=image_file)
 
             return JsonResponse({'status': 'success'})
         

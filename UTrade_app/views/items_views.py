@@ -55,7 +55,7 @@ class ProductListView(ListView):
     context_object_name = 'products'
 
     def get_queryset(self):
-        queryset = Products.objects.filter(status='Approved').order_by('-created_at')        
+        queryset = Products.objects.filter(status='Pending').order_by('-created_at')        
         category_id = self.request.GET.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -77,14 +77,6 @@ class ProductListView(ListView):
             context['user_wishlist_ids'] = []
         return context
     
-class SellerProductsView(ListView):
-    model = Products
-    template_name = 'UTrade_app/seller_inventory.html'
-    context_object_name = 'my_products'
-
-    def get_queryset(self):
-        return Products.objects.filter(seller=self.request.user).order_by('-created_at')
-
 class WishlistListView(LoginRequiredMixin, ListView):
     model = Wishlist
     template_name = 'Utrade_app/products/actions/wishlist.html'

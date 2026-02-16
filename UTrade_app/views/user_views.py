@@ -1,9 +1,10 @@
 from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
-from ..models import User
+from ..models import User, Products
 from django.urls import reverse_lazy
 from django.contrib.auth import login
 from ..forms import UserRegistrationForm
 from django.contrib.auth.mixins import LoginRequiredMixin
+
 class UserCreateView(CreateView):
     model = User 
     form_class = UserRegistrationForm
@@ -26,3 +27,20 @@ class UserProfileView(LoginRequiredMixin, UpdateView):
     
     def get_object(self):
         return self.request.user
+    
+class UserProductsView(LoginRequiredMixin, ListView):
+    model = Products
+    template_name = 'UTrade_app/users/account/seller_inventory.html'
+    context_object_name = 'products'
+
+    def get_queryset(self):
+        return Products.objects.filter(seller=self.request.user).order_by('-created_at')
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user_products = self.get_queryset()
+        context['Approved_count'] = user_products.filter(status = 'Approved').count()
+        context['Pending_count'] = user_products.filter(status = 'Pending').count()
+        context['Rejected_count'] = user_products.filter(status = 'Rejected').count()
+        return context
+
+    

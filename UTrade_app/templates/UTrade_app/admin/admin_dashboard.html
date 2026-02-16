@@ -70,14 +70,13 @@
             <div>
               <h6 class="text-uppercase small fw-bold opacity-75">Unverified Users</h6>
               <h2 class="fw-bold mb-0">{{ unverified.count|default:'0' }}</h2>
-              {% comment %}Count the Unverified users{% endcomment %}
             </div>
             <i class="bi bi-person-exclamation fs-1 opacity-50"></i>
           </div>
         </div>
       </div>
       <div class="col-md-4">
-        <div class="card stat-card bg-warning text-dark p-4 rounded-4 shadow-sm">
+        <div class="card stat-card bg-warning text-dark p-4 rounded-4 shadow-sm position-relative" style="cursor: pointer;">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h6 class="text-uppercase small fw-bold opacity-75">Pending Reviews</h6>
@@ -85,6 +84,8 @@
             </div>
             <i class="bi bi-clock-history fs-1 opacity-50"></i>
           </div>
+
+          <a href="{% url 'admin.review' %}" class="stretched-link"></a>
         </div>
       </div>
     </div>

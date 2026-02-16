@@ -1,12 +1,15 @@
-from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
+import json
+from django.views.generic import ListView,TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.http import JsonResponse
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
 from ..models import Products
 
 
 User = get_user_model()
 class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
-    template_name = 'UTrade_app/admin_dashboard.html'
+    template_name = 'UTrade_app/admin/admin_dashboard.html'
     
     def test_func(self):
         return self.request.user.is_staff
@@ -20,3 +23,34 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         context ['products'] = Products.objects.all().order_by('-created_at')
         return context
     
+@staff_member_required
+def update_product_status(request, product_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            new_status = data.get('status')
+            product = Products.objects.get(id=product_id)
+            product.status = new_status
+            if new_status == 'Approved':
+                product.is_authorized = True
+            else:
+                product.is_authorized = False
+                
+            product.save()
+            return JsonResponse({'status': 'success'})
+        except Products.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Product not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+class AdminReviewListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = Products
+    template_name = 'UTrade_app/admin/product_review_list.html'
+    context_object_name = 'pending_items'
+    
+    def get_queryset(self):
+        return Products.objects.filter(status ='Pending').order_by('created_at')
+    def test_func(self):
+        return self.request.user.is_staff
+

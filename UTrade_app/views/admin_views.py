@@ -21,6 +21,7 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         context ['unverified'] = User.objects.filter(status = 'unverified')
         context ['verified'] = User.objects.filter(status = 'verified')
         context ['products'] = Products.objects.all().order_by('-created_at')
+        context ['pending_products'] = Products.objects.filter(status ='Pending').order_by('created_at')
         return context
     
 @staff_member_required

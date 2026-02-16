@@ -80,7 +80,7 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h6 class="text-uppercase small fw-bold opacity-75">Pending Reviews</h6>
-              <h2 class="fw-bold mb-0">12</h2>
+              <h2 class="fw-bold mb-0">{{ pending_products.count }}</h2>
             </div>
             <i class="bi bi-clock-history fs-1 opacity-50"></i>
           </div>
@@ -109,9 +109,14 @@
                 <tr>
                   <td class="ps-4">
                     <div class="d-flex align-items-center">
-                      <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
-                        <span class="fw-bold text-success">{{ u.username|slice:':1'|upper }}</span>
-                      </div>
+                      {% if u.image %}
+                        <img src="{{ u.image.url }}" class="rounded-circle me-3 border" style="width: 40px; height: 40px; object-fit: cover;" alt="{{ u.username }}" />
+                      {% else %}
+                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3 border" style="width: 40px; height: 40px;">
+                          <span class="fw-bold text-success">{{ u.username|slice:':1'|upper }}</span>
+                        </div>
+                      {% endif %}
+
                       <div>
                         <div class="fw-bold text-dark">{{ u.username }}</div>
                         <div class="small text-muted">{{ u.email }}</div>
@@ -134,7 +139,6 @@
                   </td>
                   <td class="text-muted small">{{ u.date_joined|date:'M d, Y' }}</td>
                   <td class="text-center pe-4">
-                    <button class="btn btn-sm btn-outline-warning rounded-pill px-3">Edit</button>
                     <button class="btn btn-sm btn-outline-success rounded-pill px-3 ms-2">Message</button>
                     <button class="btn btn-sm btn-outline-danger rounded-pill px-3 ms-2">Suspend</button>
                   </td>

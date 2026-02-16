@@ -8,6 +8,20 @@
     position: relative;
 }
 
+.action-card:hover.border-purple-hover {
+    border-color: #6f42c1;
+}
+
+.action-card:hover.border-success-hover {
+    border-color: #198754;
+}
+
+.btn-light-danger:hover {
+    background-color: #f8d7da !important;
+    color: #dc3545 !important;
+    border-color: #f5c2c7;
+}
+
 .profile-img {
     width: 112px;
     height: 112px;
@@ -15,7 +29,6 @@
     border-radius: 1.25rem;
 }
 
-/* Card Hover Lift */
 .action-card {
     transition: all 0.3s ease;
     text-decoration: none;

@@ -11,9 +11,9 @@ urlpatterns = [
      
      #Admin
      path('admindashboard/', admin_views.AdminDashboard.as_view(), name="admin.dashboard"),
-     path('pendingproducts', admin_views.AdminReviewListView.as_view(), name = 'admin.review'),
+     path('pendingproducts/', admin_views.AdminReviewListView.as_view(), name = 'admin.review'),
      #Admin Update
-     path('admin/update-status/<int:product_id>/', admin_views.update_product_status, name='update_status'),
+     path('product-review/update/<int:product_id>/', admin_views.update_product_status, name='update_status'),
      
      #Products
      path('browse/', items_views.ProductListView.as_view(), name = 'product.list'),

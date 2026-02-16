@@ -11,7 +11,7 @@ async function updateStatus(productId, newStatus) {
 
     if (result.isConfirmed) {
         try {
-            const response = await fetch(`/admin/update-status/${productId}/`, {
+            const response = await fetch(`/product-review/update/${productId}/`, {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrftoken,

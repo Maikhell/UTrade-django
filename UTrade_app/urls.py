@@ -18,6 +18,7 @@ urlpatterns = [
      #Products
      path('browse/', items_views.ProductListView.as_view(), name = 'product.list'),
      path('addproduct/', items_views.ProductCreateView.as_view(), name = 'product.create'),
+     path('product/<int:pk>/', items_views.ProductDetailView.as_view(), name='product.detail'),
      path('wishlist', items_views.WishlistListView.as_view(), name = 'wishlist.list'),
      path('wishlist/toggle/<int:product_id>/', items_views.toggle_wishlist, name='toggle_wishlist'),
      path('products/', user_views.UserProductsView.as_view(), name = 'userproduct.list'),

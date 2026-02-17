@@ -1,7 +1,7 @@
 from django.shortcuts import render,redirect
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
-from django.views.generic import  CreateView, ListView
+from django.views.generic import  CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from ..models import Products, Category, ProductImage, Wishlist 
@@ -49,13 +49,26 @@ class ProductCreateView(CreateView):
 
         return JsonResponse({'status': 'success'})
     
+class ProductDetailView(DetailView):
+    model = Products
+    template_name = 'Utrade_app/products/actions/product_details.html'
+    context_object_name = 'product'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['related_products'] = Products.objects.filter(
+            category=self.object.category,
+            status='Approved'
+        ).exclude(id=self.object.id)[:4]
+        return context
+    
 class ProductListView(ListView):
     model = Products
     template_name = 'UTrade_app/marketplace.html'
     context_object_name = 'products'
 
     def get_queryset(self):
-        queryset = Products.objects.filter(status='Pending').order_by('-created_at')        
+        queryset = Products.objects.filter(status='Approved').order_by('-created_at')        
         category_id = self.request.GET.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)

@@ -1,0 +1,14 @@
+#thumbGallery {
+    scrollbar-width: thin; 
+}
+#thumbGallery::-webkit-scrollbar {
+    height: 6px; 
+}
+#thumbGallery::-webkit-scrollbar-thumb {
+    background: #198754;
+    border-radius: 10px;
+}
+.thumbnail-wrapper:hover {
+    opacity: 0.8;
+    transition: 0.3s;
+}

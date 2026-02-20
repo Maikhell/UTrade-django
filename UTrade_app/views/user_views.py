@@ -2,7 +2,7 @@ from django.views.generic import ListView, CreateView, DeleteView, DetailView, U
 from ..models import User, Product
 from django.urls import reverse_lazy
 from django.contrib.auth import login
-from ..forms import UserRegistrationForm
+from ..forms import UserRegistrationForm, UserProfileForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 class UserCreateView(CreateView):
@@ -21,9 +21,9 @@ class UserAccountView(TemplateView):
    
 class UserProfileView(LoginRequiredMixin, UpdateView):
     model = User
+    form_class = UserProfileForm
     template_name = 'UTrade_app/users/account/profile.html'
-    fields = ['first_name', 'last_name', 'display_name', 'number', 'student_no', 'image' ]
-    success_url = '/userprofile/'
+    success_url = reverse_lazy('user.profile')
     
     def get_object(self):
         return self.request.user

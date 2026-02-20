@@ -40,7 +40,14 @@ class UserRegistrationForm(UserCreationForm):
             raise forms.ValidationError("Student number is required.")
         return student_no
     
-    
+class UserProfileForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'display_name', 'phone_number', 'student_no', 'image']
+        widgets = {
+            'image': forms.FileInput(attrs={'id': 'id_profile_picture', 'class': 'd-none', 'onchange': 'previewAvatar(event)'}),
+        }
+          
 class UserLoginForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

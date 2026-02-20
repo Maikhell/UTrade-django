@@ -19,14 +19,7 @@
             <div class="col-md-4 bg-light border-end p-4 text-center">
               <h6 class="fw-bold text-muted mb-4 text-uppercase small">Profile Photo</h6>
               <div class="position-relative d-inline-block mb-3">
-                <img id="profile_preview"
-                  src="{% if user.image %}
-                    {{ user.image.url }}
-                  {% else %}
-                    {% static 'UTrade_app/img/default-user.png' %}
-                  {% endif %}"
-                  class="rounded-circle shadow-sm border border-4 border-white"
-                  style="width: 150px; height: 150px; object-fit: cover;" />
+                <img id="profile_preview" src="{{ user.profile_pic_url }}" class="rounded-circle shadow-sm border border-4 border-white" style="width: 150px; height: 150px; object-fit: cover;" />
 
                 <label for="id_profile_picture" class="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 shadow"><i class="bi bi-camera"></i></label>
               </div>
@@ -63,7 +56,7 @@
                   </div>
                   <div class="col-md-6">
                     <label class="form-label small fw-bold text-secondary">Contact Number</label>
-                    <input type="text" name="contact_number" class="form-control rounded-3" value="{{ user.contact_number }}" placeholder="09XXXXXXXXX" />
+                    <input type="text" name="phone_number" class="form-control rounded-3" value="{{ user.phone_number }}" placeholder="09XXXXXXXXX" />
                   </div>
 
                   <div class="col-12">

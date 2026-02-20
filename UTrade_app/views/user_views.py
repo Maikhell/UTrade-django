@@ -1,5 +1,5 @@
 from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
-from ..models import User, Products
+from ..models import User, Product
 from django.urls import reverse_lazy
 from django.contrib.auth import login
 from ..forms import UserRegistrationForm
@@ -29,12 +29,12 @@ class UserProfileView(LoginRequiredMixin, UpdateView):
         return self.request.user
     
 class UserProductsView(LoginRequiredMixin, ListView):
-    model = Products
+    model = Product
     template_name = 'UTrade_app/users/account/seller_inventory.html'
     context_object_name = 'products'
 
     def get_queryset(self):
-        return Products.objects.filter(seller=self.request.user).order_by('-created_at')
+        return Product.objects.filter(seller=self.request.user).order_by('-created_at')
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user_products = self.get_queryset()

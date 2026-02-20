@@ -1,10 +1,10 @@
 from django import forms
-from .models import Products, User, Services
+from .models import Product, User, Services
 from django.contrib.auth.forms import UserCreationForm , AuthenticationForm
 
 class ProductForm(forms.ModelForm):
     class Meta:
-        model = Products
+        model = Product
         fields = [
             'name',
             'description',

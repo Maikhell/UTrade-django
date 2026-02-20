@@ -4,7 +4,7 @@ from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from ..models import Products, Category, ProductImage, Wishlist 
+from ..models import Product, Category, ProductImage, Wishlist 
 from django.http import JsonResponse
 def landing_page(request):
     return render(request, 'UTrade_app/landingpage.html')
@@ -28,7 +28,7 @@ class ProductCreateView(CreateView):
             category_id = request.POST.get(f'prod_{i}_category')
             category = Category.objects.get(id=category_id)
             
-            product = Products.objects.create(
+            product = Product.objects.create(
                 name=request.POST.get(f'prod_{i}_name'),
                 price=request.POST.get(f'prod_{i}_price'),
                 stocks=request.POST.get(f'prod_{i}_stocks'),
@@ -50,25 +50,25 @@ class ProductCreateView(CreateView):
         return JsonResponse({'status': 'success'})
     
 class ProductDetailView(DetailView):
-    model = Products
+    model = Product
     template_name = 'Utrade_app/products/actions/product_details.html'
     context_object_name = 'product'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['related_products'] = Products.objects.filter(
+        context['related_products'] = Product.objects.filter(
             category=self.object.category,
             status='Approved'
         ).exclude(id=self.object.id)[:4]
         return context
     
 class ProductListView(ListView):
-    model = Products
+    model = Product
     template_name = 'UTrade_app/marketplace.html'
     context_object_name = 'products'
 
     def get_queryset(self):
-        queryset = Products.objects.filter(status='Approved').order_by('-created_at')        
+        queryset = Product.objects.filter(status='Approved').order_by('-created_at')        
         category_id = self.request.GET.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
@@ -101,7 +101,7 @@ class WishlistListView(LoginRequiredMixin, ListView):
 @login_required
 def toggle_wishlist(request, product_id):
     try:
-        product = Products.objects.get(id=product_id)
+        product = Product.objects.get(id=product_id)
         wishlist_item, created = Wishlist.objects.get_or_create(user=request.user, product=product)
         
         if not created:
@@ -111,6 +111,11 @@ def toggle_wishlist(request, product_id):
             status = 'added'
             
         return JsonResponse({'status':'success', 'action': status})
-    except Products.DoesNotExist:
+    except Product.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Product not found'})
-        
+
+def product_list(request):
+    query = request.GET.get('q')
+    products = Product.objects.search(query)
+    
+    return render(request, '', {'products': products})

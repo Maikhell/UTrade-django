@@ -30,7 +30,7 @@
               <h4 class="fw-bold mb-1">Account Settings</h4>
               <p class="text-muted small mb-4">Update your university identity and contact information.</p>
 
-              <form method="POST" enctype="multipart/form-data">
+              <form method="POST" enctype="multipart/form-data" id="profileForm">
                 {% csrf_token %}
 
                 <input type="file" name="image" id="id_profile_picture" class="d-none" onchange="previewAvatar(event)" />
@@ -79,8 +79,7 @@
                 </div>
 
                 <div class="mt-5 d-flex gap-2">
-                  <button type="submit" class="btn btn-success px-4 fw-bold rounded-3">Save Changes</button>
-                  <a href="{% url 'user.profile' %}" class="btn btn-outline-secondary px-4 rounded-3">Cancel</a>
+                  <button type="button" onclick="handleProfileSubmit()" class="btn btn-success px-4 fw-bold rounded-3">Save Changes</button> <a href="{% url 'user.profile' %}" class="btn btn-outline-secondary px-4 rounded-3">Cancel</a>
                 </div>
               </form>
             </div>
@@ -89,6 +88,15 @@
       </div>
     </div>
   </div>
+{% if messages %}
+    {% for message in messages %}
+        <div id="django-messages" 
+             data-message="{{ message }}" 
+             data-tags="{{ message.tags }}" 
+             style="display: none;">
+        </div>
+    {% endfor %}
+{% endif %}
   {% block extra_js %}
     <script src="{% static 'UTrade_app/js/profile.js' %}"></script>
   {% endblock %}

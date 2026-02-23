@@ -4,6 +4,7 @@ from django.urls import reverse_lazy
 from django.contrib.auth import login
 from ..forms import UserRegistrationForm, UserProfileForm
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Count, Q
 from django.contrib import messages
 
@@ -21,18 +22,15 @@ class UserCreateView(CreateView):
 class UserAccountView(TemplateView):
     template_name = 'UTrade_app/users/account/accounts.html'
    
-class UserProfileView(LoginRequiredMixin, UpdateView):
+class UserProfileView(LoginRequiredMixin,SuccessMessageMixin, UpdateView):
     model = User
     form_class = UserProfileForm
     template_name = 'UTrade_app/users/account/profile.html'
     success_url = reverse_lazy('user.profile')
+    success_message = "Your profile has been updated successfully!" 
     
     def get_object(self):
         return self.request.user
-    def form_valid(self, form):
-        #Added Success Message
-        messages.success(self.request, "Your profile has been updated successfully!")
-        return super().form_valid(form)
     
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product

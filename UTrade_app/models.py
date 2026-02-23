@@ -8,10 +8,14 @@ def user_profile_path(instance, filename):
     return f'profiles/student_{instance.student_no}/{filename}'
 
 class SearchQuerySet(models.QuerySet):
+    #updated to prevent crash from non-text fields
     def search(self, query=None):
-        if not query:
+        if query is None or query.strip() == "":
             return self.all()
-        return self.filter(Q(name__icontains=query) | Q(description__icontains=query)).distinct()
+        return self.filter(
+            Q(name__icontains=query) | 
+            Q(description__icontains=query)
+        ).distinct()
     
 class User(AbstractUser):
     student_no = models.CharField(
@@ -61,6 +65,7 @@ class BaseItem(models.Model):
     description = models.TextField(blank=True, null=True)
     image = models.ImageField(upload_to='images/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(
         max_length=10, 
         choices=[('Pending', 'Pending'), ('Approved', 'Approved'), ('Rejected', 'Rejected')],

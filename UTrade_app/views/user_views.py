@@ -4,6 +4,8 @@ from django.urls import reverse_lazy
 from django.contrib.auth import login
 from ..forms import UserRegistrationForm, UserProfileForm
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Count, Q
+from django.contrib import messages
 
 class UserCreateView(CreateView):
     model = User 
@@ -27,6 +29,10 @@ class UserProfileView(LoginRequiredMixin, UpdateView):
     
     def get_object(self):
         return self.request.user
+    def form_valid(self, form):
+        #Added Success Message
+        messages.success(self.request, "Your profile has been updated successfully!")
+        return super().form_valid(form)
     
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product
@@ -34,13 +40,22 @@ class UserProductsView(LoginRequiredMixin, ListView):
     context_object_name = 'products'
 
     def get_queryset(self):
+        # Single query with annotations to get all counts at once
         return Product.objects.filter(seller=self.request.user).order_by('-created_at')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        user_products = self.get_queryset()
-        context['Approved_count'] = user_products.filter(status = 'Approved').count()
-        context['Pending_count'] = user_products.filter(status = 'Pending').count()
-        context['Rejected_count'] = user_products.filter(status = 'Rejected').count()
+    
+        #Much faster than running .filter().count() three times
+        counts = Product.objects.filter(seller=self.request.user).aggregate(
+            approved=Count('id', filter=Q(status='Approved')),
+            pending=Count('id', filter=Q(status='Pending')),
+            rejected=Count('id', filter=Q(status='Rejected'))
+        )
+        context.update({
+            'approved_count': counts['approved'],
+            'pending_count': counts['pending'],
+            'rejected_count': counts['rejected'],
+        })
         return context
-
     

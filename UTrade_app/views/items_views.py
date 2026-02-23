@@ -14,48 +14,51 @@ def landing_page(request):
 class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'Utrade_app/products/actions/addproduct.html'
-    success_url = reverse_lazy('product.list')
-    #retrieve data to be displayed
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.all()
-        return context
     
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         total_products = int(request.POST.get('total_products', 0))
+        
+        # If it's a standard single-form submission
         if total_products == 0:
             return super().post(request, *args, **kwargs)
-        # Handle multiple products
-        for i in range(total_products):
-            data = {
-                'name': request.POST.get(f'prod_{i}_name'),
-                'price': request.POST.get(f'prod_{i}_price'),
-                'stocks': request.POST.get(f'prod_{i}_stocks'),
-                'description': request.POST.get(f'prod_{i}_desc'),
-                'category': request.POST.get(f'prod_{i}_category'),
-            }
-            form = ProductForm(data, request.FILES)
-            
-            if form.is_valid():
-                product = form.save(commit=False)
-                product.seller = request.user
-                product.status = 'Pending'
-                # Handle the first image
-                image_file = request.FILES.get(f'prod_{i}_image_0')
-                if image_file:
-                    product.image = image_file
-                product.save()
-                # Handle additional images
-                image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
-                for j in range(1, image_count): #0 is the main image
-                    extra_img = request.FILES.get(f'prod_{i}_image_{j}')
-                    if extra_img:
-                        ProductImage.objects.create(product=product, image=extra_img)
-            else:
-                return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
-        return JsonResponse({'status': 'success'})
+        # Handle multiple products via loop
+        try:
+            for i in range(total_products):
+                # Using form validation even for bulk items
+                data = {
+                    'name': request.POST.get(f'prod_{i}_name'),
+                    'price': request.POST.get(f'prod_{i}_price'),
+                    'stocks': request.POST.get(f'prod_{i}_stocks'),
+                    'description': request.POST.get(f'prod_{i}_desc'),
+                    'category': request.POST.get(f'prod_{i}_category'),
+                }
+                # Create a temporary form instance to validate this specific product
+                form = ProductForm(data, {'image': request.FILES.get(f'prod_{i}_image_0')})
+                
+                if form.is_valid():
+                    product = form.save(commit=False)
+                    product.seller = request.user
+                    product.status = 'Pending'
+                    product.save()
+
+                    # Handle Additional Gallery Images
+                    image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
+                    # Bulk create gallery images to save DB hits
+                    gallery_imgs = [
+                        ProductImage(product=product, image=request.FILES.get(f'prod_{i}_image_{j}'))
+                        for j in range(1, image_count)
+                        if request.FILES.get(f'prod_{i}_image_{j}')
+                    ]
+                    ProductImage.objects.bulk_create(gallery_imgs)
+                else:
+                    # Rolling back happens automatically due to @transaction.atomic
+                    return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
+            
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
 class ProductDetailView(DetailView):
     model = Product

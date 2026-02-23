@@ -11,11 +11,7 @@ class ServiceCreateView(CreateView):
     template_name = 'Utrade_app/services/actions/addservices.html'
     success_url = reverse_lazy('service.list')
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['categories'] = ServiceCategory.objects.all()
-        return context
-
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
         total_services = int(request.POST.get('total_services', 0))
         
@@ -23,34 +19,46 @@ class ServiceCreateView(CreateView):
             return super().post(request, *args, **kwargs)
 
         try:
-            with transaction.atomic():
-                for i in range(total_services):
-                    category_id = request.POST.get(f'serv_{i}_category')
-                    category = ServiceCategory.objects.get(id=category_id)
-                    
-                    service = Services.objects.create(
-                        name=request.POST.get(f'serv_{i}_name'),
-                        base_price=request.POST.get(f'serv_{i}_price'),
-                        description=request.POST.get(f'serv_{i}_desc'),
-                        turnaround_time=request.POST.get(f'serv_{i}_lead_time'), 
-                        category=category,
-                        seller=request.user,
-                        status='Pending'
-                    )
-                    image_count = int(request.POST.get(f'serv_{i}_image_count', 0))
-                    for j in range(image_count):
-                        image_file = request.FILES.get(f'serv_{i}_image_{j}')
-                        
-                        if image_file:
-                            if j == 0 and hasattr(service, 'image'):
-                                service.image = image_file
-                                service.save()
-                            ServicesImage.objects.create(product=service, image=image_file)
+            #Fetch all needed categories in 1 query instead of inside the loop
+            category_ids = [request.POST.get(f'serv_{i}_category') for i in range(total_services)]
+            categories = {str(c.id): c for c in ServiceCategory.objects.filter(id__in=category_ids)}
+
+            for i in range(total_services):
+                # Manual Validation
+                category = categories.get(request.POST.get(f'serv_{i}_category'))
+                
+                service = Services(
+                    name=request.POST.get(f'serv_{i}_name'),
+                    base_price=request.POST.get(f'serv_{i}_price'),
+                    description=request.POST.get(f'serv_{i}_desc'),
+                    turnaround_time=request.POST.get(f'serv_{i}_lead_time'), 
+                    category=category,
+                    seller=request.user,
+                    status='Pending'
+                )
+                
+                # Handle the primary image field on the Service model
+                main_image = request.FILES.get(f'serv_{i}_image_0')
+                if main_image:
+                    service.image = main_image
+                
+                service.full_clean() # Triggers model validation
+                service.save()
+
+                # 2. Optimized Image Creation
+                image_count = int(request.POST.get(f'serv_{i}_image_count', 0))
+                gallery_images = []
+                for j in range(image_count):
+                    img_file = request.FILES.get(f'serv_{i}_image_{j}')
+                    if img_file:
+                        gallery_images.append(ServicesImage(service=service, image=img_file))
+                
+                # Bulk create gallery images for this specific service
+                ServicesImage.objects.bulk_create(gallery_images)
 
             return JsonResponse({'status': 'success'})
         
         except Exception as e:
-            print(f"Error saving services: {str(e)}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
     
 class ServiceListView(ListView):
@@ -59,13 +67,9 @@ class ServiceListView(ListView):
     context_object_name = 'services'
 
     def get_queryset(self):
-        queryset = Services.objects.filter(status='Pending').order_by('-created_at')
+        # Used .select_related to avoid extra queries for category in the template
+        queryset = Services.objects.filter(status='Pending').select_related('category').order_by('-created_at')
         category_id = self.request.GET.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
         return queryset
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['categories'] = ServiceCategory.objects.all()
-        return context

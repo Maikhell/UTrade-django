@@ -1,5 +1,5 @@
 async function updateStatus(productId, newStatus) {
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
     const result = await Swal.fire({
         title: `Confirm ${newStatus}?`,
         text: `Are you sure you want to mark this item as ${newStatus}?`,

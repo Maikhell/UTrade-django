@@ -44,23 +44,28 @@ def update_product_status(request, product_id):
         return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
 
     try:
+        #Parse Data
         data = json.loads(request.body)
         new_status = data.get('status')
         
-        # Atomic update: efficient way to change specific fields
-        updated_count = Product.objects.filter(id=product_id).update(
-            status=new_status,
-            is_authorized=(new_status == 'Approved')
-        )
-
-        if updated_count == 0:
-             return JsonResponse({'status': 'error', 'message': 'Product not found'}, status=404)
-             
+        #Update Object
+        product = Product.objects.get(id=product_id)
+        product.status = new_status
+        
+        #Handle authorization logic
+        if new_status == 'Approved':
+            product.is_authorized = True
+        else:
+            product.is_authorized = False
+            
+        product.save()
         return JsonResponse({'status': 'success'})
         
-    except json.JSONDecodeError:
-        return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    except Product.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Product not found'}, status=404)
     except Exception as e:
+        # Log the actual error to the terminal
+        print(f"DEBUG ERROR: {e}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 class AdminReviewListView(LoginRequiredMixin, UserPassesTestMixin, ListView):

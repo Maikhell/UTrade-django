@@ -64,11 +64,17 @@
               </div>
               <div class="col-4">
                 <label class="form-label small fw-bold text-secondary">Category</label>
-                <select id="category" class="form-select bg-light border-0">
+                <select id="category" class="form-select bg-light border-0" onchange="toggleOtherCategory(this)">
                   {% for category in categories %}
                     <option value="{{ category.id }}">{{ category.name }}</option>
                   {% endfor %}
+                  <option value="other">-- Other (Type New) --</option>
                 </select>
+              </div>
+
+              <div id="other_category_div" class="mt-2 d-none">
+                <label class="form-label small fw-bold text-success">New Category Name</label>
+                <input type="text" id="custom_category" class="form-control border-success py-2" placeholder="Enter new category name..." />
               </div>
             </div>
 

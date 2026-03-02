@@ -44,20 +44,51 @@ function addTag(type) {
     }
     input.value = '';
 }
+
+// Toggle other Category
+function toggleOtherCategory(select) {
+    const otherDiv = document.getElementById('other_category_div');
+    if (select.value === 'other') {
+        otherDiv.classList.remove('d-none');
+    } else {
+        otherDiv.classList.add('d-none');
+    }
+
+}
 function addToStaging() {
     const name = document.getElementById('name').value;
     const price = document.getElementById('price').value;
     const stocks = document.getElementById('stocks').value;
     const desc = document.getElementById('description').value;
+
     const categoryEl = document.getElementById('category');
-    const categoryName = categoryEl.options[categoryEl.selectedIndex].text;
-    const categoryId = categoryEl.value;
+    let categoryId = categoryEl.value;
+    let categoryName = categoryEl.options[categoryEl.selectedIndex].text;
+
+    if (categoryId === 'other') {
+        const customValue = document.getElementById('custom_category').value.trim();
+
+        // Check if the typed value (case-insensitive) already exists in the dropdown
+        const exists = Array.from(categoryEl.options).some(opt =>
+            opt.text.toLowerCase() === customValue.toLowerCase()
+        );
+
+        if (exists) {
+            Swal.fire('Tip', `"${customValue}" is already in the list. We'll use the existing one!`, 'info');
+        }
+
+        categoryId = `NEW:${customValue}`;
+        categoryName = customValue;
+    }
+
     const condition = document.getElementById('condition').value;
     const meetup = document.getElementById('meetup').value;
     const productId = Date.now();
     const paymentEl = document.querySelector('input[name="payment"]:checked');
     const payment = paymentEl ? paymentEl.value : 'Not Specified';
+
     if (!name || !price || !stocks) return alert('Please fill in Name, Price, and Stocks!');
+
     const stagingArea = document.getElementById('staging_area');
     const firstImagePreview = document.querySelector('#image_preview_container img');
     const firstImageSrc = firstImagePreview ? firstImagePreview.src : null;
@@ -73,6 +104,7 @@ function addToStaging() {
         payment: payment,
         files: [...selectedFiles]
     };
+
     allStagedProducts.push(productData);
     itemCount = allStagedProducts.length;
     document.getElementById('item_count').innerText = itemCount;
@@ -130,13 +162,17 @@ function addToStaging() {
             <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
             Item added. Ready for next.
         </div>`;
+    if (document.getElementById('custom_category')) {
+        document.getElementById('custom_category').value = '';
+        document.getElementById('other_category_div').classList.add('d-none');
+    }
 }
 async function submitToAdmin() {
     if (allStagedProducts.length === 0) {
         return Swal.fire({
             title: 'Empty List',
             text: 'Your staging list is empty! Add items first.',
-            icon: 'error', 
+            icon: 'error',
             confirmButtonColor: '#198754'
         });
     }

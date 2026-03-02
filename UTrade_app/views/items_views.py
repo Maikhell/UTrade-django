@@ -15,6 +15,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'Utrade_app/products/actions/addproduct.html'
     
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['categories'] = Category.objects.all()
+        return context
+    
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         total_products = int(request.POST.get('total_products', 0))
@@ -26,13 +31,31 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         # Handle multiple products via loop
         try:
             for i in range(total_products):
+                raw_category = request.POST.get(f'prod_{i}_category')
+                
+                if raw_category and raw_category.startswith('NEW:'):
+                    new_name = raw_category.replace('NEW:', '').strip()
+                    
+                    #Search for an existing category regardless of Case (Upper/Lower)
+                    category_obj = Category.objects.filter(name__iexact=new_name).first()
+                    
+                    if not category_obj:
+                        # If it doesn't exist, create it in Title Case
+                        # .title() makes "SNAckS" -> "Snacks"
+                        category_obj = Category.objects.create(name=new_name.title())
+                    
+                    category_id = category_obj.id
+                else:
+                    category_id = raw_category
                 # Using form validation even for bulk items
                 data = {
                     'name': request.POST.get(f'prod_{i}_name'),
                     'price': request.POST.get(f'prod_{i}_price'),
                     'stocks': request.POST.get(f'prod_{i}_stocks'),
                     'description': request.POST.get(f'prod_{i}_desc'),
-                    'category': request.POST.get(f'prod_{i}_category'),
+                    'category': category_id,
+                    'meetup_spot': request.POST.get(f'prod_{i}_meetup'),
+                    'payment_method': request.POST.get(f'prod_{i}_payment'),
                 }
                 # Create a temporary form instance to validate this specific product
                 form = ProductForm(data, {'image': request.FILES.get(f'prod_{i}_image_0')})

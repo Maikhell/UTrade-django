@@ -61,6 +61,34 @@ function addToStaging() {
     const stocks = document.getElementById('stocks').value;
     const desc = document.getElementById('description').value;
 
+    const nameEl = document.getElementById('name');
+    const priceEl = document.getElementById('price');
+    const stocksEl = document.getElementById('stocks');
+    const imageInput = document.getElementById('image_input');
+    //Clear previous errors
+    [nameEl, priceEl, stocksEl].forEach(el => el.classList.remove('is-invalid'));
+
+    let hasError = false;
+
+    if (!nameEl.value.trim()) { nameEl.classList.add('is-invalid'); hasError = true; }
+    if (!priceEl.value.trim()) { priceEl.classList.add('is-invalid'); hasError = true; }
+    if (!stocksEl.value.trim()) { stocksEl.classList.add('is-invalid'); hasError = true; }
+
+    // Check for images (optional)
+    if (selectedFiles.length === 0) {
+        Swal.fire('Photos Required', 'Please select at least one photo for your product.', 'warning');
+        return;
+    }
+
+    if (hasError) {
+        return Swal.fire({
+            title: 'Required Fields',
+            text: 'Please fill in the red-highlighted fields.',
+            icon: 'error',
+            confirmButtonColor: '#dc3545'
+        });
+    }
+
     const categoryEl = document.getElementById('category');
     let categoryId = categoryEl.value;
     let categoryName = categoryEl.options[categoryEl.selectedIndex].text;
@@ -87,7 +115,15 @@ function addToStaging() {
     const paymentEl = document.querySelector('input[name="payment"]:checked');
     const payment = paymentEl ? paymentEl.value : 'Not Specified';
 
-    if (!name || !price || !stocks) return alert('Please fill in Name, Price, and Stocks!');
+    if (!name || !price || !stocks) {
+        return Swal.fire({
+            title: 'Missing Information',
+            text: 'Please fill in the Name, Price, and Stocks before adding to the list.',
+            icon: 'warning',
+            confirmButtonColor: '#198754',
+            confirmButtonText: 'Got it!'
+        });
+    }
 
     const stagingArea = document.getElementById('staging_area');
     const firstImagePreview = document.querySelector('#image_preview_container img');
@@ -167,6 +203,12 @@ function addToStaging() {
         document.getElementById('other_category_div').classList.add('d-none');
     }
 }
+// will clear the red border when the user starts typing
+document.addEventListener('input', function (e) {
+    if (e.target.classList.contains('is-invalid')) {
+        e.target.classList.remove('is-invalid');
+    }
+});
 async function submitToAdmin() {
     if (allStagedProducts.length === 0) {
         return Swal.fire({

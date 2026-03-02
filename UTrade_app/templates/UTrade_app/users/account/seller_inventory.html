@@ -5,92 +5,95 @@
 {% block content %}
   <div class="container py-5">
     <div class="row mb-4">
-      <div class="col">
-        <h2 class="fw-bold">My Shop Manager</h2>
-        <p class="text-muted">
-          You have <strong>{{ products.count }}</strong> total listings.
-        </p>
-      </div>
+        <div class="col">
+            <h2 class="fw-bold">My Shop Manager</h2>
+            <p class="text-muted">
+                You have <strong>{{ products.count }}</strong> total listings.
+            </p>
+        </div>
+    </div>
+
+    <div class="row mb-4 g-3">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 rounded-4">
+                <small class="text-muted d-block">Live Products</small>
+                <span class="h4 fw-bold text-success">{{ approved_count }}</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 rounded-4">
+                <small class="text-muted d-block">Pending Approval</small>
+                <span class="h4 fw-bold text-warning">{{ pending_count }}</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 rounded-4">
+                <small class="text-muted d-block">Rejected Products</small>
+                <span class="h4 fw-bold text-danger">{{ rejected_count }}</span>
+            </div>
+        </div>
     </div>
 
     <div class="row g-4">
-      <div class="row mb-4">
-        <div class="col-md-3">
-          <div class="card border-0 shadow-sm p-3 rounded-4">
-            <small class="text-muted d-block">Live Products</small>
-            <span class="h4 fw-bold text-success">{{ Approved_count }}</span>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card border-0 shadow-sm p-3 rounded-4">
-            <small class="text-muted d-block">Pending Approval</small>
-            <span class="h4 fw-bold text-warning">{{ Pending_count }}</span>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card border-0 shadow-sm p-3 rounded-4">
-            <small class="text-muted d-block">Rejected Porducts</small>
-            <span class="h4 fw-bold text-danger">{{ Rejected_count }}</span>
-          </div>
-        </div>
-      </div>
-      {% for item in products %}
+        {% for item in products %}
         <div class="col-12">
-          <div class="card border-0 shadow-sm rounded-4 p-3">
-            <div class="row align-items-center">
-              <div class="col-auto">
-                {% if item.images.first %}
-                  <img src="{{ item.images.first.image.url }}" class="rounded-3" style="width: 80px; height: 80px; object-fit: cover;" />
-                {% endif %}
-              </div>
-
-              <div class="col">
-                <h5 class="mb-1 fw-bold">{{ item.name }}</h5>
-                <div class="d-flex align-items-center gap-3">
-                  <span class="text-success fw-bold">₱{{ item.price }}</span>
-                  <span class="text-muted small">Stock: {{ item.stocks }}</span>
-                </div>
-              </div>
-
-              <div class="col-auto text-center px-4">
-                <div class="col-auto text-center px-4">
-                  {% if item.status == 'Approved' %}
-                    <div class="text-success small fw-bold">
-                      <i class="bi bi-check-circle-fill"></i> Live
+            <div class="card border-0 shadow-sm rounded-4 p-3">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        {% if item.images.first %}
+                            <img src="{{ item.images.first.image.url }}" class="rounded-3" style="width: 80px; height: 80px; object-fit: cover;" />
+                        {% else %}
+                            <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                                <i class="bi bi-image text-muted"></i>
+                            </div>
+                        {% endif %}
                     </div>
-                  {% else %}
-                    <div class="text-warning small fw-bold">
-                      <i class="bi bi-clock-history"></i> Pending
-                    </div>
-                  {% endif %}
-                </div>
-              </div>
 
-              <div class="col-auto">
-                <div class="dropdown">
-                  <button class="btn btn-light rounded-circle" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
-                  <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
-                    <li>
-                      <a class="dropdown-item" href="#"><i class="bi bi-pencil me-2"></i> Edit Details</a>
-                    </li>
-                    <li>
-                      <hr class="dropdown-divider" />
-                    </li>
-                    <li>
-                      <button class="dropdown-item text-danger" onclick="confirmDelete('{{ item.id }}')"><i class="bi bi-trash me-2"></i> Delete Listing</button>
-                    </li>
-                  </ul>
+                    <div class="col">
+                        <h5 class="mb-1 fw-bold">{{ item.name }}</h5>
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="text-success fw-bold">₱{{ item.price }}</span>
+                            <span class="text-muted small">Stock: {{ item.stocks }}</span>
+                        </div>
+                    </div>
+
+                    <div class="col-auto text-center px-4">
+                        {% if item.status == 'Approved' %}
+                            <div class="text-success small fw-bold">
+                                <i class="bi bi-check-circle-fill"></i> Live
+                            </div>
+                        {% elif item.status == 'Rejected' %}
+                            <div class="text-danger small fw-bold">
+                                <i class="bi bi-x-circle-fill"></i> Rejected
+                            </div>
+                        {% else %}
+                            <div class="text-warning small fw-bold">
+                                <i class="bi bi-clock-history"></i> Pending
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-auto">
+                        <div class="dropdown">
+                            <button class="btn btn-light rounded-circle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-pencil me-2"></i> Edit Details</a></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><button class="dropdown-item text-danger" onclick="confirmDelete('{{ item.id }}')"><i class="bi bi-trash me-2"></i> Delete Listing</button></li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-              </div>
             </div>
-          </div>
         </div>
-      {% empty %}
+        {% empty %}
         <div class="col-12 text-center py-5">
-          <h4 class="text-muted">You haven't listed any products yet.</h4>
-          <a href="{% url 'product.create' %}" class="btn btn-success rounded-pill mt-3">Start Selling</a>
+            <h4 class="text-muted">You haven't listed any products yet.</h4>
+            <a href="{% url 'product.create' %}" class="btn btn-success rounded-pill mt-3">Start Selling</a>
         </div>
-      {% endfor %}
+        {% endfor %}
     </div>
-  </div>
+</div>
 {% endblock %}

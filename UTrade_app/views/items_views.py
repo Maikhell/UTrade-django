@@ -148,3 +148,4 @@ def toggle_wishlist(request, product_id):
         return JsonResponse({'status':'success', 'action': status})
     except Product.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Product not found'})
+

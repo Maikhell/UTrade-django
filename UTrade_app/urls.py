@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import items_views, services_views, user_views, authenticate, admin_views
+from .views import items_views, services_views, user_views, authenticate, admin_views, cart_views
 
 urlpatterns = [
      path('', items_views.landing_page, name='landingpage'),
@@ -23,6 +23,12 @@ urlpatterns = [
      path('wishlist/toggle/<int:product_id>/', items_views.toggle_wishlist, name='toggle_wishlist'),
      path('products/', user_views.UserProductsView.as_view(), name = 'userproduct.list'),
      
+     #Cart
+     path('cart/', cart_views.cart_detail, name='cart_detail'),
+     path('cart/add/<int:product_id>/', cart_views.add_to_cart, name= 'add_to_cart'),
+     path('cart/update/<int:item_id>/', cart_views.update_cart, name='update_cart'),
+    path('cart/remove/<int:item_id>/', cart_views.remove_from_cart, name='remove_from_cart'),
+     #Services
      path('addservices/', services_views.ServiceCreateView.as_view(), name = 'services.create'),
      path('services/', services_views.ServiceListView.as_view(), name = 'services.list'),
 ]

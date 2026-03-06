@@ -45,4 +45,34 @@ async function toggleWishlist(productId, buttonElement, isWishlistPage = false) 
     } catch (error) {
         Swal.fire('Oops!', 'Something went wrong. Are you logged in?', 'error');
     }
+    function addToCart(productId) {
+        fetch(`/cart/add/${productId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update the badge in the Navbar
+                    const badge = document.getElementById('cart-count');
+                    if (badge) {
+                        badge.innerText = data.cart_count;
+                        badge.style.display = 'inline-block';
+                    }
+
+                    // Success Toast
+                    Swal.fire({
+                        toast: true,
+                        position: 'bottom-end', // Better for mobile thumbs
+                        icon: 'success',
+                        title: 'Item added!',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                }
+            });
+    }
 }

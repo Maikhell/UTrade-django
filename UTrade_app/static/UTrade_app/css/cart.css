@@ -1,0 +1,6 @@
+    .input-group button:hover {
+        background-color: #f8f9fa;
+    }
+    .sticky-top {
+        z-index: 10;
+    }

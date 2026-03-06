@@ -1,3 +1,4 @@
+// 1. Wishlist Function
 async function toggleWishlist(productId, buttonElement, isWishlistPage = false) {
     const icon = buttonElement.querySelector('i');
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
@@ -45,34 +46,46 @@ async function toggleWishlist(productId, buttonElement, isWishlistPage = false) 
     } catch (error) {
         Swal.fire('Oops!', 'Something went wrong. Are you logged in?', 'error');
     }
-    function addToCart(productId) {
-        fetch(`/cart/add/${productId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                'X-Requested-With': 'XMLHttpRequest'
+} 
+function addToCart(productId, buttonElement) {
+    const icon = buttonElement.querySelector('i');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    
+    fetch(`/cart/add/${productId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Light up the icon
+            if (icon) {
+                icon.classList.replace('bi-cart-plus', 'bi-cart-check-fill');
+                buttonElement.style.transform = 'scale(1.15)';
+                setTimeout(() => buttonElement.style.transform = 'scale(1)', 200);
             }
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    // Update the badge in the Navbar
-                    const badge = document.getElementById('cart-count');
-                    if (badge) {
-                        badge.innerText = data.cart_count;
-                        badge.style.display = 'inline-block';
-                    }
 
-                    // Success Toast
-                    Swal.fire({
-                        toast: true,
-                        position: 'bottom-end', // Better for mobile thumbs
-                        icon: 'success',
-                        title: 'Item added!',
-                        showConfirmButton: false,
-                        timer: 2000
-                    });
-                }
+            // Update Navbar Badge
+            const badge = document.getElementById('cart-count');
+            if (badge) {
+                badge.innerText = data.cart_count;
+                badge.style.display = 'inline-block';
+            }
+
+            // Notification moved to top-right
+            Swal.fire({
+                toast: true,
+                position: 'top-end', 
+                icon: 'success',
+                title: 'Added to Cart',
+                showConfirmButton: false,
+                timer: 1500,
+                timerProgressBar: true
             });
-    }
+        }
+    })
+    .catch(error => console.error('Error:', error));
 }

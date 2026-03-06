@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
+from django.http import JsonResponse
 from ..models import Product, Cart, CartItem
 
 @login_required
@@ -15,21 +16,25 @@ def cart_detail(request):
 @login_required
 @require_POST
 def add_to_cart(request, product_id):
-    cart = request.user.cart
-    product = get_object_or_404(Product, id = product_id)
-    
-    if product.stocks < 1:
-        messages.error(request, f"Sorry, {product.name} is currently out of stocks." )
-        return redirect ('product_detail', pk=product_id)
-    cart_item, created = CartItem.objects.get_or_create(cart = cart, product=product)
-    
-    if not created:
-        cart_item.quantity += 1
-        cart_item.save()
-        
-    messages.success(request, f"{product.name} added to your cart!")
-    return redirect('card_detail')
+    if request.method == 'POST':
+        # Check if user is authenticated
+        if not request.user.is_authenticated:
+            return JsonResponse({'status': 'error', 'message': 'Please login first'}, status=401)
 
+        product = get_object_or_404(Product, id=product_id)
+        cart, created = Cart.objects.get_or_create(user=request.user)
+        cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
+        
+        if not created:
+            cart_item.quantity += 1
+            cart_item.save()
+
+        return JsonResponse({
+            'status': 'success',
+            'cart_count': cart.items.count(), 
+        })
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
 @login_required
 @require_POST
 def update_cart(request, item_id):
@@ -49,7 +54,7 @@ def update_cart(request, item_id):
             return redirect('cart_detail')
     
     cart_item.save()
-    return redirect('card_detail')
+    return redirect('cart_detail')
 
 
 @login_required

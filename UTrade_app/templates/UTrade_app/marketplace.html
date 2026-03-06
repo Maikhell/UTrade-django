@@ -21,11 +21,19 @@
               <a href="{% url 'product.list' %}" class="category-pill">
                 <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if not request.GET.category %}
                     
+                    
+                    
                     bg-dark
 
+
+
                   {% else %}
+                    
+                    
                                    
                     bg-secondary
+
+
 
                   {% endif %}"
                   style="font-size: 0.65rem; letter-spacing: 1px;">
@@ -36,12 +44,20 @@
                 <a href="?category={{ category.id }}" class="category-pill">
                   <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold 
       {% if request.GET.category == category.id|stringformat:'i' %}
+                      
+                      
                                                                          
         bg-success
 
+
+
                     {% else %}
+                      
+                      
                                                                                    
         bg-secondary opacity-50
+
+
 
                     {% endif %}">
                     {{ category.name }}
@@ -92,14 +108,22 @@
                   <button type="button" class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; border: 1px solid #eee;" onclick="toggleWishlist('{{ product.id }}', this)">
                     <i class="bi {% if product.id in user_wishlist_ids %}
                         
+                        
+                        
                          
                         bi-heart-fill
 
 
+
+
                       {% else %}
+                        
+                        
                         
                                     
                         bi-heart
+
+
 
 
                       {% endif %} text-danger"
@@ -107,7 +131,15 @@
 
                     </i>
                   </button>
-                  <button type="button" class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; border: 1px solid #eee;" onclick="addToCart('{{ product.id }}')"><i class="bi bi-cart-plus text-success" style="font-size: 1.1rem;"></i></button>
+                  <button type="button" class="btn btn-light rounded-circle shadow-sm d-flex align-items-center justify-content-center" style="width: 38px; height: 38px; border: 1px solid #eee;" onclick="addToCart('{{ product.id }}', this)">
+                    <i class="bi {% if product.id in user_cart_ids %}
+                        bi-cart-check-fill
+                      {% else %}
+                        bi-cart-plus
+                      {% endif %} text-success"
+                      style="font-size: 1.1rem;">
+                    </i>
+                  </button>
                 </div>
                 <h5 class="card-title fw-bold text-dark text-truncate capitalize mb-1">{{ product.name }}</h5>
                 <p class="h4 fw-black text-success">₱{{ product.price }}</p>
@@ -137,8 +169,7 @@
       {% endfor %}
     </div>
   </div>
-  {% block extra_js %}
+{% endblock %}
+{% block extra_js %}
   <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
 {% endblock %}
-{% endblock %}
-

@@ -64,3 +64,21 @@
     background-color: #0d6efd !important;
     box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
+
+.product-card {
+    transition: transform 0.2s ease, shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+.img-container img {
+    transition: transform 0.3s ease;
+}
+
+.product-card:hover .img-container img {
+    transform: scale(1.05);
+}

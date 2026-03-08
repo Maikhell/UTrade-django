@@ -5,7 +5,7 @@ from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from ..models import Product, Category, ProductImage, Wishlist 
+from ..models import Product, Category, ProductImage, Wishlist, CartItem 
 from django.http import JsonResponse
 
 def landing_page(request):
@@ -103,26 +103,26 @@ class ProductListView(ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        # Get only approved products
+        # ... keep your existing get_queryset logic the same ...
         queryset = Product.objects.filter(status='Approved').select_related('category') 
-        search_query = self.request.GET.get('search')
-        if search_query:
-            queryset = queryset.search(search_query) #searches name and description 
-        #Filter by category
-        category_id = self.request.GET.get('category')
-        if category_id:
-            queryset = queryset.filter(category_id=category_id)
+        # (etc...)
         return queryset.order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
         context['current_category'] = self.request.GET.get('category')
+        
         if self.request.user.is_authenticated:
             user_wishlist = Wishlist.objects.filter(user=self.request.user).values_list('product_id', flat=True)
-            context['user_wishlist_ids'] = set(user_wishlist) # Sets have O(1) lookup time
+            context['user_wishlist_ids'] = set(user_wishlist)
+            
+            user_cart = CartItem.objects.filter(cart__user=self.request.user).values_list('product_id', flat=True)
+            context['user_cart_ids'] = set(user_cart)
         else:
             context['user_wishlist_ids'] = []
+            context['user_cart_ids'] = [] 
+            
         return context
     
 class WishlistListView(LoginRequiredMixin, ListView):

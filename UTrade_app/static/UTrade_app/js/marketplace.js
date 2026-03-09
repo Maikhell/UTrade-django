@@ -61,21 +61,24 @@ function addToCart(productId, buttonElement) {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            // Light up the icon
             if (icon) {
                 icon.classList.replace('bi-cart-plus', 'bi-cart-check-fill');
-                buttonElement.style.transform = 'scale(1.15)';
-                setTimeout(() => buttonElement.style.transform = 'scale(1)', 200);
+                buttonElement.classList.add('btn-success'); 
             }
 
-            // Update Navbar Badge
+            // 2. Real-Time Badge Update
             const badge = document.getElementById('cart-count');
             if (badge) {
                 badge.innerText = data.cart_count;
                 badge.style.display = 'inline-block';
+                
+                badge.animate([
+                    { transform: 'scale(1)' },
+                    { transform: 'scale(1.5)' },
+                    { transform: 'scale(1)' }
+                ], { duration: 300 });
             }
 
-            // Notification moved to top-right
             Swal.fire({
                 toast: true,
                 position: 'top-end', 

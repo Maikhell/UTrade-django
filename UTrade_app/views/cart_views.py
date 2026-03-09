@@ -4,6 +4,7 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import JsonResponse
 from ..models import Product, Cart, CartItem
+from django.db.models import Sum
 
 @login_required
 def cart_detail(request):
@@ -16,25 +17,22 @@ def cart_detail(request):
 @login_required
 @require_POST
 def add_to_cart(request, product_id):
-    if request.method == 'POST':
-        # Check if user is authenticated
-        if not request.user.is_authenticated:
-            return JsonResponse({'status': 'error', 'message': 'Please login first'}, status=401)
+    if not request.user.is_authenticated:
+        return JsonResponse({'status': 'error', 'message': 'Please login first'}, status=401)
 
-        product = get_object_or_404(Product, id=product_id)
-        cart, created = Cart.objects.get_or_create(user=request.user)
-        cart_item, created = CartItem.objects.get_or_create(cart=cart, product=product)
-        
-        if not created:
-            cart_item.quantity += 1
-            cart_item.save()
-
-        return JsonResponse({
-            'status': 'success',
-            'cart_count': cart.items.count(), 
-        })
+    product = get_object_or_404(Product, id=product_id)
+    cart, created = Cart.objects.get_or_create(user=request.user)
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
     
-    return JsonResponse({'status': 'error', 'message': 'Invalid request'}, status=400)
+    if not item_created:
+        cart_item.quantity += 1
+        cart_item.save()
+    #Will count the total product quantity, not unique
+    total_quantity = CartItem.objects.filter(cart=cart).aggregate(Sum('quantity'))['quantity__sum'] or 0    
+    return JsonResponse({
+        'status': 'success',
+        'cart_count': total_quantity,    
+        })
 @login_required
 @require_POST
 def update_cart(request, item_id):

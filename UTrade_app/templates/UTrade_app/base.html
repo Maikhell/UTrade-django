@@ -7,81 +7,121 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
     <link rel="icon" type="image/x-icon" href="{% static 'UTrade_app/img/U.png' %}" />
-    <title>
-      {% block title %}
-        Base
-      {% endblock %}
-    </title>
+    <title>{% block title %}Base{% endblock %}</title>
+    <style>
+      .sticky-top { transition: all 0.3s ease; }
+      
+      .nav-link-custom {
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .nav-profile-img {
+        width: 32px;
+        height: 32px;
+        object-fit: cover;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+      }
+
+      /* Desktop: Search is middle (order 2) */
+      .search-wrapper {
+        flex: 1;
+        max-width: 500px;
+        order: 2;
+      }
+
+      /* Left side (order 1) */
+      .nav-left { order: 1; }
+
+      /* Right side (order 3) */
+      .nav-right { order: 3; }
+
+      @media (max-width: 991px) {
+        /* Mobile: Search bar wraps to its own line (order 4) */
+        .search-wrapper {
+          flex-basis: 100%;
+          max-width: 100%;
+          order: 4;
+          margin-top: 10px;
+        }
+        
+        .navbar-brand { font-size: 1.1rem; }
+        .nav-link-custom { font-size: 0.75rem; }
+        .nav-profile-img { width: 28px; height: 28px; }
+      }
+    </style>
   </head>
   <body>
     {% with url_name=request.resolver_match.url_name %}
-      <nav class="navbar navbar-expand-lg nav-transition py-3 bg-success navbar-dark">
-        <div class="container">
-          <a class="navbar-brand fw-bold" href="/">UTrade</a>
-
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
-
-          <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto fw-medium">
-              {% if url_name == 'landingpage' or url_name == 'user.login' or url_name == 'user.register' %}
-                <li class="nav-item">
-                  <a class="nav-link px-3 {% if url_name == 'user.login' %}active {% endif %}" href="{% url 'user.login' %}">Login</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link px-3 {% if url_name == 'user.register' %}active {% endif %}" href="{% url 'user.register' %}">Register</a>
-                </li>
-              {% else %}
-                <li class="nav-item">
-                  <a class="nav-link px-3 {% if url_name == 'product.list' %}active{% endif %}" href="{% url 'product.list' %}">Marketplace</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link px-3 {% if url_name == 'services.list' %}active{% endif %}" href="{% url 'services.list' %}">Services</a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link px-3 {% if url_name == 'user.account' %}active{% endif %}" href="{% url 'user.account' %}">Account</a>
-                </li>
-              {% endif %}
-            </ul>
+      
+      <nav class="navbar navbar-dark bg-success sticky-top shadow-sm py-2">
+        <div class="container d-flex align-items-center justify-content-between flex-wrap">
+          
+          <div class="nav-left d-flex align-items-center gap-2 gap-md-3">
+            <a class="navbar-brand fw-bold m-0" href="/">UTrade</a>
+            
+            {% if user.is_authenticated %}
+            <div class="d-flex border-start border-white border-opacity-25 ps-2 gap-2">
+              <a class="nav-link-custom {% if url_name == 'product.list' %}text-white{% else %}text-white-50{% endif %}" href="{% url 'product.list' %}">Marketplace</a>
+              <a class="nav-link-custom {% if url_name == 'services.list' %}text-white{% else %}text-white-50{% endif %}" href="{% url 'services.list' %}">Services</a>
+            </div>
+            {% endif %}
           </div>
+
+          {% if url_name == 'product.list' or url_name == 'services.list' or url_name == 'product.detail' %}
+          <div class="search-wrapper px-lg-3">
+            <form action="{% if url_name == 'services.list' %}{% url 'services.list' %}{% else %}{% url 'product.list' %}{% endif %}" method="get">
+              <div class="input-group input-group-sm">
+                <input type="search" name="q" class="form-control border-0 shadow-none bg-light rounded-start-2" placeholder="Search UTrade..." value="{{ request.GET.q|default:'' }}" />
+                <button class="btn btn-light text-success border-0 rounded-end-2 px-3" type="submit"><i class="bi bi-search"></i></button>
+              </div>
+            </form>
+          </div>
+          {% endif %}
+
+          <div class="nav-right d-flex align-items-center gap-3">
+            {% if user.is_authenticated %}
+             <a href="#" class="text-white"><i class="bi bi-bell fs-5"></i></a>
+
+              <a href="#" class="text-white"><i class="bi bi-chat fs-5"></i></a>
+              
+              <a href="{% url 'cart_detail' %}" class="text-white position-relative">
+                <i class="bi bi-cart fs-5"></i>
+                <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" 
+                      style="font-size: 0.5rem; {% if not request.user.cart.count %}display: none;{% endif %}">
+                  {{ request.user.cart.count }}
+                </span>
+              </a>
+
+              <a href="{% url 'user.account' %}" class="d-flex align-items-center text-decoration-none">
+                {% if user.image %}
+                  <img src="{{ user.image.url }}" alt="Profile" class="rounded-circle nav-profile-img">
+                {% else %}
+                  <i class="bi bi-person-circle text-white fs-4"></i>
+                {% endif %}
+              </a>
+            {% else %}
+              <a class="nav-link-custom text-white" href="{% url 'user.login' %}">Login</a>
+            {% endif %}
+          </div>
+
         </div>
       </nav>
-      {% if url_name == 'product.list' or url_name == 'services.list' %}
-        <div class="d-flex justify-content-end mt-2 me-4">
-          <ul class="nav flex-row bg-success rounded-pill p-1 shadow-sm d-inline-flex">
-            <li class="nav-item">
-              <a class="nav-link px-3 text-white position-relative" href="{% url 'cart_detail' %}">
-                <i class="bi bi-chat fs-5"></i>
-                <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.55rem; padding: 0.35em 0.5em; transform: translate(-30%, 20%) !important; {% if not request.user.cart.count %}display: none;{% endif %}">{{ request.user.cart.count }}</span>
-              </a>
-            </li>
-            <div class="border-start border-white border-opacity-25 my-1 "></div>
-            <li class="nav-item">
-              <a class="nav-link px-3 text-white position-relative" href="{% url 'cart_detail' %}">
-                <i class="bi bi-cart fs-5"></i>
-                <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.55rem; padding: 0.35em 0.5em; transform: translate(-30%, 20%) !important; {% if not request.user.cart.count %}display: none;{% endif %}">{{ request.user.cart.count }}</span>
-              </a>
-            </li>
-          </ul>
-        </div>
-      {% else %}
 
-      {% endif %}
     {% endwith %}
 
     <main class="container mt-4">
-      {% block content %}
-
-      {% endblock %}
+      {% block content %}{% endblock %}
     </main>
 
     <footer class="container py-4 text-center border-top mt-5">
-      <p class="text-muted small">© 2026 My Website</p>
+      <p class="text-muted small">© 2026 UTrade</p>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    {% block extra_js %}
-
-    {% endblock %}
+    {% block extra_js %}{% endblock %}
   </body>
 </html>

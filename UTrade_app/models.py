@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db.models import Q
 from django.templatetags.static import static
+from django.db.models import Avg
 
 def user_profile_path(instance, filename):
     return f'profiles/student_{instance.student_no}/{filename}'
@@ -76,7 +77,8 @@ class BaseItem(models.Model):
 
     class Meta:
         abstract = True  
-         
+
+           
 class Services(BaseItem):
     category = models.ForeignKey(ServiceCategory, on_delete=models.SET_NULL, null=True)
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name="service_listings") 
@@ -99,6 +101,10 @@ class Product(BaseItem):
 
     def __str__(self):
         return self.name
+    @property
+    def average_rating(self):
+        avg = self.reviews.aggregate(Avg('rating'))['rating__avg']
+        return round(avg, 1) if avg else 0.0
     
 class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
@@ -115,7 +121,19 @@ class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='images/')
     
-    
+class Review(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)]) # 1 to 5 stars
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('product', 'user') 
+
+    def __str__(self):
+        return f"{self.rating} stars - {self.product.name}"  
+      
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True )
     created_at = models.DateTimeField(auto_now_add=True)

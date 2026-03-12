@@ -7,6 +7,7 @@ from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from ..models import Product, Category, ProductImage, Wishlist, CartItem 
 from django.http import JsonResponse
+import re
 
 def landing_page(request):
     return render(request, 'UTrade_app/landingpage.html')
@@ -15,6 +16,42 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'Utrade_app/products/actions/addproduct.html'
     
+    # List of keywords to flag. Keep these lowercase and without spaces.
+    BANNED_KEYWORDS = [
+        'alcohol','drugs' 'beer', 'wine', 'vodka', 'whiskey', 
+        'ecigarette', 'vape', 'smoke', 'tobacco', 'cigarette',
+        'examanswer', 'leakage', 'leak', 'cheating'
+    ]
+
+    def is_content_prohibited(self, text):
+        """
+        Advanced check for banned words, leetspeak (4lcohol, C1G), 
+        and bypass characters (v.a.p.e).
+        """
+        if not text:
+            return None
+            
+        # 1. Normalize leetspeak: Map numbers/symbols to letters
+        translations = {
+            '4': 'a', '@': 'a', '1': 'i', '!': 'i', '3': 'e', 
+            '0': 'o', '5': 's', '$': 's', '7': 't', '8': 'b'
+        }
+        
+        # Convert to lowercase and translate characters
+        text = text.lower()
+        for char, replacement in translations.items():
+            text = text.replace(char, replacement)
+            
+        # 2. Strip all non-alphabetic characters (removes spaces, dots, dashes, etc.)
+        # This turns "V.A.P.E" or "V 4 P 3" into "vape"
+        clean_text = re.sub(r'[^a-z]', '', text)
+
+        # 3. Scan for banned keywords
+        for word in self.BANNED_KEYWORDS:
+            if word in clean_text:
+                return word
+        return None
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
@@ -24,65 +61,76 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     def post(self, request, *args, **kwargs):
         total_products = int(request.POST.get('total_products', 0))
         
-        # If it's a standard single-form submission
+        # Fallback for standard single-form submission
         if total_products == 0:
             return super().post(request, *args, **kwargs)
 
-        # Handle multiple products via loop
         try:
             for i in range(total_products):
+                # Retrieve raw data from POST
+                prod_name = request.POST.get(f'prod_{i}_name', '')
+                prod_desc = request.POST.get(f'prod_{i}_desc', '')
+
+                # --- VALIDATION: BANNED ITEMS & LEETSPEAK ---
+                flagged_name = self.is_content_prohibited(prod_name)
+                flagged_desc = self.is_content_prohibited(prod_desc)
+
+                if flagged_name or flagged_desc:
+                    word = flagged_name or flagged_desc
+                    return JsonResponse({
+                        'status': 'error', 
+                        'message': f'Product "{prod_name}" was flagged for prohibited content ({word}). Please comply with community guidelines.'
+                    }, status=400)
+
+                # --- CATEGORY HANDLING ---
                 raw_category = request.POST.get(f'prod_{i}_category')
-                
                 if raw_category and raw_category.startswith('NEW:'):
                     new_name = raw_category.replace('NEW:', '').strip()
-                    
-                    #Search for an existing category regardless of Case (Upper/Lower)
+                    # Case-insensitive search
                     category_obj = Category.objects.filter(name__iexact=new_name).first()
-                    
                     if not category_obj:
-                        # If it doesn't exist, create it in Title Case
-                        # .title() makes "SNAckS" -> "Snacks"
                         category_obj = Category.objects.create(name=new_name.title())
-                    
                     category_id = category_obj.id
                 else:
                     category_id = raw_category
-                # Using form validation even for bulk items
+
+                # Prepare data for Form validation
                 data = {
-                    'name': request.POST.get(f'prod_{i}_name'),
+                    'name': prod_name,
                     'price': request.POST.get(f'prod_{i}_price'),
                     'stocks': request.POST.get(f'prod_{i}_stocks'),
-                    'description': request.POST.get(f'prod_{i}_desc'),
+                    'description': prod_desc,
                     'category': category_id,
                     'meetup_spot': request.POST.get(f'prod_{i}_meetup'),
                     'payment_method': request.POST.get(f'prod_{i}_payment'),
                 }
-                # Create a temporary form instance to validate this specific product
+
+                # Temporary form instance for validation
                 form = ProductForm(data, {'image': request.FILES.get(f'prod_{i}_image_0')})
                 
                 if form.is_valid():
                     product = form.save(commit=False)
                     product.seller = request.user
-                    product.status = 'Pending'
+                    product.status = 'Pending' # Always set to pending for manual review
                     product.save()
 
-                    # Handle Additional Gallery Images
+                    # --- MULTI-IMAGE HANDLING ---
                     image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
-                    # Bulk create gallery images to save DB hits
                     gallery_imgs = [
                         ProductImage(product=product, image=request.FILES.get(f'prod_{i}_image_{j}'))
                         for j in range(1, image_count)
                         if request.FILES.get(f'prod_{i}_image_{j}')
                     ]
+                    # Bulk create gallery images to optimize DB performance
                     ProductImage.objects.bulk_create(gallery_imgs)
                 else:
-                    # Rolling back happens automatically due to @transaction.atomic
+                    # Atomic transaction will automatically rollback all products if one fails
                     return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
             
             return JsonResponse({'status': 'success'})
+
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-    
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'Utrade_app/products/actions/product_details.html'

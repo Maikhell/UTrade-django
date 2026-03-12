@@ -15,7 +15,7 @@ function previewMultipleImages(event) {
             const wrapper = document.createElement('div');
             wrapper.className = 'preview-wrapper animate__animated animate__fadeIn';
             const isMain = index === 0;
-            const badge = isMain ? '<span class="main-badge">Main</span>' : '';
+            const badge = isMain ? '<span class="main-badge">COVER</span>' : '';
             wrapper.innerHTML = `
                 ${badge}
                 <img src="${e.target.result}" 

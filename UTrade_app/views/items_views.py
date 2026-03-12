@@ -16,7 +16,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'Utrade_app/products/actions/addproduct.html'
     
-    # List of keywords to flag. Keep these lowercase and without spaces.
+    # List of keywords to flag.lowercase and without spaces.
     BANNED_KEYWORDS = [
         'alcohol','drugs' 'beer', 'wine', 'vodka', 'whiskey', 
         'ecigarette', 'vape', 'smoke', 'tobacco', 'cigarette',
@@ -31,7 +31,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         if not text:
             return None
             
-        # 1. Normalize leetspeak: Map numbers/symbols to letters
+        # leetspeak: Map numbers/symbols to letters
         translations = {
             '4': 'a', '@': 'a', '1': 'i', '!': 'i', '3': 'e', 
             '0': 'o', '5': 's', '$': 's', '7': 't', '8': 'b'
@@ -42,11 +42,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         for char, replacement in translations.items():
             text = text.replace(char, replacement)
             
-        # 2. Strip all non-alphabetic characters (removes spaces, dots, dashes, etc.)
+        # Strip all non-alphabetic characters (removes spaces, dots, dashes, etc.)
         # This turns "V.A.P.E" or "V 4 P 3" into "vape"
         clean_text = re.sub(r'[^a-z]', '', text)
 
-        # 3. Scan for banned keywords
+        # Scan for banned keywords
         for word in self.BANNED_KEYWORDS:
             if word in clean_text:
                 return word
@@ -71,7 +71,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 prod_name = request.POST.get(f'prod_{i}_name', '')
                 prod_desc = request.POST.get(f'prod_{i}_desc', '')
 
-                # --- VALIDATION: BANNED ITEMS & LEETSPEAK ---
                 flagged_name = self.is_content_prohibited(prod_name)
                 flagged_desc = self.is_content_prohibited(prod_desc)
 
@@ -82,7 +81,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         'message': f'Product "{prod_name}" was flagged for prohibited content ({word}). Please comply with community guidelines.'
                     }, status=400)
 
-                # --- CATEGORY HANDLING ---
                 raw_category = request.POST.get(f'prod_{i}_category')
                 if raw_category and raw_category.startswith('NEW:'):
                     new_name = raw_category.replace('NEW:', '').strip()
@@ -111,10 +109,9 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 if form.is_valid():
                     product = form.save(commit=False)
                     product.seller = request.user
-                    product.status = 'Pending' # Always set to pending for manual review
+                    product.status = 'Pending' 
                     product.save()
 
-                    # --- MULTI-IMAGE HANDLING ---
                     image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
                     gallery_imgs = [
                         ProductImage(product=product, image=request.FILES.get(f'prod_{i}_image_{j}'))

@@ -24,10 +24,13 @@ class User(AbstractUser):
         unique=True, 
         validators=[RegexValidator(r'^\d+$', "Student number must be numeric")]
     )
+    course = models.CharField(max_length=100, blank=True, null=True,)
+    section = models.CharField(max_length=30, blank=True, null=True,) 
+    email = models.EmailField(unique=True) 
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     status = models.CharField(max_length=20, default='unverified')
     USERNAME_FIELD = 'student_no'
-    REQUIRED_FIELDS = ['username', 'email']
+    REQUIRED_FIELDS = ['email', 'username']
     display_name = models.CharField(max_length=150, blank=True, null=True, unique=True)
     image = models.ImageField(
         upload_to=user_profile_path, 

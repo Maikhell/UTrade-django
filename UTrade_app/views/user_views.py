@@ -7,6 +7,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Count, Q
 from django.contrib import messages
+from django.shortcuts import redirect
 
 class UserCreateView(CreateView):
     model = User 
@@ -17,8 +18,8 @@ class UserCreateView(CreateView):
     def form_valid(self,form):
         user = form.save()
         login(self.request, user)
-        return super().form_valid(form)
-    
+        messages.success(self.request, f"Welcome {user.student_no}! Your account was created successfully.")
+        return redirect(self.success_url)    
 class UserAccountView(TemplateView):
     template_name = 'UTrade_app/users/account/accounts.html'
    

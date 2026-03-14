@@ -54,3 +54,42 @@
 .action-card:hover .icon-box {
     transform: scale(1.1);
 }
+
+.badge-bsit {
+    background-color: #4cd164 !important;
+    color: white;
+}
+
+.badge-bscs {
+    background-color: #ff5252 !important;
+    color: white;
+}
+
+.badge-bse {
+    background-color: #42a5f5 !important;
+    color: white;
+}
+
+.badge-bsbm {
+    background-color: #ffeb3b !important;
+    color: #333;
+}
+
+.badge-bsp {
+    background-color: #ab47bc !important;
+    color: white;
+}
+
+.badge-bshm {
+    background-color: #ff4081 !important;
+    color: white;
+}
+
+.badge[class*="badge-"] {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.badge[class*="badge-"]:hover {
+    transform: translateY(-1px);
+}

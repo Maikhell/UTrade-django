@@ -1,5 +1,6 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.db import transaction
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView, DetailView
@@ -16,116 +17,94 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'Utrade_app/products/actions/addproduct.html'
     
-    # List of keywords to flag.lowercase and without spaces.
     BANNED_KEYWORDS = [
-        'alcohol','drugs' 'beer', 'wine', 'vodka', 'whiskey', 
+        'alcohol', 'drugs', 'beer', 'wine', 'vodka', 'whiskey', 
         'ecigarette', 'vape', 'smoke', 'tobacco', 'cigarette',
-        'examanswer', 'leakage', 'leak', 'cheating'
+        'examanswer', 'leakage', 'leak', 'cheating', 'dregs','weed',
     ]
 
     def is_content_prohibited(self, text):
-        """
-        Advanced check for banned words, leetspeak (4lcohol, C1G), 
-        and bypass characters (v.a.p.e).
-        """
-        if not text:
-            return None
-            
-        # leetspeak: Map numbers/symbols to letters
-        translations = {
-            '4': 'a', '@': 'a', '1': 'i', '!': 'i', '3': 'e', 
-            '0': 'o', '5': 's', '$': 's', '7': 't', '8': 'b'
-        }
-        
-        # Convert to lowercase and translate characters
+        if not text: return None
+        translations = {'4':'a', '@':'a', '1':'i', '!':'i', '3':'e', '0':'o', '5':'s', '$':'s', '7':'t', '8':'b'}
         text = text.lower()
         for char, replacement in translations.items():
             text = text.replace(char, replacement)
-            
-        # Strip all non-alphabetic characters (removes spaces, dots, dashes, etc.)
-        # This turns "V.A.P.E" or "V 4 P 3" into "vape"
         clean_text = re.sub(r'[^a-z]', '', text)
-
-        # Scan for banned keywords
         for word in self.BANNED_KEYWORDS:
             if word in clean_text:
                 return word
         return None
 
+    def form_valid(self, form):
+        # handle single form submittions
+        name = form.cleaned_data.get('name', '')
+        desc = form.cleaned_data.get('description', '')
+        category = form.cleaned_data.get('category') 
+        
+        flagged_name = self.is_content_prohibited(name)
+        flagged_desc = self.is_content_prohibited(desc)
+        f_cat = self.is_content_prohibited(category.name) if category else None
+        
+        if flagged_name or flagged_desc:
+            word = flagged_name or flagged_desc
+            messages.error(self.request, f"Prohibited content detected: {word}")
+            return self.form_invalid(form)
+            
+        product = form.save(commit=False)
+        product.seller = self.request.user
+        product.status = 'Pending'
+        product.save()
+        return redirect('product.list')
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
         return context
-    
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         total_products = int(request.POST.get('total_products', 0))
         
-        # Fallback for standard single-form submission
+        # If its a normal single submission, use form_valid logic
         if total_products == 0:
             return super().post(request, *args, **kwargs)
 
+        # If its bulk submission, use this loop
         try:
             for i in range(total_products):
-                # Retrieve raw data from POST
                 prod_name = request.POST.get(f'prod_{i}_name', '')
                 prod_desc = request.POST.get(f'prod_{i}_desc', '')
+                raw_category = request.POST.get(f'prod_{i}_category', '')
+                
+                # checking the input if contained any banned words
+                f_name = self.is_content_prohibited(prod_name)
+                f_desc = self.is_content_prohibited(prod_desc)
+                
+                f_cat = None
+                if raw_category.startswith('NEW:'):
+                    new_cat_name = raw_category.replace('NEW:', '').strip()
+                    f_cat = self.is_content_prohibited(new_cat_name)
 
-                flagged_name = self.is_content_prohibited(prod_name)
-                flagged_desc = self.is_content_prohibited(prod_desc)
-
-                if flagged_name or flagged_desc:
-                    word = flagged_name or flagged_desc
+                # if there's a banned keyword stop the adding
+                if f_name or f_desc or f_cat:
+                    bad_word = f_name or f_desc or f_cat
+                    source = "name" if f_name else "description" if f_desc else "category"
                     return JsonResponse({
                         'status': 'error', 
-                        'message': f'Product "{prod_name}" was flagged for prohibited content ({word}). Please comply with community guidelines.'
+                        'message': f'Prohibited content ({bad_word}) detected in product {source}.'
                     }, status=400)
 
-                raw_category = request.POST.get(f'prod_{i}_category')
-                if raw_category and raw_category.startswith('NEW:'):
+                # proceed to category creation only if clean
+                if raw_category.startswith('NEW:'):
                     new_name = raw_category.replace('NEW:', '').strip()
-                    # Case-insensitive search
-                    category_obj = Category.objects.filter(name__iexact=new_name).first()
-                    if not category_obj:
-                        category_obj = Category.objects.create(name=new_name.title())
+                    category_obj, _ = Category.objects.get_or_create(
+                        name__iexact=new_name, 
+                        defaults={'name': new_name.title()}
+                    )
                     category_id = category_obj.id
                 else:
                     category_id = raw_category
 
-                # Prepare data for Form validation
-                data = {
-                    'name': prod_name,
-                    'price': request.POST.get(f'prod_{i}_price'),
-                    'stocks': request.POST.get(f'prod_{i}_stocks'),
-                    'description': prod_desc,
-                    'category': category_id,
-                    'meetup_spot': request.POST.get(f'prod_{i}_meetup'),
-                    'payment_method': request.POST.get(f'prod_{i}_payment'),
-                }
-
-                # Temporary form instance for validation
-                form = ProductForm(data, {'image': request.FILES.get(f'prod_{i}_image_0')})
-                
-                if form.is_valid():
-                    product = form.save(commit=False)
-                    product.seller = request.user
-                    product.status = 'Pending' 
-                    product.save()
-
-                    image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
-                    gallery_imgs = [
-                        ProductImage(product=product, image=request.FILES.get(f'prod_{i}_image_{j}'))
-                        for j in range(1, image_count)
-                        if request.FILES.get(f'prod_{i}_image_{j}')
-                    ]
-                    # Bulk create gallery images to optimize DB performance
-                    ProductImage.objects.bulk_create(gallery_imgs)
-                else:
-                    # Atomic transaction will automatically rollback all products if one fails
-                    return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
             
             return JsonResponse({'status': 'success'})
-
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 class ProductDetailView(DetailView):

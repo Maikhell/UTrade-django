@@ -43,3 +43,29 @@ async function updateStatus(productId, newStatus) {
         }
     }
 }
+function showDetails(name, desc, seller, course, section, price, category, imageUrls) {
+    // Basic Info
+    document.getElementById('modalTitle').innerText = name;
+    document.getElementById('modalDesc').innerText = desc;
+    document.getElementById('modalSeller').innerText = seller;
+    document.getElementById('modalCourse').innerText = course;
+    document.getElementById('modalSection').innerText = section;
+    document.getElementById('modalPrice').innerText = '₱' + price;
+    document.getElementById('modalCategory').innerText = category;
+
+    // Image Gallery Logic
+    const container = document.getElementById('modalImageContainer');
+    container.innerHTML = ''; // Clear previous images
+
+    if (imageUrls.length > 0 && imageUrls[0] !== "") {
+        imageUrls.forEach(url => {
+            const img = document.createElement('img');
+            img.src = url;
+            img.className = 'img-fluid rounded-3 shadow-sm mb-2';
+            img.style.border = '1px solid #eee';
+            container.appendChild(img);
+        });
+    } else {
+        container.innerHTML = '<div class="text-center p-5 bg-light rounded-3"><i class="bi bi-camera-video-off fs-1 text-muted"></i><p class="small">No images uploaded</p></div>';
+    }
+}

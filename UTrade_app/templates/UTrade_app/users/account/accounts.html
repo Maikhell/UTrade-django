@@ -38,6 +38,10 @@
                 <span class="badge bg-success rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">{{ user.status }}</span>
               {% endif %}
 
+              {% if user.is_superuser %}
+                <span class="badge bg-dark rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;"> Super Admin</span>
+              {% endif %}
+
               {% if user.is_staff %}
                 <span class="badge bg-info rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Admin</span>
               {% endif %}

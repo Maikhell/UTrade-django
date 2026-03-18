@@ -311,3 +311,90 @@ function removeTag(type, value, element) {
         }
     });
 }
+let productVariants = [];
+const sizePresets = {
+    'Clothes': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Clothing': ['S', 'M', 'L', 'XL', 'XXL'],
+    'Shoes': ['38', '39', '40', '41', '42', '43', '44'],
+    'Footwear': ['38', '39', '40', '41', '42', '43', '44']
+};
+
+// --- CATEGORY VISIBILITY LOGIC ---
+function handleCategoryChange(selectElement) {
+    const selectedText = selectElement.options[selectElement.selectedIndex].text;
+    const attrSection = document.getElementById('attributes_section');
+    const otherDiv = document.getElementById('other_category_div');
+    const suggestionContainer = document.getElementById('size_suggestions_container');
+    const suggestionButtons = document.getElementById('suggestion_buttons');
+    const stocksInput = document.getElementById('stocks');
+
+    // 1. Reset Everything
+    attrSection.classList.add('d-none');
+    otherDiv.classList.add('d-none');
+    suggestionContainer.classList.add('d-none');
+    stocksInput.readOnly = false; // Default to manual entry for simple items
+
+    // 2. Show Attributes for specific categories
+    const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture'];
+
+    if (showVariantsFor.includes(selectedText)) {
+        attrSection.classList.remove('d-none');
+        stocksInput.readOnly = true; // Use variant calculation
+
+        // 3. Handle Size Suggestions
+        if (sizePresets[selectedText]) {
+            suggestionContainer.classList.remove('d-none');
+            suggestionButtons.innerHTML = '';
+            sizePresets[selectedText].forEach(size => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-outline-success btn-sm rounded-pill px-3 suggestion-btn';
+                btn.innerText = size;
+                btn.onclick = () => document.getElementById('variant_name').value = size;
+                suggestionButtons.appendChild(btn);
+            });
+        }
+    }
+
+    if (selectElement.value === 'other') {
+        otherDiv.classList.remove('d-none');
+    }
+}
+
+// --- VARIANT MANAGEMENT ---
+function addVariant() {
+    const nameInput = document.getElementById('variant_name');
+    const stockInput = document.getElementById('variant_stock');
+    const listContainer = document.getElementById('variant_list');
+
+    if (!nameInput.value || !stockInput.value) {
+        alert("Please provide both name and stock for the variant.");
+        return;
+    }
+
+    const variant = { name: nameInput.value, stock: parseInt(stockInput.value) };
+    productVariants.push(variant);
+
+    const div = document.createElement('div');
+    div.className = "variant-card d-flex justify-content-between align-items-center p-2 mb-2 rounded shadow-sm";
+    div.innerHTML = `
+                <span class="small fw-bold text-dark">${variant.name} <span class="badge bg-secondary ms-2">${variant.stock} in stock</span></span>
+                <button type="button" class="btn-close" style="font-size: 0.6rem;" onclick="removeVariant(this, '${variant.name}')"></button>
+            `;
+    listContainer.appendChild(div);
+
+    nameInput.value = '';
+    stockInput.value = '';
+    updateTotalStock();
+}
+
+function removeVariant(btn, name) {
+    productVariants = productVariants.filter(v => v.name !== name);
+    btn.parentElement.remove();
+    updateTotalStock();
+}
+
+function updateTotalStock() {
+    const total = productVariants.reduce((sum, v) => sum + v.stock, 0);
+    document.getElementById('stocks').value = total;
+}

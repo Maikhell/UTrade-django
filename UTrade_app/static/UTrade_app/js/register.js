@@ -2,16 +2,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const checkbox = document.getElementById('termsCheckbox');
     const btn = document.getElementById('signUpBtn');
     const form = document.getElementById('registerForm');
-
-    // Safety check: only run if we are actually on the register page
+    
     if (checkbox && btn && form) {
-        // Enable/Disable button based on checkbox
+
         checkbox.addEventListener('change', function () {
             btn.disabled = !this.checked;
         });
 
-        // Show Confirmation before submitting
-        btn.addEventListener('click', function () {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
             Swal.fire({
                 title: 'Confirm Registration',
                 text: 'Ready to join the UTrade community?',
@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             Swal.showLoading();
                         }
                     });
+            
                     form.submit();
                 }
             });

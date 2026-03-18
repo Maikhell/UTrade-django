@@ -29,16 +29,40 @@ class ServiceForm(forms.ModelForm):
             'turnaround_time': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 3-5 days'}),
         }
         
-class UserRegistrationForm(UserCreationForm):
-    class Meta(UserCreationForm.Meta):
+class UserRegistrationForm(forms.ModelForm):
+    password1 = forms.CharField(
+        label="Password",
+        widget=forms.PasswordInput(attrs={'class': 'form-control'})
+    )
+    password2 = forms.CharField(
+        label="Confirm Password",
+        widget=forms.PasswordInput(attrs={'class': 'form-control'})
+    )
+
+    class Meta:
         model = User
-        fields = ("student_no", "email") 
-    #to make sure the student_no field is cleaned properly:
+        fields = ['student_no', 'email'] 
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get("password1")
+        p2 = cleaned_data.get("password2")
+
+        if p1 and p2 and p1 != p2:
+            raise forms.ValidationError("Passwords do not match.")
+        return cleaned_data
     def clean_student_no(self):
         student_no = self.cleaned_data.get('student_no')
-        if not student_no:
-            raise forms.ValidationError("Student number is required.")
+        if User.objects.filter(student_no=student_no).exists():
+            raise forms.ValidationError("This student number is already registered. Try logging in.")
         return student_no
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data["password1"])
+        if commit:
+            user.save() 
+        return user
     
 class UserProfileForm(forms.ModelForm):
     class Meta:

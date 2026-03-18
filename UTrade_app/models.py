@@ -4,6 +4,7 @@ from django.core.validators import RegexValidator
 from django.db.models import Q
 from django.templatetags.static import static
 from django.db.models import Avg
+import uuid
 
 def user_profile_path(instance, filename):
     return f'profiles/student_{instance.student_no}/{filename}'
@@ -19,18 +20,19 @@ class SearchQuerySet(models.QuerySet):
         ).distinct()
     
 class User(AbstractUser):
+    username = models.CharField(max_length=70, blank=True, null=True)
     student_no = models.CharField(
         max_length=20, 
         unique=True, 
         validators=[RegexValidator(r'^\d+$', "Student number must be numeric")]
     )
+    email = models.EmailField(unique=True) 
+    
     course = models.CharField(max_length=100, blank=True, null=True,)
     section = models.CharField(max_length=30, blank=True, null=True,) 
-    email = models.EmailField(unique=True) 
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     status = models.CharField(max_length=20, default='unverified')
-    USERNAME_FIELD = 'student_no'
-    REQUIRED_FIELDS = ['email', 'username']
+    
     display_name = models.CharField(max_length=150, blank=True, null=True, unique=True)
     image = models.ImageField(
         upload_to=user_profile_path, 
@@ -38,6 +40,10 @@ class User(AbstractUser):
         null=True, 
         verbose_name='Profile Picture'
     )
+    
+    USERNAME_FIELD = 'student_no'
+    REQUIRED_FIELDS = ['email', 'username']
+    
     @property
     def profile_pic_url(self):
         try:
@@ -48,10 +54,10 @@ class User(AbstractUser):
         return static('UTrade_app/img/default-user.png')
     @property
     def get_short_name(self):
-        return self.display_name if self.display_name else self.username
-    
+        return self.display_name if self.display_name else self.student_no
+
     def __str__(self):
-        return self.get_short_name
+        return str(self.get_short_name)
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name='Category')

@@ -24,49 +24,72 @@
         <h2 class="fw-bold text-dark mb-1">Welcome</h2>
         <p class="text-muted mb-4">Please enter your details to sign up.</p>
 
-        {% if form.errors %}
-          <div class="alert alert-danger rounded-3 small py-2">
-            <ul class="mb-0 ps-3">
-              {% for field, errors in form.errors.items %}
-                {% for error in errors %}
-                  <li>{{ error }}</li>
-                {% endfor %}
-              {% endfor %}
-            </ul>
-          </div>
-        {% endif %}
-
-        <form method="post" action="{% url 'user.register' %}" id="registerForm">
+        <form method="post" action="{% url 'user.register' %}" id="registerForm" novalidate>
           {% csrf_token %}
 
           <div class="mb-3">
             <label class="form-label small fw-bold text-secondary">Student No</label>
-            <input type="text" name="student_no" placeholder="000000000" class="form-control form-control-xl bg-light" required />
+            <input type="text" name="student_no" value="{{ form.student_no.value|default:'' }}" placeholder="000000000" class="form-control form-control-xl bg-light {% if form.student_no.errors %}is-invalid{% endif %}" required />
+            {% if form.student_no.errors %}
+              <div class="invalid-feedback">
+                {% for error in form.student_no.errors %}
+                  {{ error }}
+                {% endfor %}
+              </div>
+            {% endif %}
           </div>
 
           <div class="mb-3">
             <label class="form-label small fw-bold text-secondary">Email</label>
-            <input type="email" name="email" placeholder="johndoe@gmail.com" class="form-control form-control-xl bg-light" required />
+            <input type="email" name="email" value="{{ form.email.value|default:'' }}" placeholder="johndoe@gmail.com" class="form-control form-control-xl bg-light {% if form.email.errors %}is-invalid{% endif %}" required />
+            {% if form.email.errors %}
+              <div class="invalid-feedback">
+                {% for error in form.email.errors %}
+                  {{ error }}
+                {% endfor %}
+              </div>
+            {% endif %}
           </div>
 
           <div class="mb-3">
             <label class="form-label small fw-bold text-secondary">Password</label>
-            <input type="password" name="password1" placeholder="••••••••" class="form-control form-control-xl bg-light" required />
+            <input type="password" name="password1" placeholder="••••••••" class="form-control form-control-xl bg-light {% if form.password1.errors %}is-invalid{% endif %}" required />
+            {% if form.password1.errors %}
+              <div class="invalid-feedback">
+                {% for error in form.password1.errors %}
+                  {{ error }}
+                {% endfor %}
+              </div>
+            {% endif %}
           </div>
 
           <div class="mb-4">
             <label class="form-label small fw-bold text-secondary">Confirm Password</label>
-            <input type="password" name="password2" placeholder="••••••••" class="form-control form-control-xl bg-light" required />
+            <input type="password" name="password2" placeholder="••••••••" class="form-control form-control-xl bg-light {% if form.password2.errors %}is-invalid{% endif %}" required />
+            {% if form.password2.errors %}
+              <div class="invalid-feedback">
+                {% for error in form.password2.errors %}
+                  {{ error }}
+                {% endfor %}
+              </div>
+            {% endif %}
           </div>
 
           <div class="mb-4">
             <div class="form-check small">
-              <input class="form-check-input" type="checkbox" id="termsCheckbox" required />
+              <input class="form-check-input {% if form.non_field_errors or form.terms.errors %}is-invalid{% endif %}" type="checkbox" id="termsCheckbox" name="terms" required />
               <label class="form-check-label text-muted" for="termsCheckbox">I have read and agree to the <a href="#" class="text-success fw-bold text-decoration-none" data-bs-toggle="modal" data-bs-target="#termsModal">Terms and Services</a></label>
+              {% if form.non_field_errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.non_field_errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
             </div>
           </div>
 
-          <button type="button" id="signUpBtn" class="btn btn-success w-100 fw-bold btn-xl shadow-sm" disabled>Sign Up</button>
+          <button type="submit" id="signUpBtn" class="btn btn-success w-100 fw-bold btn-xl shadow-sm">Sign Up</button>
         </form>
 
         <p class="text-center text-muted mt-5 mb-0">

@@ -16,7 +16,6 @@ def landing_page(request):
 class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'Utrade_app/products/actions/addproduct.html'
-    
     BANNED_KEYWORDS = [
         'alcohol', 'drugs', 'beer', 'wine', 'vodka', 'whiskey', 
         'ecigarette', 'vape', 'smoke', 'tobacco', 'cigarette',
@@ -63,48 +62,57 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     def post(self, request, *args, **kwargs):
         total_products = int(request.POST.get('total_products', 0))
         
-        # If its a normal single submission, use form_valid logic
+        # If it's a normal single submission, use default CreateView behavior
         if total_products == 0:
             return super().post(request, *args, **kwargs)
 
-        # If its bulk submission, use this loop
         try:
             for i in range(total_products):
+                # 1. Get Data from FormData
                 prod_name = request.POST.get(f'prod_{i}_name', '')
                 prod_desc = request.POST.get(f'prod_{i}_desc', '')
+                prod_price = request.POST.get(f'prod_{i}_price', 0)
+                prod_stocks = request.POST.get(f'prod_{i}_stocks', 0)
                 raw_category = request.POST.get(f'prod_{i}_category', '')
                 
-                # checking the input if contained any banned words
+                # 2. Content Moderation Check
                 f_name = self.is_content_prohibited(prod_name)
                 f_desc = self.is_content_prohibited(prod_desc)
-                
-                f_cat = None
-                if raw_category.startswith('NEW:'):
-                    new_cat_name = raw_category.replace('NEW:', '').strip()
-                    f_cat = self.is_content_prohibited(new_cat_name)
-
-                # if there's a banned keyword stop the adding
-                if f_name or f_desc or f_cat:
-                    bad_word = f_name or f_desc or f_cat
-                    source = "name" if f_name else "description" if f_desc else "category"
+                if f_name or f_desc:
                     return JsonResponse({
                         'status': 'error', 
-                        'message': f'Prohibited content ({bad_word}) detected in product {source}.'
+                        'message': f'Prohibited content detected in {prod_name}.'
                     }, status=400)
 
-                # proceed to category creation only if clean
+                # 3. Handle Category (Existing or New)
                 if raw_category.startswith('NEW:'):
                     new_name = raw_category.replace('NEW:', '').strip()
                     category_obj, _ = Category.objects.get_or_create(
                         name__iexact=new_name, 
                         defaults={'name': new_name.title()}
                     )
-                    category_id = category_obj.id
                 else:
-                    category_id = raw_category
+                    category_obj = Category.objects.get(id=raw_category)
 
-            
+                # 4. CREATE THE PRODUCT (This was missing!)
+                new_product = Product.objects.create(
+                    name=prod_name,
+                    description=prod_desc,
+                    price=prod_price,
+                    stocks=prod_stocks,
+                    category=category_obj,
+                    seller=request.user,
+                    status='Pending'
+                )
+
+                # 5. Handle Image (First image from the staged files)
+                first_image = request.FILES.get(f'prod_{i}_image_0')
+                if first_image:
+                    new_product.image = first_image
+                    new_product.save()
+
             return JsonResponse({'status': 'success'})
+            
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 class ProductDetailView(DetailView):
@@ -127,9 +135,7 @@ class ProductListView(ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        # ... keep your existing get_queryset logic the same ...
         queryset = Product.objects.filter(status='Approved').select_related('category') 
-        # (etc...)
         return queryset.order_by('-created_at')
 
     def get_context_data(self, **kwargs):

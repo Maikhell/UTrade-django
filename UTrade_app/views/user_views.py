@@ -15,11 +15,13 @@ class UserCreateView(CreateView):
     template_name = 'UTrade_app/users/account/register.html'
     success_url = reverse_lazy('product.list')
     
-    def form_valid(self,form):
+    def form_valid(self, form):
         user = form.save()
-        login(self.request, user)
-        messages.success(self.request, f"Welcome {user.student_no}! Your account was created successfully.")
-        return redirect(self.success_url)    
+        self.object = user 
+        login(self.request, user, backend='django.contrib.auth.backends.ModelBackend')
+        messages.success(self.request, "Welcome! Your account was created.")
+        return redirect(self.get_success_url())
+    
 class UserAccountView(TemplateView):
     template_name = 'UTrade_app/users/account/accounts.html'
    

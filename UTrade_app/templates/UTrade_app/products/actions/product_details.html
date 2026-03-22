@@ -9,6 +9,7 @@
   {% block extra_css %}
     <link rel="stylesheet" href="{% static 'UTrade_app/css/product_details.css' %}" />
   {% endblock %}
+  
   {% csrf_token %}
   <div class="container py-5">
     <nav aria-label="breadcrumb" class="mb-4">
@@ -38,7 +39,9 @@
           <div class="row g-2 overflow-auto flex-nowrap pb-2" id="thumbGallery">
             {% for img in product.images.all %}
               <div class="col-auto">
-                <div class="thumbnail-wrapper rounded-3 border {% if forloop.first %}border-success border-2{% endif %}" style="width: 80px; height: 80px; cursor: pointer; overflow: hidden;" onclick="changeImage('{{ img.image.url }}', this)">
+                <div class="thumbnail-wrapper rounded-3 border {% if forloop.first %}border-success border-2{% endif %}" 
+                     style="width: 80px; height: 80px; cursor: pointer; overflow: hidden;" 
+                     onclick="changeImage('{{ img.image.url }}', this)">
                   <img src="{{ img.image.url }}" class="w-100 h-100" style="object-fit: cover;" />
                 </div>
               </div>
@@ -71,14 +74,27 @@
             </div>
             <div class="vr text-muted opacity-25"></div>
             <div>
-              <span class="{% if product.stocks < 5 %}
-                  text-danger
-                {% else %}
-                  text-dark
-                {% endif %} fw-bold">
+              <span class="{% if product.stocks < 5 %}text-danger{% else %}text-dark{% endif %} fw-bold" id="variant-stock-display">
                 {{ product.stocks }}
               </span>
               <span class="text-muted small ms-1">Available</span>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Select Variation</h6>
+            <div class="d-flex flex-wrap gap-2" id="variant-options">
+              {% for variant in product.variants.all %}
+                <input type="radio" class="btn-check" name="product_variant" id="var_{{ variant.id }}" 
+                       value="{{ variant.id }}" data-stock="{{ variant.stocks }}" 
+                       {% if variant.stocks <= 0 %}disabled{% endif %} autocomplete="off">
+                <label class="btn btn-outline-success rounded-pill px-3 py-2" for="var_{{ variant.id }}">
+                  {{ variant.variant_name }}
+                  {% if variant.stocks <= 0 %} (Sold Out){% endif %}
+                </label>
+              {% empty %}
+                <p class="text-muted small italic">No variations available for this item.</p>
+              {% endfor %}
             </div>
           </div>
 
@@ -108,38 +124,25 @@
             <div class="row g-2">
               <div class="col-10">
                 {% if product.stocks > 0 %}
-                  <button onclick="addToCart('{{ product.id }}', this)" class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
-                    <i class="bi {% if product.id in user_cart_ids %}
-                        bi-cart-check-fill
-                      {% else %}
-                        bi-cart-plus
-                      {% endif %} me-2">
-
-                    </i>
-                    {% if product.id in user_cart_ids %}
-                      In Cart
-                    {% else %}
-                      Add to Cart
-                    {% endif %}
+                  <button id="addToCartBtn" onclick="addToCartWithVariant('{{ product.id }}')" class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
+                    <i class="bi bi-cart-plus me-2"></i> Add to Cart
                   </button>
                 {% else %}
-                  <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled><i class="bi bi-exclamation-octagon me-2"></i> Out of Stock</button>
+                  <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled>
+                    <i class="bi bi-exclamation-octagon me-2"></i> Out of Stock
+                  </button>
                 {% endif %}
               </div>
               <div class="col-2">
                 <button type="button" onclick="toggleWishlist('{{ product.id }}', this)" class="btn btn-outline-danger btn-lg w-100 rounded-3 py-3 d-flex align-items-center justify-content-center">
-                  <i class="bi {% if product.id in user_wishlist_ids %}
-                      bi-heart-fill
-                    {% else %}
-                      bi-heart
-                    {% endif %}">
-
-                  </i>
+                  <i class="bi {% if product.id in user_wishlist_ids %}bi-heart-fill text-danger{% else %}bi-heart{% endif %}"></i>
                 </button>
               </div>
             </div>
 
-            <button class="btn btn-outline-dark btn-lg rounded-3 fw-bold py-3"><i class="bi bi-chat-dots me-2"></i> Message Seller</button>
+            <button class="btn btn-outline-dark btn-lg rounded-3 fw-bold py-3">
+              <i class="bi bi-chat-dots me-2"></i> Message Seller
+            </button>
           </div>
 
           <div class="card mt-5 border-0 bg-light rounded-4 p-3 shadow-sm">
@@ -147,7 +150,9 @@
               {% if product.seller.image %}
                 <img src="{{ product.seller.image.url }}" class="rounded-circle me-3 border border-2 border-white" style="width: 55px; height: 55px; object-fit: cover;" />
               {% else %}
-                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3 text-white fw-bold shadow-sm" style="width: 55px; height: 55px;">{{ product.seller.username|slice:':1'|upper }}</div>
+                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3 text-white fw-bold shadow-sm" style="width: 55px; height: 55px;">
+                  {{ product.seller.username|slice:':1'|upper }}
+                </div>
               {% endif %}
               <div>
                 <h6 class="mb-0 fw-bold">{{ product.seller.username }}</h6>

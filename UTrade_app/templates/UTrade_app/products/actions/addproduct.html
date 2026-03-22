@@ -11,24 +11,17 @@
   {% endblock %}
 
   <div class="container mb-2">
-    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4">
-      <i class="bi bi-arrow-left me-2"></i>Back to Account
-    </a>
+    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
   </div>
 
   <div class="container-fluid py-4 workshop-container">
     <div class="row g-4">
       <div class="col-lg-3">
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <h6 class="fw-bold text-uppercase small text-muted mb-3">
-            <i class="bi bi-images me-2"></i>1. Product Gallery 
-          </h6>
+          <h6 class="fw-bold text-uppercase small text-muted mb-3"><i class="bi bi-images me-2"></i>1. Product Gallery</h6>
 
           <div class="mb-3">
-            <label class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill">
-              <i class="bi bi-plus-lg me-1"></i> Select Photos
-              <input type="file" id="image_input" class="d-none" accept="image/*" multiple onchange="previewMultipleImages(event)" />
-            </label>
+            <label class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill"><i class="bi bi-plus-lg me-1"></i> Select Photos<input type="file" id="image_input" class="d-none" accept="image/*" multiple onchange="previewMultipleImages(event)" /></label>
           </div>
 
           <div id="image_preview_container" class="image-preview-grid column-scroll">
@@ -57,57 +50,59 @@
             </div>
 
             <div class="row g-2 mb-3">
-                <div class="col-6">
-                    <label class="form-label small fw-bold text-secondary">Category</label>
-                    <select id="category" class="form-select bg-light border-0" onchange="handleCategoryChange(this)">
-                      <option selected disabled>Choose Category...</option>
-                      {% for category in categories %}
-                        <option value="{{ category.id }}">{{ category.name }}</option>
-                      {% endfor %}
-                      <option value="other">-- Other (Type New) --</option>
-                    </select>
-                </div>
-                <div class="col-6">
-                    <label class="form-label small fw-bold text-secondary">Total Stocks</label>
-                    <input type="number" id="stocks" class="form-control bg-light border-0" readonly placeholder="Calculated from variants" />
-                </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold text-secondary">Category</label>
+                <select id="category" class="form-select bg-light border-0" onchange="handleCategoryChange(this)">
+                  <option selected disabled>Choose Category...</option>
+                  {% for category in categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                  {% endfor %}
+                  <option value="other">-- Other (Type New) --</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label small fw-bold text-secondary">Total Stocks</label>
+                <input type="number" id="stocks" class="form-control bg-light border-0" readonly placeholder="Calculated from variants" />
+              </div>
             </div>
 
             <div id="other_category_div" class="mb-3 d-none">
-                <label class="form-label small fw-bold text-success">New Category Name</label>
-                <input type="text" id="custom_category" class="form-control border-success py-2" placeholder="Enter new category name..." />
+              <label class="form-label small fw-bold text-success">New Category Name</label>
+              <input type="text" id="custom_category" class="form-control border-success py-2" placeholder="Enter new category name..." />
             </div>
 
             <div id="attributes_section" class="d-none mb-4">
-                <label class="form-label small fw-bold text-secondary">Product Variations (Sizes/Colors)</label>
-                <div class="card border-0 bg-light p-3 rounded-4">
-                    
-                    <div id="size_suggestions_container" class="d-none mb-3">
-                        <label class="form-label x-small fw-bold text-muted mb-1 text-uppercase">Quick Select Size:</label>
-                        <div id="suggestion_buttons" class="d-flex flex-wrap gap-2"></div>
-                    </div>
-
-                    <div class="row g-2 align-items-end">
-                        <div class="col-5">
-                            <label class="x-small fw-bold text-muted">Variation Name</label>
-                            <input type="text" id="variant_name" class="form-control form-control-sm border-0 shadow-sm" placeholder="Red, XL, etc.">
-                        </div>
-                        <div class="col-4">
-                            <label class="x-small fw-bold text-muted">Stock Count</label>
-                            <input type="number" id="variant_stock" class="form-control form-control-sm border-0 shadow-sm" placeholder="0">
-                        </div>
-                        <div class="col-3">
-                            <button type="button" class="btn btn-dark btn-sm w-100" onclick="addVariant()">Add</button>
-                        </div>
-                    </div>
-
-                    <div id="variant_list" class="mt-3">
-                        </div>
+              <label class="form-label small fw-bold text-secondary">Product Variations (Sizes/Colors)</label>
+              <div class="card border-0 bg-light p-3 rounded-4">
+                <div id="size_suggestions_container" class="d-none mb-3">
+                  <label class="form-label x-small fw-bold text-muted mb-1 text-uppercase">Quick Select Size:</label>
+                  <div id="suggestion_buttons" class="d-flex flex-wrap gap-2"></div>
                 </div>
+
+                <div class="row g-2 align-items-end">
+                  <div class="col-4">
+                    <label class="x-small fw-bold text-muted">Variation Name</label>
+                    <input type="text" id="variant_name" class="form-control form-control-sm border-0 shadow-sm" placeholder="Red, XL, etc." />
+                  </div>
+                  <div class="col-3">
+                    <label class="x-small fw-bold text-muted">Stock Count</label>
+                    <input type="number" id="variant_stock" class="form-control form-control-sm border-0 shadow-sm" placeholder="0" />
+                  </div>
+                  <div class="col-3">
+                    <label class="x-small fw-bold text-muted">Price (₱)</label>
+                    <input type="number" id="variant_price" class="form-control form-control-sm border-0 shadow-sm" placeholder="0.00" />
+                  </div>
+                  <div class="col-2">
+                    <button type="button" class="btn btn-dark btn-sm w-100" onclick="addVariant()">Add</button>
+                  </div>
+                </div>
+
+                <div id="variant_list" class="mt-3"></div>
+              </div>
             </div>
 
             <div class="row g-2 mb-3">
-              <div class="col-6">
+              <div id="simple_price_section" class="col-6">
                 <label class="form-label small fw-bold text-secondary">Price (₱)</label>
                 <input type="number" id="price" class="form-control bg-light border-0" />
               </div>

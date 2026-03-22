@@ -6,9 +6,10 @@ from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from ..models import Product, Category, ProductImage, Wishlist, CartItem 
+from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant 
 from django.http import JsonResponse
 import re
+import json
 
 def landing_page(request):
     return render(request, 'UTrade_app/landingpage.html')
@@ -62,29 +63,23 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     def post(self, request, *args, **kwargs):
         total_products = int(request.POST.get('total_products', 0))
         
-        # If it's a normal single submission, use default CreateView behavior
         if total_products == 0:
             return super().post(request, *args, **kwargs)
 
         try:
             for i in range(total_products):
-                # 1. Get Data from FormData
+                # get data
                 prod_name = request.POST.get(f'prod_{i}_name', '')
                 prod_desc = request.POST.get(f'prod_{i}_desc', '')
                 prod_price = request.POST.get(f'prod_{i}_price', 0)
                 prod_stocks = request.POST.get(f'prod_{i}_stocks', 0)
                 raw_category = request.POST.get(f'prod_{i}_category', '')
                 
-                # 2. Content Moderation Check
-                f_name = self.is_content_prohibited(prod_name)
-                f_desc = self.is_content_prohibited(prod_desc)
-                if f_name or f_desc:
-                    return JsonResponse({
-                        'status': 'error', 
-                        'message': f'Prohibited content detected in {prod_name}.'
-                    }, status=400)
+                # content moderation
+                if self.is_content_prohibited(prod_name) or self.is_content_prohibited(prod_desc):
+                    return JsonResponse({'status': 'error', 'message': f'Prohibited content in {prod_name}.'}, status=400)
 
-                # 3. Handle Category (Existing or New)
+                # handle category
                 if raw_category.startswith('NEW:'):
                     new_name = raw_category.replace('NEW:', '').strip()
                     category_obj, _ = Category.objects.get_or_create(
@@ -92,25 +87,54 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         defaults={'name': new_name.title()}
                     )
                 else:
-                    category_obj = Category.objects.get(id=raw_category)
+                    category_obj = Category.objects.filter(id=raw_category).first()
 
-                # 4. CREATE THE PRODUCT (This was missing!)
+                # create product object 
                 new_product = Product.objects.create(
                     name=prod_name,
                     description=prod_desc,
-                    price=prod_price,
-                    stocks=prod_stocks,
                     category=category_obj,
                     seller=request.user,
                     status='Pending'
                 )
 
-                # 5. Handle Image (First image from the staged files)
+                # handle primary image
                 first_image = request.FILES.get(f'prod_{i}_image_0')
                 if first_image:
                     new_product.image = first_image
                     new_product.save()
 
+                variants_data = request.POST.get(f'prod_{i}_variants', '[]')
+                try:
+                    variants_list = json.loads(variants_data)
+                    
+                    if not variants_list:
+                        # simple product create one default variant using main price/stocks
+                        ProductVariant.objects.create(
+                            product=new_product,
+                            variant_name="Default",
+                            price=prod_price,
+                            stocks=prod_stocks
+                        )
+                    else:
+                        # variable product create each variation
+                        for var in variants_list:
+                            ProductVariant.objects.create(
+                                product=new_product,
+                                variant_name=var.get('name'),
+                                stocks=var.get('stock', 0),
+                                price=var.get('price', prod_price) # fallback to main price
+                            )
+                except (json.JSONDecodeError, TypeError):
+                    pass # or handle error as needed
+
+                #handle additional images
+                image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
+                for j in range(1, image_count):
+                    extra_img = request.FILES.get(f'prod_{i}_image_{j}')
+                    if extra_img:
+                        ProductImage.objects.create(product=new_product, image=extra_img) 
+                        
             return JsonResponse({'status': 'success'})
             
         except Exception as e:
@@ -147,7 +171,7 @@ class ProductListView(ListView):
             user_wishlist = Wishlist.objects.filter(user=self.request.user).values_list('product_id', flat=True)
             context['user_wishlist_ids'] = set(user_wishlist)
             
-            user_cart = CartItem.objects.filter(cart__user=self.request.user).values_list('product_id', flat=True)
+            user_cart = CartItem.objects.filter(cart__user=self.request.user).values_list('variant__product_id', flat=True)
             context['user_cart_ids'] = set(user_cart)
         else:
             context['user_wishlist_ids'] = []

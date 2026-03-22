@@ -1,9 +1,15 @@
-if (typeof itemCount === 'undefined') {
-    var itemCount = 0;
-    var currentAttributes = { sizes: [], varieties: [], colors: [] };
-    var selectedFiles = [];
-    var allStagedProducts = [];
-}
+let itemCount = 0;
+let currentAttributes = { sizes: [], varieties: [], colors: [] };
+let selectedFiles = [];
+let allStagedProducts = [];
+let productVariants = [];
+
+window.sizePresets = {
+    Clothes: ['S', 'M', 'L', 'XL', 'XXL'],
+    Clothing: ['S', 'M', 'L', 'XL', 'XXL'],
+    Shoes: ['38', '39', '40', '41', '42', '43', '44'],
+    Footwear: ['38', '39', '40', '41', '42', '43', '44']
+};
 function previewMultipleImages(event) {
     const container = document.getElementById('image_preview_container');
     container.innerHTML = '';
@@ -56,30 +62,54 @@ function toggleOtherCategory(select) {
 
 }
 function addToStaging() {
-    const name = document.getElementById('name').value;
-    const price = document.getElementById('price').value;
-    const stocks = document.getElementById('stocks').value;
-    const desc = document.getElementById('description').value;
-
+    // 1. Get Elements
     const nameEl = document.getElementById('name');
     const priceEl = document.getElementById('price');
     const stocksEl = document.getElementById('stocks');
-    const imageInput = document.getElementById('image_input');
-    //Clear previous errors
+    const descEl = document.getElementById('description');
+    const categoryEl = document.getElementById('category');
+
+    // 2. Determine Mode (Check if attributes section is visible)
+    const isVariantMode = !document.getElementById('attributes_section').classList.contains('d-none');
+
+    // 3. Reset Validation Errors
     [nameEl, priceEl, stocksEl].forEach(el => el.classList.remove('is-invalid'));
 
     let hasError = false;
 
-    if (!nameEl.value.trim()) { nameEl.classList.add('is-invalid'); hasError = true; }
-    if (!priceEl.value.trim()) { priceEl.classList.add('is-invalid'); hasError = true; }
-    if (!stocksEl.value.trim()) { stocksEl.classList.add('is-invalid'); hasError = true; }
+    // 4. Validate Name (Required for everyone)
+    if (!nameEl.value.trim()) {
+        nameEl.classList.add('is-invalid');
+        hasError = true;
+    }
 
-    // Check for images (optional)
+    // 5. Context-Aware Validation
+    let finalPrice, finalStocks;
+
+    if (isVariantMode) {
+        // VALIDATION FOR CLOTHES/SHOES/ETC
+        if (productVariants.length === 0) {
+            Swal.fire('Variations Required', 'Please add at least one size or variety using the "Add" button.', 'warning');
+            return; // Stop execution
+        }
+        // In variant mode, we pull price from the first variant and total stock from the sum
+        finalPrice = productVariants[0].price;
+        finalStocks = productVariants.reduce((sum, v) => sum + v.stock, 0);
+    } else {
+        // VALIDATION FOR SIMPLE ITEMS
+        if (!priceEl.value.trim()) { priceEl.classList.add('is-invalid'); hasError = true; }
+        if (!stocksEl.value.trim()) { stocksEl.classList.add('is-invalid'); hasError = true; }
+        finalPrice = priceEl.value;
+        finalStocks = stocksEl.value;
+    }
+
+    // 6. Image Check
     if (selectedFiles.length === 0) {
         Swal.fire('Photos Required', 'Please select at least one photo for your product.', 'warning');
         return;
     }
 
+    // 7. Stop if basic fields are missing
     if (hasError) {
         return Swal.fire({
             title: 'Required Fields',
@@ -89,91 +119,72 @@ function addToStaging() {
         });
     }
 
-    const categoryEl = document.getElementById('category');
+    // 8. Handle Category Logic
     let categoryId = categoryEl.value;
     let categoryName = categoryEl.options[categoryEl.selectedIndex].text;
 
     if (categoryId === 'other') {
         const customValue = document.getElementById('custom_category').value.trim();
-
-        // Check if the typed value (case-insensitive) already exists in the dropdown
-        const exists = Array.from(categoryEl.options).some(opt =>
-            opt.text.toLowerCase() === customValue.toLowerCase()
-        );
-
-        if (exists) {
-            Swal.fire('Tip', `"${customValue}" is already in the list. We'll use the existing one!`, 'info');
-        }
-
         categoryId = `NEW:${customValue}`;
         categoryName = customValue;
     }
 
+    // 9. Gather other data
     const condition = document.getElementById('condition').value;
     const meetup = document.getElementById('meetup').value;
     const productId = Date.now();
     const paymentEl = document.querySelector('input[name="payment"]:checked');
     const payment = paymentEl ? paymentEl.value : 'Not Specified';
 
-    if (!name || !price || !stocks) {
-        return Swal.fire({
-            title: 'Missing Information',
-            text: 'Please fill in the Name, Price, and Stocks before adding to the list.',
-            icon: 'warning',
-            confirmButtonColor: '#198754',
-            confirmButtonText: 'Got it!'
-        });
-    }
-
-    const stagingArea = document.getElementById('staging_area');
-    const firstImagePreview = document.querySelector('#image_preview_container img');
-    const firstImageSrc = firstImagePreview ? firstImagePreview.src : null;
+    // 10. Package Data
     const productData = {
         id: productId,
-        name: name,
-        price: price,
-        stocks: stocks,
-        description: desc,
+        name: nameEl.value,
+        price: finalPrice,
+        stocks: finalStocks,
+        description: descEl.value,
         category: categoryId,
         condition: condition,
         meetup: meetup,
         payment: payment,
-        files: [...selectedFiles]
+        files: [...selectedFiles],
+        variants: [...productVariants]
     };
 
     allStagedProducts.push(productData);
+
+    // 11. Update UI
     itemCount = allStagedProducts.length;
     document.getElementById('item_count').innerText = itemCount;
+
+    const stagingArea = document.getElementById('staging_area');
     if (stagingArea.querySelector('.empty-msg')) stagingArea.innerHTML = '';
 
-    const attrBadges = [
-        ...currentAttributes.sizes.map(s => `<span class="badge bg-secondary-subtle text-dark me-1 border">${s}</span>`),
-        ...currentAttributes.varieties.map(v => `<span class="badge bg-info-subtle text-dark me-1 border">${v}</span>`),
-        ...currentAttributes.colors.map(c => `<span class="badge bg-dark-subtle text-dark me-1 border">${c}</span>`)
-    ].join('');
+    const firstImagePreview = document.querySelector('#image_preview_container img');
+    const firstImageSrc = firstImagePreview ? firstImagePreview.src : null;
+
     const imageHtml = firstImageSrc
         ? `<img src="${firstImageSrc}" class="rounded shadow-sm me-3" style="width: 70px; height: 70px; object-fit: cover; border: 1px solid #dee2e6;">`
         : `<div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 70px; height: 70px; border: 1px solid #dee2e6;"><i class="bi bi-image text-muted"></i></div>`;
+
     const itemCard = `
         <div class="card staged-item mb-3 p-3 bg-white border-0 shadow-sm animate__animated animate__fadeInRight" data-id="${productId}">
             <div class="d-flex align-items-start mb-2">
                 ${imageHtml}
                 <div class="flex-grow-1">
                     <div class="d-flex justify-content-between">
-                        <h6 class="mb-0 fw-bold text-dark">${name}</h6>
+                        <h6 class="mb-0 fw-bold text-dark">${productData.name}</h6>
                         <button class="btn btn-sm text-danger p-0" onclick="removeItem(this, ${productId})">
                             <i class="bi bi-trash-fill"></i>
                         </button>
                     </div>
                     <div class="mt-1">
-                        <span class="badge bg-success-subtle text-success small">₱${price}</span>
-                        <span class="text-muted small ms-1">Stock: ${stocks}</span>
+                        <span class="badge bg-success-subtle text-success small">₱${productData.price}</span>
+                        <span class="text-muted small ms-1">Stock: ${productData.stocks}</span>
                     </div>
                 </div>
             </div>
-
-            <div class="small text-muted mb-2 text-truncate-2" style="font-size: 0.85rem;">${desc}</div>
-
+            <div class="small text-muted mb-2 text-truncate-2" style="font-size: 0.85rem;">${productData.description}</div>
             <div class="d-flex flex-wrap gap-1 mb-2">
                 <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-tag me-1"></i>${categoryName}</span>
                 <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-geo-alt me-1"></i>${meetup}</span>
@@ -181,34 +192,24 @@ function addToStaging() {
                     <i class="bi bi-wallet2 me-1"></i>${payment}
                 </span>
             </div>
-
-            <div class="pt-2 border-top">
-                ${attrBadges ? attrBadges : '<span class="text-muted tiny" style="font-size: 0.7rem;">No attributes</span>'}
-            </div>
         </div>`;
 
     stagingArea.insertAdjacentHTML('afterbegin', itemCard);
-    document.getElementById('product_form').reset();
-    currentAttributes = { sizes: [], varieties: [], colors: [] };
-    selectedFiles = [];
 
+    // 12. Final Reset
+    document.getElementById('product_form').reset();
+    productVariants = [];
+    document.getElementById('variant_list').innerHTML = '';
     document.getElementById('attribute_pills').innerHTML = '';
     document.getElementById('image_preview_container').innerHTML = `
         <div class="text-center py-5 text-muted small w-100">
             <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
             Item added. Ready for next.
         </div>`;
-    if (document.getElementById('custom_category')) {
-        document.getElementById('custom_category').value = '';
-        document.getElementById('other_category_div').classList.add('d-none');
-    }
+
+    // Reset category-specific UI
+    handleCategoryChange(categoryEl);
 }
-// will clear the red border when the user starts typing
-document.addEventListener('input', function (e) {
-    if (e.target.classList.contains('is-invalid')) {
-        e.target.classList.remove('is-invalid');
-    }
-});
 async function submitToAdmin() {
     if (allStagedProducts.length === 0) {
         return Swal.fire({
@@ -254,6 +255,7 @@ async function submitToAdmin() {
         formData.append(`prod_${index}_condition`, product.condition);
         formData.append(`prod_${index}_meetup`, product.meetup);
         formData.append(`prod_${index}_payment`, product.payment);
+        formData.append(`prod_${index}_variants`, JSON.stringify(product.variants));
         product.files.forEach((file, fileIndex) => {
             formData.append(`prod_${index}_image_${fileIndex}`, file);
         });
@@ -311,68 +313,69 @@ function removeTag(type, value, element) {
         }
     });
 }
-let productVariants = [];
-const sizePresets = {
-    'Clothes': ['S', 'M', 'L', 'XL', 'XXL'],
-    'Clothing': ['S', 'M', 'L', 'XL', 'XXL'],
-    'Shoes': ['38', '39', '40', '41', '42', '43', '44'],
-    'Footwear': ['38', '39', '40', '41', '42', '43', '44']
-};
 
-// --- CATEGORY VISIBILITY LOGIC ---
+
+//CATEGORY VISIBILITY LOGIC
 function handleCategoryChange(selectElement) {
     const selectedText = selectElement.options[selectElement.selectedIndex].text;
     const attrSection = document.getElementById('attributes_section');
     const otherDiv = document.getElementById('other_category_div');
+    const simplePriceSection = document.getElementById('simple_price_section');
     const suggestionContainer = document.getElementById('size_suggestions_container');
     const suggestionButtons = document.getElementById('suggestion_buttons');
     const stocksInput = document.getElementById('stocks');
 
-    // 1. Reset Everything
+    //Reset Everything
     attrSection.classList.add('d-none');
     otherDiv.classList.add('d-none');
     suggestionContainer.classList.add('d-none');
     stocksInput.readOnly = false; // Default to manual entry for simple items
 
-    // 2. Show Attributes for specific categories
+    //Show Attributes for specific categories
     const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture'];
 
     if (showVariantsFor.includes(selectedText)) {
         attrSection.classList.remove('d-none');
-        stocksInput.readOnly = true; // Use variant calculation
-
-        // 3. Handle Size Suggestions
-        if (sizePresets[selectedText]) {
-            suggestionContainer.classList.remove('d-none');
-            suggestionButtons.innerHTML = '';
-            sizePresets[selectedText].forEach(size => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'btn btn-outline-success btn-sm rounded-pill px-3 suggestion-btn';
-                btn.innerText = size;
-                btn.onclick = () => document.getElementById('variant_name').value = size;
-                suggestionButtons.appendChild(btn);
-            });
-        }
+        simplePriceSection.classList.add('d-none');
+        stocksInput.readOnly = true;
+    } else {
+        attrSection.classList.add('d-none');
+        simplePriceSection.classList.remove('d-none');
+        stocksInput.readOnly = false;
     }
-
+    //Handle Size Suggestions
+    if (window.sizePresets[selectedText]) {
+        suggestionContainer.classList.remove('d-none');
+        suggestionButtons.innerHTML = '';
+        window.sizePresets[selectedText].forEach(size => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-outline-success btn-sm rounded-pill px-3 suggestion-btn';
+            btn.innerText = size;
+            btn.onclick = () => document.getElementById('variant_name').value = size;
+            suggestionButtons.appendChild(btn);
+        });
+    }
     if (selectElement.value === 'other') {
         otherDiv.classList.remove('d-none');
     }
 }
+
+
 
 // --- VARIANT MANAGEMENT ---
 function addVariant() {
     const nameInput = document.getElementById('variant_name');
     const stockInput = document.getElementById('variant_stock');
     const listContainer = document.getElementById('variant_list');
+    const priceInput = document.getElementById('variant_price');
 
     if (!nameInput.value || !stockInput.value) {
         alert("Please provide both name and stock for the variant.");
         return;
     }
 
-    const variant = { name: nameInput.value, stock: parseInt(stockInput.value) };
+    const variant = { name: nameInput.value, stock: parseInt(stockInput.value), price: parseFloat(priceInput.value) || 0 };
     productVariants.push(variant);
 
     const div = document.createElement('div');
@@ -385,6 +388,7 @@ function addVariant() {
 
     nameInput.value = '';
     stockInput.value = '';
+    priceInput.value = '';
     updateTotalStock();
 }
 
@@ -398,3 +402,6 @@ function updateTotalStock() {
     const total = productVariants.reduce((sum, v) => sum + v.stock, 0);
     document.getElementById('stocks').value = total;
 }
+document.addEventListener('input', (e) => {
+    if (e.target.classList.contains('is-invalid')) e.target.classList.remove('is-invalid');
+});

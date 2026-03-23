@@ -1,45 +1,107 @@
+/**
+ * Updates the primary product view and synchronizes the active border state across thumbnails
+ */
 function changeImage(imageUrl, element) {
-    document.getElementById('mainDisplayImage').src = imageUrl;
+    const mainImg = document.getElementById('mainDisplayImage');
+    if (mainImg) {
+        mainImg.src = imageUrl;
+    }
+    
     document.querySelectorAll('.thumbnail-wrapper').forEach(wrapper => {
         wrapper.classList.remove('border-success', 'border-2');
     });
     element.classList.add('border-success', 'border-2');
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const variantRadios = document.querySelectorAll('input[name="product_variant"]');
-    const stockDisplay = document.getElementById('variant-stock-display');
-
-    variantRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            const stock = this.getAttribute('data-stock');
-            stockDisplay.innerText = stock;
-            
-            if (parseInt(stock) < 5) {
-                stockDisplay.classList.add('text-danger');
-                stockDisplay.classList.remove('text-dark');
-            } else {
-                stockDisplay.classList.add('text-dark');
-                stockDisplay.classList.remove('text-danger');
-            }
-        });
-    });
-});
-
-function addToCartWithVariant(productId) {
-    const variantOptions = document.querySelectorAll('input[name="product_variant"]');
-    const selectedVariant = document.querySelector('input[name="product_variant"]:checked');
-    
-    if (variantOptions.length > 0 && !selectedVariant) {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Please select an option',
-            text: 'Choose a variation (like Size or Color) before adding to cart.',
-            confirmButtonColor: '#198754'
-        });
+/**
+ * Opens a SweetAlert2 popup for the user to select a variation.
+ * This triggers when the "Add to Cart" button is clicked.
+ */
+function openVariantSelector(productId, productName) {
+    // Retrieve variant data from the JSON script tag we added to the HTML
+    const variantDataElement = document.getElementById('variant-data');
+    if (!variantDataElement) {
+        console.error("Variant data not found!");
         return;
     }
-    const finalId = selectedVariant ? selectedVariant.value : productId;
-    const isVariant = selectedVariant ? true : false;
-    addToCart(finalId, isVariant); 
+
+    const variants = JSON.parse(variantDataElement.textContent);
+
+    // If there are no variants at all, add the base product directly
+    if (variants.length === 0) {
+        addToCart(productId, false);
+        return;
+    }
+
+    // Generate the HTML for the variation list inside the popup
+    let variantHtml = `
+        <div class="text-start mb-2 mt-3 px-1">
+            <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Available Options for ${productName}</small>
+        </div>
+        <div class="list-group text-start">`;
+    
+    variants.forEach(v => {
+        const isOutOfStock = v.stock <= 0;
+        const disabledAttr = isOutOfStock ? 'disabled' : '';
+        const opacityClass = isOutOfStock ? 'opacity-50 bg-light' : '';
+        const badge = isOutOfStock ? '<span class="badge bg-danger rounded-pill">Sold Out</span>' : `<span class="badge bg-success-subtle text-success rounded-pill">Stock: ${v.stock}</span>`;
+
+        variantHtml += `
+            <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-3 mb-2 border ${opacityClass}" 
+                   style="cursor: ${isOutOfStock ? 'not-allowed' : 'pointer'}; padding: 12px 15px;">
+                <div class="d-flex align-items-center">
+                    <input class="form-check-input me-3 border-success" type="radio" name="swal-variant" value="${v.id}" ${disabledAttr}>
+                    <div>
+                        <div class="fw-bold text-dark">${v.name}</div>
+                        <div class="text-success small fw-bold">₱${v.price}</div>
+                    </div>
+                </div>
+                <div>
+                    ${badge}
+                </div>
+            </label>
+        `;
+    });
+    variantHtml += '</div>';
+
+    // Show the SweetAlert Popup
+    Swal.fire({
+        title: 'Choose Variation',
+        html: variantHtml,
+        showCancelButton: true,
+        confirmButtonText: 'Add to Cart',
+        confirmButtonColor: '#198754', // UTrade Green
+        cancelButtonText: 'Cancel',
+        cancelButtonColor: '#6c757d',
+        customClass: {
+            popup: 'rounded-4 shadow',
+            confirmButton: 'rounded-pill px-4 py-2 fw-bold',
+            cancelButton: 'rounded-pill px-4 py-2'
+        },
+        preConfirm: () => {
+            const selected = document.querySelector('input[name="swal-variant"]:checked');
+            if (!selected) {
+                Swal.showValidationMessage('Please select a variation to continue');
+                return false;
+            }
+            return selected.value;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // result.value contains the ID of the selected variant
+            addToCart(result.value, true); 
+        }
+    });
+}
+
+/**
+ * This function handles the final addition to the cart.
+ * Note: Ensure your marketplace.js 'addToCart' function is ready to receive these parameters.
+ */
+function addToCartWithVariant(productId) {
+    // This is now handled by openVariantSelector.
+    // We keep this function name here in case other parts of your app call it,
+    // but redirecting it to the new popup logic:
+    const productName = document.querySelector('h1')?.innerText || "Product";
+    openVariantSelector(productId, productName);
 }

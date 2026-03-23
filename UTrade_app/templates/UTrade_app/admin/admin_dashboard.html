@@ -153,5 +153,56 @@
         </div>
       </div>
     </div>
+    <div class="mb-4">
+      <h3 class="fw-bold mb-4">Product Inventory</h3>
+      <div class="table-container border">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-muted">
+              <tr>
+                <th class="ps-4 py-3">Product</th>
+                <th class="py-3">Seller</th>
+                <th class="py-3">Category</th>
+                <th class="py-3">Price Range</th> <th class="py-3 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in products %}
+                <tr>
+                  <td class="ps-4">
+                    <div class="d-flex align-items-center">
+                      {% if p.image %}
+                        <img src="{{ p.image.url }}" class="rounded me-3 border" style="width: 40px; height: 40px; object-fit: cover;" />
+                      {% endif %}
+                      <span class="fw-bold">{{ p.name }}</span>
+                    </div>
+                  </td>
+                  <td class="text-muted small">{{ p.seller.get_short_name }}</td>
+                  <td>
+                    <span class="badge bg-light text-dark border">{{ p.category.name }}</span>
+                  </td>
+                  <td class="fw-bold text-success">₱{{ p.get_price_range }}</td>
+                  <td class="text-center">
+                    <span class="badge {% if p.status == 'Approved' %}
+                        bg-success
+                      {% elif p.status == 'Pending' %}
+                        bg-warning
+                      {% else %}
+                        bg-danger
+                      {% endif %} rounded-pill">
+                      {{ p.status }}
+                    </span>
+                  </td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center py-5 text-muted">No products listed.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 {% endblock %}

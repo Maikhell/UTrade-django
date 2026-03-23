@@ -18,23 +18,22 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        #Get all user statistics in ONE query
+        # 1. User Statistics
         user_stats = User.objects.aggregate(
             total_admin=Count('id', filter=Q(is_staff=True)),
             unverified=Count('id', filter=Q(status='unverified')),
             verified=Count('id', filter=Q(status='verified'))
         )
         
-        # Fetching data with select_related to optimize template rendering
-        all_products = Product.objects.all().select_related('seller', 'category').order_by('-created_at')
+        all_products = Product.objects.all().select_related('seller', 'category').prefetch_related('variants').order_by('-created_at')
         
         context.update({
-            'users': User.objects.all().order_by('-date_joined')[:10], # Limit to latest 10 for dashboard speed
-            'admin_count': user_stats['total_admin'],
-            'unverified_count': user_stats['unverified'],
-            'verified_count': user_stats['verified'],
-            'products': all_products[:10], # Only show recent products
-            'pending_products': [p for p in all_products if p.status == 'Pending'][:5], # Filter in Python memory
+            'users': User.objects.all().order_by('-date_joined')[:10],
+            'admin': user_stats['total_admin'],        
+            'unverified': user_stats['unverified'],   
+            'verified': user_stats['verified'],      
+            'products': all_products[:10],
+            'pending_products': [p for p in all_products if p.status == 'Pending'][:5],
         })
         return context
     
@@ -74,7 +73,11 @@ class AdminReviewListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     context_object_name = 'pending_items'
     
     def get_queryset(self):
-        return Product.objects.filter(status ='Pending').order_by('created_at')
+        # Add prefetch_related('variants') here!
+        return Product.objects.filter(status='Pending')\
+                              .select_related('seller', 'category')\
+                              .prefetch_related('variants', 'images')\
+                              .order_by('created_at')
+
     def test_func(self):
         return self.request.user.is_staff
-

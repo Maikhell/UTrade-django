@@ -1,4 +1,5 @@
 if (typeof itemCount === 'undefined') {
+    // Initialize global state only if not already defined to prevent script collision
     var itemCount = 0;
     var currentAttributes = { sizes: [], varieties: [], colors: [] };
     var selectedFiles = [];
@@ -50,6 +51,7 @@ function addToStaging() {
     const firstImagePreview = document.querySelector('#image_preview_container img');
     const firstImageSrc = firstImagePreview ? firstImagePreview.src : null;
 
+    // Capture current form state into an object and store it in the staging array
     const serviceData = {
         id: serviceId,
         name: name,
@@ -69,6 +71,7 @@ function addToStaging() {
 
     if (stagingArea.querySelector('.empty-msg')) stagingArea.innerHTML = '';
 
+    // Generate dynamic HTML for the staging card including a fallback icon if no image is uploaded
     const imageHtml = firstImageSrc
         ? `<img src="${firstImageSrc}" class="rounded shadow-sm me-3" style="width: 70px; height: 70px; object-fit: cover; border: 1px solid #dee2e6;">`
         : `<div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 70px; height: 70px; border: 1px solid #dee2e6;"><i class="bi bi-tools text-muted"></i></div>`;
@@ -137,6 +140,7 @@ async function submitToAdmin() {
         }
     });
 
+    // Create a flat FormData map to handle multiple services and their respective images in one request
     const formData = new FormData();
     allStagedServices.forEach((service, index) => {
         formData.append(`serv_${index}_name`, service.name);
@@ -147,12 +151,14 @@ async function submitToAdmin() {
         formData.append(`serv_${index}_delivery`, service.delivery);
         formData.append(`serv_${index}_payment`, service.payment);
 
+        // Iterate through files for each service to append them as individual form fields
         service.files.forEach((file, fileIndex) => {
             formData.append(`serv_${index}_image_${fileIndex}`, file);
         });
         formData.append(`serv_${index}_image_count`, service.files.length);
     });
     formData.append('total_services', allStagedServices.length);
+    
     try {
         const response = await fetch(window.location.href, {
             method: 'POST',
@@ -199,6 +205,7 @@ function addTag(type) {
     const val = input.value.trim();
     if (!val) return;
 
+    // Prevent duplicate entries by checking the existing attribute array before adding new pills
     if (!currentAttributes[`${type}s`].includes(val)) {
         currentAttributes[`${type}s`].push(val);
         const pillHtml = `

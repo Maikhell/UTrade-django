@@ -55,10 +55,12 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         product.status = 'Pending'
         product.save()
         return redirect('product.list')
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
         return context
+    
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         total_products = int(request.POST.get('total_products', 0))
@@ -139,6 +141,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'Utrade_app/products/actions/product_details.html'

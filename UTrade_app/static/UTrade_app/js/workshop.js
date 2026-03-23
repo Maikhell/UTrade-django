@@ -10,6 +10,7 @@ window.sizePresets = {
     Shoes: ['38', '39', '40', '41', '42', '43', '44'],
     Footwear: ['38', '39', '40', '41', '42', '43', '44']
 };
+
 function previewMultipleImages(event) {
     const container = document.getElementById('image_preview_container');
     container.innerHTML = '';
@@ -51,7 +52,6 @@ function addTag(type) {
     input.value = '';
 }
 
-// Toggle other Category
 function toggleOtherCategory(select) {
     const otherDiv = document.getElementById('other_category_div');
     if (select.value === 'other') {
@@ -59,57 +59,50 @@ function toggleOtherCategory(select) {
     } else {
         otherDiv.classList.add('d-none');
     }
-
 }
+
 function addToStaging() {
-    // 1. Get Elements
     const nameEl = document.getElementById('name');
     const priceEl = document.getElementById('price');
     const stocksEl = document.getElementById('stocks');
     const descEl = document.getElementById('description');
     const categoryEl = document.getElementById('category');
 
-    // 2. Determine Mode (Check if attributes section is visible)
+    // Determine if the form is currently handling variants or a single product
     const isVariantMode = !document.getElementById('attributes_section').classList.contains('d-none');
 
-    // 3. Reset Validation Errors
     [nameEl, priceEl, stocksEl].forEach(el => el.classList.remove('is-invalid'));
 
     let hasError = false;
 
-    // 4. Validate Name (Required for everyone)
     if (!nameEl.value.trim()) {
         nameEl.classList.add('is-invalid');
         hasError = true;
     }
 
-    // 5. Context-Aware Validation
     let finalPrice, finalStocks;
 
+    // Logic to switch validation and data extraction based on product complexity
     if (isVariantMode) {
-        // VALIDATION FOR CLOTHES/SHOES/ETC
         if (productVariants.length === 0) {
             Swal.fire('Variations Required', 'Please add at least one size or variety using the "Add" button.', 'warning');
-            return; // Stop execution
+            return; 
         }
-        // In variant mode, we pull price from the first variant and total stock from the sum
+        // Use price from the first variant entry and aggregate total stocks from all variants
         finalPrice = productVariants[0].price;
         finalStocks = productVariants.reduce((sum, v) => sum + v.stock, 0);
     } else {
-        // VALIDATION FOR SIMPLE ITEMS
         if (!priceEl.value.trim()) { priceEl.classList.add('is-invalid'); hasError = true; }
         if (!stocksEl.value.trim()) { stocksEl.classList.add('is-invalid'); hasError = true; }
         finalPrice = priceEl.value;
         finalStocks = stocksEl.value;
     }
 
-    // 6. Image Check
     if (selectedFiles.length === 0) {
         Swal.fire('Photos Required', 'Please select at least one photo for your product.', 'warning');
         return;
     }
 
-    // 7. Stop if basic fields are missing
     if (hasError) {
         return Swal.fire({
             title: 'Required Fields',
@@ -119,7 +112,7 @@ function addToStaging() {
         });
     }
 
-    // 8. Handle Category Logic
+    // Handles logic for "Other" category selection to allow custom user input
     let categoryId = categoryEl.value;
     let categoryName = categoryEl.options[categoryEl.selectedIndex].text;
 
@@ -129,14 +122,12 @@ function addToStaging() {
         categoryName = customValue;
     }
 
-    // 9. Gather other data
     const condition = document.getElementById('condition').value;
     const meetup = document.getElementById('meetup').value;
     const productId = Date.now();
     const paymentEl = document.querySelector('input[name="payment"]:checked');
     const payment = paymentEl ? paymentEl.value : 'Not Specified';
 
-    // 10. Package Data
     const productData = {
         id: productId,
         name: nameEl.value,
@@ -153,13 +144,13 @@ function addToStaging() {
 
     allStagedProducts.push(productData);
 
-    // 11. Update UI
     itemCount = allStagedProducts.length;
     document.getElementById('item_count').innerText = itemCount;
 
     const stagingArea = document.getElementById('staging_area');
     if (stagingArea.querySelector('.empty-msg')) stagingArea.innerHTML = '';
 
+    // Dynamically generate the preview thumbnail or a placeholder if no image exists
     const firstImagePreview = document.querySelector('#image_preview_container img');
     const firstImageSrc = firstImagePreview ? firstImagePreview.src : null;
 
@@ -196,7 +187,6 @@ function addToStaging() {
 
     stagingArea.insertAdjacentHTML('afterbegin', itemCard);
 
-    // 12. Final Reset
     document.getElementById('product_form').reset();
     productVariants = [];
     document.getElementById('variant_list').innerHTML = '';
@@ -207,9 +197,9 @@ function addToStaging() {
             Item added. Ready for next.
         </div>`;
 
-    // Reset category-specific UI
     handleCategoryChange(categoryEl);
 }
+
 async function submitToAdmin() {
     if (allStagedProducts.length === 0) {
         return Swal.fire({
@@ -219,10 +209,12 @@ async function submitToAdmin() {
             confirmButtonColor: '#198754'
         });
     }
+
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     if (!csrftoken) {
         return Swal.fire('Error', 'CSRF Token missing. Check your HTML template!', 'error');
     }
+
     const confirmation = await Swal.fire({
         title: 'Submit for Authorization?',
         text: `Are you sure you want to send ${allStagedProducts.length} item(s) for review?`,
@@ -235,6 +227,7 @@ async function submitToAdmin() {
     });
 
     if (!confirmation.isConfirmed) return;
+
     Swal.fire({
         title: 'Sending to Admin...',
         text: 'Please wait while we process your request.',
@@ -244,6 +237,7 @@ async function submitToAdmin() {
         }
     });
 
+    // Construct FormData to handle both structured text/JSON data and binary image files
     const formData = new FormData();
 
     allStagedProducts.forEach((product, index) => {
@@ -256,6 +250,8 @@ async function submitToAdmin() {
         formData.append(`prod_${index}_meetup`, product.meetup);
         formData.append(`prod_${index}_payment`, product.payment);
         formData.append(`prod_${index}_variants`, JSON.stringify(product.variants));
+        
+        // Maps multiple images per product using unique indexed keys
         product.files.forEach((file, fileIndex) => {
             formData.append(`prod_${index}_image_${fileIndex}`, file);
         });
@@ -263,6 +259,7 @@ async function submitToAdmin() {
     });
 
     formData.append('total_products', allStagedProducts.length);
+
     try {
         const response = await fetch(window.location.href, {
             method: 'POST',
@@ -294,6 +291,7 @@ async function submitToAdmin() {
         });
     }
 }
+
 function removeItem(btn, productId) {
     btn.closest('.staged-item').remove();
     allStagedProducts = allStagedProducts.filter(item => item.id !== productId);
@@ -303,6 +301,7 @@ function removeItem(btn, productId) {
         document.getElementById('staging_area').innerHTML = '<div class="text-center py-5 text-muted small empty-msg">List is empty.</div>';
     }
 }
+
 function removeTag(type, value, element) {
     currentAttributes[`${type}s`] = currentAttributes[`${type}s`].filter(val => val !== value);
     element.parentElement.remove();
@@ -314,8 +313,6 @@ function removeTag(type, value, element) {
     });
 }
 
-
-//CATEGORY VISIBILITY LOGIC
 function handleCategoryChange(selectElement) {
     const selectedText = selectElement.options[selectElement.selectedIndex].text;
     const attrSection = document.getElementById('attributes_section');
@@ -325,13 +322,12 @@ function handleCategoryChange(selectElement) {
     const suggestionButtons = document.getElementById('suggestion_buttons');
     const stocksInput = document.getElementById('stocks');
 
-    //Reset Everything
     attrSection.classList.add('d-none');
     otherDiv.classList.add('d-none');
     suggestionContainer.classList.add('d-none');
-    stocksInput.readOnly = false; // Default to manual entry for simple items
+    stocksInput.readOnly = false; 
 
-    //Show Attributes for specific categories
+    // Filters categories that require variant management instead of a single price/stock field
     const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture'];
 
     if (showVariantsFor.includes(selectedText)) {
@@ -343,7 +339,8 @@ function handleCategoryChange(selectElement) {
         simplePriceSection.classList.remove('d-none');
         stocksInput.readOnly = false;
     }
-    //Handle Size Suggestions
+
+    // Maps preset sizes to UI buttons when a relevant category is selected
     if (window.sizePresets[selectedText]) {
         suggestionContainer.classList.remove('d-none');
         suggestionButtons.innerHTML = '';
@@ -361,9 +358,6 @@ function handleCategoryChange(selectElement) {
     }
 }
 
-
-
-// --- VARIANT MANAGEMENT ---
 function addVariant() {
     const nameInput = document.getElementById('variant_name');
     const stockInput = document.getElementById('variant_stock');
@@ -398,10 +392,12 @@ function removeVariant(btn, name) {
     updateTotalStock();
 }
 
+// Recalculates the main stock input field based on the sum of all individual variants added
 function updateTotalStock() {
     const total = productVariants.reduce((sum, v) => sum + v.stock, 0);
     document.getElementById('stocks').value = total;
 }
+
 document.addEventListener('input', (e) => {
     if (e.target.classList.contains('is-invalid')) e.target.classList.remove('is-invalid');
 });

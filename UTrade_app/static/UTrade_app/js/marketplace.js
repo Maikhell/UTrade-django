@@ -1,4 +1,4 @@
-// 1. Wishlist Function
+// Wishlist Function
 async function toggleWishlist(productId, buttonElement, isWishlistPage = false) {
     const icon = buttonElement.querySelector('i');
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
@@ -24,6 +24,8 @@ async function toggleWishlist(productId, buttonElement, isWishlistPage = false) 
                 });
             } else {
                 icon.classList.replace('bi-heart-fill', 'bi-heart');
+                
+                // Handles the smooth removal of the product card specifically when on the Wishlist page
                 if (isWishlistPage) {
                     const card = document.getElementById(`wishlist-item-${productId}`);
                     if (card) {
@@ -47,6 +49,7 @@ async function toggleWishlist(productId, buttonElement, isWishlistPage = false) 
         Swal.fire('Oops!', 'Something went wrong. Are you logged in?', 'error');
     }
 } 
+
 function addToCart(productId, buttonElement) {
     const icon = buttonElement.querySelector('i');
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
@@ -61,12 +64,13 @@ function addToCart(productId, buttonElement) {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
+            // Updates the button UI to show a "checked" state after a successful server response
             if (icon) {
                 icon.classList.replace('bi-cart-plus', 'bi-cart-check-fill');
                 buttonElement.classList.add('btn-success'); 
             }
 
-            // 2. Real-Time Badge Update
+            // Real-Time Badge Update including a scale animation for visual feedback
             const badge = document.getElementById('cart-count');
             if (badge) {
                 badge.innerText = data.cart_count;

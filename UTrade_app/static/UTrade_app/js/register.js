@@ -5,10 +5,12 @@ document.addEventListener('DOMContentLoaded', function () {
     
     if (checkbox && btn && form) {
 
+        // Manages the submit button state based on whether the user has checked the terms and conditions
         checkbox.addEventListener('change', function () {
             btn.disabled = !this.checked;
         });
 
+        // Intercepts the standard form submission to inject a confirmation dialog before sending data
         form.addEventListener('submit', function (e) {
             e.preventDefault();
 
@@ -21,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Yes, Sign me up!'
             }).then((result) => {
+                // Only proceeds with the native form submission if the user clicks the confirmation button
                 if (result.isConfirmed) {
                     Swal.fire({
                         title: 'Creating Account...',

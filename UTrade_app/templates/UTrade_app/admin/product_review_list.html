@@ -1,5 +1,6 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
+
 {% block title %} Product Reviews {% endblock %}
 
 {% block content %}
@@ -27,21 +28,37 @@
               <div class="col-md-7 p-4">
                 <div class="d-flex justify-content-between">
                   <h5 class="fw-bold mb-1">{{ item.name }}</h5>
-                  <span class="text-success fw-bold">₱{{ item.price }}</span>
+                  <span class="text-success fw-bold">₱{{ item.get_price_range }}</span>
                 </div>
                 <p class="text-muted small mb-2">
-                  Seller: <strong>@{{ item.seller.username }}</strong> | Category: {{ item.category }}
+                  Seller: <strong>@{{ item.seller.username }}</strong> | Category: {{ item.category.name }}
                 </p>
                 <p class="mb-0 text-truncate-2" style="font-size: 0.9rem;">{{ item.description|truncatewords:30 }}</p>
               </div>
 
               <div class="col-md-3 bg-light d-flex flex-column justify-content-center p-4 gap-2">
-                <button onclick="updateStatus('{{ item.id }}', 'Approved')" class="btn btn-success w-100 rounded-pill"><i class="bi bi-check-lg me-2"></i>Approve</button>
-                <button onclick="updateStatus('{{ item.id }}', 'Rejected')" class="btn btn-outline-danger w-100 rounded-pill"><i class="bi bi-x-lg me-2"></i>Reject</button>
-            <button type="button" class="btn btn-link btn-sm text-secondary text-decoration-none" 
-        data-bs-toggle="modal" 
-        data-bs-target="#productModal" 
-        onclick="showDetails('{{ item.name|escapejs }}','{{ item.description|escapejs }}','{{ item.seller.get_short_name|escapejs }}','{{ item.seller.course|default:"N/A" }}','{{ item.seller.section|default:"N/A" }}','{{ item.price }}','{{ item.category|escapejs }}',[{% for img in item.images.all %}'{{ img.image.url }}'{% if not forloop.last %},{% endif %}{% endfor %}])">
+                <button onclick="updateStatus('{{ item.id }}', 'Approved')" class="btn btn-success w-100 rounded-pill">
+                  <i class="bi bi-check-lg me-2"></i>Approve
+                </button>
+                <button onclick="updateStatus('{{ item.id }}', 'Rejected')" class="btn btn-outline-danger w-100 rounded-pill">
+                  <i class="bi bi-x-lg me-2"></i>Reject
+                </button>
+                <button type="button"
+                  class="btn btn-link btn-sm text-secondary text-decoration-none"
+                  data-bs-toggle="modal"
+                  data-bs-target="#productModal"
+                  onclick="showDetails(
+                    '{{ item.name|escapejs }}',
+                    '{{ item.description|escapejs }}',
+                    '{{ item.seller.get_short_name|escapejs }}',
+                    '{{ item.seller.course|default:'N/A' }}',
+                    '{{ item.seller.section|default:'N/A' }}',
+                    '{{ item.get_price_range }}', 
+                    '{{ item.category.name|escapejs }}', 
+                    [{% for img in item.images.all %}'{{ img.image.url }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+                    [{% for v in item.variants.all %}{'name': '{{ v.variant_name|escapejs }}', 'price': '{{ v.price }}', 'stock': {{ v.stocks }}}{% if not forloop.last %},{% endif %}{% endfor %}],
+                    '{% if item.seller.image %}{{ item.seller.image.url }}{% else %}None{% endif %}'
+                  )">
                   View Full Details
                 </button>
               </div>
@@ -65,35 +82,48 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body p-4">
-  <div class="row">
-    <div class="col-md-6 border-end">
-      <h6 class="fw-bold text-uppercase small text-muted mb-3">Product Gallery</h6>
-      <div id="modalImageContainer" class="d-flex flex-column gap-2" style="max-height: 400px; overflow-y: auto;">
-        </div>
-    </div>
+          <div class="row">
+            <div class="col-md-6 border-end">
+              <h6 class="fw-bold text-uppercase small text-muted mb-3">Product Gallery</h6>
+              <div id="modalImageContainer" class="d-flex flex-column gap-2" style="max-height: 500px; overflow-y: auto;"></div>
+            </div>
 
-    <div class="col-md-6">
-      <div class="mb-4">
-        <h6 class="fw-bold text-uppercase small text-muted">Product Information</h6>
-        <h4 class="fw-bold mb-0" id="modalTitle"></h4>
-        <p class="fw-bold small text-muted">Category: <span class="badge bg-primary rounded-pill mb-2" id="modalCategory"></span></p>
-        <h3 class="text-success fw-bold" id="modalPrice"></h3>
-        <p id="modalDesc" class="text-muted small" style="white-space: pre-wrap;"></p>
-      </div>
+            <div class="col-md-6">
+              <div class="mb-4">
+                <h6 class="fw-bold text-uppercase small text-muted">Product Information</h6>
+                <p class="fw-bold small text-muted mb-1">
+                  Category: <span class="badge bg-primary rounded-pill" id="modalCategory"></span>
+                </p>
+                <h3 class="text-success fw-bold" id="modalPrice"></h3>
+                <p id="modalDesc" class="text-muted small" style="white-space: pre-wrap;"></p>
+              </div>
 
-      <div class="p-3 bg-light rounded-3">
-        <h6 class="fw-bold text-uppercase small text-muted mb-2">Seller Details</h6>
-        <div class="d-flex align-items-center mb-2">
-          <i class="bi bi-person-circle fs-4 me-2"></i>
-          <div>
-            <p class="mb-0 fw-bold" id="modalSeller"></p>
-            <p class="mb-0 small text-muted"><span id="modalCourse"></span> - <span id="modalSection"></span></p>
+              <div class="mb-4">
+                <h6 class="fw-bold text-uppercase small text-muted mb-2">Variants & Inventory</h6>
+                <div id="modalVariantList" class="p-2 bg-light rounded-3">
+                    </div>
+              </div>
+
+              <div class="p-3 bg-light rounded-3">
+                <h6 class="fw-bold text-uppercase small text-muted mb-2">Seller Details</h6>
+                <div class="d-flex align-items-center mb-2">
+                  <div id="sellerImageContainer" class="me-3">
+                    <img id="modalSellerImage" src="" class="rounded-circle border" style="width: 50px; height: 50px; object-fit: cover; display: none;" alt="Seller" />
+                    <div id="modalSellerPlaceholder" class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white border" style="width: 50px; height: 50px;">
+                      <i class="bi bi-person-fill fs-4"></i>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="mb-0 fw-bold" id="modalSeller"></p>
+                    <p class="mb-0 small text-muted">
+                      <span id="modalCourse"></span> - <span id="modalSection"></span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
         <div class="modal-footer border-0">
           <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
         </div>

@@ -1,9 +1,7 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}
-  {{ product.name }} | UTrade
-{% endblock %}
+{% block title %} {{ product.name }} | UTrade {% endblock %}
 
 {% block content %}
   {% block extra_css %}
@@ -14,10 +12,8 @@
   <div class="container py-5">
     <nav aria-label="breadcrumb" class="mb-4">
       <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-          <a href="{% url 'product.list' %}" class="text-decoration-none text-success">Marketplace</a>
-        </li>
-        <li class="breadcrumb-item active">{{ product.category }}</li>
+        <li class="breadcrumb-item"><a href="{% url 'product.list' %}" class="text-decoration-none text-success">Marketplace</a></li>
+        <li class="breadcrumb-item active">{{ product.category.name }}</li>
       </ol>
     </nav>
 
@@ -27,8 +23,6 @@
           <div class="main-image-container bg-light d-flex align-items-center justify-content-center" style="height: 500px;">
             {% if product.images.all %}
               <img src="{{ product.images.first.image.url }}" class="img-fluid h-100" id="mainDisplayImage" style="object-fit: contain;" />
-            {% elif product.image %}
-              <img src="{{ product.image.url }}" class="img-fluid h-100" id="mainDisplayImage" style="object-fit: contain;" />
             {% else %}
               <i class="bi bi-image text-muted display-1"></i>
             {% endif %}
@@ -53,78 +47,44 @@
       <div class="col-lg-5">
         <div class="ps-lg-3">
           <div class="d-flex justify-content-between align-items-start mb-2">
-            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">{{ product.category }}</span>
+            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">{{ product.category.name }}</span>
             <small class="text-muted">ID: #UT-{{ product.id }}</small>
           </div>
 
           <h1 class="fw-bold text-dark mb-1">{{ product.name }}</h1>
-          <p class="text-muted small mb-3">
-            Listed by <span class="fw-bold text-success">@{{ product.seller.username }}</span>
-          </p>
+          <p class="text-muted small mb-3">Listed by <span class="fw-bold text-success">@{{ product.seller.username }}</span></p>
 
           <div class="d-flex align-items-center gap-3 mb-4 py-2 border-top border-bottom">
             <div class="text-warning">
-              <span class="fw-bold">{{ product.rating|default:'0.0' }}</span>
-              <i class="bi bi-star-fill small"></i>
+              <span class="fw-bold">{{ product.average_rating }}</span> <i class="bi bi-star-fill small"></i>
             </div>
             <div class="vr text-muted opacity-25"></div>
             <div>
-              <span class="fw-bold text-dark">{{ product.sold }}</span>
-              <span class="text-muted small ms-1">Sold</span>
+              <span class="fw-bold text-dark">{{ product.sold|default:0 }}</span> <span class="text-muted small ms-1">Sold</span>
             </div>
             <div class="vr text-muted opacity-25"></div>
             <div>
-              <span class="{% if product.stocks < 5 %}text-danger{% else %}text-dark{% endif %} fw-bold" id="variant-stock-display">
-                {{ product.stocks }}
+              <span class="fw-bold {% if product.get_total_stock < 5 %}text-danger{% else %}text-dark{% endif %}">
+                {{ product.get_total_stock }}
               </span>
-              <span class="text-muted small ms-1">Available</span>
+              <span class="text-muted small ms-1">Total Available</span>
             </div>
           </div>
 
-          <div class="mb-4">
-            <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Select Variation</h6>
-            <div class="d-flex flex-wrap gap-2" id="variant-options">
-              {% for variant in product.variants.all %}
-                <input type="radio" class="btn-check" name="product_variant" id="var_{{ variant.id }}" 
-                       value="{{ variant.id }}" data-stock="{{ variant.stocks }}" 
-                       {% if variant.stocks <= 0 %}disabled{% endif %} autocomplete="off">
-                <label class="btn btn-outline-success rounded-pill px-3 py-2" for="var_{{ variant.id }}">
-                  {{ variant.variant_name }}
-                  {% if variant.stocks <= 0 %} (Sold Out){% endif %}
-                </label>
-              {% empty %}
-                <p class="text-muted small italic">No variations available for this item.</p>
-              {% endfor %}
-            </div>
-          </div>
-
-          <h2 class="display-5 fw-bold text-success mb-4">₱{{ product.price }}</h2>
+          <h2 class="display-5 fw-bold text-success mb-4">₱{{ product.get_price_range }}</h2>
 
           <div class="mb-4">
             <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Description</h6>
             <p class="text-secondary" style="line-height: 1.7; white-space: pre-line;">{{ product.description }}</p>
           </div>
 
-          <div class="row g-2 mb-4">
-            <div class="col-6">
-              <div class="p-2 border rounded-3 bg-light text-center">
-                <small class="text-muted d-block">Listed On</small>
-                <span class="small fw-bold">{{ product.created_at|date:'M d, Y' }}</span>
-              </div>
-            </div>
-            <div class="col-6">
-              <div class="p-2 border rounded-3 bg-light text-center">
-                <small class="text-muted d-block">Last Updated</small>
-                <span class="small fw-bold">{{ product.updated_at|timesince }} ago</span>
-              </div>
-            </div>
-          </div>
-
           <div class="d-grid gap-3">
             <div class="row g-2">
               <div class="col-10">
-                {% if product.stocks > 0 %}
-                  <button id="addToCartBtn" onclick="addToCartWithVariant('{{ product.id }}')" class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
+                {% if product.get_total_stock > 0 %}
+                  <button id="addToCartBtn" 
+                          onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}')" 
+                          class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
                     <i class="bi bi-cart-plus me-2"></i> Add to Cart
                   </button>
                 {% else %}
@@ -139,10 +99,6 @@
                 </button>
               </div>
             </div>
-
-            <button class="btn btn-outline-dark btn-lg rounded-3 fw-bold py-3">
-              <i class="bi bi-chat-dots me-2"></i> Message Seller
-            </button>
           </div>
 
           <div class="card mt-5 border-0 bg-light rounded-4 p-3 shadow-sm">
@@ -156,9 +112,7 @@
               {% endif %}
               <div>
                 <h6 class="mb-0 fw-bold">{{ product.seller.username }}</h6>
-                <p class="small text-muted mb-0">
-                  <i class="bi bi-calendar3 me-1"></i> Member since {{ product.seller.date_joined|date:'Y' }}
-                </p>
+                <p class="small text-muted mb-0">Member since {{ product.seller.date_joined|date:'Y' }}</p>
               </div>
               <a href="#" class="btn btn-sm btn-outline-success ms-auto rounded-pill px-3">View Shop</a>
             </div>
@@ -168,8 +122,16 @@
     </div>
   </div>
 
-  {% block extra_js %}
-    <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
-    <script src="{% static 'UTrade_app/js/product_details.js' %}"></script>
-  {% endblock %}
+  <script id="variant-data" type="application/json">
+    [
+      {% for v in product.variants.all %}
+        {"id": "{{ v.id }}", "name": "{{ v.variant_name|escapejs }}", "price": "{{ v.price }}", "stock": {{ v.stocks }}}{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ]
+  </script>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
+  <script src="{% static 'UTrade_app/js/product_details.js' %}"></script>
 {% endblock %}

@@ -47,11 +47,20 @@ class Wishlist(models.Model):
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='images/')
-    
+    variant = models.ForeignKey(
+        'ProductVariant', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='variant_images'
+    )
+
+    def __str__(self):
+        return f"Image for {self.product.name}"
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)]) # 1 to 5 stars
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)]) 
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -84,7 +93,13 @@ class CartItem(models.Model):
     cart = models.ForeignKey(Cart, related_name='items', on_delete=models.CASCADE)
     variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)    
     quantity = models.PositiveBigIntegerField(default=1)
+
     def get_cost(self):
         return self.variant.price * self.quantity
-    def get_total_price(self):
+
+    def __str__(self):
+        return f"{self.variant.product.name} - {self.variant.variant_name} (x{self.quantity})"
+
+    @property
+    def display_name(self):
         return f"{self.variant.product.name} ({self.variant.variant_name})"

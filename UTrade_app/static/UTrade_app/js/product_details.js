@@ -1,24 +1,19 @@
-/**
- * Updates the primary product view and synchronizes the active border state across thumbnails
- */
 function changeImage(imageUrl, element) {
     const mainImg = document.getElementById('mainDisplayImage');
     if (mainImg) {
         mainImg.src = imageUrl;
     }
-    
+
     document.querySelectorAll('.thumbnail-wrapper').forEach(wrapper => {
         wrapper.classList.remove('border-success', 'border-2');
     });
-    element.classList.add('border-success', 'border-2');
+    if (element) {
+        element.classList.add('border-success', 'border-2');
+    }
 }
 
-/**
- * Opens a SweetAlert2 popup for the user to select a variation.
- * This triggers when the "Add to Cart" button is clicked.
- */
 function openVariantSelector(productId, productName) {
-    // Retrieve variant data from the JSON script tag we added to the HTML
+    // Retrieve variant data from the JSON script tag added to the HTML
     const variantDataElement = document.getElementById('variant-data');
     if (!variantDataElement) {
         console.error("Variant data not found!");
@@ -39,7 +34,7 @@ function openVariantSelector(productId, productName) {
             <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Available Options for ${productName}</small>
         </div>
         <div class="list-group text-start">`;
-    
+
     variants.forEach(v => {
         const isOutOfStock = v.stock <= 0;
         const disabledAttr = isOutOfStock ? 'disabled' : '';
@@ -70,13 +65,33 @@ function openVariantSelector(productId, productName) {
         html: variantHtml,
         showCancelButton: true,
         confirmButtonText: 'Add to Cart',
-        confirmButtonColor: '#198754', // UTrade Green
+        confirmButtonColor: '#198754', 
         cancelButtonText: 'Cancel',
         cancelButtonColor: '#6c757d',
         customClass: {
             popup: 'rounded-4 shadow',
             confirmButton: 'rounded-pill px-4 py-2 fw-bold',
             cancelButton: 'rounded-pill px-4 py-2'
+        },
+        didRender: () => {
+            // Listen for changes on the radio buttons inside the SweetAlert
+            const swalContainer = Swal.getHtmlContainer();
+            const radios = swalContainer.querySelectorAll('input[name="swal-variant"]');
+            
+            radios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const selectedVariantId = e.target.value;
+                    const variant = variants.find(v => v.id == selectedVariantId);
+                    
+                    // If the variant has a specific image, update the main display
+                    if (variant && variant.image_url) {
+                        const mainImg = document.getElementById('mainDisplayImage');
+                        if (mainImg) {
+                            mainImg.src = variant.image_url;
+                        }
+                    }
+                });
+            });
         },
         preConfirm: () => {
             const selected = document.querySelector('input[name="swal-variant"]:checked');
@@ -88,20 +103,12 @@ function openVariantSelector(productId, productName) {
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            // result.value contains the ID of the selected variant
-            addToCart(result.value, true); 
+            addToCart(result.value, true);
         }
     });
 }
 
-/**
- * This function handles the final addition to the cart.
- * Note: Ensure your marketplace.js 'addToCart' function is ready to receive these parameters.
- */
 function addToCartWithVariant(productId) {
-    // This is now handled by openVariantSelector.
-    // We keep this function name here in case other parts of your app call it,
-    // but redirecting it to the new popup logic:
     const productName = document.querySelector('h1')?.innerText || "Product";
     openVariantSelector(productId, productName);
 }

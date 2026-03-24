@@ -1,5 +1,5 @@
 from django.db import models
-from .base import BaseItem      # Import the parent class
+from .base import BaseItem   
 from .user_models import User   
 
 class ServiceCategory(models.Model):

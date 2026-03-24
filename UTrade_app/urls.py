@@ -25,7 +25,7 @@ urlpatterns = [
      
      #Cart
      path('cart/', cart_views.cart_detail, name='cart_detail'),
-     path('cart/add/<int:product_id>/', cart_views.add_to_cart, name= 'add_to_cart'),
+     path('cart/add/<int:variant_id>/', cart_views.add_to_cart, name='add_to_cart'),
      path('cart/update/<int:item_id>/', cart_views.update_cart, name='update_cart'),
      path('cart/remove/<int:item_id>/', cart_views.remove_from_cart, name='remove_from_cart'),
      #Services

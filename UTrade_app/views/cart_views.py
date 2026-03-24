@@ -3,36 +3,47 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import JsonResponse
-from ..models import Product, Cart, CartItem
+from ..models import Product, Cart, CartItem, ProductVariant
 from django.db.models import Sum
 
 @login_required
 def cart_detail(request):
-    cart = request.user.cart
-    return render(request, 'UTrade_app/cart/cart_detail.html',{
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    cart_items = cart.items.all()
+    
+    total_price = sum(item.variant.price * item.quantity for item in cart_items)
+    
+    return render(request, 'UTrade_app/cart/cart_detail.html', {
         'cart': cart,
-        'cart_items': cart.items.all(),
-        'toral_price': cart.total_price
+        'cart_items': cart_items,
+        'total_price': total_price
     })
 @login_required
 @require_POST
-def add_to_cart(request, product_id):
-    if not request.user.is_authenticated:
-        return JsonResponse({'status': 'error', 'message': 'Please login first'}, status=401)
-
-    product = get_object_or_404(Product, id=product_id)
+@login_required
+@require_POST
+def add_to_cart(request, variant_id):
+    
+    variant = get_object_or_404(ProductVariant, id=variant_id)
     cart, created = Cart.objects.get_or_create(user=request.user)
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, product=product)
+    cart_item, item_created = CartItem.objects.get_or_create(
+        cart=cart, 
+        variant=variant
+    )
     
     if not item_created:
-        cart_item.quantity += 1
-        cart_item.save()
-    #Will count the total product quantity, not unique
+        if cart_item.quantity < variant.stocks:
+            cart_item.quantity += 1
+            cart_item.save()
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Max stock reached'}, status=400)
+
     total_quantity = CartItem.objects.filter(cart=cart).aggregate(Sum('quantity'))['quantity__sum'] or 0    
+    
     return JsonResponse({
         'status': 'success',
         'cart_count': total_quantity,    
-        })
+    })
 @login_required
 @require_POST
 def update_cart(request, item_id):

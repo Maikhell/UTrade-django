@@ -122,13 +122,19 @@
     </div>
   </div>
 
-  <script id="variant-data" type="application/json">
-    [
-      {% for v in product.variants.all %}
-        {"id": "{{ v.id }}", "name": "{{ v.variant_name|escapejs }}", "price": "{{ v.price }}", "stock": {{ v.stocks }}}{% if not forloop.last %},{% endif %}
-      {% endfor %}
-    ]
-  </script>
+<script id="variant-data" type="application/json">
+  [
+    {% for v in product.variants.all %}
+      {
+        "id": "{{ v.id }}",
+        "name": "{{ v.variant_name|escapejs }}",
+        "price": "{{ v.price }}",
+        "stock": {{ v.stocks }},
+        "image_url": "{% if v.variant_images.first %}{{ v.variant_images.first.image.url }}{% else %}{{ product.images.first.image.url }}{% endif %}"
+      }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]
+</script>
 {% endblock %}
 
 {% block extra_js %}

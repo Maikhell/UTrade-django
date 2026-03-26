@@ -3,6 +3,7 @@ let currentAttributes = { sizes: [], varieties: [], colors: [] };
 let selectedFiles = [];
 let allStagedProducts = [];
 let productVariants = [];
+let currentSelectedImageIndex = null;
 
 window.sizePresets = {
     Clothes: ['S', 'M', 'L', 'XL', 'XXL'],
@@ -361,31 +362,89 @@ function handleCategoryChange(selectElement) {
 function addVariant() {
     const nameInput = document.getElementById('variant_name');
     const stockInput = document.getElementById('variant_stock');
-    const listContainer = document.getElementById('variant_list');
     const priceInput = document.getElementById('variant_price');
+    const listContainer = document.getElementById('variant_list');
 
     if (!nameInput.value || !stockInput.value) {
-        alert("Please provide both name and stock for the variant.");
+        Swal.fire('Missing Info', "Please provide a name and stock.", 'warning');
         return;
     }
 
-    const variant = { name: nameInput.value, stock: parseInt(stockInput.value), price: parseFloat(priceInput.value) || 0 };
+    // Create the variant object
+    const variant = { 
+        name: nameInput.value, 
+        stock: parseInt(stockInput.value), 
+        price: parseFloat(priceInput.value) || 0,
+        imageIndex: currentSelectedImageIndex // <--- LINK THE IMAGE INDEX HERE
+    };
+
     productVariants.push(variant);
 
+    // Create the UI card
     const div = document.createElement('div');
-    div.className = "variant-card d-flex justify-content-between align-items-center p-2 mb-2 rounded shadow-sm";
+    div.className = "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white";
+    
+    // If an image was selected, show a tiny thumbnail in the list
+    let thumbHtml = '';
+    if (currentSelectedImageIndex !== null && selectedFiles[currentSelectedImageIndex]) {
+        const thumbUrl = URL.createObjectURL(selectedFiles[currentSelectedImageIndex]);
+        thumbHtml = `<img src="${thumbUrl}" style="width: 30px; height: 30px; object-fit: cover;" class="rounded me-2 border">`;
+    }
+
     div.innerHTML = `
-                <span class="small fw-bold text-dark">${variant.name} <span class="badge bg-secondary ms-2">${variant.stock} in stock</span></span>
-                <button type="button" class="btn-close" style="font-size: 0.6rem;" onclick="removeVariant(this, '${variant.name}')"></button>
-            `;
+        ${thumbHtml}
+        <div class="flex-grow-1">
+            <span class="small fw-bold text-dark">${variant.name}</span>
+            <span class="badge bg-secondary-subtle text-dark ms-2" style="font-size: 0.7rem;">₱${variant.price} | Stock: ${variant.stock}</span>
+        </div>
+        <button type="button" class="btn-close" style="font-size: 0.6rem;" onclick="removeVariant(this, '${variant.name}')"></button>
+    `;
     listContainer.appendChild(div);
 
+    // Reset fields and the selected image
     nameInput.value = '';
     stockInput.value = '';
     priceInput.value = '';
+    currentSelectedImageIndex = null; 
     updateTotalStock();
 }
+function openVariantImagePicker() {
+    if (selectedFiles.length === 0) {
+        return Swal.fire('No Photos', 'Please upload product photos first!', 'info');
+    }
 
+    let html = '<div class="row g-2">';
+    selectedFiles.forEach((file, index) => {
+        const url = URL.createObjectURL(file);
+        html += `
+            <div class="col-4">
+                <div class="position-relative">
+                    <img src="${url}" class="img-thumbnail cursor-pointer border-2" 
+                         onclick="selectVariantImage(${index})" 
+                         style="height: 80px; width: 100%; object-fit: cover;">
+                    ${index === 0 ? '<span class="badge bg-dark position-absolute top-0 start-0 m-1" style="font-size: 0.5rem;">Cover</span>' : ''}
+                </div>
+            </div>`;
+    });
+    html += '</div>';
+
+    Swal.fire({
+        title: 'Assign Image to Variant',
+        html: html,
+        showConfirmButton: false,
+        customClass: { popup: 'rounded-4' }
+    });
+}
+
+function selectVariantImage(index) {
+    currentSelectedImageIndex = index;
+    
+    // Optional: Update a small preview icon next to your "Add Variant" button
+    const btn = document.querySelector('[onclick="openVariantImagePicker()"]');
+    if (btn) btn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> Image Selected`;
+    
+    Swal.close();
+}
 function removeVariant(btn, name) {
     productVariants = productVariants.filter(v => v.name !== name);
     btn.parentElement.remove();

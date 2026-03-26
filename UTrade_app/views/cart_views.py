@@ -51,7 +51,7 @@ def update_cart(request, item_id):
     action = request.POST.get('action')
     
     if action == 'up':
-        if cart_item.quantity < cart_item.product.stocks:
+        if cart_item.quantity < cart_item.variant.stocks:
             cart_item.quantity += 1
         else:
             messages.warning(request, "Maximum stocks reached.")

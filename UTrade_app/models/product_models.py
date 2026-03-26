@@ -81,13 +81,21 @@ class Cart(models.Model):
     def count(self):
         return sum(item.quantity for item in self.items.all())
 class ProductVariant(models.Model):
-    product = models.ForeignKey(Product, related_name= 'variants', on_delete=models.CASCADE)
-    variant_name = models.CharField(max_length=100, help_text="e.g., 'Red, Large' or 'Small'")
+    product = models.ForeignKey(Product, related_name='variants', on_delete=models.CASCADE)
+    variant_name = models.CharField(max_length=100)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stocks = models.IntegerField(default=0)
     
+    assigned_image = models.ForeignKey(
+        'ProductImage', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='assigned_variants'
+    )
+
     def __str__(self):
-        return f"{self.product.name} - {self.variant_name}" 
+        return f"{self.product.name} - {self.variant_name}"
     
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, related_name='items', on_delete=models.CASCADE)

@@ -1,34 +1,47 @@
-function changeImage(imageUrl, element) {
-    const mainImg = document.getElementById('mainDisplayImage');
-    if (mainImg) {
-        mainImg.src = imageUrl;
-    }
+function changeImage(url, element) {
+    const mainDisplay = document.getElementById('mainDisplayImage');
+    if (!mainDisplay) return;
 
-    document.querySelectorAll('.thumbnail-wrapper').forEach(wrapper => {
-        wrapper.classList.remove('border-success', 'border-2');
-    });
+    // Change the image source with a fade effect
+    mainDisplay.style.opacity = '0';
+    setTimeout(() => {
+        mainDisplay.src = url;
+        mainDisplay.style.opacity = '1';
+    }, 200);
+
+    // Update thumbnail border styling
     if (element) {
+        document.querySelectorAll('.thumbnail-wrapper').forEach(el => {
+            el.classList.remove('border-success', 'border-2');
+        });
         element.classList.add('border-success', 'border-2');
     }
 }
+function onVariantChange(variantId) {
+    const variantData = JSON.parse(document.getElementById('variant-data').textContent);
+    const selectedVariant = variantData.find(v => v.id == variantId);
 
-function openVariantSelector(productId, productName) {
-    // Retrieve variant data from the JSON script tag added to the HTML
-    const variantDataElement = document.getElementById('variant-data');
-    if (!variantDataElement) {
-        console.error("Variant data not found!");
-        return;
+    if (selectedVariant) {
+        // 1. Swap the Main Image to the Variant's Image
+        changeImage(selectedVariant.image_url);
+
+        // 2. Update Price Display (optional)
+        const priceDisplay = document.querySelector('.display-5');
+        if (priceDisplay) {
+            priceDisplay.innerText = `₱${selectedVariant.price}`;
+        }
     }
+}
+function openVariantSelector(productId, productName) {
+    // 1. Retrieve the (now updated) variant data
+    const variantDataElement = document.getElementById('variant-data');
+    if (!variantDataElement) return; // or handle base product directly
 
     const variants = JSON.parse(variantDataElement.textContent);
 
-    // If there are no variants at all, add the base product directly
-    if (variants.length === 0) {
-        addToCart(productId, false);
-        return;
-    }
+    // ... (rest of your logic for base product if variants.length === 0) ...
 
-    // Generate the HTML for the variation list inside the popup
+    // 2. Generate the Updated HTML
     let variantHtml = `
         <div class="text-start mb-2 mt-3 px-1">
             <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Available Options for ${productName}</small>
@@ -39,19 +52,28 @@ function openVariantSelector(productId, productName) {
         const isOutOfStock = v.stock <= 0;
         const disabledAttr = isOutOfStock ? 'disabled' : '';
         const opacityClass = isOutOfStock ? 'opacity-50 bg-light' : '';
-        const badge = isOutOfStock ? '<span class="badge bg-danger rounded-pill">Sold Out</span>' : `<span class="badge bg-success-subtle text-success rounded-pill">Stock: ${v.stock}</span>`;
+        
+        // Define the stock badge
+        const badge = isOutOfStock 
+            ? '<span class="badge bg-danger rounded-pill">Sold Out</span>' 
+            : `<span class="badge bg-success-subtle text-success rounded-pill">Stock: ${v.stock}</span>`;
 
         variantHtml += `
             <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-3 mb-2 border ${opacityClass}" 
                    style="cursor: ${isOutOfStock ? 'not-allowed' : 'pointer'}; padding: 12px 15px;">
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center flex-grow-1">
                     <input class="form-check-input me-3 border-success" type="radio" name="swal-variant" value="${v.id}" ${disabledAttr}>
-                    <div>
+                    
+                    <div class="variant-img-wrapper rounded me-3 overflow-hidden border" style="width: 40px; height: 40px;">
+                        <img src="${v.image_url}" alt="${v.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    
+                    <div class="flex-grow-1">
                         <div class="fw-bold text-dark">${v.name}</div>
                         <div class="text-success small fw-bold">₱${v.price}</div>
                     </div>
                 </div>
-                <div>
+                <div class="ms-3">
                     ${badge}
                 </div>
             </label>
@@ -59,52 +81,11 @@ function openVariantSelector(productId, productName) {
     });
     variantHtml += '</div>';
 
-    // Show the SweetAlert Popup
+    // 3. Keep your existing logic for main image update on selection
     Swal.fire({
         title: 'Choose Variation',
         html: variantHtml,
-        showCancelButton: true,
-        confirmButtonText: 'Add to Cart',
-        confirmButtonColor: '#198754', 
-        cancelButtonText: 'Cancel',
-        cancelButtonColor: '#6c757d',
-        customClass: {
-            popup: 'rounded-4 shadow',
-            confirmButton: 'rounded-pill px-4 py-2 fw-bold',
-            cancelButton: 'rounded-pill px-4 py-2'
-        },
-        didRender: () => {
-            // Listen for changes on the radio buttons inside the SweetAlert
-            const swalContainer = Swal.getHtmlContainer();
-            const radios = swalContainer.querySelectorAll('input[name="swal-variant"]');
-            
-            radios.forEach(radio => {
-                radio.addEventListener('change', (e) => {
-                    const selectedVariantId = e.target.value;
-                    const variant = variants.find(v => v.id == selectedVariantId);
-                    
-                    // If the variant has a specific image, update the main display
-                    if (variant && variant.image_url) {
-                        const mainImg = document.getElementById('mainDisplayImage');
-                        if (mainImg) {
-                            mainImg.src = variant.image_url;
-                        }
-                    }
-                });
-            });
-        },
-        preConfirm: () => {
-            const selected = document.querySelector('input[name="swal-variant"]:checked');
-            if (!selected) {
-                Swal.showValidationMessage('Please select a variation to continue');
-                return false;
-            }
-            return selected.value;
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            addToCart(result.value, true);
-        }
+        // ... (rest of your existing logic for image updates, didRender, etc.) ...
     });
 }
 

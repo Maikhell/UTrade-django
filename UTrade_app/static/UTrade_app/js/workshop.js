@@ -1,10 +1,11 @@
-let itemCount = 0;
-let currentAttributes = { sizes: [], varieties: [], colors: [] };
-let selectedFiles = [];
-let allStagedProducts = [];
-let productVariants = [];
-let currentSelectedImageIndex = null;
-
+if (typeof window.itemCount === 'undefined') {
+    window.itemCount = 0;
+    window.currentAttributes = { sizes: [], varieties: [], colors: [] };
+    window.selectedFiles = [];
+    window.allStagedProducts = [];
+    window.productVariants = [];
+    window.currentSelectedImageIndex = null;
+}
 window.sizePresets = {
     Clothes: ['S', 'M', 'L', 'XL', 'XXL'],
     Clothing: ['S', 'M', 'L', 'XL', 'XXL'],

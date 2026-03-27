@@ -130,7 +130,7 @@
         "name": "{{ v.variant_name|escapejs }}",
         "price": "{{ v.price }}",
         "stock": {{ v.stocks }},
-        "image_url": "{% if v.variant_images.first %}{{ v.variant_images.first.image.url }}{% else %}{{ product.images.first.image.url }}{% endif %}"
+        "image_url": "{% if v.assigned_image %}{{ v.assigned_image.image.url }}{% else %}{{ product.images.first.image.url }}{% endif %}"
       }{% if not forloop.last %},{% endif %}
     {% endfor %}
   ]

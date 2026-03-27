@@ -70,18 +70,17 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
 
         try:
             for i in range(total_products):
-                # get data
+                # 1. Basic Data Extraction
                 prod_name = request.POST.get(f'prod_{i}_name', '')
                 prod_desc = request.POST.get(f'prod_{i}_desc', '')
                 prod_price = request.POST.get(f'prod_{i}_price', 0)
                 prod_stocks = request.POST.get(f'prod_{i}_stocks', 0)
                 raw_category = request.POST.get(f'prod_{i}_category', '')
                 
-                # content moderation
                 if self.is_content_prohibited(prod_name) or self.is_content_prohibited(prod_desc):
                     return JsonResponse({'status': 'error', 'message': f'Prohibited content in {prod_name}.'}, status=400)
 
-                # handle category
+                # 2. Category Handling
                 if raw_category.startswith('NEW:'):
                     new_name = raw_category.replace('NEW:', '').strip()
                     category_obj, _ = Category.objects.get_or_create(
@@ -91,7 +90,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 else:
                     category_obj = Category.objects.filter(id=raw_category).first()
 
-                # create product object 
+                # 3. Create Product
                 new_product = Product.objects.create(
                     name=prod_name,
                     description=prod_desc,
@@ -100,18 +99,29 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     status='Pending'
                 )
 
-                # handle primary image
-                first_image = request.FILES.get(f'prod_{i}_image_0')
-                if first_image:
-                    new_product.image = first_image
-                    new_product.save()
+                # 4. CRITICAL: Handle ALL images first and store them in a list
+                # This list maps exactly to the 'selectedFiles' indices in your JavaScript
+                saved_images_objects = []
+                image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
+                
+                for j in range(image_count):
+                    img_file = request.FILES.get(f'prod_{i}_image_{j}')
+                    if img_file:
+                        # Save to ProductImage table
+                        img_obj = ProductImage.objects.create(product=new_product, image=img_file)
+                        saved_images_objects.append(img_obj)
+                        
+                        # Set the very first image as the main Product cover
+                        if j == 0:
+                            new_product.image = img_file
+                            new_product.save()
 
+                # 5. Handle Variants (Now that images exist in DB)
                 variants_data = request.POST.get(f'prod_{i}_variants', '[]')
                 try:
                     variants_list = json.loads(variants_data)
                     
                     if not variants_list:
-                        # simple product create one default variant using main price/stocks
                         ProductVariant.objects.create(
                             product=new_product,
                             variant_name="Default",
@@ -119,24 +129,29 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                             stocks=prod_stocks
                         )
                     else:
-                        # variable product create each variation
                         for var in variants_list:
-                            ProductVariant.objects.create(
+                            # Create variant instance without saving yet
+                            variant_instance = ProductVariant(
                                 product=new_product,
                                 variant_name=var.get('name'),
                                 stocks=var.get('stock', 0),
-                                price=var.get('price', prod_price) # fallback to main price
+                                price=var.get('price', prod_price)
                             )
+                            
+                            # Link the assigned image using the index from JS
+                            img_idx = var.get('imageIndex')
+                            if img_idx is not None:
+                                try:
+                                    # Match index to our saved_images_objects list
+                                    variant_instance.assigned_image = saved_images_objects[int(img_idx)]
+                                except (IndexError, ValueError, TypeError):
+                                    variant_instance.assigned_image = None
+                            
+                            variant_instance.save()
+                            
                 except (json.JSONDecodeError, TypeError):
-                    pass # or handle error as needed
+                    pass 
 
-                #handle additional images
-                image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
-                for j in range(1, image_count):
-                    extra_img = request.FILES.get(f'prod_{i}_image_{j}')
-                    if extra_img:
-                        ProductImage.objects.create(product=new_product, image=extra_img) 
-                        
             return JsonResponse({'status': 'success'})
             
         except Exception as e:

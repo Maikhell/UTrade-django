@@ -12,3 +12,15 @@
     opacity: 0.8;
     transition: 0.3s;
 }
+#mainDisplayImage {
+    transition: opacity 0.3s ease-in-out;
+}
+
+.thumbnail-wrapper {
+    transition: all 0.2s ease;
+}
+
+.thumbnail-wrapper:hover {
+    transform: scale(1.05);
+    border-color: #198754 !important;
+}

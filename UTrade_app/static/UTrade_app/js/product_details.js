@@ -52,10 +52,10 @@ function openVariantSelector(productId, productName) {
         const isOutOfStock = v.stock <= 0;
         const disabledAttr = isOutOfStock ? 'disabled' : '';
         const opacityClass = isOutOfStock ? 'opacity-50 bg-light' : '';
-        
+
         // Define the stock badge
-        const badge = isOutOfStock 
-            ? '<span class="badge bg-danger rounded-pill">Sold Out</span>' 
+        const badge = isOutOfStock
+            ? '<span class="badge bg-danger rounded-pill">Sold Out</span>'
             : `<span class="badge bg-success-subtle text-success rounded-pill">Stock: ${v.stock}</span>`;
 
         variantHtml += `
@@ -92,4 +92,44 @@ function openVariantSelector(productId, productName) {
 function addToCartWithVariant(productId) {
     const productName = document.querySelector('h1')?.innerText || "Product";
     openVariantSelector(productId, productName);
+}
+// Load the data from the script tag
+const variantData = JSON.parse(document.getElementById('variant-data').textContent);
+
+function updateProductDisplay(variant) {
+    const priceEl = document.getElementById('displayPrice');
+    const detailsDiv = document.getElementById('variantDetails');
+    const flawsEl = document.getElementById('variantFlaws');
+    const conditionBadge = document.getElementById('variantConditionBadge');
+    const nameDisplay = document.getElementById('variantNameDisplay');
+
+    if (variant) {
+        // Update Price
+        priceEl.innerText = `₱${variant.price}`;
+
+        // Show and Update Flaws/Condition
+        detailsDiv.classList.remove('d-none');
+        nameDisplay.innerText = variant.name;
+        conditionBadge.innerText = variant.condition;
+        flawsEl.innerText = `Notes: ${variant.flaws}`;
+
+        // Update Main Image if variant has one
+        document.getElementById('mainDisplayImage').src = variant.image_url;
+    }
+}
+
+// Update the existing changeImage function to search for the variant
+function changeImage(url, element) {
+    // 1. Update the Main Image src
+    document.getElementById('mainDisplayImage').src = url;
+
+    // 2. Highlighting the thumbnail
+    document.querySelectorAll('.thumbnail-wrapper').forEach(el => el.classList.remove('border-success', 'border-2'));
+    element.classList.add('border-success', 'border-2');
+
+    // 3. Find if this image belongs to a specific variant
+    const matchedVariant = variantData.find(v => v.image_url.includes(url));
+    if (matchedVariant) {
+        updateProductDisplay(matchedVariant);
+    }
 }

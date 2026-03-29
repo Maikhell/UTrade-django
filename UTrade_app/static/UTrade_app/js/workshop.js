@@ -63,6 +63,16 @@ function toggleOtherCategory(select) {
     }
 }
 
+function toggleCustomCondition(select) {
+    const customInput = document.getElementById('custom_condition_input');
+    if (select.value === 'Other') {
+        customInput.classList.remove('d-none');
+        customInput.focus();
+    } else {
+        customInput.classList.add('d-none');
+    }
+}
+
 function addToStaging() {
     const nameEl = document.getElementById('name');
     const priceEl = document.getElementById('price');
@@ -88,7 +98,7 @@ function addToStaging() {
     if (isVariantMode) {
         if (productVariants.length === 0) {
             Swal.fire('Variations Required', 'Please add at least one size or variety using the "Add" button.', 'warning');
-            return; 
+            return;
         }
         // Use price from the first variant entry and aggregate total stocks from all variants
         finalPrice = productVariants[0].price;
@@ -123,8 +133,9 @@ function addToStaging() {
         categoryId = `NEW:${customValue}`;
         categoryName = customValue;
     }
+    const conditionEl = document.getElementById('variant_condition');
+    const globalCondition = conditionEl ? conditionEl.value : "Brand New";
 
-    const condition = document.getElementById('condition').value;
     const meetup = document.getElementById('meetup').value;
     const productId = Date.now();
     const paymentEl = document.querySelector('input[name="payment"]:checked');
@@ -137,7 +148,7 @@ function addToStaging() {
         stocks: finalStocks,
         description: descEl.value,
         category: categoryId,
-        condition: condition,
+        condition: globalCondition,
         meetup: meetup,
         payment: payment,
         files: [...selectedFiles],
@@ -192,8 +203,8 @@ function addToStaging() {
     document.getElementById('product_form').reset();
     productVariants = [];
     document.getElementById('variant_list').innerHTML = '';
-    document.getElementById('attribute_pills').innerHTML = '';
-    document.getElementById('image_preview_container').innerHTML = `
+    const attrPills = document.getElementById('attribute_pills');
+    if (attrPills) attrPills.innerHTML = '';    document.getElementById('image_preview_container').innerHTML = `
         <div class="text-center py-5 text-muted small w-100">
             <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
             Item added. Ready for next.
@@ -252,7 +263,7 @@ async function submitToAdmin() {
         formData.append(`prod_${index}_meetup`, product.meetup);
         formData.append(`prod_${index}_payment`, product.payment);
         formData.append(`prod_${index}_variants`, JSON.stringify(product.variants));
-        
+
         // Maps multiple images per product using unique indexed keys
         product.files.forEach((file, fileIndex) => {
             formData.append(`prod_${index}_image_${fileIndex}`, file);
@@ -327,7 +338,7 @@ function handleCategoryChange(selectElement) {
     attrSection.classList.add('d-none');
     otherDiv.classList.add('d-none');
     suggestionContainer.classList.add('d-none');
-    stocksInput.readOnly = false; 
+    stocksInput.readOnly = false;
 
     // Filters categories that require variant management instead of a single price/stock field
     const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture'];
@@ -361,54 +372,82 @@ function handleCategoryChange(selectElement) {
 }
 
 function addVariant() {
+    // 1. Define all inputs
     const nameInput = document.getElementById('variant_name');
     const stockInput = document.getElementById('variant_stock');
     const priceInput = document.getElementById('variant_price');
+    const conditionSelect = document.getElementById('variant_condition');
+    const flawsInput = document.getElementById('variant_flaws'); // This fixes your error!
+    const customConditionInput = document.getElementById('custom_condition_input');
     const listContainer = document.getElementById('variant_list');
 
+    // 2. Validation
     if (!nameInput.value || !stockInput.value) {
         Swal.fire('Missing Info', "Please provide a name and stock.", 'warning');
         return;
     }
 
-    // Create the variant object
-    const variant = { 
-        name: nameInput.value, 
-        stock: parseInt(stockInput.value), 
+    // 3. Logic for Condition
+    let finalCondition = conditionSelect.value;
+    if (finalCondition === 'Other') {
+        finalCondition = customConditionInput.value.trim() || 'Other';
+    }
+
+    // 4. Create Variant Object
+    const variant = {
+        name: nameInput.value,
+        stock: parseInt(stockInput.value),
         price: parseFloat(priceInput.value) || 0,
-        imageIndex: currentSelectedImageIndex // <--- LINK THE IMAGE INDEX HERE
+        condition: finalCondition,
+        flaws: flawsInput.value.trim(),
+        imageIndex: currentSelectedImageIndex
     };
 
     productVariants.push(variant);
 
-    // Create the UI card
+    // 5. Add to the UI List
     const div = document.createElement('div');
-    div.className = "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white";
-    
-    // If an image was selected, show a tiny thumbnail in the list
+    div.className = "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white animate__animated animate__fadeInUp";
+
     let thumbHtml = '';
     if (currentSelectedImageIndex !== null && selectedFiles[currentSelectedImageIndex]) {
         const thumbUrl = URL.createObjectURL(selectedFiles[currentSelectedImageIndex]);
-        thumbHtml = `<img src="${thumbUrl}" style="width: 30px; height: 30px; object-fit: cover;" class="rounded me-2 border">`;
+        thumbHtml = `<img src="${thumbUrl}" style="width: 35px; height: 35px; object-fit: cover;" class="rounded me-2 border">`;
     }
 
     div.innerHTML = `
         ${thumbHtml}
         <div class="flex-grow-1">
-            <span class="small fw-bold text-dark">${variant.name}</span>
-            <span class="badge bg-secondary-subtle text-dark ms-2" style="font-size: 0.7rem;">₱${variant.price} | Stock: ${variant.stock}</span>
+            <div class="d-flex align-items-center">
+                <span class="small fw-bold text-dark">${variant.name}</span>
+                <span class="badge bg-info-subtle text-info ms-2" style="font-size: 0.6rem;">${variant.condition}</span>
+            </div>
+            <div class="text-muted" style="font-size: 0.7rem;">
+                ₱${variant.price} | Stock: ${variant.stock}
+                ${variant.flaws ? ` | <span class="text-danger">Flaw: ${variant.flaws}</span>` : ''}
+            </div>
         </div>
         <button type="button" class="btn-close" style="font-size: 0.6rem;" onclick="removeVariant(this, '${variant.name}')"></button>
     `;
     listContainer.appendChild(div);
 
-    // Reset fields and the selected image
+    // 6. THE CLEANUP (Reset everything for the next variant)
     nameInput.value = '';
     stockInput.value = '';
     priceInput.value = '';
-    currentSelectedImageIndex = null; 
+    flawsInput.value = '';
+    conditionSelect.value = 'Brand New';
+    customConditionInput.value = '';
+    customConditionInput.classList.add('d-none');
+
+    // Reset image picker text
+    const imgBtn = document.querySelector('[onclick="openVariantImagePicker()"]');
+    if (imgBtn) imgBtn.innerHTML = `<i class="bi bi-image me-1"></i> Pick Variant Image`;
+
+    currentSelectedImageIndex = null;
     updateTotalStock();
 }
+
 function openVariantImagePicker() {
     if (selectedFiles.length === 0) {
         return Swal.fire('No Photos', 'Please upload product photos first!', 'info');
@@ -439,11 +478,11 @@ function openVariantImagePicker() {
 
 function selectVariantImage(index) {
     currentSelectedImageIndex = index;
-    
+
     // Optional: Update a small preview icon next to your "Add Variant" button
     const btn = document.querySelector('[onclick="openVariantImagePicker()"]');
     if (btn) btn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> Image Selected`;
-    
+
     Swal.close();
 }
 function removeVariant(btn, name) {

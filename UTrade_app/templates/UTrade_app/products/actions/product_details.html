@@ -1,18 +1,22 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %} {{ product.name }} | UTrade {% endblock %}
+{% block title %}
+  {{ product.name }} | UTrade
+{% endblock %}
 
 {% block content %}
   {% block extra_css %}
     <link rel="stylesheet" href="{% static 'UTrade_app/css/product_details.css' %}" />
   {% endblock %}
-  
+
   {% csrf_token %}
   <div class="container py-5">
     <nav aria-label="breadcrumb" class="mb-4">
       <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'product.list' %}" class="text-decoration-none text-success">Marketplace</a></li>
+        <li class="breadcrumb-item">
+          <a href="{% url 'product.list' %}" class="text-decoration-none text-success">Marketplace</a>
+        </li>
         <li class="breadcrumb-item active">{{ product.category.name }}</li>
       </ol>
     </nav>
@@ -33,9 +37,7 @@
           <div class="row g-2 overflow-auto flex-nowrap pb-2" id="thumbGallery">
             {% for img in product.images.all %}
               <div class="col-auto">
-                <div class="thumbnail-wrapper rounded-3 border {% if forloop.first %}border-success border-2{% endif %}" 
-                     style="width: 80px; height: 80px; cursor: pointer; overflow: hidden;" 
-                     onclick="changeImage('{{ img.image.url }}', this)">
+                <div class="thumbnail-wrapper rounded-3 border {% if forloop.first %}border-success border-2{% endif %}" style="width: 80px; height: 80px; cursor: pointer; overflow: hidden;" onclick="changeImage('{{ img.image.url }}', this)">
                   <img src="{{ img.image.url }}" class="w-100 h-100" style="object-fit: cover;" />
                 </div>
               </div>
@@ -52,7 +54,9 @@
           </div>
 
           <h1 class="fw-bold text-dark mb-1">{{ product.name }}</h1>
-          <p class="text-muted small mb-3">Listed by <span class="fw-bold text-success">@{{ product.seller.username }}</span></p>
+          <p class="text-muted small mb-3">
+            Listed by <span class="fw-bold text-success">@{{ product.seller.username }}</span>
+          </p>
 
           <div class="d-flex align-items-center gap-3 mb-4 py-2 border-top border-bottom">
             <div class="text-warning">
@@ -64,38 +68,51 @@
             </div>
             <div class="vr text-muted opacity-25"></div>
             <div>
-              <span class="fw-bold {% if product.get_total_stock < 5 %}text-danger{% else %}text-dark{% endif %}">
+              <span class="fw-bold {% if product.get_total_stock < 5 %}
+                  text-danger
+                {% else %}
+                  text-dark
+                {% endif %}">
                 {{ product.get_total_stock }}
               </span>
               <span class="text-muted small ms-1">Total Available</span>
             </div>
           </div>
 
-          <h2 class="display-5 fw-bold text-success mb-4">₱{{ product.get_price_range }}</h2>
+          <h2 class="display-5 fw-bold text-success mb-4" id="displayPrice">₱{{ product.get_price_range }}</h2>
 
           <div class="mb-4">
             <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Description</h6>
             <p class="text-secondary" style="line-height: 1.7; white-space: pre-line;">{{ product.description }}</p>
+
+            <div id="variantDetails" class="mt-3 p-3 bg-light rounded-3 d-none animate__animated animate__fadeIn">
+              <div class="small fw-bold text-uppercase text-muted mb-1">Variant Condition & Flaws:</div>
+              <div class="d-flex align-items-center mb-2">
+                <span id="variantConditionBadge" class="badge bg-warning text-dark me-2"></span>
+                <span id="variantNameDisplay" class="text-dark fw-bold"></span>
+              </div>
+              <p id="variantFlaws" class="text-danger small mb-0" style="font-style: italic;"></p>
+            </div>
           </div>
 
           <div class="d-grid gap-3">
             <div class="row g-2">
               <div class="col-10">
                 {% if product.get_total_stock > 0 %}
-                  <button id="addToCartBtn" 
-                          onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}')" 
-                          class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
-                    <i class="bi bi-cart-plus me-2"></i> Add to Cart
-                  </button>
+                  <button id="addToCartBtn" onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}')" class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm"><i class="bi bi-cart-plus me-2"></i> Add to Cart</button>
                 {% else %}
-                  <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled>
-                    <i class="bi bi-exclamation-octagon me-2"></i> Out of Stock
-                  </button>
+                  <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled><i class="bi bi-exclamation-octagon me-2"></i> Out of Stock</button>
                 {% endif %}
               </div>
               <div class="col-2">
                 <button type="button" onclick="toggleWishlist('{{ product.id }}', this)" class="btn btn-outline-danger btn-lg w-100 rounded-3 py-3 d-flex align-items-center justify-content-center">
-                  <i class="bi {% if product.id in user_wishlist_ids %}bi-heart-fill text-danger{% else %}bi-heart{% endif %}"></i>
+                  <i class="bi {% if product.id in user_wishlist_ids %}
+                      bi-heart-fill text-danger
+                    {% else %}
+                      bi-heart
+                    {% endif %}">
+
+                  </i>
                 </button>
               </div>
             </div>
@@ -106,9 +123,7 @@
               {% if product.seller.image %}
                 <img src="{{ product.seller.image.url }}" class="rounded-circle me-3 border border-2 border-white" style="width: 55px; height: 55px; object-fit: cover;" />
               {% else %}
-                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3 text-white fw-bold shadow-sm" style="width: 55px; height: 55px;">
-                  {{ product.seller.username|slice:':1'|upper }}
-                </div>
+                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3 text-white fw-bold shadow-sm" style="width: 55px; height: 55px;">{{ product.seller.username|slice:':1'|upper }}</div>
               {% endif %}
               <div>
                 <h6 class="mb-0 fw-bold">{{ product.seller.username }}</h6>
@@ -122,7 +137,7 @@
     </div>
   </div>
 
-<script id="variant-data" type="application/json">
+  <script id="variant-data" type="application/json">
   [
     {% for v in product.variants.all %}
       {
@@ -130,6 +145,8 @@
         "name": "{{ v.variant_name|escapejs }}",
         "price": "{{ v.price }}",
         "stock": {{ v.stocks }},
+        "condition": "{{ v.condition|escapejs }}",
+        "flaws": "{{ v.flaws_description|default:'No major flaws reported.'|escapejs }}",
         "image_url": "{% if v.assigned_image %}{{ v.assigned_image.image.url }}{% else %}{{ product.images.first.image.url }}{% endif %}"
       }{% if not forloop.last %},{% endif %}
     {% endfor %}

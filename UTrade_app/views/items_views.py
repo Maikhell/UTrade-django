@@ -80,7 +80,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 if self.is_content_prohibited(prod_name) or self.is_content_prohibited(prod_desc):
                     return JsonResponse({'status': 'error', 'message': f'Prohibited content in {prod_name}.'}, status=400)
 
-                # 2. Category Handling
                 if raw_category.startswith('NEW:'):
                     new_name = raw_category.replace('NEW:', '').strip()
                     category_obj, _ = Category.objects.get_or_create(
@@ -90,7 +89,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 else:
                     category_obj = Category.objects.filter(id=raw_category).first()
 
-                # 3. Create Product
                 new_product = Product.objects.create(
                     name=prod_name,
                     description=prod_desc,
@@ -99,50 +97,49 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     status='Pending'
                 )
 
-                # 4. CRITICAL: Handle ALL images first and store them in a list
-                # This list maps exactly to the 'selectedFiles' indices in your JavaScript
                 saved_images_objects = []
                 image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
                 
                 for j in range(image_count):
                     img_file = request.FILES.get(f'prod_{i}_image_{j}')
                     if img_file:
-                        # Save to ProductImage table
                         img_obj = ProductImage.objects.create(product=new_product, image=img_file)
                         saved_images_objects.append(img_obj)
                         
-                        # Set the very first image as the main Product cover
                         if j == 0:
                             new_product.image = img_file
                             new_product.save()
 
-                # 5. Handle Variants (Now that images exist in DB)
                 variants_data = request.POST.get(f'prod_{i}_variants', '[]')
                 try:
                     variants_list = json.loads(variants_data)
                     
                     if not variants_list:
+
                         ProductVariant.objects.create(
                             product=new_product,
                             variant_name="Default",
                             price=prod_price,
-                            stocks=prod_stocks
+                            stocks=prod_stocks,
+                            condition="Brand New" 
                         )
                     else:
                         for var in variants_list:
-                            # Create variant instance without saving yet
+                            v_condition = var.get('condition', 'Brand New')
+                            v_flaws = var.get('flaws', '')
+
                             variant_instance = ProductVariant(
                                 product=new_product,
                                 variant_name=var.get('name'),
                                 stocks=var.get('stock', 0),
-                                price=var.get('price', prod_price)
+                                price=var.get('price', prod_price),
+                                condition=v_condition,    
+                                flaws_description=v_flaws 
                             )
                             
-                            # Link the assigned image using the index from JS
                             img_idx = var.get('imageIndex')
                             if img_idx is not None:
                                 try:
-                                    # Match index to our saved_images_objects list
                                     variant_instance.assigned_image = saved_images_objects[int(img_idx)]
                                 except (IndexError, ValueError, TypeError):
                                     variant_instance.assigned_image = None
@@ -155,6 +152,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             return JsonResponse({'status': 'success'})
             
         except Exception as e:
+            print(f"Error saving product: {str(e)}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
         
 class ProductDetailView(DetailView):

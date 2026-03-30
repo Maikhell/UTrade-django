@@ -80,11 +80,11 @@
             <div class="row g-2 mb-3">
               <div class="col-6">
                 <label class="form-label small fw-bold text-secondary">Delivery Method</label>
-                <select id="condition" class="form-select bg-light border-0">
-                  <option>Digital Only</option>
-                  <option>Physical Delivery</option>
-                  <option>On-Site Service</option>
-                  <option>Labor/Gig</option>
+                <select id="condition" class="form-select bg-light border-0" onchange="toggleDeliveryInputs()">
+                  <option value="Digital Only">Digital Only</option>
+                  <option value="Physical Delivery">Physical Delivery</option>
+                  <option value="On-Site Service">On-Site Service</option>
+                  <option value="Labor/Gig">Labor/Gig</option>
                 </select>
               </div>
               <div class="col-6">
@@ -96,6 +96,16 @@
                   <option>Flexible</option>
                 </select>
               </div>
+            </div>
+
+            <div id="digital_info_group" class="mb-3 animate__animated animate__fadeIn" style="display: none;">
+              <label class="form-label small fw-bold text-primary"><i class="bi bi-facebook me-1"></i> Contact Info (FB/Telegram/Portfolio)</label>
+              <input type="text" id="contact_info" class="form-control bg-light border-0" placeholder="e.g. fb.com/username or @handle" />
+            </div>
+
+            <div id="location_info_group" class="mb-3 animate__animated animate__fadeIn" style="display: none;">
+              <label class="form-label small fw-bold text-success"><i class="bi bi-geo-alt-fill me-1"></i> Service Location / Meetup Point</label>
+              <input type="text" id="location_info" class="form-control bg-light border-0" placeholder="e.g. University Library, Building A" />
             </div>
 
             <div class="mb-4">

@@ -70,7 +70,7 @@
             {% endif %}
           </div>
 
-          {% if url_name == 'product.list' or url_name == 'services.list' or url_name == 'product.detail' %}
+          {% if url_name == 'product.list' or url_name == 'services.list' or url_name == 'product.detail' or url_name == 'landingpage' %}
           <div class="search-wrapper px-lg-3">
             <form action="{% if url_name == 'services.list' %}{% url 'services.list' %}{% else %}{% url 'product.list' %}{% endif %}" method="get">
               <div class="input-group input-group-sm">

@@ -59,4 +59,31 @@ class UserProductsView(LoginRequiredMixin, ListView):
             'rejected_count': counts['rejected'],
         })
         return context
+# ... (Keep your existing imports)
+
+class ProductUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
+    model = Product
+    fields = ['name', 'description', 'category'] 
+    template_name = 'UTrade_app/users/account/edit_product.html'
+    success_url = reverse_lazy('seller_inventory')
     
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user)
+
+    def form_valid(self, form):
+ 
+        form.instance.status = 'Pending'
+        messages.info(self.request, "Product updated! It is now hidden while an admin reviews the changes.")
+        return super().form_valid(form)
+
+class ProductDeleteView(LoginRequiredMixin, DeleteView):
+    model = Product
+    success_url = reverse_lazy('seller_inventory')
+
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user)
+
+    def delete(self, request, *args, **kwargs):
+        product = self.get_object()
+        messages.success(request, f"Listing for '{product.name}' was successfully removed.")
+        return super().delete(request, *args, **kwargs)  

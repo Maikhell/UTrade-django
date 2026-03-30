@@ -41,48 +41,89 @@ function openVariantSelector(productId, productName) {
 
     let variantHtml = `
         <div class="text-start mb-2 mt-3 px-1">
-            <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Available Options for ${productName}</small>
+            <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Available Options</small>
         </div>
-        <div class="list-group text-start">`;
+        <div class="list-group text-start" id="variant-options-list">`;
 
     variants.forEach(v => {
         const isOutOfStock = v.stock <= 0;
-        const disabledAttr = isOutOfStock ? 'disabled' : '';
-        const opacityClass = isOutOfStock ? 'opacity-50 bg-light' : '';
-
-        const badge = isOutOfStock
-            ? '<span class="badge bg-danger rounded-pill">Sold Out</span>'
-            : `<span class="badge bg-success-subtle text-success rounded-pill">Stock: ${v.stock}</span>`;
-
         variantHtml += `
-            <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-3 mb-2 border ${opacityClass}" 
+            <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-3 mb-2 border ${isOutOfStock ? 'opacity-50 bg-light' : ''}" 
                    style="cursor: ${isOutOfStock ? 'not-allowed' : 'pointer'}; padding: 12px 15px;">
                 <div class="d-flex align-items-center flex-grow-1">
-                    <input class="form-check-input me-3 border-success" type="radio" name="swal-variant" value="${v.id}" ${disabledAttr}>
-                    
-                    <div class="variant-img-wrapper rounded me-3 overflow-hidden border" style="width: 40px; height: 40px;">
-                        <img src="${v.image_url}" alt="${v.name}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <input class="form-check-input me-3 border-success" type="radio" name="swal-variant" value="${v.id}" ${isOutOfStock ? 'disabled' : ''}>
+                    <div class="variant-img-wrapper rounded me-3 border" style="width: 40px; height: 40px; overflow: hidden;">
+                        <img src="${v.image_url}" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
-                    
                     <div class="flex-grow-1">
                         <div class="fw-bold text-dark">${v.name}</div>
                         <div class="text-success small fw-bold">₱${v.price}</div>
                     </div>
                 </div>
-                <div class="ms-3">
-                    ${badge}
-                </div>
-            </label>
-        `;
+                ${isOutOfStock ? '<span class="badge bg-danger rounded-pill">Sold Out</span>' : `<span class="badge bg-success-subtle text-success">Stock: ${v.stock}</span>`}
+            </label>`;
     });
     variantHtml += '</div>';
 
     Swal.fire({
-        title: 'Choose Variation',
+        title: `Add ${productName} to Cart`,
         html: variantHtml,
+        showCancelButton: true,
+        confirmButtonText: 'Add to Cart',
+        confirmButtonColor: '#198754', // Bootstrap Success Color
+        preConfirm: () => {
+            const selectedVariant = document.querySelector('input[name="swal-variant"]:checked');
+            if (!selectedVariant) {
+                Swal.showValidationMessage('Please select a variation first');
+                return false;
+            }
+            return selectedVariant.value;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Send to your Django View
+            performAddToCart(result.value);
+        }
     });
 }
+function performAddToCart(variantId) {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
+    fetch(`/cart/add/${variantId}/`, {  
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            'quantity': 1
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const cartCountBadge = document.getElementById('cart-count');
+            if (cartCountBadge) {
+                cartCountBadge.innerText = data.cart_count;
+                cartCountBadge.style.display = 'block';
+            }
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Added to Cart!',
+                text: 'Your item is waiting in the shopping cart.',
+                showConfirmButton: false,
+                timer: 1500
+            });
+        } else {
+            Swal.fire('Error', data.message || 'Could not add to cart', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire('Error', 'Something went wrong', 'error');
+    });
+}
 // Identifies the product name and triggers the variation selection modal
 function addToCartWithVariant(productId) {
     const productName = document.querySelector('h1')?.innerText || "Product";

@@ -1,0 +1,49 @@
+<div class="col-12" id="review-row-{{ item.id }}">
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="row g-0">
+      <div class="col-md-2">
+        {% if item.images.first %}
+          <img src="{{ item.images.first.image.url }}" class="img-fluid h-100" style="object-fit: cover; min-height: 150px;" />
+        {% else %}
+          <div class="bg-light h-100 d-flex align-items-center justify-content-center">
+            <i class="bi bi-image text-muted fs-2"></i>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="col-md-7 p-4">
+        <div class="d-flex justify-content-between">
+          <h5 class="fw-bold mb-1">
+            {{ item.name }}
+            <span class="badge {% if type == 'service' %}
+                bg-info
+              {% else %}
+                bg-primary
+              {% endif %} small fw-normal"
+              style="font-size: 0.7rem;">
+              {{ type|upper }}
+            </span>
+          </h5>
+          <span class="text-success fw-bold">
+            {% if type == 'service' %}
+              ₱{{ item.base_price }}
+            {% else %}
+              ₱{{ item.get_price_range }}
+            {% endif %}
+          </span>
+        </div>
+        <p class="text-muted small mb-2">
+          Seller: <strong>@{{ item.seller.username }}</strong> | Category: {{ item.category.name }}
+        </p>
+        <p class="mb-0 text-truncate-2" style="font-size: 0.9rem;">{{ item.description|truncatewords:30 }}</p>
+      </div>
+
+      <div class="col-md-3 bg-light d-flex flex-column justify-content-center p-4 gap-2">
+        <button onclick="updateStatus('{{ item.id }}', 'Approved', '{{ type }}')" class="btn btn-success w-100 rounded-pill"><i class="bi bi-check-lg me-2"></i>Approve</button>
+        <button onclick="updateStatus('{{ item.id }}', 'Rejected', '{{ type }}')" class="btn btn-outline-danger w-100 rounded-pill"><i class="bi bi-x-lg me-2"></i>Reject</button>
+
+        <button type="button" class="btn btn-link btn-sm text-secondary text-decoration-none" onclick="prepareModalData('{{ type }}', {{ item.id }})">View Full Details</button>
+      </div>
+    </div>
+  </div>
+</div>

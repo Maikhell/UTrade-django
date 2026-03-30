@@ -2,98 +2,158 @@
 {% block title %}
   My Products
 {% endblock %}
+
 {% block content %}
   <div class="container py-5">
     <div class="row mb-4">
-        <div class="col">
-            <h2 class="fw-bold">My Shop Manager</h2>
-            <p class="text-muted">
-                You have <strong>{{ products.count }}</strong> total listings.
-            </p>
-        </div>
+      <div class="col">
+        <h2 class="fw-bold">My Shop Manager</h2>
+        <p class="text-muted">
+          You have <strong>{{ products.count }}</strong> total listings.
+        </p>
+      </div>
     </div>
 
     <div class="row mb-4 g-3">
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm p-3 rounded-4">
-                <small class="text-muted d-block">Live Products</small>
-                <span class="h4 fw-bold text-success">{{ approved_count }}</span>
-            </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3 rounded-4">
+          <small class="text-muted d-block">Live Products</small>
+          <span class="h4 fw-bold text-success">{{ approved_count }}</span>
         </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm p-3 rounded-4">
-                <small class="text-muted d-block">Pending Approval</small>
-                <span class="h4 fw-bold text-warning">{{ pending_count }}</span>
-            </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3 rounded-4">
+          <small class="text-muted d-block">Pending Approval</small>
+          <span class="h4 fw-bold text-warning">{{ pending_count }}</span>
         </div>
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm p-3 rounded-4">
-                <small class="text-muted d-block">Rejected Products</small>
-                <span class="h4 fw-bold text-danger">{{ rejected_count }}</span>
-            </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-3 rounded-4">
+          <small class="text-muted d-block">Rejected Products</small>
+          <span class="h4 fw-bold text-danger">{{ rejected_count }}</span>
         </div>
+      </div>
     </div>
 
     <div class="row g-4">
-        {% for item in products %}
+      {% for item in products %}
         <div class="col-12">
-            <div class="card border-0 shadow-sm rounded-4 p-3">
-                <div class="row align-items-center">
-                    <div class="col-auto">
-                        {% if item.images.first %}
-                            <img src="{{ item.images.first.image.url }}" class="rounded-3" style="width: 80px; height: 80px; object-fit: cover;" />
-                        {% else %}
-                            <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                                <i class="bi bi-image text-muted"></i>
-                            </div>
-                        {% endif %}
-                    </div>
+          <div class="card border-0 shadow-sm rounded-4 p-3">
+            <div class="row align-items-center">
+              <div class="col-auto">
+                {% if item.images.first %}
+                  <img src="{{ item.images.first.image.url }}" class="rounded-3" style="width: 80px; height: 80px; object-fit: cover;" />
+                {% else %}
+                  <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
+                    <i class="bi bi-image text-muted"></i>
+                  </div>
+                {% endif %}
+              </div>
 
-                    <div class="col">
-                        <h5 class="mb-1 fw-bold">{{ item.name }}</h5>
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="text-success fw-bold">₱{{ item.price }}</span>
-                            <span class="text-muted small">Stock: {{ item.stocks }}</span>
-                        </div>
-                    </div>
+              <div class="col">
+                <h5 class="mb-1 fw-bold">{{ item.name }}</h5>
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                  {% with first_variant=item.variants.first %}
+                    {% if first_variant %}
+                      <span class="text-success fw-bold">₱{{ first_variant.price }}</span>
+                      <span class="text-muted small"><i class="bi bi-box-seam"></i> Stock: {{ first_variant.stocks }}</span>
+                    {% else %}
+                      <span class="text-muted small">No variants set</span>
+                    {% endif %}
+                  {% endwith %}
 
-                    <div class="col-auto text-center px-4">
-                        {% if item.status == 'Approved' %}
-                            <div class="text-success small fw-bold">
-                                <i class="bi bi-check-circle-fill"></i> Live
-                            </div>
-                        {% elif item.status == 'Rejected' %}
-                            <div class="text-danger small fw-bold">
-                                <i class="bi bi-x-circle-fill"></i> Rejected
-                            </div>
-                        {% else %}
-                            <div class="text-warning small fw-bold">
-                                <i class="bi bi-clock-history"></i> Pending
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="col-auto">
-                        <div class="dropdown">
-                            <button class="btn btn-light rounded-circle" type="button" data-bs-toggle="dropdown">
-                                <i class="bi bi-three-dots-vertical"></i>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-pencil me-2"></i> Edit Details</a></li>
-                                <li><hr class="dropdown-divider" /></li>
-                                <li><button class="dropdown-item text-danger" onclick="confirmDelete('{{ item.id }}')"><i class="bi bi-trash me-2"></i> Delete Listing</button></li>
-                            </ul>
-                        </div>
-                    </div>
+                  <span class="badge bg-light text-dark border rounded-pill fw-normal"><i class="bi bi-cart-check text-primary"></i> {{ item.sold }} sold</span>
                 </div>
+              </div>
+
+              <div class="col-auto text-center px-4">
+                {% if item.status == 'Approved' %}
+                  <div class="text-success small fw-bold">
+                    <i class="bi bi-check-circle-fill"></i> Live
+                  </div>
+                {% elif item.status == 'Rejected' %}
+                  <div class="text-danger small fw-bold">
+                    <i class="bi bi-x-circle-fill"></i> Rejected
+                  </div>
+                {% else %}
+                  <div class="text-warning small fw-bold">
+                    <i class="bi bi-clock-history"></i> Pending Review
+                  </div>
+                {% endif %}
+              </div>
+
+              <div class="col-auto">
+                <div class="dropdown">
+                  <button class="btn btn-light rounded-circle" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
+                    <li>
+                      <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editConfirmModal{{ item.id }}"><i class="bi bi-pencil me-2"></i> Edit Details</button>
+                    </li>
+                    <li>
+                      <hr class="dropdown-divider" />
+                    </li>
+                    <li>
+                      <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteConfirmModal{{ item.id }}"><i class="bi bi-trash me-2"></i> Delete Listing</button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
+          </div>
         </div>
-        {% empty %}
+
+        <div class="modal fade" id="deleteConfirmModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow">
+              <div class="modal-body text-center p-4">
+                <i class="bi bi-exclamation-triangle text-danger display-4 mb-3"></i>
+                <h5 class="fw-bold">Delete this listing?</h5>
+                <p class="text-muted">
+                  This action cannot be undone. Are you sure you want to remove <strong>{{ item.name }}</strong> from UTrade?
+                </p>
+                <div class="d-flex gap-2 justify-content-center mt-4">
+                  <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                  <form action="{% url 'product.delete' item.id %}" method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal fade" id="editConfirmModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow">
+              <div class="modal-body p-4">
+                <div class="text-center mb-3">
+                  <i class="bi bi-info-circle text-primary display-4"></i>
+                </div>
+                <h5 class="fw-bold text-center">Important Notice</h5>
+                <p class="text-muted text-center">
+                  By editing this product, it will be <strong>temporarily removed from the shop</strong> and sent back to the Admin for review.
+                </p>
+                <div class="bg-light p-3 rounded-3 mb-3">
+                  <ul class="small text-muted mb-0">
+                    <li>The item will not be visible to buyers during review.</li>
+                    <li>You will be notified once an admin approves the changes.</li>
+                  </ul>
+                </div>
+                <div class="d-flex gap-2 justify-content-center mt-4">
+                  <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Go Back</button>
+                  <a href="{% url 'product.edit' item.id %}" class="btn btn-primary rounded-pill px-4">I Understand, Edit</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% empty %}
         <div class="col-12 text-center py-5">
-            <h4 class="text-muted">You haven't listed any products yet.</h4>
-            <a href="{% url 'product.create' %}" class="btn btn-success rounded-pill mt-3">Start Selling</a>
+          <h4 class="text-muted">You haven't listed any products yet.</h4>
+          <a href="{% url 'product.create' %}" class="btn btn-success rounded-pill mt-3">Start Selling</a>
         </div>
-        {% endfor %}
+      {% endfor %}
     </div>
-</div>
+  </div>
 {% endblock %}

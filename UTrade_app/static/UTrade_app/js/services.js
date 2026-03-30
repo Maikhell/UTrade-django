@@ -30,80 +30,92 @@ function previewMultipleImages(event) {
     });
 }
 
+// ... (Keep your previewMultipleImages function)
+
 function addToStaging() {
     const name = document.getElementById('name').value;
     const price = document.getElementById('price').value;
-    const stocks = document.getElementById('stocks').value;
     const desc = document.getElementById('description').value;
     const categoryEl = document.getElementById('category');
-    const categoryName = categoryEl.options[categoryEl.selectedIndex].text;
     const categoryId = categoryEl.value;
+    const categoryName = categoryEl.options[categoryEl.selectedIndex].text;
     const delivery = document.getElementById('condition').value;
     const leadTime = document.getElementById('meetup').value;
+    const payment = document.querySelector('input[name="payment"]:checked')?.value || 'Cash';
+
+    if (!name || !price) return Swal.fire('Error', 'Title and Price are required!', 'error');
 
     const serviceId = Date.now();
-    const paymentEl = document.querySelector('input[name="payment"]:checked');
-    const payment = paymentEl ? paymentEl.value : 'Not Specified';
 
-    if (!name || !price || !leadTime) return alert('Please fill in Title, Price, and Lead Time!');
-
-    const stagingArea = document.getElementById('staging_area');
-    const firstImagePreview = document.querySelector('#image_preview_container img');
-    const firstImageSrc = firstImagePreview ? firstImagePreview.src : null;
-
-    // Capture current form state into an object and store it in the staging array
+    // Capture the tags from our currentAttributes object
     const serviceData = {
         id: serviceId,
         name: name,
         price: price,
-        stocks: stocks,
         description: desc,
         category: categoryId,
         delivery: delivery,
         leadTime: leadTime,
         payment: payment,
+        attributes: { ...currentAttributes }, // Added tags here
         files: [...selectedFiles]
     };
 
     allStagedServices.push(serviceData);
-    itemCount = allStagedServices.length;
-    document.getElementById('item_count').innerText = itemCount;
+    updateStagingUI();
 
-    if (stagingArea.querySelector('.empty-msg')) stagingArea.innerHTML = '';
-
-    // Generate dynamic HTML for the staging card including a fallback icon if no image is uploaded
-    const imageHtml = firstImageSrc
-        ? `<img src="${firstImageSrc}" class="rounded shadow-sm me-3" style="width: 70px; height: 70px; object-fit: cover; border: 1px solid #dee2e6;">`
-        : `<div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 70px; height: 70px; border: 1px solid #dee2e6;"><i class="bi bi-tools text-muted"></i></div>`;
-
-    const itemCard = `
-        <div class="card staged-item mb-3 p-3 bg-white border-0 shadow-sm animate__animated animate__fadeInRight" data-id="${serviceId}">
-            <div class="d-flex align-items-start mb-2">
-                ${imageHtml}
-                <div class="flex-grow-1">
-                    <div class="d-flex justify-content-between">
-                        <h6 class="mb-0 fw-bold text-dark">${name}</h6>
-                        <button class="btn btn-sm text-danger p-0" onclick="removeItem(this, ${serviceId})">
-                            <i class="bi bi-trash-fill"></i>
-                        </button>
-                    </div>
-                    <div class="mt-1">
-                        <span class="badge bg-success-subtle text-success small">₱${price}</span>
-                        <span class="text-muted small ms-1">${leadTime}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="small text-muted mb-2 text-truncate-2">${desc}</div>
-            <div class="d-flex flex-wrap gap-1">
-                <span class="badge bg-light text-dark border fw-normal">${categoryName}</span>
-                <span class="badge bg-info-subtle text-dark border fw-normal">${delivery}</span>
-            </div>
-        </div>`;
-
-    stagingArea.insertAdjacentHTML('afterbegin', itemCard);
+    // Reset form and current tags
     document.getElementById('product_form').reset();
-    selectedFiles = [];
-    document.getElementById('image_preview_container').innerHTML = '<div class="text-center py-5 text-muted small w-100">Service added to list.</div>';
+    document.getElementById('attribute_pills').innerHTML = '';
+    document.getElementById('image_preview_container').innerHTML = `
+    <div class="text-center py-5 text-muted small w-100" style="grid-column: span 2;">
+        <i class="bi bi-cloud-arrow-up display-6 d-block mb-2"></i>
+        Showcase your next service
+    </div>`;
+    currentAttributes = { sizes: [], varieties: [], colors: [] };
+    selectedFiles = []; 
+
+}
+function toggleDeliveryInputs() {
+    const deliveryMethod = document.getElementById('condition').value;
+    const digitalGroup = document.getElementById('digital_info_group');
+    const locationGroup = document.getElementById('location_info_group');
+
+    // Reset visibility
+    digitalGroup.style.display = 'none';
+    locationGroup.style.display = 'none';
+
+    if (deliveryMethod === 'Digital Only') {
+        digitalGroup.style.display = 'block';
+    } else if (['Physical Delivery', 'On-Site Service', 'Labor/Gig'].includes(deliveryMethod)) {
+        locationGroup.style.display = 'block';
+    }
+}
+
+// Run once on page load to set initial state
+document.addEventListener('DOMContentLoaded', toggleDeliveryInputs);
+function updateStagingUI() {
+    const stagingArea = document.getElementById('staging_area');
+    const itemCountEl = document.getElementById('item_count');
+    itemCountEl.innerText = allStagedServices.length;
+
+    if (allStagedServices.length === 0) {
+        stagingArea.innerHTML = '<div class="text-center py-5 text-muted empty-msg">No services staged.</div>';
+        return;
+    }
+
+    stagingArea.innerHTML = allStagedServices.map(service => `
+        <div class="card staged-item mb-3 p-3 border-0 shadow-sm animate__animated animate__fadeInRight">
+            <div class="d-flex justify-content-between">
+                <h6 class="fw-bold mb-1">${service.name}</h6>
+                <button class="btn btn-sm text-danger" onclick="removeItem(null, ${service.id})"><i class="bi bi-trash"></i></button>
+            </div>
+            <div class="small text-success fw-bold">₱${service.price} — ${service.leadTime}</div>
+            <div class="mt-2">
+                ${service.attributes.sizes.map(s => `<span class="badge bg-light text-dark border me-1">${s}</span>`).join('')}
+            </div>
+        </div>
+    `).join('');
 }
 
 async function submitToAdmin() {
@@ -158,7 +170,7 @@ async function submitToAdmin() {
         formData.append(`serv_${index}_image_count`, service.files.length);
     });
     formData.append('total_services', allStagedServices.length);
-    
+
     try {
         const response = await fetch(window.location.href, {
             method: 'POST',

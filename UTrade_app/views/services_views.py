@@ -5,12 +5,19 @@ from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView
 from ..forms import ServiceForm
 from ..models import Services, ServiceCategory, ServicesImage
+from django.contrib.auth.mixins import LoginRequiredMixin
 
-class ServiceCreateView(CreateView):
+class ServiceCreateView(LoginRequiredMixin,CreateView):
     form_class = ServiceForm
     template_name = 'Utrade_app/services/actions/addservices.html'
     success_url = reverse_lazy('service.list')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # This matches the 'categories' name you used in your HTML loop
+        context['categories'] = ServiceCategory.objects.all()
+        return context
+    
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         total_services = int(request.POST.get('total_services', 0))
@@ -19,7 +26,6 @@ class ServiceCreateView(CreateView):
             return super().post(request, *args, **kwargs)
 
         try:
-            #Fetch all needed categories in 1 query instead of inside the loop
             category_ids = [request.POST.get(f'serv_{i}_category') for i in range(total_services)]
             categories = {str(c.id): c for c in ServiceCategory.objects.filter(id__in=category_ids)}
 
@@ -67,9 +73,17 @@ class ServiceListView(ListView):
     context_object_name = 'services'
 
     def get_queryset(self):
-        # Used .select_related to avoid extra queries for category in the template
-        queryset = Services.objects.filter(status='Pending').select_related('category').order_by('-created_at')
+        # We want to show 'Approved' services to buyers, but 'Pending' for the admin
+        # I'll stick to 'Pending' as per your code, but usually, this is 'Approved'
+        queryset = Services.objects.filter(status='Pending').select_related('category')
+        
         category_id = self.request.GET.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
-        return queryset
+        return queryset.order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Add categories so the filter dropdown works
+        context['categories'] = ServiceCategory.objects.all()
+        return context

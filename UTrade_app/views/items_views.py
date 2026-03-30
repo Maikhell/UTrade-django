@@ -10,9 +10,20 @@ from ..models import Product, Category, ProductImage, Wishlist, CartItem, Produc
 from django.http import JsonResponse
 import re
 import json
+from django.db.models import Q
 
 def landing_page(request):
-    return render(request, 'UTrade_app/landingpage.html')
+    categories = Category.objects.all()
+    products = Product.objects.all() # Or filter by active/approved products
+    
+    category_id = request.GET.get('category')
+    if category_id:
+        products = products.filter(category_id=category_id)
+
+    return render(request, 'UTrade_app/landingpage.html', {
+        'categories': categories,
+        'products': products
+    })
 
 class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
@@ -167,7 +178,7 @@ class ProductDetailView(DetailView):
             status='Approved'
         ).exclude(id=self.object.id)[:4]
         return context
-    
+
 class ProductListView(ListView):
     model = Product
     template_name = 'UTrade_app/marketplace.html'
@@ -175,13 +186,32 @@ class ProductListView(ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        queryset = Product.objects.filter(status='Approved').select_related('category') 
-        return queryset.order_by('-created_at')
+        # 1. Start with approved products
+        queryset = Product.objects.filter(status='Approved').select_related('category')
+        
+        # 2. Capture Search Query ('q')
+        query = self.request.GET.get('q')
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query) | 
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query)
+            )
+
+        # 3. Capture Category Filter ('category')
+        category_id = self.request.GET.get('category')
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+
+        # 4. Final Order
+        return queryset.order_by('-created_at').distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
+        # Ensure we pass the current search and category back to the template
         context['current_category'] = self.request.GET.get('category')
+        context['search_query'] = self.request.GET.get('q') 
         
         if self.request.user.is_authenticated:
             user_wishlist = Wishlist.objects.filter(user=self.request.user).values_list('product_id', flat=True)

@@ -11,17 +11,18 @@ urlpatterns = [
      
      #Admin
      path('admindashboard/', admin_views.AdminDashboard.as_view(), name="admin.dashboard"),
-     path('pendingproducts/', admin_views.AdminReviewListView.as_view(), name = 'admin.review'),
+      path('pendingproducts/', admin_views.AdminReviewListView.as_view(), name='admin.review'),
      #Admin Update
-     path('product-review/update/<int:product_id>/', admin_views.update_product_status, name='update_status'),
-     
+     path('review/update/<int:item_id>/', admin_views.update_item_status, name='update_status'),     
      #Products
      path('browse/', items_views.ProductListView.as_view(), name = 'product.list'),
      path('addproduct/', items_views.ProductCreateView.as_view(), name = 'product.create'),
      path('product/<int:pk>/', items_views.ProductDetailView.as_view(), name='product.detail'),
      path('wishlist', items_views.WishlistListView.as_view(), name = 'wishlist.list'),
      path('wishlist/toggle/<int:product_id>/', items_views.toggle_wishlist, name='toggle_wishlist'),
-     path('products/', user_views.UserProductsView.as_view(), name = 'userproduct.list'),
+     path('inventory/', user_views.UserProductsView.as_view(), name='seller_inventory'),
+     path('product/<int:pk>/edit/', user_views.ProductUpdateView.as_view(), name='product.edit'),
+      path('product/<int:pk>/delete/', user_views.ProductDeleteView.as_view(), name='product.delete'),
      
      #Cart
      path('cart/', cart_views.cart_detail, name='cart_detail'),

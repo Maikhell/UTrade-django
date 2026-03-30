@@ -109,7 +109,10 @@ class CartItem(models.Model):
 
     def __str__(self):
         return f"{self.variant.product.name} - {self.variant.variant_name} (x{self.quantity})"
-
+    
+    def get_total_price(self):
+        return self.variant.price * self.quantity
+    
     @property
     def display_name(self):
         return f"{self.variant.product.name} ({self.variant.variant_name})"

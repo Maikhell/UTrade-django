@@ -1,7 +1,7 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %} U-Trade {% endblock %}
+{% block title %} Marketplace {% endblock %}
 
 {% block content %}
   {% block extra_css %}
@@ -53,18 +53,24 @@
             </div>
 
             <div class="card-body p-3 d-flex flex-column">
-              <a href="{% url 'product.detail' product.id %}" class="stretched-link text-decoration-none">
-                <h6 class="card-title fw-bold text-dark text-truncate mb-1">{{ product.name }}</h6>
-              </a>
-              <p class="h6 fw-bold text-success mb-2">₱{{ product.price }}</p>
-              <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top">
-                <div class="small text-warning">
-                  <i class="bi bi-star-fill"></i>
-                  <span class="text-muted ms-1">{{ product.rating|default:'0.0' }}</span>
-                </div>
-                <div class="small text-muted">{{ product.sold_count|default:'0' }} sold</div>
-              </div>
-            </div>
+    {% if user.is_authenticated %}
+        <a href="{% url 'product.detail' product.id %}" class="stretched-link text-decoration-none">
+    {% else %}
+        <a href="javascript:void(0)" onclick="showLoginPrompt()" class="stretched-link text-decoration-none">
+    {% endif %}
+        <h6 class="card-title fw-bold text-dark text-truncate mb-1">{{ product.name }}</h6>
+    </a>
+
+    <p class="h6 fw-bold text-success mb-2">₱{{ product.price }}</p>
+    
+    <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top">
+        <div class="small text-warning">
+            <i class="bi bi-star-fill"></i>
+            <span class="text-muted ms-1">{{ product.rating|default:'0.0' }}</span>
+        </div>
+        <div class="small text-muted">{{ product.sold_count|default:'0' }} sold</div>
+    </div>
+</div>
           </div>
         </div>
       {% empty %}
@@ -79,4 +85,23 @@
 
 {% block extra_js %}
   <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
+  <script>
+function showLoginPrompt() {
+    Swal.fire({
+        title: 'Join the Community!',
+        text: 'You need to be logged in to view full product details and trade with other students.',
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonColor: '#198754', // Success green
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Login Now',
+        cancelButtonText: 'Just Browsing'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Redirect to your login page URL
+            window.location.href = "{% url 'user.login' %}"; 
+        }
+    });
+}
+</script>
 {% endblock %}

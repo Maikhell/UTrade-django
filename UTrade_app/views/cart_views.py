@@ -20,12 +20,13 @@ def cart_detail(request):
     })
 @login_required
 @require_POST
-@login_required
-@require_POST
 def add_to_cart(request, variant_id):
-    
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'message': 'Please login first'}, status=401)
+
     variant = get_object_or_404(ProductVariant, id=variant_id)
-    cart, created = Cart.objects.get_or_create(user=request.user)
+    cart, _ = Cart.objects.get_or_create(user=request.user)
+    
     cart_item, item_created = CartItem.objects.get_or_create(
         cart=cart, 
         variant=variant
@@ -36,12 +37,15 @@ def add_to_cart(request, variant_id):
             cart_item.quantity += 1
             cart_item.save()
         else:
-            return JsonResponse({'status': 'error', 'message': 'Max stock reached'}, status=400)
-
+            return JsonResponse({
+                'success': False, 
+                'message': f'Only {variant.stocks} items available.'
+            }, status=400)
+    
     total_quantity = CartItem.objects.filter(cart=cart).aggregate(Sum('quantity'))['quantity__sum'] or 0    
     
     return JsonResponse({
-        'status': 'success',
+        'success': True,
         'cart_count': total_quantity,    
     })
 @login_required

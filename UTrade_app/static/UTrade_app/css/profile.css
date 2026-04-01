@@ -58,3 +58,12 @@
 .badge[class*="badge-"]:hover {
     transform: translateY(-1px);
 }
+/* Custom Deep Red for Criminology */
+.badge-bsc {
+    background-color: #8B0000 !important;
+    color: #ffffff !important;           
+}
+
+.badge-bsc:hover {
+    background-color: #a00000 !important;
+}

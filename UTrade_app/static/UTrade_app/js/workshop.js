@@ -377,7 +377,7 @@ function addVariant() {
     const stockInput = document.getElementById('variant_stock');
     const priceInput = document.getElementById('variant_price');
     const conditionSelect = document.getElementById('variant_condition');
-    const flawsInput = document.getElementById('variant_flaws'); // This fixes your error!
+    const flawsInput = document.getElementById('variant_flaws'); 
     const customConditionInput = document.getElementById('custom_condition_input');
     const listContainer = document.getElementById('variant_list');
 

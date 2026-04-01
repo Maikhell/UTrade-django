@@ -11,7 +11,7 @@ urlpatterns = [
      
      #Admin
      path('admindashboard/', admin_views.AdminDashboard.as_view(), name="admin.dashboard"),
-      path('pendingproducts/', admin_views.AdminReviewListView.as_view(), name='admin.review'),
+     path('pendingproducts/', admin_views.AdminReviewListView.as_view(), name='admin.review'),
      #Admin Update
      path('review/update/<int:item_id>/', admin_views.update_item_status, name='update_status'),     
      #Products
@@ -32,4 +32,8 @@ urlpatterns = [
      #Services
      path('addservices/', services_views.ServiceCreateView.as_view(), name = 'services.create'),
      path('services/', services_views.ServiceListView.as_view(), name = 'services.list'),
+     
+     #Users
+     
+     path('verify-account/', user_views.submit_verification, name='user.verify'),
 ]

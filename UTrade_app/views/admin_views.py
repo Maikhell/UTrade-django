@@ -1,10 +1,10 @@
 import json
-from django.views.generic import ListView,TemplateView
+from django.views.generic import ListView,TemplateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
-from ..models import Product, Services
+from ..models import Product, Services, User
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 
@@ -86,8 +86,45 @@ class AdminReviewListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             .select_related('seller', 'category')\
             .prefetch_related('images')\
             .order_by('created_at')
-            
+        #Retrieve the pending users dapat
+        context['pending_users'] = User.objects.filter(status='pending').only(
+            'first_name', 'last_name', 'course', 'section', 'student_no', 'cor_file'
+        ).order_by('date_joined')
         return context
 
     def test_func(self):
         return self.request.user.is_staff
+
+class UpdateStatusView(View):
+    def post(self, request, item_id):
+        import json
+        data = json.loads(request.body)
+        new_status = data.get('status')
+        item_type = data.get('item_type') # 'product', 'service', or 'user'
+
+        try:
+            if item_type == 'product':
+                item = get_object_or_404(Product, id=item_id)
+                item.status = new_status
+                item.save()
+            
+            elif item_type == 'service':
+                item = get_object_or_404(Services, id=item_id)
+                item.status = new_status
+                item.save()
+
+            elif item_type == 'user':
+                user_to_verify = get_object_or_404(User, id=item_id)
+                
+                if new_status == 'Approved':
+                    user_to_verify.status = 'verified'
+                    user_to_verify.is_active = True   
+                else:
+                    user_to_verify.status = 'rejected'
+                
+                user_to_verify.save()
+
+            return JsonResponse({'status': 'success'})
+        
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)

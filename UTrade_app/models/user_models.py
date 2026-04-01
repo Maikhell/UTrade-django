@@ -15,6 +15,13 @@ class User(AbstractUser):
     )
     email = models.EmailField(unique=True) 
     
+    cor_file = models.ImageField(
+        upload_to=user_profile_path, 
+        blank=True, 
+        null=True, 
+        verbose_name='COR_file'
+    )
+
     course = models.CharField(max_length=100, blank=True, null=True,)
     section = models.CharField(max_length=30, blank=True, null=True,) 
     phone_number = models.CharField(max_length=15, blank=True, null=True)

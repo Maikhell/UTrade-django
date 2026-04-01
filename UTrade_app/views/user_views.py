@@ -1,13 +1,15 @@
 from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
 from ..models import User, Product
 from django.urls import reverse_lazy
-from django.contrib.auth import login
 from ..forms import UserRegistrationForm, UserProfileForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Count, Q
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
+
 
 class UserCreateView(CreateView):
     model = User 
@@ -87,3 +89,22 @@ class ProductDeleteView(LoginRequiredMixin, DeleteView):
         product = self.get_object()
         messages.success(request, f"Listing for '{product.name}' was successfully removed.")
         return super().delete(request, *args, **kwargs)  
+@login_required
+def submit_verification(request):
+    if request.method == 'POST':
+        cor_file = request.FILES.get('cor_file')
+        user = request.user
+        
+        # Double check on backend for safety
+        if not all([user.first_name, user.last_name, user.student_no, user.course, user.section]):
+            messages.error(request, "Please complete your profile before verifying.")
+            return redirect('user.profile')
+
+        if cor_file:
+            # Assuming you add a 'cor_image' field to your User model
+            user.cor_image = cor_file 
+            user.status = 'pending' # Optional: change status to pending
+            user.save()
+            messages.success(request, "COR submitted! Admin will review your account.")
+            
+    return redirect('user.account')

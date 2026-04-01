@@ -1,8 +1,57 @@
 /**
- * @param {string} itemId - The ID of the item
- * @param {string} newStatus - 'Approved' or 'Rejected'
- * @param {string} itemType - 'product' or 'service'
+ * @param {string} itemId 
+ * @param {string} newStatus 
+ * @param {string} itemType 
+ * @param {string} corUrl
  */
+function showUserDetails(firstName, lastName, studentNo, course, section, corUrl) {
+    // Basic Identity Info
+    document.getElementById('modalTitle').innerText = `Verify: ${firstName} ${lastName}`;
+    document.getElementById('modalDesc').innerText = `Student No: ${studentNo}`;
+    document.getElementById('modalSeller').innerText = `${firstName} ${lastName}`; // Reuse field for name
+    document.getElementById('modalCourse').innerText = course;
+    document.getElementById('modalSection').innerText = section;
+    
+    // Clear unused fields (Price/Category) for user view
+    document.getElementById('modalPrice').innerText = "N/A";
+    document.getElementById('modalCategory').innerText = "Account Verification";
+
+    // Display the COR File in the image container
+    const imgContainer = document.getElementById('modalImageContainer');
+    imgContainer.innerHTML = '';
+
+    if (corUrl && corUrl !== "None") {
+        if (corUrl.toLowerCase().endsWith('.pdf')) {
+            // If it's a PDF, provide a link/embed
+            imgContainer.innerHTML = `
+                <div class="alert alert-info small">This user uploaded a PDF COR.</div>
+                <a href="${corUrl}" target="_blank" class="btn btn-outline-primary w-100 mb-3">
+                    <i class="bi bi-file-earmark-pdf"></i> View PDF COR
+                </a>`;
+        } else {
+            // If it's an image
+            const img = document.createElement('img');
+            img.src = corUrl;
+            img.className = 'img-fluid rounded-3 shadow-sm mb-2 border';
+            imgContainer.appendChild(img);
+        }
+    } else {
+        imgContainer.innerHTML = '<div class="alert alert-danger">No COR file uploaded.</div>';
+    }
+
+    // Update Variant List area to show verification warning
+    const varContainer = document.getElementById('modalVariantList');
+    varContainer.innerHTML = `
+        <div class="p-3 mb-2 bg-light border border-warning rounded-2 small">
+            <h6 class="fw-bold text-danger"><i class="bi bi-shield-exclamation"></i> Verification Audit</h6>
+            <p class="mb-0">Please cross-reference the <strong>Student Number (${studentNo})</strong> with the uploaded COR image.</p>
+        </div>
+    `;
+
+    // Show the modal
+    const myModal = new bootstrap.Modal(document.getElementById('productModal'));
+    myModal.show();
+}
 async function updateStatus(itemId, newStatus, itemType) {
     const csrfElement = document.querySelector('[name=csrfmiddlewaretoken]');
     if (!csrfElement) {
@@ -24,7 +73,6 @@ async function updateStatus(itemId, newStatus, itemType) {
 
     if (result.isConfirmed) {
         try {
-            // ✅ FIX: Safe URL handling (works with or without Django template variable)
             let url = '';
 
             if (typeof updateUrlTemplate !== 'undefined') {

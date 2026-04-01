@@ -70,3 +70,36 @@ function previewAvatar(event) {
         reader.readAsDataURL(event.target.files[0]);
     }
 }
+
+document.getElementById('verificationForm').addEventListener('submit', function(e) {
+    const errorDiv = document.getElementById('error-message');
+    
+    // Grabbing the current user's data from the Django template context
+    const userData = {
+        firstName: "{{ user.first_name|default:'' }}",
+        lastName: "{{ user.last_name|default:'' }}",
+        studentNo: "{{ user.student_no|default:'' }}",
+        course: "{{ user.course|default:'' }}",
+        section: "{{ user.section|default:'' }}"
+    };
+
+    // Validation Check
+    const missingFields = [];
+    if (!userData.firstName.trim()) missingFields.push("First Name");
+    if (!userData.lastName.trim()) missingFields.push("Last Name");
+    if (!userData.studentNo.trim()) missingFields.push("Student Number");
+    if (!userData.course.trim()) missingFields.push("Course");
+    if (!userData.section.trim()) missingFields.push("Section");
+
+    if (missingFields.length > 0) {
+        e.preventDefault(); // Stop the form from submitting
+        
+        errorDiv.innerHTML = `
+            <div class="alert alert-danger border-0 small">
+                <strong>Hold on!</strong> You need to complete your profile first. 
+                Missing: ${missingFields.join(', ')}.
+                <br><a href="{% url 'user.profile' %}" class="fw-bold text-decoration-none">Click here to edit profile</a>
+            </div>`;
+        errorDiv.classList.remove('d-none');
+    }
+});

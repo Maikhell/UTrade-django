@@ -1,4 +1,5 @@
 import json
+import logging
 from django.views.generic import ListView,TemplateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
@@ -87,7 +88,7 @@ class AdminReviewListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
             .prefetch_related('images')\
             .order_by('created_at')
         #Retrieve the pending users dapat
-        context['pending_users'] = User.objects.filter(status='pending').only(
+        context['pending_users'] = User.objects.filter(status='Pending').only(
             'first_name', 'last_name', 'course', 'section', 'student_no', 'cor_file'
         ).order_by('date_joined')
         return context
@@ -95,36 +96,39 @@ class AdminReviewListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     def test_func(self):
         return self.request.user.is_staff
 
+logger = logging.getLogger(__name__)
+
 class UpdateStatusView(View):
-    def post(self, request, item_id):
-        import json
-        data = json.loads(request.body)
-        new_status = data.get('status')
-        item_type = data.get('item_type') # 'product', 'service', or 'user'
-
+    def post(self, request, item_type, item_id):
         try:
-            if item_type == 'product':
-                item = get_object_or_404(Product, id=item_id)
-                item.status = new_status
-                item.save()
-            
-            elif item_type == 'service':
-                item = get_object_or_404(Services, id=item_id)
-                item.status = new_status
-                item.save()
+            data = json.loads(request.body)
+            new_status = data.get('status')
 
-            elif item_type == 'user':
-                user_to_verify = get_object_or_404(User, id=item_id)
-                
+            item_type = item_type.lower().strip()
+
+            if item_type == 'user':
+                target_user = get_object_or_404(User, id=item_id)
                 if new_status == 'Approved':
-                    user_to_verify.status = 'verified'
-                    user_to_verify.is_active = True   
+                    target_user.status = 'verified'
+                    target_user.is_active = True
                 else:
-                    user_to_verify.status = 'rejected'
-                
-                user_to_verify.save()
+                    target_user.status = 'Rejected'
+                target_user.save()
+                return JsonResponse({'status': 'success'})
 
-            return JsonResponse({'status': 'success'})
-        
+            elif item_type == 'product':
+                target_product = get_object_or_404(Product, id=item_id)
+                target_product.status = new_status
+                target_product.save()
+                return JsonResponse({'status': 'success'})
+
+            elif item_type == 'service':
+                target_service = get_object_or_404(Services, id=item_id)
+                target_service.status = new_status
+                target_service.save()
+                return JsonResponse({'status': 'success'})
+
+            return JsonResponse({'status': 'error', 'message': 'Invalid item type'}, status=400)
+
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)

@@ -73,14 +73,7 @@ async function updateStatus(itemId, newStatus, itemType) {
 
     if (result.isConfirmed) {
         try {
-            let url = '';
-
-            if (typeof updateUrlTemplate !== 'undefined') {
-                url = updateUrlTemplate.replace('0', itemId);
-            } else {
-                // fallback if template variable is missing
-                url = `/admin/review/update/${itemId}/`;
-            }
+            let url = `/review/update/${itemType}/${itemId}/`;
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -90,7 +83,6 @@ async function updateStatus(itemId, newStatus, itemType) {
                 },
                 body: JSON.stringify({
                     status: newStatus,
-                    item_type: itemType
                 })
             });
 

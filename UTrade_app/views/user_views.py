@@ -95,15 +95,14 @@ def submit_verification(request):
         cor_file = request.FILES.get('cor_file')
         user = request.user
         
-        # Double check on backend for safety
+        # Validation check
         if not all([user.first_name, user.last_name, user.student_no, user.course, user.section]):
             messages.error(request, "Please complete your profile before verifying.")
             return redirect('user.profile')
 
         if cor_file:
-            # Assuming you add a 'cor_image' field to your User model
-            user.cor_image = cor_file 
-            user.status = 'pending' # Optional: change status to pending
+            user.cor_file = cor_file 
+            user.status = 'Pending' 
             user.save()
             messages.success(request, "COR submitted! Admin will review your account.")
             

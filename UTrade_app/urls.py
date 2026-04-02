@@ -13,8 +13,7 @@ urlpatterns = [
      path('admindashboard/', admin_views.AdminDashboard.as_view(), name="admin.dashboard"),
      path('pendingproducts/', admin_views.AdminReviewListView.as_view(), name='admin.review'),
      #Admin Update
-     path('review/update/<int:item_id>/', admin_views.update_item_status, name='update_status'),     
-     #Products
+     path('review/update/<str:item_type>/<int:item_id>/', admin_views.UpdateStatusView.as_view(), name='update_status'),     
      path('browse/', items_views.ProductListView.as_view(), name = 'product.list'),
      path('addproduct/', items_views.ProductCreateView.as_view(), name = 'product.create'),
      path('product/<int:pk>/', items_views.ProductDetailView.as_view(), name='product.detail'),

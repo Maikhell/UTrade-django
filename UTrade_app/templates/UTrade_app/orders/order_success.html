@@ -1,0 +1,16 @@
+{% extends 'UTrade_app/base.html' %}
+
+{% block content %}
+<div class="container py-5 text-center">
+    <div class="card border-0 shadow-sm rounded-4 p-5 mx-auto" style="max-width: 500px;">
+        <i class="bi bi-check-circle-fill text-success display-1 mb-4"></i>
+        <h2 class="fw-bold">Payment Successful!</h2>
+        <p class="text-muted">Your order has been placed. The seller has been notified and will prepare your item for pickup.</p>
+        <hr class="my-4 opacity-10">
+        <div class="d-grid gap-2">
+            <a href="{% url 'product.list' %}" class="btn btn-success rounded-pill fw-bold">Continue Shopping</a>
+            <a href="{% url 'seller_inventory' %}" class="btn btn-outline-secondary rounded-pill">View My Purchases</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

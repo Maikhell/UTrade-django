@@ -75,8 +75,56 @@
       {% endfor %}
     </div>
   </div>
+  <div class="modal fade" id="verificationModal" tabindex="-1" aria-labelledby="verificationModalLabel" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-warning text-dark border-0">
+        <h5 class="modal-title fw-bold" id="verificationModalLabel border-0">
+          <i class="bi bi-shield-lock-fill me-2"></i>Verification Required
+        </h5>
+      </div>
+      <div class="modal-body text-center py-4">
+        <div class="mb-3">
+          <i class="bi bi-person-exclamation text-warning display-1"></i>
+        </div>
+        <h5 class="fw-bold">Complete Your Profile</h5>
+        <p class="text-muted">To maintain a safe community at UTrade, you must fill out your personal details and upload your COR before you can trade.</p>
+      </div>
+      <div class="modal-footer border-0 pb-4 justify-content-center">
+        <a href="{% url 'user.profile' %}" class="btn btn-primary rounded-pill px-5 fw-bold">
+          Go to Profile Settings
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<script>
+    const isVerified = "{{ request.user.status }}" === "verified";
+    const isPending = "{{ request.user.status }}" === "pending";
+    const isAuthenticated = "{{ request.user.is_authenticated }}" === "True";
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // 2. Function to intercept restricted actions
+        function checkVerification(e) {
+            if (!isAuthenticated || !isVerified) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const vModal = new bootstrap.Modal(document.getElementById('verificationModal'));
+                vModal.show();
+                return false;
+            }
+        }
+
+        // 3. Attach this to any button or link with 'restrict-unverified' class
+        const restrictedElements = document.querySelectorAll('.restrict-unverified');
+        restrictedElements.forEach(el => {
+            el.addEventListener('click', checkVerification, true);
+        });
+    });
+</script>
   <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
 {% endblock %}

@@ -79,4 +79,19 @@ def remove_from_cart(request, item_id):
     return redirect('cart_detail')
 
 
+@login_required
+def checkout_view(request):
+    item_ids_str = request.GET.get('items', '')
+    if not item_ids_str:
+        return redirect('view_cart')
+
+    item_ids = item_ids_str.split(',')
+    cart_items = CartItem.objects.filter(id__in=item_ids, cart__user=request.user)
     
+    total_price = sum(item.get_cost() for item in cart_items)
+
+    context = {
+        'items': cart_items,
+        'total_price': total_price,
+    }
+    return render(request, 'UTrade_app/cart/checkout.html', context)

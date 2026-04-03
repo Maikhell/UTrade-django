@@ -2,6 +2,7 @@ from django.db import models
 from .base import BaseItem
 from django.db.models import Avg, Sum 
 from .user_models import User
+from .orders_models import Order, OrderItem
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)

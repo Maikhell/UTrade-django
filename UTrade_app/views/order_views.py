@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from ..models import CartItem, Order, OrderItem
-
+from django.db.models import Q
 
 @login_required
 def place_order(request):
@@ -124,3 +124,17 @@ def order_success(request, order_id):
     return render(request, 'UTrade_app/orders/order_success.html', {
         'order': order
     })
+    
+def order_history(request):
+    orders = Order.objects.filter(user=request.user).order_by('-created_at')
+    pickup_orders = orders.filter(
+        Q(payment_method='GCASH', status='Paid') | 
+        Q(payment_method='COP', status='Pending')
+    )
+    
+    context = {
+        'orders': orders,
+        'pickup_orders': pickup_orders,
+        'pickup_count': pickup_orders.count(),
+    }
+    return render(request, 'UTrade_app/orders/orders.html', context)

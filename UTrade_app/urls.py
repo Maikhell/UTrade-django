@@ -31,6 +31,7 @@ urlpatterns = [
       path('checkout/', cart_views.checkout_view, name='checkout_view'),
       
      #Checkout & Order 
+     path('orders/', order_views.order_history, name='order_history'),
      path('checkout/place-order/', order_views.place_order, name='place_order'), 
      path('order/success/<int:order_id>/', order_views.order_success, name='order_success'),    
       

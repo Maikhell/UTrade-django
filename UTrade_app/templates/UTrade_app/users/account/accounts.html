@@ -102,22 +102,8 @@
                   <i class="bi bi-plus fs-2"></i>
                 </div>
                 <div class="ms-4">
-                  <h5 class="fw-bold text-dark mb-1">Add Products</h5>
-                  <p class="text-muted small mb-0">List your products</p>
-                </div>
-              </div>
-            </a>
-          </div>
-
-          <div class="col-md-6">
-            <a href="{% url 'services.create' %}" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover">
-              <div class="d-flex align-items-center">
-                <div class="icon-box bg-white text-success shadow-sm">
-                  <i class="bi bi-plus fs-2"></i>
-                </div>
-                <div class="ms-4">
-                  <h5 class="fw-bold text-dark mb-1">Add Services</h5>
-                  <p class="text-muted small mb-0">List your services</p>
+                  <h5 class="fw-bold text-dark mb-1">Add Products or Services</h5>
+                  <p class="text-muted small mb-0">List your products or services</p>
                 </div>
               </div>
             </a>
@@ -161,6 +147,33 @@
               <div class="ms-4">
                 <h5 class="fw-bold text-dark mb-1">Profile</h5>
                 <p class="text-muted small mb-0">Customize Your Profile</p>
+              </div>
+            </div>
+          </a>
+        </div>
+        <div class="col-md-6">
+          <a href="{% url 'order_history' %}" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover text-decoration-none">
+            <div class="d-flex align-items-center">
+              <div class="icon-box bg-white text-primary shadow-sm">
+                <i class="bi bi-bag-check fs-3"></i>
+              </div>
+              <div class="ms-4">
+                <h5 class="fw-bold text-dark mb-1">Orders</h5>
+                <p class="text-muted small mb-0">Track and manage your purchases</p>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        <div class="col-md-6">
+          <a href="#" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover text-decoration-none">
+            <div class="d-flex align-items-center">
+              <div class="icon-box bg-white text-warning shadow-sm">
+                <i class="bi bi-star fs-3"></i>
+              </div>
+              <div class="ms-4">
+                <h5 class="fw-bold text-dark mb-1">Reviews</h5>
+                <p class="text-muted small mb-0">See feedback from your trades</p>
               </div>
             </div>
           </a>

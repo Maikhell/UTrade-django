@@ -54,8 +54,6 @@ def update_item_status(request, item_id): # Renamed for clarity
         
         item.status = new_status
         
-        # Some fields might only exist on Product (like is_authorized)
-        # We use getattr/setattr to be safe
         if hasattr(item, 'is_authorized'):
             item.is_authorized = (new_status == 'Approved')
             

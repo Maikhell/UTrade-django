@@ -38,19 +38,17 @@
                 <span class="badge bg-success rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">{{ user.status }}</span>
               {% endif %}
 
-              {% comment %} {% if user.is_superuser %}
-                <span class="badge bg-dark rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Super Admin</span>
-              {% endif %} {% endcomment %}
-
-              {% if user.is_staff %}
-                <span class="badge bg-info rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Admin</span>
+              {% if user.user_role %}
+                <span class="badge bg-success rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">{{ user.user_role }}</span>
               {% endif %}
-
               {% if user.course %}
                 <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold badge-{{ user.course|lower }}" style="font-size: 0.65rem; letter-spacing: 1px;">{{ user.course }}</span>
 
                 {% if user.section %}
                   <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold badge-{{ user.course|lower }}" style="font-size: 0.65rem; letter-spacing: 1px;">{{ user.section }}</span>
+                {% endif %}
+                {% if user.is_staff %}
+                  <span class="badge bg-info rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Admin</span>
                 {% endif %}
               {% endif %}
             </div>
@@ -122,8 +120,47 @@
               </div>
             </a>
           </div>
-        {% endif %}
 
+          <div class="col-md-6">
+            <a href="{% url 'user.profile' %}" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover">
+              <div class="d-flex align-items-center">
+                <div class="icon-box bg-white text-info shadow-sm">
+                  <i class="bi bi-person fs-3"></i>
+                </div>
+                <div class="ms-4">
+                  <h5 class="fw-bold text-dark mb-1">Profile</h5>
+                  <p class="text-muted small mb-0">Customize Your Profile</p>
+                </div>
+              </div>
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="{% url 'order_history' %}" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover text-decoration-none">
+              <div class="d-flex align-items-center">
+                <div class="icon-box bg-white text-primary shadow-sm">
+                  <i class="bi bi-bag-check fs-3"></i>
+                </div>
+                <div class="ms-4">
+                  <h5 class="fw-bold text-dark mb-1">Orders</h5>
+                  <p class="text-muted small mb-0">Track and manage your purchases</p>
+                </div>
+              </div>
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="#" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover text-decoration-none">
+              <div class="d-flex align-items-center">
+                <div class="icon-box bg-white text-warning shadow-sm">
+                  <i class="bi bi-star fs-3"></i>
+                </div>
+                <div class="ms-4">
+                  <h5 class="fw-bold text-dark mb-1">Reviews</h5>
+                  <p class="text-muted small mb-0">See feedback from your trades</p>
+                </div>
+              </div>
+            </a>
+          </div>
+        {% endif %}
         <div class="col-md-6">
           <a href="#" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover">
             <div class="d-flex align-items-center">
@@ -133,47 +170,6 @@
               <div class="ms-4">
                 <h5 class="fw-bold text-dark mb-1">Messages</h5>
                 <p class="text-muted small mb-0">Inbox and negotiations</p>
-              </div>
-            </div>
-          </a>
-        </div>
-
-        <div class="col-md-6">
-          <a href="{% url 'user.profile' %}" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover">
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-info shadow-sm">
-                <i class="bi bi-person fs-3"></i>
-              </div>
-              <div class="ms-4">
-                <h5 class="fw-bold text-dark mb-1">Profile</h5>
-                <p class="text-muted small mb-0">Customize Your Profile</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <div class="col-md-6">
-          <a href="{% url 'order_history' %}" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover text-decoration-none">
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-primary shadow-sm">
-                <i class="bi bi-bag-check fs-3"></i>
-              </div>
-              <div class="ms-4">
-                <h5 class="fw-bold text-dark mb-1">Orders</h5>
-                <p class="text-muted small mb-0">Track and manage your purchases</p>
-              </div>
-            </div>
-          </a>
-        </div>
-
-        <div class="col-md-6">
-          <a href="#" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover text-decoration-none">
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-warning shadow-sm">
-                <i class="bi bi-star fs-3"></i>
-              </div>
-              <div class="ms-4">
-                <h5 class="fw-bold text-dark mb-1">Reviews</h5>
-                <p class="text-muted small mb-0">See feedback from your trades</p>
               </div>
             </div>
           </a>

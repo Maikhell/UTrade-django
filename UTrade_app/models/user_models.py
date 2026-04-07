@@ -13,6 +13,18 @@ class User(AbstractUser):
         unique=True, 
         validators=[RegexValidator(r'^\d+$', "Student number must be numeric")]
     )
+    ROLE_CHOICES = [
+        ('student', 'Student'),
+        ('teacher', 'Teacher'),
+        ('alumni', 'Alumni'),
+        ('staff', 'University Staff'),
+    ]
+    
+    user_role = models.CharField(
+        max_length=20, 
+        choices=ROLE_CHOICES, 
+        default='student'
+    )
     email = models.EmailField(unique=True) 
     
     cor_file = models.ImageField(

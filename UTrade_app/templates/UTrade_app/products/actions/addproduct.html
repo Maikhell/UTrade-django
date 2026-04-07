@@ -10,15 +10,11 @@
     <link rel="stylesheet" href="{% static 'UTrade_app/css/workshop.css' %}" />
   {% endblock %}
 
- <div class="container mb-3 d-flex justify-content-between align-items-center">
-    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4">
-        <i class="bi bi-arrow-left me-2"></i>Back to Account
-    </a>
+  <div class="container mb-3 d-flex justify-content-between align-items-center">
+    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
 
-    <a href="{% url 'services.create' %}" class="btn btn-primary  px-4 shadow-sm">
-        <i class="bi bi-plus-lg me-2"></i>Add Services
-    </a>
-</div>
+    <a href="{% url 'services.create' %}" class="btn btn-primary px-4 shadow-sm"><i class="bi bi-plus-lg me-2"></i>Add Services</a>
+  </div>
 
   <div class="container-fluid py-4 workshop-container">
     <div class="row g-4">
@@ -131,13 +127,28 @@
 
             <div class="row g-2 mb-3">
               <div class="col-12">
-                <label class="form-label small fw-bold text-secondary">Meetup Spot</label>
-                <select id="meetup" class="form-select bg-light border-0">
-                  <option>Library</option>
-                  <option>Cafeteria</option>
-                  <option>Main Gym</option>
-                  <option>Gate 1</option>
-                </select>
+                <label class="form-label small fw-bold text-secondary">Campus Meetup Spots</label>
+
+                <div id="location_tags_container" class="d-flex flex-wrap gap-2 mb-2 p-2 bg-light rounded-3 border-0"></div>
+
+                <div class="input-group">
+                  <input type="text" id="location_input" class="form-control bg-light border-0 py-2" placeholder="Type a location and press Enter (e.g. Library)" />
+                  <button class="btn btn-success" type="button" onclick="addLocationTag()">Add</button>
+                </div>
+
+                <input type="hidden" name="location_options" id="final_locations" />
+
+                <div class="mt-3 p-3 rounded-3 border-start border-4 border-danger" style="background-color: #fff5f5;">
+                  <div class="d-flex">
+                    <i class="bi bi-shield-exclamation text-danger me-2 fs-5"></i>
+                    <div>
+                      <h6 class="fw-bold text-danger small mb-1">Campus Safety Protocol</h6>
+                      <p class="mb-0 text-muted" style="font-size: 0.75rem;">
+                        <strong>Note:</strong> Meetup locations are strictly monitored by Admins. All trades must occur within campus grounds. Users found attempting to meet outside campus may result in an <strong>immediate account ban</strong>.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -170,7 +181,7 @@
           </div>
 
           <div class="mt-auto">
-            <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">Send for Auth</button>
+            <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">Send for Authentication</button>
           </div>
         </div>
       </div>

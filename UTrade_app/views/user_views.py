@@ -1,5 +1,5 @@
 from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
-from ..models import User, Product
+from ..models import User, Product, Order
 from django.urls import reverse_lazy
 from ..forms import UserRegistrationForm, UserProfileForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -37,31 +37,41 @@ class UserProfileView(LoginRequiredMixin,SuccessMessageMixin, UpdateView):
     def get_object(self):
         return self.request.user
     
+
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product
     template_name = 'UTrade_app/users/account/seller_inventory.html'
     context_object_name = 'products'
 
     def get_queryset(self):
-        # Single query with annotations to get all counts at once
         return Product.objects.filter(seller=self.request.user).order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-    
-        #Much faster than running .filter().count() three times
+        
+        # 1. Keep your product counts logic
         counts = Product.objects.filter(seller=self.request.user).aggregate(
             approved=Count('id', filter=Q(status='Approved')),
             pending=Count('id', filter=Q(status='Pending')),
             rejected=Count('id', filter=Q(status='Rejected'))
         )
+        
+        # 2. ADD THIS: Fetch incoming orders for this seller
+        # We look for 'Pending' orders (COP) or 'Paid' (GCash) that need action
+        incoming_orders = Order.objects.filter(
+            seller=self.request.user
+        ).filter(
+            Q(status='Pending') | Q(status='Paid')
+        ).order_by('-created_at')
+
         context.update({
             'approved_count': counts['approved'],
             'pending_count': counts['pending'],
             'rejected_count': counts['rejected'],
+            'incoming_orders': incoming_orders,  # This goes to your HTML
+            'incoming_count': incoming_orders.count(),
         })
         return context
-# ... (Keep your existing imports)
 
 class ProductUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Product

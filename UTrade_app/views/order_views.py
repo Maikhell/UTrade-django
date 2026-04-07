@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from ..models import CartItem, Order, OrderItem
 from django.db.models import Q
+from django.contrib import messages
 
 @login_required
 def place_order(request):
@@ -34,19 +35,21 @@ def place_order(request):
             with transaction.atomic():
                 # Calculate total
                 total_price = sum(item.get_cost() for item in selected_items)
+                first_item = selected_items.first()
+                order_seller = first_item.variant.product.seller
                 print("TOTAL PRICE:", total_price)
 
-                # Create Order
                 new_order = Order.objects.create(
-                    user=request.user,
-                    total_amount=total_price,
-                    payment_method=payment_method,
-                    status='Pending'
-                )
+                user=request.user,
+                seller=order_seller, 
+                total_amount=total_price,
+                payment_method=payment_method,
+                pickup_location=request.POST.get('pickup_location'),
+                buyer_note=request.POST.get('buyer_note'),         
+                status='Pending'
+        )
 
                 print("ORDER CREATED:", new_order.id)
-
-                # Create Order Items
                 for item in selected_items:
                     OrderItem.objects.create(
                         order=new_order,
@@ -112,6 +115,7 @@ def place_order(request):
     return redirect('cart_detail')
 
 
+
 @login_required
 def order_success(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
@@ -119,17 +123,19 @@ def order_success(request, order_id):
     if order.payment_method == "GCASH_ONLINE":
         order.status = "Paid"
         order.save()
-        CartItem.objects.filter(cart__user=request.user).delete()
-
+        
+    CartItem.objects.filter(cart__user=request.user, variant__orderitem__order=order).delete()
+    
     return render(request, 'UTrade_app/orders/order_success.html', {
         'order': order
     })
     
 def order_history(request):
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
+    
     pickup_orders = orders.filter(
-        Q(payment_method='GCASH', status='Paid') | 
-        Q(payment_method='COP', status='Pending')
+        (Q(payment_method='GCASH_ONLINE') & Q(status='Paid')) | 
+        Q(status='Delivered')  
     )
     
     context = {
@@ -138,3 +144,24 @@ def order_history(request):
         'pickup_count': pickup_orders.count(),
     }
     return render(request, 'UTrade_app/orders/orders.html', context)
+
+
+def accept_order(request, order_id):
+
+    order = get_object_or_404(Order, id=order_id, seller=request.user)
+
+    if request.method == "POST":
+        order.pickup_time = request.POST.get('pickup_time')
+        order.meetup_location = request.POST.get('pickup_location')
+        order.seller_note = request.POST.get('seller_note')
+
+        if order.payment_method == 'COP':
+            order.status = 'Pending' 
+        else:
+            order.status = 'Paid'
+            
+        order.save()
+        messages.success(request, f"Order #{order.id} has been accepted!")
+        return redirect('shop.manager')
+
+    return redirect('shop.manager')

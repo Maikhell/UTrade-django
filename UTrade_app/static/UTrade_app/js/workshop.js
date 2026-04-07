@@ -5,12 +5,15 @@ if (typeof window.itemCount === 'undefined') {
     window.allStagedProducts = [];
     window.productVariants = [];
     window.currentSelectedImageIndex = null;
+    window.locationTags = [];
 }
+
 window.sizePresets = {
     Clothes: ['S', 'M', 'L', 'XL', 'XXL'],
     Clothing: ['S', 'M', 'L', 'XL', 'XXL'],
     Shoes: ['38', '39', '40', '41', '42', '43', '44'],
-    Footwear: ['38', '39', '40', '41', '42', '43', '44']
+    Footwear: ['38', '39', '40', '41', '42', '43', '44'],
+    Watches: ['36', '38', '40', '41', '42', '43',]
 };
 
 function previewMultipleImages(event) {
@@ -79,14 +82,17 @@ function addToStaging() {
     const stocksEl = document.getElementById('stocks');
     const descEl = document.getElementById('description');
     const categoryEl = document.getElementById('category');
-
-    // Determine if the form is currently handling variants or a single product
+    const finalLocationsInput = document.getElementById('final_locations');
+    
     const isVariantMode = !document.getElementById('attributes_section').classList.contains('d-none');
 
     [nameEl, priceEl, stocksEl].forEach(el => el.classList.remove('is-invalid'));
 
     let hasError = false;
-
+    if (window.locationTags.length === 0) {
+        Swal.fire('Location Required', 'Please add at least one campus meetup spot.', 'warning');
+        return;
+    }
     if (!nameEl.value.trim()) {
         nameEl.classList.add('is-invalid');
         hasError = true;
@@ -94,13 +100,11 @@ function addToStaging() {
 
     let finalPrice, finalStocks;
 
-    // Logic to switch validation and data extraction based on product complexity
     if (isVariantMode) {
         if (productVariants.length === 0) {
             Swal.fire('Variations Required', 'Please add at least one size or variety using the "Add" button.', 'warning');
             return;
         }
-        // Use price from the first variant entry and aggregate total stocks from all variants
         finalPrice = productVariants[0].price;
         finalStocks = productVariants.reduce((sum, v) => sum + v.stock, 0);
     } else {
@@ -124,7 +128,6 @@ function addToStaging() {
         });
     }
 
-    // Handles logic for "Other" category selection to allow custom user input
     let categoryId = categoryEl.value;
     let categoryName = categoryEl.options[categoryEl.selectedIndex].text;
 
@@ -136,7 +139,6 @@ function addToStaging() {
     const conditionEl = document.getElementById('variant_condition');
     const globalCondition = conditionEl ? conditionEl.value : "Brand New";
 
-    const meetup = document.getElementById('meetup').value;
     const productId = Date.now();
     const paymentEl = document.querySelector('input[name="payment"]:checked');
     const payment = paymentEl ? paymentEl.value : 'Not Specified';
@@ -149,21 +151,19 @@ function addToStaging() {
         description: descEl.value,
         category: categoryId,
         condition: globalCondition,
-        meetup: meetup,
+        meetup: finalLocationsInput ? finalLocationsInput.value : '',
         payment: payment,
         files: [...selectedFiles],
         variants: [...productVariants]
     };
 
     allStagedProducts.push(productData);
-
     itemCount = allStagedProducts.length;
     document.getElementById('item_count').innerText = itemCount;
 
     const stagingArea = document.getElementById('staging_area');
     if (stagingArea.querySelector('.empty-msg')) stagingArea.innerHTML = '';
 
-    // Dynamically generate the preview thumbnail or a placeholder if no image exists
     const firstImagePreview = document.querySelector('#image_preview_container img');
     const firstImageSrc = firstImagePreview ? firstImagePreview.src : null;
 
@@ -191,7 +191,7 @@ function addToStaging() {
             <div class="small text-muted mb-2 text-truncate-2" style="font-size: 0.85rem;">${productData.description}</div>
             <div class="d-flex flex-wrap gap-1 mb-2">
                 <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-tag me-1"></i>${categoryName}</span>
-                <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-geo-alt me-1"></i>${meetup}</span>
+                <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-geo-alt me-1"></i>${productData.meetup}</span>
                 <span class="badge ${payment === 'GCash' ? 'bg-primary' : 'bg-success'} text-white fw-normal">
                     <i class="bi bi-wallet2 me-1"></i>${payment}
                 </span>
@@ -200,11 +200,27 @@ function addToStaging() {
 
     stagingArea.insertAdjacentHTML('afterbegin', itemCard);
 
+    // SweetAlert2 Toast Success Notification
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true
+    });
+    Toast.fire({
+        icon: 'success',
+        title: 'Item added to staging list'
+    });
+
     document.getElementById('product_form').reset();
+    window.locationTags = [];
+    renderLocationTags();
     productVariants = [];
     document.getElementById('variant_list').innerHTML = '';
     const attrPills = document.getElementById('attribute_pills');
-    if (attrPills) attrPills.innerHTML = '';    document.getElementById('image_preview_container').innerHTML = `
+    if (attrPills) attrPills.innerHTML = ''; 
+    document.getElementById('image_preview_container').innerHTML = `
         <div class="text-center py-5 text-muted small w-100">
             <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
             Item added. Ready for next.
@@ -250,7 +266,6 @@ async function submitToAdmin() {
         }
     });
 
-    // Construct FormData to handle both structured text/JSON data and binary image files
     const formData = new FormData();
 
     allStagedProducts.forEach((product, index) => {
@@ -264,7 +279,6 @@ async function submitToAdmin() {
         formData.append(`prod_${index}_payment`, product.payment);
         formData.append(`prod_${index}_variants`, JSON.stringify(product.variants));
 
-        // Maps multiple images per product using unique indexed keys
         product.files.forEach((file, fileIndex) => {
             formData.append(`prod_${index}_image_${fileIndex}`, file);
         });
@@ -340,8 +354,7 @@ function handleCategoryChange(selectElement) {
     suggestionContainer.classList.add('d-none');
     stocksInput.readOnly = false;
 
-    // Filters categories that require variant management instead of a single price/stock field
-    const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture'];
+    const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture', 'Watches'];
 
     if (showVariantsFor.includes(selectedText)) {
         attrSection.classList.remove('d-none');
@@ -353,7 +366,6 @@ function handleCategoryChange(selectElement) {
         stocksInput.readOnly = false;
     }
 
-    // Maps preset sizes to UI buttons when a relevant category is selected
     if (window.sizePresets[selectedText]) {
         suggestionContainer.classList.remove('d-none');
         suggestionButtons.innerHTML = '';
@@ -372,28 +384,24 @@ function handleCategoryChange(selectElement) {
 }
 
 function addVariant() {
-    // 1. Define all inputs
     const nameInput = document.getElementById('variant_name');
     const stockInput = document.getElementById('variant_stock');
     const priceInput = document.getElementById('variant_price');
     const conditionSelect = document.getElementById('variant_condition');
-    const flawsInput = document.getElementById('variant_flaws'); 
+    const flawsInput = document.getElementById('variant_flaws');
     const customConditionInput = document.getElementById('custom_condition_input');
     const listContainer = document.getElementById('variant_list');
 
-    // 2. Validation
     if (!nameInput.value || !stockInput.value) {
         Swal.fire('Missing Info', "Please provide a name and stock.", 'warning');
         return;
     }
 
-    // 3. Logic for Condition
     let finalCondition = conditionSelect.value;
     if (finalCondition === 'Other') {
         finalCondition = customConditionInput.value.trim() || 'Other';
     }
 
-    // 4. Create Variant Object
     const variant = {
         name: nameInput.value,
         stock: parseInt(stockInput.value),
@@ -405,7 +413,6 @@ function addVariant() {
 
     productVariants.push(variant);
 
-    // 5. Add to the UI List
     const div = document.createElement('div');
     div.className = "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white animate__animated animate__fadeInUp";
 
@@ -431,7 +438,6 @@ function addVariant() {
     `;
     listContainer.appendChild(div);
 
-    // 6. THE CLEANUP (Reset everything for the next variant)
     nameInput.value = '';
     stockInput.value = '';
     priceInput.value = '';
@@ -440,7 +446,6 @@ function addVariant() {
     customConditionInput.value = '';
     customConditionInput.classList.add('d-none');
 
-    // Reset image picker text
     const imgBtn = document.querySelector('[onclick="openVariantImagePicker()"]');
     if (imgBtn) imgBtn.innerHTML = `<i class="bi bi-image me-1"></i> Pick Variant Image`;
 
@@ -478,20 +483,17 @@ function openVariantImagePicker() {
 
 function selectVariantImage(index) {
     currentSelectedImageIndex = index;
-
-    // Optional: Update a small preview icon next to your "Add Variant" button
     const btn = document.querySelector('[onclick="openVariantImagePicker()"]');
     if (btn) btn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> Image Selected`;
-
     Swal.close();
 }
+
 function removeVariant(btn, name) {
     productVariants = productVariants.filter(v => v.name !== name);
     btn.parentElement.remove();
     updateTotalStock();
 }
 
-// Recalculates the main stock input field based on the sum of all individual variants added
 function updateTotalStock() {
     const total = productVariants.reduce((sum, v) => sum + v.stock, 0);
     document.getElementById('stocks').value = total;
@@ -500,3 +502,53 @@ function updateTotalStock() {
 document.addEventListener('input', (e) => {
     if (e.target.classList.contains('is-invalid')) e.target.classList.remove('is-invalid');
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    const locInput = document.getElementById('location_input');
+    if (locInput) {
+        locInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addLocationTag();
+            }
+        });
+    }
+});
+
+function addLocationTag() {
+    const input = document.getElementById('location_input');
+    const value = input.value.trim();
+
+    if (value && !window.locationTags.includes(value)) {
+        window.locationTags.push(value);
+        renderLocationTags();
+        input.value = '';
+    } else if (window.locationTags.includes(value)) {
+        Swal.fire('Duplicate', 'This location is already added.', 'info');
+    }
+}
+
+function removeLocationTag(index) {
+    window.locationTags.splice(index, 1);
+    renderLocationTags();
+}
+
+function renderLocationTags() {
+    const container = document.getElementById('location_tags_container');
+    const hiddenInput = document.getElementById('final_locations');
+
+    container.innerHTML = '';
+
+    window.locationTags.forEach((tag, index) => {
+        const badge = document.createElement('span');
+        badge.className = 'badge bg-success d-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-sm animate__animated animate__fadeIn';
+        badge.style.fontSize = '0.8rem';
+        badge.innerHTML = `
+            ${tag} 
+            <i class="bi bi-x-circle-fill cursor-pointer text-white-50" onclick="removeLocationTag(${index})"></i>
+        `;
+        container.appendChild(badge);
+    });
+
+    hiddenInput.value = window.locationTags.join(', ');
+}

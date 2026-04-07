@@ -1,100 +1,221 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}Checkout - UTrade{% endblock %}
+{% block title %}
+  Checkout - UTrade
+{% endblock %}
 
 {% block content %}
-<div class="container py-5">
+  <div class="container py-5">
     <form action="{% url 'place_order' %}" method="POST">
-        {% csrf_token %}
-        <div class="row g-4">
-            <div class="col-lg-8">
-                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-                    <h4 class="fw-bold mb-4">Order Review</h4>
-                    {% for item in items %}
-                    <div class="d-flex align-items-start py-3 border-bottom border-light">
-                        <img src="{% if item.variant.product.image %}{{ item.variant.product.image.url }}{% else %}{% static 'UTrade_app/images/default-product.png' %}{% endif %}" 
-                             class="rounded-3 shadow-sm" 
-                             style="width: 80px; height: 80px; object-fit: cover;">
-                        
-                        <div class="ms-3 flex-grow-1">
-                            <h6 class="fw-bold mb-0">{{ item.variant.product.name }}</h6>
-                            <p class="small text-muted mb-2">Seller: <span class="text-dark fw-medium">@{{ item.variant.product.seller.username }}</span></p>
-                            <div class="mb-2">
-                                <span class="badge bg-light text-dark border rounded-pill fw-normal">{{ item.variant.variant_name }}</span>
-                                <span class="small text-muted ms-2">Qty: {{ item.quantity }}</span>
-                            </div>
-                            {% if item.variant.flaws %}
-                            <div class="alert alert-warning py-1 px-2 mb-0 d-inline-block" style="font-size: 0.75rem;">
-                                <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                                <strong>Note on Flaw:</strong> {{ item.variant.flaws }}
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="text-end"><span class="fw-bold text-success">₱{{ item.get_cost }}</span></div>
-                        <input type="hidden" name="item_ids" value="{{ item.id }}">
+      {% csrf_token %}
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+            <h4 class="fw-bold mb-4">Order Review</h4>
+            {% for item in items %}
+              <div class="d-flex align-items-start py-3 border-bottom border-light">
+                <img src="{% if item.variant.product.image %}
+                    {{ item.variant.product.image.url }}
+                  {% else %}
+                    {% static 'UTrade_app/images/default-product.png' %}
+                  {% endif %}"
+                  class="rounded-3 shadow-sm"
+                  style="width: 80px; height: 80px; object-fit: cover;" />
+
+                <div class="ms-3 flex-grow-1">
+                  <h6 class="fw-bold mb-0">{{ item.variant.product.name }}</h6>
+                  <p class="small text-muted mb-2">
+                    Seller: <span class="text-dark fw-medium">@{{ item.variant.product.seller.username }}</span>
+                  </p>
+
+                  <div class="mb-2">
+                    <span class="badge bg-light text-dark border rounded-pill fw-normal">{{ item.variant.variant_name }}</span>
+                    <span class="small text-muted ms-2">Qty: {{ item.quantity }}</span>
+                  </div>
+
+                  {% if item.variant.flaws %}
+                    <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center rounded-3" style="font-size: 0.8rem; border-left: 4px solid #ffc107;">
+                      <i class="bi bi-exclamation-triangle-fill text-warning me-2 fs-6"></i>
+                      <div>
+                        <strong class="d-block">Condition Note:</strong>
+                        <span class="text-dark">{{ item.variant.flaws }}</span>
+                      </div>
                     </div>
-                    {% endfor %}
+                  {% else %}
+                    <div class="text-success small">
+                      <i class="bi bi-check-circle-fill me-1"></i> No reported flaws
+                    </div>
+                  {% endif %}
                 </div>
 
-                <div class="card border-0 shadow-sm rounded-4 p-4">
-                    <h5 class="fw-bold mb-4">Payment Method</h5>
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="payment-option w-100 h-100">
-                                <input type="radio" name="payment_method" value="GCASH_ONLINE" class="d-none" checked>
-                                <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
-                                    <i class="bi bi-lightning-charge-fill text-warning mb-2 h4"></i>
-                                    <div class="fw-bold small">Online GCash</div>
-                                    <small class="text-muted" style="font-size: 0.6rem;">Instant Verification</small>
-                                </div>
-                            </label>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="payment-option w-100 h-100">
-                                <input type="radio" name="payment_method" value="COP" class="d-none">
-                                <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
-                                    <i class="bi bi-cash-stack h4 text-success mb-2"></i>
-                                    <div class="fw-bold small">Cash on Pickup</div>
-                                    <small class="text-muted" style="font-size: 0.6rem;">Pay at meet-up</small>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
+                <div class="text-end">
+                  <span class="fw-bold text-success fs-5">₱{{ item.get_cost }}</span>
                 </div>
+                <input type="hidden" name="item_ids" value="{{ item.id }}" />
+              </div>
+            {% endfor %}
+          </div>
+          <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+              <div class="d-flex align-items-center">
+                <div class="bg-primary-subtle p-2 rounded-3 me-3">
+                  <i class="bi bi-person-badge text-primary fs-4"></i>
+                </div>
+                <h5 class="fw-bold mb-0">Student Verification Info</h5>
+              </div>
+              {% if user.status == 'verified' %}
+                <span class="badge bg-success-subtle text-success rounded-pill px-3"><i class="bi bi-patch-check-fill me-1"></i> Verified</span>
+              {% else %}
+                <span class="badge bg-warning-subtle text-warning rounded-pill px-3"><i class="bi bi-clock-history me-1"></i> {{ user.status|title }}</span>
+              {% endif %}
             </div>
 
-            <div class="col-lg-4">
-                <div class="card border-0 shadow-lg rounded-4 p-4 sticky-top" style="top: 100px;">
-                    <h5 class="fw-bold mb-4">Summary Total</h5>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span class="text-muted">Items Total</span>
-                        <span class="fw-bold">₱{{ total_price }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-3 text-success">
-                        <span class="small">Campus Handling</span>
-                        <span class="fw-bold small">FREE</span>
-                    </div>
-                    <hr class="opacity-10">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <span class="h5 mb-0 fw-bold">Grand Total</span>
-                        <span class="h4 mb-0 fw-bold text-success">₱{{ total_price }}</span>
-                    </div>
-                    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-bold rounded-3 shadow-sm">Place Order</button>
-                    <p class="text-muted mt-3 small text-center">By placing an order, you agree to UTrade's student marketplace guidelines.</p>
-                </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="small text-muted d-block">First Name</label>
+                <span class="fw-bold text-dark">{{ user.first_name|default:user.username }}</span>
+              </div>
+              <div class="col-md-6">
+                <label class="small text-muted d-block">Account Role</label>
+                <span class="fw-bold {% if user.is_staff %}
+                    
+                    
+                    
+                    text-info
+
+
+
+                  {% else %}
+                    
+                    
+                    
+                    text-success
+
+
+
+                  {% endif %}">
+                  {% if user.is_staff %}
+                    <i class="bi bi-shield-lock me-1"></i> Admin
+                  {% else %}
+                    <i class="bi bi-person me-1"></i> {{ user.get_user_role_display|default:'Student' }}
+                  {% endif %}
+                </span>
+              </div>
+              <div class="col-md-6">
+                <label class="small text-muted d-block">Display Name</label>
+                <span class="fw-bold text-dark">@{{ user.display_name|default:user.student_no }}</span>
+              </div>
+              <div class="col-md-6">
+                <label class="small text-muted d-block">Course & Section</label>
+                <span class="fw-bold text-dark">{{ user.course|default:'BSIT' }} - {{ user.section|default:'N/A' }}</span>
+              </div>
             </div>
+
+            {% if user.status == 'unverified' %}
+              <div class="mt-3 p-2 bg-warning-subtle rounded-3 border border-warning-subtle">
+                <small class="text-dark fw-medium" style="font-size: 0.75rem;">
+                  <i class="bi bi-exclamation-circle-fill me-1"></i>
+                  Your COR is still pending review. Sellers might prioritize verified students.
+                </small>
+              </div>
+            {% endif %}
+
+            <div class="mt-3 p-2 bg-light rounded-3">
+              <small class="text-muted italic" style="font-size: 0.75rem;"><i class="bi bi-info-circle me-1"></i> This information will be shared with the seller to help identify you during the meetup.</small>
+            </div>
+          </div>
+          <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+            <div class="d-flex align-items-center mb-4">
+              <div class="bg-success-subtle p-2 rounded-3 me-3">
+                <i class="bi bi-geo-alt-fill text-success fs-4"></i>
+              </div>
+              <h5 class="fw-bold mb-0">Meetup Selection</h5>
+            </div>
+
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label small fw-bold text-muted">Preferred Campus Location</label>
+                <select name="pickup_location" class="form-select border-light bg-light rounded-3 py-2" required>
+                  <option value="" selected disabled>Choose where to meet the seller...</option>
+                  {% for location in available_locations %}
+                    <option value="{{ location }}">{{ location }}</option>
+                  {% empty %}
+                    <option value="Campus Main Gate">Campus Main Gate (Default)</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label small fw-bold text-muted">Additional Note for Seller</label>
+                <textarea name="buyer_note" class="form-control border-light bg-light rounded-3" rows="2" placeholder="e.g. I'll be at the benches near the entrance."></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="card border-0 shadow-sm rounded-4 p-4">
+            <h5 class="fw-bold mb-4">Payment Method</h5>
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="payment-option w-100 h-100">
+                  <input type="radio" name="payment_method" value="GCASH_ONLINE" class="d-none" checked />
+                  <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
+                    <i class="bi bi-lightning-charge-fill text-warning mb-2 h4"></i>
+                    <div class="fw-bold small">Online GCash</div>
+                    <small class="text-muted" style="font-size: 0.6rem;">Instant Verification</small>
+                  </div>
+                </label>
+              </div>
+              <div class="col-md-6">
+                <label class="payment-option w-100 h-100">
+                  <input type="radio" name="payment_method" value="COP" class="d-none" />
+                  <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
+                    <i class="bi bi-cash-stack h4 text-success mb-2"></i>
+                    <div class="fw-bold small">Cash on Pickup</div>
+                    <small class="text-muted" style="font-size: 0.6rem;">Pay at meet-up</small>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
-    </form>
-</div>
 
-<style>
+        <div class="col-lg-4">
+          <div class="card border-0 shadow-lg rounded-4 p-4 sticky-top" style="top: 100px;">
+            <h5 class="fw-bold mb-4">Summary Total</h5>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-muted">Items Total</span>
+              <span class="fw-bold">₱{{ total_price }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-3 text-success">
+              <span class="small">Campus Handling</span>
+              <span class="fw-bold small">FREE</span>
+            </div>
+            <hr class="opacity-10" />
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <span class="h5 mb-0 fw-bold">Grand Total</span>
+              <span class="h4 mb-0 fw-bold text-success">₱{{ total_price }}</span>
+            </div>
+            <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-bold rounded-3 shadow-sm">Place Order</button>
+            <p class="text-muted mt-3 small text-center">By placing an order, you agree to UTrade's student marketplace guidelines.</p>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <style>
     .payment-option input:checked + .option-box {
-        border: 2px solid #198754 !important;
-        background-color: #f8fff9;
+      border: 2px solid #198754 !important;
+      background-color: #f8fff9;
     }
-    .cursor-pointer { cursor: pointer; }
-    .option-box { transition: all 0.2s ease; }
-    .option-box:hover { background-color: #f8f9fa; }
-</style>
+    .cursor-pointer {
+      cursor: pointer;
+    }
+    .option-box {
+      transition: all 0.2s ease;
+    }
+    .option-box:hover {
+      background-color: #f8f9fa;
+    }
+  </style>
 {% endblock %}

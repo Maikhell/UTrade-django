@@ -14,7 +14,7 @@ from django.db.models import Q
 
 def landing_page(request):
     categories = Category.objects.all()
-    products = Product.objects.all() # Or filter by active/approved products
+    products = Product.objects.all() 
     
     category_id = request.GET.get('category')
     if category_id:
@@ -209,7 +209,7 @@ class ProductListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
-        # Ensure we pass the current search and category back to the template
+        # Ensure to pass the current search and category back to the template
         context['current_category'] = self.request.GET.get('category')
         context['search_query'] = self.request.GET.get('q') 
         

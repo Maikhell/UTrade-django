@@ -19,6 +19,9 @@ class Order(models.Model):
         on_delete=models.CASCADE, 
         related_name='orders'
     )
+    seller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='seller_orders', null=True, blank=True)
+    pickup_location = models.CharField(max_length=255, blank=True, null=True)
+    buyer_note = models.TextField(blank=True, null=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')

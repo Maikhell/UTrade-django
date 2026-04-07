@@ -28,13 +28,16 @@ urlpatterns = [
      path('cart/add/<int:variant_id>/', cart_views.add_to_cart, name='add_to_cart'),
      path('cart/update/<int:item_id>/', cart_views.update_cart, name='update_cart'),
      path('cart/remove/<int:item_id>/', cart_views.remove_from_cart, name='remove_from_cart'),
-      path('checkout/', cart_views.checkout_view, name='checkout_view'),
+     path('checkout/', cart_views.checkout_view, name='checkout_view'),
       
      #Checkout & Order 
      path('orders/', order_views.order_history, name='order_history'),
      path('checkout/place-order/', order_views.place_order, name='place_order'), 
      path('order/success/<int:order_id>/', order_views.order_success, name='order_success'),    
-      
+     path('order/accept/<int:order_id>/', order_views.accept_order, name='order.accept'),
+     # path('order/reject/<int:order_id>/', order_views.reject_order, name='order.reject'),
+     # path('order/confirm-receipt/<int:order_id>/', order_views.confirm_receipt, name='confirm_receipt'),
+     
      #Services
      path('addservices/', services_views.ServiceCreateView.as_view(), name = 'services.create'),
      path('services/', services_views.ServiceListView.as_view(), name = 'services.list'),

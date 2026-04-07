@@ -19,6 +19,44 @@
           <h4 class="fw-bold mb-0"><i class="bi bi-cart-fill text-primary me-2"></i>Incoming Orders</h4>
           <span class="badge bg-primary rounded-pill">{{ pending_orders.count }} New</span>
         </div>
+        {% if incoming_orders %}
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Buyer</th>
+                  <th>Amount</th>
+                  <th>Payment</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in incoming_orders %}
+                  <tr>
+                    <td>#{{ order.id }}</td>
+                    <td>@{{ order.user.username }}</td>
+                    <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
+                    <td>
+                      <span class="badge {% if order.payment_method == 'COP' %}
+                          bg-info
+                        {% else %}
+                          bg-warning text-dark
+                        {% endif %}">
+                        {{ order.payment_method }}
+                      </span>
+                    </td>
+                    <td>
+                      <button class="btn btn-sm btn-success rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#acceptOrderModal{{ order.id }}">Review & Accept</button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted italic">No new orders yet. Time to promote your items!</p>
+        {% endif %}
 
         <div class="row g-3">
           {% for order in pending_orders %}
@@ -26,9 +64,9 @@
               <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
                 <div class="card-header bg-white border-0 pt-3 pb-0">
                   <div class="d-flex justify-content-between">
-                    <span class="badge {% if order.payment_method == 'GCASH' %}
+                    <span class="badge {% if order.payment_method == 'GCASH' %}  
                         bg-info-subtle text-info
-                      {% else %}
+                      {% else %}         
                         bg-secondary-subtle text-secondary
                       {% endif %} rounded-pill">
                       {{ order.payment_method }}
@@ -53,7 +91,14 @@
                     </div>
                   </div>
 
-                  <button class="btn btn-success w-100 rounded-pill fw-bold btn-sm" data-bs-toggle="modal" data-bs-target="#acceptOrderModal{{ order.id }}">Accept & Set Pickup</button>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <button class="btn btn-outline-danger w-100 rounded-pill fw-bold btn-sm" data-bs-toggle="modal" data-bs-target="#rejectOrderModal{{ order.id }}">Reject</button>
+                    </div>
+                    <div class="col-6">
+                      <button class="btn btn-success w-100 rounded-pill fw-bold btn-sm" data-bs-toggle="modal" data-bs-target="#acceptOrderModal{{ order.id }}">Accept</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -97,6 +142,26 @@
                       <button type="submit" class="btn btn-primary rounded-pill px-4">Confirm Order</button>
                     </div>
                   </form>
+                </div>
+              </div>
+            </div>
+            <div class="modal fade" id="rejectOrderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 rounded-4 shadow">
+                  <div class="modal-body text-center p-4">
+                    <i class="bi bi-x-circle text-danger display-4 mb-3"></i>
+                    <h5 class="fw-bold">Reject Order #{{ order.id }}?</h5>
+                    <p class="text-muted">
+                      Are you sure you want to reject this order from <strong>{{ order.user.username }}</strong>? This will notify the buyer that the item is no longer available for them.
+                    </p>
+                    <div class="d-flex gap-2 justify-content-center mt-4">
+                      <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                      <form action="{% url 'order.reject' order.id %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger rounded-pill px-4">Confirm Reject</button>
+                      </form>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

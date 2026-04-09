@@ -49,27 +49,32 @@ class UserProductsView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # 1. Keep your product counts logic
         counts = Product.objects.filter(seller=self.request.user).aggregate(
             approved=Count('id', filter=Q(status='Approved')),
             pending=Count('id', filter=Q(status='Pending')),
             rejected=Count('id', filter=Q(status='Rejected'))
         )
         
-        # 2. ADD THIS: Fetch incoming orders for this seller
-        # We look for 'Pending' orders (COP) or 'Paid' (GCash) that need action
         incoming_orders = Order.objects.filter(
-            seller=self.request.user
-        ).filter(
-            Q(status='Pending') | Q(status='Paid')
-        ).order_by('-created_at')
+                seller=self.request.user
+            ).filter(
+                Q(status='Pending') | Q(status='Paid')
+            ).exclude(
+                status='Accepted' 
+            ).order_by('-created_at')
 
+        accepted_orders = Order.objects.filter(
+            seller=self.request.user,
+            status='Accepted'
+        ).order_by('-created_at')
+        
         context.update({
             'approved_count': counts['approved'],
             'pending_count': counts['pending'],
             'rejected_count': counts['rejected'],
-            'incoming_orders': incoming_orders,  # This goes to your HTML
+            'incoming_orders': incoming_orders, 
             'incoming_count': incoming_orders.count(),
+            'accepted_orders': accepted_orders, 
         })
         return context
 

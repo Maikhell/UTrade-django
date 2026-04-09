@@ -35,9 +35,10 @@ urlpatterns = [
      path('checkout/place-order/', order_views.place_order, name='place_order'), 
      path('order/success/<int:order_id>/', order_views.order_success, name='order_success'),    
      path('order/accept/<int:order_id>/', order_views.accept_order, name='order.accept'),
-     # path('order/reject/<int:order_id>/', order_views.reject_order, name='order.reject'),
-     # path('order/confirm-receipt/<int:order_id>/', order_views.confirm_receipt, name='confirm_receipt'),
-     
+     #path('order/reject/<int:order_id>/', order_views.reject_order, name='order.reject'),
+     path('order/delivered/<int:order_id>/', order_views.mark_order_delivered, name='order.delivered'),
+     path('order/confirm-receipt/<int:order_id>/', order_views.confirm_receipt, name='confirm_receipt'),
+     path('order/delivered/<int:order_id>/', order_views.mark_order_delivered, name='order.delivered'),
      #Services
      path('addservices/', services_views.ServiceCreateView.as_view(), name = 'services.create'),
      path('services/', services_views.ServiceListView.as_view(), name = 'services.list'),

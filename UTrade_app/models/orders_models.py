@@ -5,6 +5,8 @@ class Order(models.Model):
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Paid', 'Paid'),
+        ('Delivered', 'Delivered'),
+        ('Accepted', 'Accepted'),
         ('Completed', 'Completed'),
         ('Cancelled', 'Cancelled'),
     ]
@@ -19,6 +21,9 @@ class Order(models.Model):
         on_delete=models.CASCADE, 
         related_name='orders'
     )
+    meetup_location = models.CharField(max_length=255, blank=True, null=True)
+    pickup_time = models.DateTimeField(blank=True, null=True) 
+    seller_note = models.TextField(blank=True, null=True)
     seller = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='seller_orders', null=True, blank=True)
     pickup_location = models.CharField(max_length=255, blank=True, null=True)
     buyer_note = models.TextField(blank=True, null=True)

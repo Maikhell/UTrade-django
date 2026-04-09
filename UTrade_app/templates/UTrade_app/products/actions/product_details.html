@@ -1,3 +1,4 @@
+
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
@@ -6,6 +7,7 @@
 {% endblock %}
 
 {% block content %}
+
   {% block extra_css %}
     <link rel="stylesheet" href="{% static 'UTrade_app/css/product_details.css' %}" />
   {% endblock %}
@@ -55,7 +57,7 @@
 
           <h1 class="fw-bold text-dark mb-1">{{ product.name }}</h1>
           <p class="text-muted small mb-3">
-            Listed by <span class="fw-bold text-success">@{{ product.seller.username }}</span>
+            Listed by <span class="fw-bold text-success">@{{ product.seller.get_short_name }}</span>
           </p>
 
           <div class="d-flex align-items-center gap-3 mb-4 py-2 border-top border-bottom">
@@ -69,9 +71,33 @@
             <div class="vr text-muted opacity-25"></div>
             <div>
               <span class="fw-bold {% if product.get_total_stock < 5 %}
+                  
+                  
+                  
+                  
+                  
+                  
                   text-danger
+
+
+
+
+
+
                 {% else %}
+                  
+                  
+                  
+                  
+                  
+                  
                   text-dark
+
+
+
+
+
+
                 {% endif %}">
                 {{ product.get_total_stock }}
               </span>
@@ -107,9 +133,33 @@
               <div class="col-2">
                 <button type="button" onclick="toggleWishlist('{{ product.id }}', this)" class="btn btn-outline-danger btn-lg w-100 rounded-3 py-3 d-flex align-items-center justify-content-center">
                   <i class="bi {% if product.id in user_wishlist_ids %}
+                      
+                      
+                      
+                      
+                      
+                      
                       bi-heart-fill text-danger
+
+
+
+
+
+
                     {% else %}
+                      
+                      
+                      
+                      
+                      
+                      
                       bi-heart
+
+
+
+
+
+
                     {% endif %}">
 
                   </i>

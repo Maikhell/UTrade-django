@@ -171,12 +171,15 @@ class ProductDetailView(DetailView):
     template_name = 'Utrade_app/products/actions/product_details.html'
     context_object_name = 'product'
 
+    def get_queryset(self):
+        return super().get_queryset().select_related('seller', 'category')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['related_products'] = Product.objects.filter(
             category=self.object.category,
             status='Approved'
-        ).exclude(id=self.object.id)[:4]
+        ).exclude(id=self.object.id).select_related('seller')[:4] 
         return context
 
 class ProductListView(ListView):
@@ -186,10 +189,7 @@ class ProductListView(ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        # 1. Start with approved products
-        queryset = Product.objects.filter(status='Approved').select_related('category')
-        
-        # 2. Capture Search Query ('q')
+        queryset = Product.objects.filter(status='Approved').select_related('category', 'seller')        
         query = self.request.GET.get('q')
         if query:
             queryset = queryset.filter(
@@ -198,12 +198,10 @@ class ProductListView(ListView):
                 Q(category__name__icontains=query)
             )
 
-        # 3. Capture Category Filter ('category')
         category_id = self.request.GET.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
 
-        # 4. Final Order
         return queryset.order_by('-created_at').distinct()
 
     def get_context_data(self, **kwargs):

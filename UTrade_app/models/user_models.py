@@ -60,7 +60,12 @@ class User(AbstractUser):
         return static('UTrade_app/img/default-user.png')
     @property
     def get_short_name(self):
-        return self.display_name if self.display_name else self.student_no
-
+        if self.display_name and self.display_name.strip():
+            return self.display_name
+        if self.username and self.username.strip():
+            return self.username
+        if self.student_no:
+            return str(self.student_no)
+        return f"User_{self.id}" 
     def __str__(self):
         return str(self.get_short_name)

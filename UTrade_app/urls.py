@@ -45,4 +45,18 @@ urlpatterns = [
      
      #Users
      path('verify-account/', user_views.submit_verification, name='user.verify'),
+
+     path('security/admin/', admin_views.security_admin, name='security_admin'),
+
+     path('api/prohibited-words/', admin_views.get_prohibited_words, name='api_prohibited_words'),
+     path('security/bad-words/add/', admin_views.add_bad_word, name='add_bad_word'),
+     path('security/bad-words/delete/<int:word_id>/', admin_views.delete_bad_word, name='delete_bad_word'),
+
+     # Category Management (Option B)
+     path('security/categories/add/', admin_views.add_category, name='add_category'),
+     path('security/categories/delete/<int:cat_id>/', admin_views.delete_category, name='delete_category'),
+
+     # Meetup Location Management (Option B)
+     path('security/meetups/add/', admin_views.add_meetup, name='add_meetup'),
+     path('security/meetups/delete/<int:loc_id>/', admin_views.delete_meetup, name='delete_meetup'),
 ]

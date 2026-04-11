@@ -1,12 +1,15 @@
 import json
 import logging
+from django.shortcuts import render
 from django.views.generic import ListView,TemplateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
-from ..models import Product, Services, User
+from ..models import Product, Services, User, ProhibitedWord, Category,MeetupLocation
 from django.db.models import Count, Q
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404
 
 User = get_user_model()
@@ -130,3 +133,91 @@ class UpdateStatusView(View):
 
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+        
+def get_prohibited_words(request):
+    words = list(ProhibitedWord.objects.values_list('word', flat=True))
+    return JsonResponse({'prohibited_words': words})
+
+def security_admin(request):
+    context = {
+        'prohibited_words': ProhibitedWord.objects.all().order_by('-created_at'),
+        'categories': Category.objects.all().order_by('name'),
+        'meetups': MeetupLocation.objects.all().order_by('name'), # Ensure this is here!    
+}
+    return render(request, 'UTrade_app/admin/admin_security.html', context)
+
+@require_POST
+def add_bad_word(request):
+    word_text = request.POST.get('word', '').strip().lower()
+    if word_text:
+        word_obj, created = ProhibitedWord.objects.get_or_create(word=word_text)
+        if created:
+            return JsonResponse({
+                'status': 'success', 
+                'word': word_obj.word, 
+                'id': word_obj.id
+            })
+        return JsonResponse({'status': 'error', 'message': 'Word already exists.'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid input.'})
+
+@require_POST
+def delete_bad_word(request, word_id):
+    try:
+        word = ProhibitedWord.objects.get(id=word_id)
+        word.delete()
+        return JsonResponse({'status': 'success'})
+    except ProhibitedWord.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Word not found.'})
+    
+@require_POST
+def add_category(request):
+    name = request.POST.get('name', '').strip()
+    if name:
+        # get_or_create prevents duplicates
+        category, created = Category.objects.get_or_create(name=name)
+        if created:
+            return JsonResponse({'status': 'success', 'name': category.name, 'id': category.id})
+        return JsonResponse({'status': 'error', 'message': 'Category already exists.'})
+    return JsonResponse({'status': 'error', 'message': 'Name cannot be empty.'})
+
+@require_POST
+def delete_category(request, cat_id):
+    try:
+        category = Category.objects.get(id=cat_id)
+        category.delete()
+        return JsonResponse({'status': 'success'})
+    except Category.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Category not found.'})
+    
+@require_POST
+@login_required # Ensure only logged-in users/admins can add spots
+def add_meetup(request):
+    # Change 'location' to match what your JS formData.append uses
+    location_name = request.POST.get('location', '').strip() 
+    
+    if location_name:
+        # Check if it already exists (case-insensitive)
+        if MeetupLocation.objects.filter(name__iexact=location_name).exists():
+            return JsonResponse({'status': 'error', 'message': 'Location already exists.'}, status=400)
+
+        # Create the new location with the audit trail
+        location = MeetupLocation.objects.create(
+            name=location_name,
+            added_by=request.user  # This is the fix!
+        )
+        
+        return JsonResponse({
+            'status': 'success', 
+            'location': location.name, 
+            'id': location.id
+        })
+        
+    return JsonResponse({'status': 'error', 'message': 'Location name is required.'}, status=400)
+@require_POST
+def delete_meetup(request, loc_id):
+    try:
+        location = MeetupLocation.objects.get(id=loc_id)
+        location.delete()
+        return JsonResponse({'status': 'success'})
+    except MeetupLocation.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Location not found.'})

@@ -1,0 +1,125 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  Manage Security
+{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/security_admin.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <input type="hidden" id="csrf_token" value="{{ csrf_token }}" />
+
+  <div class="container py-5">
+    <div class="d-flex align-items-center mb-4">
+      <div class="bg-success text-white rounded p-2 me-3">
+        <i class="bi bi-shield-lock-fill fs-3"></i>
+      </div>
+      <div>
+        <h2 class="mb-0 fw-bold">Marketplace Security</h2>
+        <p class="text-muted mb-0">Manage global settings, categories, and prohibited content.</p>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs border-bottom-0 mb-4" id="securityTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#bad-words"><i class="bi bi-exclamation-triangle-fill me-2"></i>Bad Words</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#categories"><i class="bi bi-grid-fill me-2"></i>Categories</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-semibold" data-bs-toggle="tab" data-bs-target="#meetups"><i class="bi bi-geo-alt-fill me-2"></i>Meetup Spots</button>
+      </li>
+    </ul>
+
+    <div class="tab-content bg-white p-4 rounded shadow-sm border">
+      <div class="tab-pane fade show active" id="bad-words">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h5 class="fw-bold mb-0">Prohibited Content Filter</h5>
+          <div class="d-flex gap-2">
+            <input type="text" id="new_bad_word" class="form-control" placeholder="Add restricted word..." />
+            <button class="btn btn-success px-3" id="btn-add-word" data-url="{% url 'add_bad_word' %}" onclick="submitBadWord()"><i class="bi bi-plus-lg"></i></button>
+          </div>
+        </div>
+
+        <div id="bad_words_container" class="d-flex flex-wrap gap-2">
+          {% for word in prohibited_words %}
+            <div class="badge-wrapper animate__animated animate__fadeIn" id="word-{{ word.id }}">
+              <span class="badge bg-light text-dark border p-2 d-flex align-items-center gap-2">
+                {{ word.word }}
+                <i class="bi bi-x-circle-fill text-danger cursor-pointer" onclick="deleteBadWord({{ word.id }})"></i>
+              </span>
+            </div>
+          {% empty %}
+            <p class="text-muted w-100" id="no-words-msg">No prohibited words added yet.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="categories">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h5 class="fw-bold mb-0">Product Categories</h5>
+          <div class="d-flex gap-2">
+            <input type="text" id="new_category_input" class="form-control" placeholder="Electronics, Books, etc." />
+            <button class="btn btn-success px-3" id="btn-add-category" data-url="{% url 'add_category' %}" onclick="submitCategory()"><i class="bi bi-plus-lg"></i></button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Category Name</th>
+                <th>Status</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="categories_table_body">
+              {% for cat in categories %}
+                <tr id="category-{{ cat.id }}">
+                  <td class="fw-bold">{{ cat.name }}</td>
+                  <td>
+                    <span class="badge bg-success-subtle text-success">Active</span>
+                  </td>
+                  <td class="text-end">
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory({{ cat.id }})"><i class="bi bi-trash"></i></button>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="meetups">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <h5 class="fw-bold mb-0">Campus Meetup Zones</h5>
+          <div class="d-flex gap-2">
+            <input type="text" id="new_meetup_input" class="form-control" placeholder="e.g. Library Lobby" />
+            <button class="btn btn-success px-3" id="btn-add-meetup" data-url="{% url 'add_meetup' %}" onclick="submitMeetup()"><i class="bi bi-plus-lg"></i></button>
+          </div>
+        </div>
+
+        <div id="meetups_container" class="row">
+          {% for loc in meetups %}
+            <div class="col-md-4 mb-3 animate__animated animate__fadeIn" id="meetup-{{ loc.id }}">
+              <div class="p-3 border rounded d-flex justify-content-between align-items-center bg-light">
+                <span class="fw-bold text-dark">{{ loc.name }}</span>
+                <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteMeetup({{ loc.id }})"><i class="bi bi-trash"></i></button>
+              </div>
+            </div>
+          {% empty %}
+            <div class="col-12 text-muted">No meetup locations defined.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'UTrade_app/js/admin_security.js' %}"></script>
+{% endblock %}

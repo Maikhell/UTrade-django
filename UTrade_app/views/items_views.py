@@ -6,7 +6,7 @@ from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant 
+from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant, MeetupLocation 
 from django.http import JsonResponse
 import re
 import json
@@ -81,33 +81,75 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
 
         try:
             for i in range(total_products):
-                # 1. Basic Data Extraction
+                # 1. Data Extraction
                 prod_name = request.POST.get(f'prod_{i}_name', '')
                 prod_desc = request.POST.get(f'prod_{i}_desc', '')
                 prod_price = request.POST.get(f'prod_{i}_price', 0)
                 prod_stocks = request.POST.get(f'prod_{i}_stocks', 0)
                 raw_category = request.POST.get(f'prod_{i}_category', '')
+                raw_meetup = request.POST.get(f'prod_{i}_meetup', '').strip()
                 
+                # 2. Meetup Location Logic (Fixed the ID vs String error)
+                meetup_obj = None
+                if raw_meetup:
+                    if raw_meetup.startswith('NEW:'):
+                        new_loc_name = raw_meetup.replace('NEW:', '').strip()
+                        
+                        # Content Filter for Location
+                        flagged_loc = self.is_content_prohibited(new_loc_name)
+                        if flagged_loc:
+                            return JsonResponse({
+                                'status': 'error', 
+                                'message': f'Meetup location contains prohibited content: {flagged_loc}'
+                            }, status=400)
+
+                        meetup_obj, _ = MeetupLocation.objects.get_or_create(
+                            name__iexact=new_loc_name,
+                            defaults={
+                                'name': new_loc_name,
+                                'added_by': request.user 
+                            }
+                        )
+                    elif raw_meetup.isdigit():
+                        # Only query by ID if the string is numeric
+                        meetup_obj = MeetupLocation.objects.filter(id=int(raw_meetup)).first()
+                    else:
+                        # Fallback for unexpected strings that aren't prefixed with NEW:
+                        meetup_obj, _ = MeetupLocation.objects.get_or_create(
+                            name__iexact=raw_meetup,
+                            defaults={
+                                'name': raw_meetup,
+                                'added_by': request.user
+                            }
+                        )
+
+                # 3. Prohibited Content Check for Product
                 if self.is_content_prohibited(prod_name) or self.is_content_prohibited(prod_desc):
                     return JsonResponse({'status': 'error', 'message': f'Prohibited content in {prod_name}.'}, status=400)
 
-                if raw_category.startswith('NEW:'):
-                    new_name = raw_category.replace('NEW:', '').strip()
-                    category_obj, _ = Category.objects.get_or_create(
-                        name__iexact=new_name, 
-                        defaults={'name': new_name.title()}
-                    )
-                else:
-                    category_obj = Category.objects.filter(id=raw_category).first()
+                # 4. Category Logic
+                category_obj = None
+                if raw_category:
+                    if raw_category.startswith('NEW:'):
+                        new_cat_name = raw_category.replace('NEW:', '').strip()
+                        category_obj, _ = Category.objects.get_or_create(
+                            name__iexact=new_cat_name, 
+                            defaults={'name': new_cat_name.title()}
+                        )
+                    elif raw_category.isdigit():
+                        category_obj = Category.objects.filter(id=int(raw_category)).first()
 
+                # 5. Product Creation
                 new_product = Product.objects.create(
                     name=prod_name,
                     description=prod_desc,
                     category=category_obj,
+                    meetup_location=meetup_obj,
                     seller=request.user,
                     status='Pending'
                 )
 
+                # 6. Image Handling
                 saved_images_objects = []
                 image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
                 
@@ -121,12 +163,12 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                             new_product.image = img_file
                             new_product.save()
 
+                # 7. Variants Handling
                 variants_data = request.POST.get(f'prod_{i}_variants', '[]')
                 try:
                     variants_list = json.loads(variants_data)
                     
                     if not variants_list:
-
                         ProductVariant.objects.create(
                             product=new_product,
                             variant_name="Default",
@@ -136,24 +178,18 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         )
                     else:
                         for var in variants_list:
-                            v_condition = var.get('condition', 'Brand New')
-                            v_flaws = var.get('flaws', '')
-
                             variant_instance = ProductVariant(
                                 product=new_product,
                                 variant_name=var.get('name'),
                                 stocks=var.get('stock', 0),
                                 price=var.get('price', prod_price),
-                                condition=v_condition,    
-                                flaws_description=v_flaws 
+                                condition=var.get('condition', 'Brand New'),    
+                                flaws_description=var.get('flaws', '') 
                             )
                             
                             img_idx = var.get('imageIndex')
-                            if img_idx is not None:
-                                try:
-                                    variant_instance.assigned_image = saved_images_objects[int(img_idx)]
-                                except (IndexError, ValueError, TypeError):
-                                    variant_instance.assigned_image = None
+                            if img_idx is not None and int(img_idx) < len(saved_images_objects):
+                                variant_instance.assigned_image = saved_images_objects[int(img_idx)]
                             
                             variant_instance.save()
                             

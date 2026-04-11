@@ -6,8 +6,20 @@ if (typeof window.itemCount === 'undefined') {
     window.productVariants = [];
     window.currentSelectedImageIndex = null;
     window.locationTags = [];
+    window.PROHIBITED_WORDS = [];
 }
-
+async function loadProhibitedWords() {
+    try {
+        const response = await fetch('/api/prohibited-words/');
+        const data = await response.json();
+        window.PROHIBITED_WORDS = data.prohibited_words;
+        console.log("Prohibited words loaded:", window.PROHIBITED_WORDS.length);
+    } catch (error) {
+        console.error("Failed to load prohibited words:", error);
+        window.PROHIBITED_WORDS = ['scam', 'drugs', 'shabu'];
+    }
+}
+loadProhibitedWords();
 window.sizePresets = {
     Clothes: ['S', 'M', 'L', 'XL', 'XXL'],
     Clothing: ['S', 'M', 'L', 'XL', 'XXL'],
@@ -83,7 +95,7 @@ function addToStaging() {
     const descEl = document.getElementById('description');
     const categoryEl = document.getElementById('category');
     const finalLocationsInput = document.getElementById('final_locations');
-    
+
     const isVariantMode = !document.getElementById('attributes_section').classList.contains('d-none');
 
     [nameEl, priceEl, stocksEl].forEach(el => el.classList.remove('is-invalid'));
@@ -97,7 +109,22 @@ function addToStaging() {
         nameEl.classList.add('is-invalid');
         hasError = true;
     }
+    if (checkProhibitedContent(nameEl.value)) {
+        Swal.fire('Prohibited Content', 'The product name contains restricted words.', 'error');
+        nameEl.classList.add('is-invalid');
+        return;
+    }
 
+    if (checkProhibitedContent(descEl.value)) {
+        Swal.fire('Prohibited Content', 'The description contains restricted words.', 'error');
+        descEl.classList.add('is-invalid');
+        return;
+    }
+
+    if (checkProhibitedContent(window.locationTags.join(' '))) {
+        Swal.fire('Prohibited Content', 'One of your meetup locations contains restricted words.', 'error');
+        return;
+    }
     let finalPrice, finalStocks;
 
     if (isVariantMode) {
@@ -219,7 +246,7 @@ function addToStaging() {
     productVariants = [];
     document.getElementById('variant_list').innerHTML = '';
     const attrPills = document.getElementById('attribute_pills');
-    if (attrPills) attrPills.innerHTML = ''; 
+    if (attrPills) attrPills.innerHTML = '';
     document.getElementById('image_preview_container').innerHTML = `
         <div class="text-center py-5 text-muted small w-100">
             <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
@@ -551,4 +578,9 @@ function renderLocationTags() {
     });
 
     hiddenInput.value = window.locationTags.join(', ');
+}
+function checkProhibitedContent(text) {
+    if (!text || window.PROHIBITED_WORDS.length === 0) return false;
+    const lowerText = text.toLowerCase();
+    return window.PROHIBITED_WORDS.some(word => lowerText.includes(word.toLowerCase()));
 }

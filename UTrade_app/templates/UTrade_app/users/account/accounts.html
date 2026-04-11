@@ -78,6 +78,19 @@
               </div>
             </a>
           </div>
+          <div class="col-md-6">
+            <a href="{% url 'security_admin' %}" class="card h-100 p-4 rounded-4 bg-light action-card border-purple-hover">
+              <div class="d-flex align-items-center">
+                <div class="icon-box bg-white text-primary shadow-sm">
+                  <i class="bi bi-plus fs-4"></i>
+                </div>
+                <div class="ms-4">
+                  <h5 class="fw-bold text-dark mb-1">Manage Security</h5>
+                  <p class="text-muted small mb-0">Add Locations/Categories</p>
+                </div>
+              </div>
+            </a>
+          </div>
         {% else %}
           <div class="col-md-6">
             <a href="{% url 'seller_inventory' %}" class="card h-100 p-4 rounded-4 bg-light action-card border-success-hover">

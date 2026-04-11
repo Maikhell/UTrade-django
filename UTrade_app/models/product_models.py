@@ -1,5 +1,5 @@
 from django.db import models
-from .base import BaseItem
+from .base import BaseItem, MeetupLocation
 from django.db.models import Avg, Sum 
 from .user_models import User
 from .orders_models import Order, OrderItem
@@ -13,10 +13,11 @@ class Product(BaseItem):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name="products")
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_listings')
     sold = models.IntegerField(default=0)
-    location_options = models.CharField(
-        max_length=255, 
-        help_text="Comma-separated locations (e.g. Library, Canteen)",
-        default="Campus Main Gate"
+    meetup_location = models.ForeignKey(
+        MeetupLocation, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        related_name="products"
     )
     def __str__(self):
         return self.name

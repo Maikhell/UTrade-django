@@ -1,7 +1,7 @@
 // Wishlist Function
 async function toggleWishlist(productId, buttonElement, isWishlistPage = false) {
     if (!buttonElement || typeof buttonElement.querySelector !== 'function') return;
-    
+
     const icon = buttonElement.querySelector('i');
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     try {
@@ -26,7 +26,7 @@ async function toggleWishlist(productId, buttonElement, isWishlistPage = false) 
                 });
             } else {
                 icon.classList.replace('bi-heart-fill', 'bi-heart');
-                
+
                 if (isWishlistPage) {
                     const card = document.getElementById(`wishlist-item-${productId}`);
                     if (card) {
@@ -49,14 +49,14 @@ async function toggleWishlist(productId, buttonElement, isWishlistPage = false) 
     } catch (error) {
         Swal.fire('Oops!', 'Something went wrong. Are you logged in?', 'error');
     }
-} 
+}
 
 function addToCart(productId, buttonElement) {
     // Check if buttonElement is actually a DOM element before using querySelector
     const isElement = buttonElement instanceof HTMLElement;
     const icon = isElement ? buttonElement.querySelector('i') : null;
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-    
+
     fetch(`/cart/add/${productId}/`, {
         method: 'POST',
         headers: {
@@ -64,39 +64,39 @@ function addToCart(productId, buttonElement) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            // Only update UI elements if buttonElement was a valid element
-            if (isElement && icon) {
-                icon.classList.replace('bi-cart-plus', 'bi-cart-check-fill');
-                buttonElement.classList.add('btn-success'); 
-            }
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Only update UI elements if buttonElement was a valid element
+                if (isElement && icon) {
+                    icon.classList.replace('bi-cart-plus', 'bi-cart-check-fill');
+                    buttonElement.classList.add('btn-success');
+                }
 
-            const badge = document.getElementById('cart-count');
-            if (badge) {
-                badge.innerText = data.cart_count;
-                badge.style.display = 'inline-block';
-                
-                badge.animate([
-                    { transform: 'scale(1)' },
-                    { transform: 'scale(1.5)' },
-                    { transform: 'scale(1)' }
-                ], { duration: 300 });
-            }
+                const badge = document.getElementById('cart-count');
+                if (badge) {
+                    badge.innerText = data.cart_count;
+                    badge.style.display = 'inline-block';
 
-            Swal.fire({
-                toast: true,
-                position: 'top-end', 
-                icon: 'success',
-                title: 'Added to Cart',
-                showConfirmButton: false,
-                timer: 1500,
-                timerProgressBar: true
-            });
-        }
-    })
-    .catch(error => console.error('Error:', error));
+                    badge.animate([
+                        { transform: 'scale(1)' },
+                        { transform: 'scale(1.5)' },
+                        { transform: 'scale(1)' }
+                    ], { duration: 300 });
+                }
+
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Added to Cart',
+                    showConfirmButton: false,
+                    timer: 1500,
+                    timerProgressBar: true
+                });
+            }
+        })
+        .catch(error => console.error('Error:', error));
 }
 
 function changeImage(imageUrl, element) {
@@ -162,7 +162,7 @@ function openVariantSelector(productId, productName) {
         html: variantHtml,
         showCancelButton: true,
         confirmButtonText: 'Add to Cart',
-        confirmButtonColor: '#198754', 
+        confirmButtonColor: '#198754',
         cancelButtonText: 'Cancel',
         cancelButtonColor: '#6c757d',
         customClass: {
@@ -173,12 +173,12 @@ function openVariantSelector(productId, productName) {
         didRender: () => {
             const swalContainer = Swal.getHtmlContainer();
             const radios = swalContainer.querySelectorAll('input[name="swal-variant"]');
-            
+
             radios.forEach(radio => {
                 radio.addEventListener('change', (e) => {
                     const selectedVariantId = e.target.value;
                     const variant = variants.find(v => v.id == selectedVariantId);
-                    
+
                     if (variant && variant.image_url) {
                         const mainImg = document.getElementById('mainDisplayImage');
                         if (mainImg) {
@@ -206,4 +206,35 @@ function openVariantSelector(productId, productName) {
 function addToCartWithVariant(productId) {
     const productName = document.querySelector('h1')?.innerText || "Product";
     openVariantSelector(productId, productName);
+}
+
+function showLoginPrompt() {
+    const loginUrl = document.getElementById('login-url').value;
+
+    Swal.fire({
+        title: 'Join the Community!',
+        text: 'You need to be logged in to view full product details.',
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonText: 'Login Now',
+        confirmButtonColor: '#198754',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = loginUrl;
+        }
+    });
+}
+
+function showVerificationModal() {
+    const userStatus = document.getElementById('user-verification-status').value;
+
+    if (userStatus === 'unverified' || userStatus === 'Pending') {
+        const modalEl = document.getElementById('verificationModal');
+        if (modalEl) {
+            const vModal = new bootstrap.Modal(modalEl);
+            vModal.show();
+        }
+    } else {
+        console.log("User status is:", userStatus, "- skipping modal.");
+    }
 }

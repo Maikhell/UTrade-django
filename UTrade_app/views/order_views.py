@@ -2,10 +2,10 @@ import traceback
 import requests
 import base64
 from django.conf import settings
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from ..models import CartItem, Order, OrderItem
+from ..models import CartItem, Order, OrderItem, Review
 from django.db.models import Q
 from django.contrib import messages
 
@@ -184,4 +184,33 @@ def confirm_receipt(request, order_id):
         else:
             messages.error(request, "This order cannot be confirmed yet.")
             
+    return redirect('order_history')
+
+def submit_review(request, order_id):
+    if request.method == 'POST':
+        order = get_object_or_404(Order, id=order_id, user=request.user)
+        
+        if order.status != 'Completed':
+            messages.error(request, "You can only rate completed orders.")
+            return redirect('order_history')
+
+        rating_value = request.POST.get('rating')
+        comment = request.POST.get('comment')
+        
+        items = order.items.all()
+        
+        for item in items:
+            Review.objects.update_or_create(
+                order=order,
+                product=item.product_variant.product,
+                user=request.user,
+                defaults={
+                    'rating': rating_value,
+                    'comment': comment
+                }
+            )
+
+        messages.success(request, "Thank you for your review!")
+        return redirect('order_history')
+    
     return redirect('order_history')

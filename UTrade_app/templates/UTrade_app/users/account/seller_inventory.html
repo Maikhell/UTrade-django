@@ -118,10 +118,14 @@
                         <label class="form-label small fw-bold">Meetup Location</label>
                         <select name="pickup_location" class="form-select rounded-3" required>
                           <option value="" selected disabled>Select a spot...</option>
-                          <option value="Main Canteen">Main Canteen</option>
-                          <option value="Library Lobby">Library Lobby</option>
-                          <option value="IT Building">IT Building Entrance</option>
+
+                          {% for loc in locations %}
+                            <option value="{{ loc.name }}">{{ loc.name }}</option>
+                          {% endfor %}
                         </select>
+                        {% if not locations %}
+                          <small class="text-danger">No meetup locations available. Please contact admin.</small>
+                        {% endif %}
                       </div>
 
                       <div class="mb-0">

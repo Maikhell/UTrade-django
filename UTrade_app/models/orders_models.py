@@ -36,9 +36,12 @@ class Order(models.Model):
 
     class Meta:
         ordering = ['-created_at']
-
+    @property
+    def is_rated(self):
+        return self.order_reviews.exists()
     def __str__(self):
         return f"Order #{self.id} - {self.user.username}"
+    
 
 class OrderItem(models.Model):
     order = models.ForeignKey(

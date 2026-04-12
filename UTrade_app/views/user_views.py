@@ -1,5 +1,5 @@
 from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
-from ..models import User, Product, Order
+from ..models import User, Product, Order, MeetupLocation
 from django.urls import reverse_lazy
 from ..forms import UserRegistrationForm, UserProfileForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -27,7 +27,7 @@ class UserCreateView(CreateView):
 class UserAccountView(TemplateView):
     template_name = 'UTrade_app/users/account/accounts.html'
    
-class UserProfileView(LoginRequiredMixin,SuccessMessageMixin, UpdateView):
+class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = User
     form_class = UserProfileForm
     template_name = 'UTrade_app/users/account/profile.html'
@@ -36,7 +36,18 @@ class UserProfileView(LoginRequiredMixin,SuccessMessageMixin, UpdateView):
     
     def get_object(self):
         return self.request.user
-    
+
+    def form_valid(self, form):
+        display_name = form.cleaned_data.get('display_name')
+        if display_name:
+            if User.objects.filter(username=display_name).exclude(pk=self.request.user.pk).exists():
+                messages.error(self.request, "That display name is already taken. Please choose another.")
+                return self.form_invalid(form)
+            
+            form.instance.username = display_name
+        return super().form_valid(form)
+            
+        return super().form_valid(form)
 
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product
@@ -49,12 +60,14 @@ class UserProductsView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
+        # Aggregate counts for the seller dashboard
         counts = Product.objects.filter(seller=self.request.user).aggregate(
             approved=Count('id', filter=Q(status='Approved')),
             pending=Count('id', filter=Q(status='Pending')),
             rejected=Count('id', filter=Q(status='Rejected'))
         )
         
+        # Filter for orders that need the seller's attention
         incoming_orders = Order.objects.filter(
                 seller=self.request.user
             ).filter(
@@ -63,10 +76,14 @@ class UserProductsView(LoginRequiredMixin, ListView):
                 status='Accepted' 
             ).order_by('-created_at')
 
+        # Filter for orders already accepted and waiting for meetup
         accepted_orders = Order.objects.filter(
             seller=self.request.user,
             status='Accepted'
         ).order_by('-created_at')
+        
+        # Fetch active meetup locations for the 'Accept Order' modal
+        locations = MeetupLocation.objects.filter(is_active=True).order_by('name')
         
         context.update({
             'approved_count': counts['approved'],
@@ -74,24 +91,45 @@ class UserProductsView(LoginRequiredMixin, ListView):
             'rejected_count': counts['rejected'],
             'incoming_orders': incoming_orders, 
             'incoming_count': incoming_orders.count(),
-            'accepted_orders': accepted_orders, 
+            'accepted_orders': accepted_orders,
+            'accepted_count': accepted_orders.count(), # Added count for the UI header
+            'locations': locations, # Added the dynamic locations here
         })
         return context
 
 class ProductUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Product
+    # Added 'seller' logic security and streamlined the fields
     fields = ['name', 'description', 'category'] 
     template_name = 'UTrade_app/users/account/edit_product.html'
     success_url = reverse_lazy('seller_inventory')
-    
+    success_message = "Product updated successfully!"
+
     def get_queryset(self):
+        # Security: Ensure users can only edit their own products
         return Product.objects.filter(seller=self.request.user)
 
     def form_valid(self, form):
- 
+        # 1. Force status back to 'Pending' so Admin can re-verify the edits
         form.instance.status = 'Pending'
-        messages.info(self.request, "Product updated! It is now hidden while an admin reviews the changes.")
+        
+        # 2. Re-assign the seller just to be safe (prevents manual POST manipulation)
+        form.instance.seller = self.request.user
+        
+        # 3. Add the info message about the re-review process
+        messages.info(self.request, "Product changes saved! It is now pending admin review before going live again.")
+        
         return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        """
+        If your edit_product.html template needs the MeetupLocations 
+        or other shop stats, add them here.
+        """
+        context = super().get_context_data(**kwargs)
+        from ..models import MeetupLocation # Local import to avoid circular issues
+        context['locations'] = MeetupLocation.objects.filter(is_active=True)
+        return context
 
 class ProductDeleteView(LoginRequiredMixin, DeleteView):
     model = Product

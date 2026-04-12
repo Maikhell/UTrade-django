@@ -89,13 +89,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 raw_category = request.POST.get(f'prod_{i}_category', '')
                 raw_meetup = request.POST.get(f'prod_{i}_meetup', '').strip()
                 
-                # 2. Meetup Location Logic (Fixed the ID vs String error)
                 meetup_obj = None
                 if raw_meetup:
                     if raw_meetup.startswith('NEW:'):
                         new_loc_name = raw_meetup.replace('NEW:', '').strip()
                         
-                        # Content Filter for Location
                         flagged_loc = self.is_content_prohibited(new_loc_name)
                         if flagged_loc:
                             return JsonResponse({

@@ -71,8 +71,46 @@
                   </div>
 
                   {% if order.status == 'Completed' %}
-                    <button class="btn btn-warning btn-sm rounded-pill px-4 fw-bold"><i class="bi bi-star-fill me-1"></i> Rate Product</button>
+                    {% if order.is_rated %}
+                      <button class="btn btn-outline-secondary btn-sm rounded-pill px-4 fw-bold" disabled><i class="bi bi-check2-all me-1"></i> Rated</button>
+                    {% else %}
+                      <button class="btn btn-warning btn-sm rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}"><i class="bi bi-star-fill me-1"></i> Rate Product</button>
+                    {% endif %}
                   {% endif %}
+                </div>
+              </div>
+            </div>
+            <div class="modal fade" id="rateModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 rounded-4 shadow">
+                  <form action="{% url 'submit_rating' order.id %}" method="POST">
+                    {% csrf_token %}
+                    <div class="modal-header border-0 pb-0">
+                      <h5 class="fw-bold">Rate your purchase</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-center">
+                      <p class="text-muted small mb-4">How was your experience with this seller and the product?</p>
+
+                      <div class="mb-4">
+                        <select name="rating" class="form-select rounded-3 text-center fw-bold" required>
+                          <option value="5">⭐⭐⭐⭐⭐ (Excellent)</option>
+                          <option value="4">⭐⭐⭐⭐ (Good)</option>
+                          <option value="3">⭐⭐⭐ (Average)</option>
+                          <option value="2">⭐⭐ (Poor)</option>
+                          <option value="1">⭐ (Very Bad)</option>
+                        </select>
+                      </div>
+
+                      <div class="mb-0">
+                        <textarea name="comment" class="form-control rounded-3" rows="3" placeholder="Write a short review... (Optional)"></textarea>
+                      </div>
+                    </div>
+                    <div class="modal-footer border-0">
+                      <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold">Submit Review</button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
@@ -105,7 +143,13 @@
                       
                       
                       
+                      
+                      
+                      
                       bg-primary
+
+
+
 
 
 
@@ -119,7 +163,13 @@
                       
                       
                       
+                      
+                      
+                      
                       bg-info
+
+
+
 
 
 
@@ -208,7 +258,13 @@
                             
                             
                             
+                            
+                            
+                            
                             bg-primary
+
+
+
 
 
 
@@ -218,7 +274,13 @@
                             
                             
                             
+                            
+                            
+                            
                             bg-info
+
+
+
 
 
 

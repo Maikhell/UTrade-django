@@ -65,16 +65,17 @@ class ProductImage(models.Model):
         return f"Image for {self.product.name}"
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='order_reviews', null=True) # Link to Order
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)]) 
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('product', 'user') 
+        unique_together = ('product', 'user', 'order') 
 
     def __str__(self):
-        return f"{self.rating} stars - {self.product.name}"  
+        return f"{self.user.username} - {self.product.name} ({self.rating}★)"
       
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True )

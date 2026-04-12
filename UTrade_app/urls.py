@@ -2,7 +2,7 @@ from django.urls import path
 from .views import items_views, services_views, user_views, authenticate, admin_views, cart_views, order_views
 
 urlpatterns = [
-     path('', items_views.landing_page, name='landingpage'),
+     path('', items_views.ProductListView.as_view(), name='landingpage'), 
      path('register/', user_views.UserCreateView.as_view(), name = 'user.register'),
      path('login/', authenticate.Login.as_view(), name = 'user.login'),
      path('logout/', authenticate.Logout.as_view(), name = 'user.logout'),
@@ -39,6 +39,8 @@ urlpatterns = [
      path('order/delivered/<int:order_id>/', order_views.mark_order_delivered, name='order.delivered'),
      path('order/confirm-receipt/<int:order_id>/', order_views.confirm_receipt, name='confirm_receipt'),
      path('order/delivered/<int:order_id>/', order_views.mark_order_delivered, name='order.delivered'),
+     #Rating
+     path('order/<int:order_id>/rate/', order_views.submit_review, name='submit_rating'),
      #Services
      path('addservices/', services_views.ServiceCreateView.as_view(), name = 'services.create'),
      path('services/', services_views.ServiceListView.as_view(), name = 'services.list'),
@@ -50,13 +52,11 @@ urlpatterns = [
 
      path('api/prohibited-words/', admin_views.get_prohibited_words, name='api_prohibited_words'),
      path('security/bad-words/add/', admin_views.add_bad_word, name='add_bad_word'),
-     path('security/bad-words/delete/<int:word_id>/', admin_views.delete_bad_word, name='delete_bad_word'),
-
-     # Category Management (Option B)
      path('security/categories/add/', admin_views.add_category, name='add_category'),
-     path('security/categories/delete/<int:cat_id>/', admin_views.delete_category, name='delete_category'),
-
-     # Meetup Location Management (Option B)
      path('security/meetups/add/', admin_views.add_meetup, name='add_meetup'),
+     
+     #Delete
+     path('security/delete-word/<int:word_id>/', admin_views.delete_bad_word, name='delete_bad_word'),
+     path('security/categories/delete/<int:cat_id>/', admin_views.delete_category, name='delete_category'),
      path('security/meetups/delete/<int:loc_id>/', admin_views.delete_meetup, name='delete_meetup'),
 ]

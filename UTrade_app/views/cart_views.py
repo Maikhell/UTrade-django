@@ -3,7 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import JsonResponse
-from ..models import Product, Cart, CartItem, ProductVariant
+from ..models import Product, Cart, CartItem, ProductVariant, MeetupLocation
 from django.db.models import Sum
 
 @login_required
@@ -82,12 +82,12 @@ def remove_from_cart(request, item_id):
 def checkout_view(request):
     item_ids_str = request.GET.get('items', '')
     if not item_ids_str:
-        return redirect('view_cart')
+        return redirect('cart_detail') 
 
     try:
         item_ids = [int(id) for id in item_ids_str.split(',') if id.strip()]
     except ValueError:
-        return redirect('view_cart')
+        return redirect('cart_detail')
 
     cart_items = CartItem.objects.filter(
         id__in=item_ids, 
@@ -95,19 +95,14 @@ def checkout_view(request):
     ).select_related('variant__product')
     
     if not cart_items.exists():
-        return redirect('view_cart')
+        return redirect('cart_detail')
 
     total_price = sum(item.get_cost() for item in cart_items)
 
-    all_locations = []
-    for item in cart_items:
-        loc_str = item.variant.product.location_options 
-        if loc_str:
-            loc_list = [l.strip() for l in loc_str.split(',') if l.strip()]
-            all_locations.extend(loc_list)
-
-    unique_locations = sorted(list(set(all_locations)))
-
+    unique_locations = MeetupLocation.objects.filter(
+        is_active=True
+    ).values_list('name', flat=True).order_by('name')
+    
     context = {
         'items': cart_items,
         'total_price': total_price,

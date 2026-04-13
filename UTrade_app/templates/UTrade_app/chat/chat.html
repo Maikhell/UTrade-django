@@ -1,0 +1,166 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}Chat with {% if request.user == conversation.buyer %}{{ conversation.seller.get_short_name }}{% else %}{{ conversation.buyer.get_short_name }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+    <div class="d-flex align-items-center justify-content-between bg-white p-3 rounded-4 shadow-sm mb-3">
+        <div class="d-flex align-items-center">
+            <a href="{% url 'inbox' %}" class="btn btn-light rounded-circle me-3">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <img src="{{ conversation.product.image.url }}" class="rounded-3 me-3" style="width: 45px; height: 45px; object-fit: cover;">
+            <div>
+
+                <h6 class="mb-0 fw-bold">{{ conversation.product.name }}                 <button class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="reportConversation()">
+    <i class="bi bi-flag-fill me-1"></i> Report
+</button></h6>
+                <small class="text-muted">Chatting with 
+                    {% if request.user == conversation.buyer %}{{ conversation.seller.get_short_name }}{% else %}{{ conversation.buyer.get_short_name }}{% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-log" class="bg-white shadow-sm rounded-4 p-3 mb-3" style="height: 60vh; overflow-y: auto; display: flex; flex-direction: column;">
+{% for message in messages %}
+    <div class="d-flex {% if message.user == request.user %}justify-content-end{% else %}justify-content-start{% endif %} mb-3">
+        <div class="p-3 rounded-4 {% if message.user == request.user %}bg-primary text-white shadow-sm{% else %}bg-light text-dark{% endif %}" style="max-width: 75%;">
+            <p class="mb-0 small">{{ message.content }}</p>
+            <small class="opacity-75" style="font-size: 0.65rem;">{{ message.timestamp|date:"h:i A" }}</small>
+        </div>
+    </div>
+{% endfor %}
+    </div>
+
+    <div class="chat-input-area">
+        <div class="input-group mb-3">
+            <input type="text" id="chat-message-input" class="form-control rounded-pill-start border-0 shadow-sm p-3" placeholder="Type your message here...">
+            <button id="chat-message-submit" class="btn btn-primary rounded-pill-end px-4 shadow-sm">
+                <i class="bi bi-send-fill"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const conversationId = "{{ conversation.id }}";
+    const currentUser = "{{ request.user.get_short_name }}";
+    const currentUserId = "{{ request.user.id }}";
+
+    console.log("Connecting to conversation:", conversationId);
+    // Open WebSocket connection
+    const chatSocket = new WebSocket(
+        (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
+        window.location.host + 
+        '/ws/chat/' + conversationId + '/'
+    );
+
+    // Auto-scroll to bottom on load
+    const chatLog = document.querySelector('#chat-log');
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const isMe = data.user_id == currentUserId;
+        
+        const alignment = isMe ? 'justify-content-end' : 'justify-content-start';
+        const bgColor = isMe ? 'bg-primary text-white shadow-sm' : 'bg-light text-dark';
+
+        const messageHtml = `
+            <div class="d-flex ${alignment} mb-3" style="animation: fadeIn 0.3s ease;">
+                <div class="p-3 rounded-4 ${bgColor}" style="max-width: 75%;">
+                    <p class="mb-0 small">${data.message}</p>
+                    <small class="opacity-75" style="font-size: 0.65rem;">Just now</small>
+                </div>
+            </div>
+        `;
+        
+        chatLog.innerHTML += messageHtml;
+        chatLog.scrollTop = chatLog.scrollHeight; // Scroll to new message
+    };
+
+    chatSocket.onclose = function(e) {
+        console.error('Chat socket closed unexpectedly');
+    };
+
+    document.querySelector('#chat-message-input').focus();
+    document.querySelector('#chat-message-input').onkeyup = function(e) {
+        if (e.keyCode === 13) {  // Enter key
+            document.querySelector('#chat-message-submit').click();
+        }
+    };
+
+    document.querySelector('#chat-message-submit').onclick = function(e) {
+        const messageInputDom = document.querySelector('#chat-message-input');
+        const message = messageInputDom.value;
+        
+        if (message.trim() !== "") {
+            chatSocket.send(JSON.stringify({
+                'message': message
+            }));
+            messageInputDom.value = '';
+        }
+    };
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const hasAgreed = "{{ request.user.has_agreed_to_terms|yesno:'true,false' }}";
+        const termsModal = new bootstrap.Modal(document.getElementById('termsModal'));
+
+        // Show modal only if they haven't agreed yet
+        if (hasAgreed === "false") {
+            termsModal.show();
+        }
+
+        document.getElementById('agreeBtn').addEventListener('click', function() {
+            // Update the database via AJAX
+            fetch("{% url 'update_terms_agreement' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json"
+                }
+            }).then(response => {
+                if (response.ok) {
+                    termsModal.hide();
+                }
+            });
+        });
+    });
+</script>
+<style>
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(5px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    #chat-log::-webkit-scrollbar {
+        width: 6px;
+    }
+    #chat-log::-webkit-scrollbar-thumb {
+        background-color: #e9ecef;
+        border-radius: 10px;
+    }
+</style>
+<div class="modal fade" id="termsModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-success"><i class="bi bi-shield-check me-2"></i>Community Guidelines</h5>
+            </div>
+            <div class="modal-body py-4">
+                <p class="text-secondary">Welcome to UTrade Chat! To keep our university marketplace safe, please follow these rules:</p>
+                <ul class="small text-muted mb-0">
+                    <li class="mb-2"><strong>Be Respectful:</strong> Harassment or inappropriate language is strictly prohibited.</li>
+                    <li class="mb-2"><strong>Safety First:</strong> Meet in public campus areas for item trades.</li>
+                    <li class="mb-2"><strong>Monitored:</strong> While private, conversations can be reported and reviewed by Admins if a dispute arises.</li>
+                </ul>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" id="agreeBtn" class="btn btn-success w-100 rounded-3 fw-bold py-2">I Agree & Continue</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

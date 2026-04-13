@@ -1,9 +1,7 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}
-  Pending Reviews
-{% endblock %}
+{% block title %} Pending Reviews {% endblock %}
 
 {% block content %}
   {% csrf_token %}
@@ -25,13 +23,12 @@
       </li>
       <li class="nav-item" role="presentation">
         <button class="nav-link rounded-pill px-4 fw-bold" id="users-tab" data-bs-toggle="pill" data-bs-target="#users" type="button" role="tab">
-          Users <span class="badge badge-bsc ms-2">{{ pending_users.count }}</span>
+          Users <span class="badge bg-dark ms-2">{{ pending_users.count }}</span>
         </button>
       </li>
     </ul>
 
     <div class="tab-content" id="reviewTabsContent">
-      
       <div class="tab-pane fade show active" id="products" role="tabpanel">
         <div class="row g-4">
           {% for item in pending_products %}
@@ -78,19 +75,12 @@
                     <div class="small text-muted">{{ pending_user.student_no }}</div>
                   </td>
                   <td>
-                    <span class="badge rounded-pill badge-{{ pending_user.course|lower }}">{{ pending_user.course }}</span>
+                    <span class="badge rounded-pill bg-secondary">{{ pending_user.course }}</span>
                     <span class="small text-muted ms-1">{{ pending_user.section }}</span>
                   </td>
                   <td>
                     <button class="btn btn-sm btn-outline-primary rounded-pill px-3" 
-                            onclick="showUserDetails(
-                                '{{ pending_user.first_name|escapejs }}', 
-                                '{{ pending_user.last_name|escapejs }}', 
-                                '{{ pending_user.student_no|escapejs }}', 
-                                '{{ pending_user.course|escapejs }}', 
-                                '{{ pending_user.section|escapejs }}', 
-                                '{% if pending_user.cor_file %}{{ pending_user.cor_file.url }}{% endif %}'
-                            )">
+                            onclick="showUserDetails('{{ pending_user.first_name|escapejs }}', '{{ pending_user.last_name|escapejs }}', '{{ pending_user.student_no|escapejs }}', '{{ pending_user.course|escapejs }}', '{{ pending_user.section|escapejs }}', '{% if pending_user.cor_file %}{{ pending_user.cor_file.url }}{% endif %}')">
                       <i class="bi bi-file-earmark-text me-1"></i>View COR
                     </button>
                   </td>
@@ -99,42 +89,69 @@
                     <button onclick="updateStatus('{{ pending_user.id }}', 'Rejected', 'user')" class="btn btn-sm btn-danger rounded-3">Reject</button>
                   </td>
                 </tr>
-                {% empty %}
-                <tr>
-                  <td colspan="4" class="text-center py-5 text-muted">No users pending verification.</td>
-                </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
         </div>
       </div>
-
     </div>
   </div>
 
-  <div id="serviceSpecificInfo" class="mt-3 p-3 bg-primary bg-opacity-10 rounded-3 d-none">
-    <h6 class="fw-bold text-primary small text-uppercase">Service Info</h6>
-    <div class="d-flex justify-content-between small">
-      <span>Lead Time:</span> <span id="modalLeadTime" class="fw-bold"></span>
-    </div>
-    <div class="d-flex justify-content-between small">
-      <span>Method:</span> <span id="modalDeliveryMethod" class="fw-bold"></span>
-    </div>
-  </div>
   <div class="modal fade" id="corModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content rounded-4">
-      <div class="modal-header">
-        <h5 class="modal-title">Certificate of Registration</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body text-center">
-        <img id="cor_image" src="" class="img-fluid rounded" style="max-height: 500px;" />
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0">
+        <div class="modal-header">
+          <h5 class="fw-bold mb-0">Certificate of Registration</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body text-center bg-light">
+          <img id="cor_image" src="" class="img-fluid rounded shadow-sm" style="max-height: 700px;" />
+        </div>
       </div>
     </div>
   </div>
-</div>
+
+  <div class="modal fade" id="productModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="fw-bold mb-0" id="modalTitle">Item Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div id="modalImageContainer" class="bg-light rounded-3 p-2 text-center overflow-auto" style="max-height: 400px;">
+                </div>
+            </div>
+            <div class="col-md-6">
+              <div class="d-flex align-items-center mb-3">
+                <div id="modalSellerPlaceholder" class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style="width: 40px; height: 40px; font-weight: bold;">U</div>
+                <img id="modalSellerImage" src="" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover; display: none;">
+                <div>
+                  <div class="fw-bold small" id="modalSeller">Seller Name</div>
+                  <div class="text-muted smallest" style="font-size: 0.75rem;"><span id="modalCourse">BSIT</span> - <span id="modalSection">3A</span></div>
+                </div>
+              </div>
+
+              <h4 class="fw-bold text-primary mb-1" id="modalPrice">₱0.00</h4>
+              <span class="badge bg-light text-dark border mb-3" id="modalCategory">Category</span>
+              
+              <p class="text-secondary small mb-3" id="modalDesc">Description text here...</p>
+
+              <label class="fw-bold small text-uppercase mb-2">Availability / Variants</label>
+              <div id="modalVariantList">
+                </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}
 
 {% block extra_js %}

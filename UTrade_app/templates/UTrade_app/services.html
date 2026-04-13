@@ -61,18 +61,18 @@
     <div class="col">
       <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden service-card">
         <div class="img-container position-relative" style="height: 250px;">
-          {% if service.image %}
-            <img src="{{ service.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ service.name }}">
-          {% else %}
-            <div class="d-flex align-items-center justify-content-center h-100 bg-light text-muted">
-              <i class="bi bi-brush h1"></i>
-            </div>
-          {% endif %}
-          
-          <div class="position-absolute bottom-0 start-0 m-3">
-             <span class="badge bg-dark px-3 py-2 rounded-pill shadow">Starts at ₱{{ service.base_price }}</span>
-          </div>
-        </div>
+  {% if service.images.first %}
+    <img src="{{ service.images.first.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ service.name }}">
+  {% else %}
+    <div class="d-flex align-items-center justify-content-center h-100 bg-light text-muted">
+      <i class="bi bi-brush h1"></i>
+    </div>
+  {% endif %}
+  
+  <div class="position-absolute bottom-0 start-0 m-3">
+     <span class="badge bg-dark px-3 py-2 rounded-pill shadow">Starts at ₱{{ service.base_price }}</span>
+  </div>
+</div>
 
         <div class="card-body p-4">
           <div class="d-flex align-items-center mb-3">

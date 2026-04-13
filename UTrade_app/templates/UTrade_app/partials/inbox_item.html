@@ -1,0 +1,127 @@
+<a href="{% url 'chat_view' conversation.id %}" class="list-group-item list-group-item-action p-3 border-0 border-bottom transition-all">
+  <div class="d-flex align-items-center">
+    
+    <div class="position-relative me-3">
+      <div class="product-img-wrapper shadow-sm rounded-3 overflow-hidden" style="width: 65px; height: 65px;">
+        {% if conversation.product.images.all %}
+          <img src="{{ conversation.product.images.first.image.url }}" class="w-100 h-100" style="object-fit: cover;" />
+        {% else %}
+          <div class="w-100 h-100 bg-light d-flex align-items-center justify-content-center">
+            <i class="bi bi-box text-muted"></i>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="user-img-overlay position-absolute shadow" style="bottom: -5px; right: -5px;">
+        {% with course_code=other_person.course|upper %}
+          <div class="rounded-circle border border-2 border-white d-flex align-items-center justify-content-center fw-bold 
+            {% if course_code == 'BSIT' %}badge-bsit
+            {% elif course_code == 'BSCS' %}badge-bscs
+            {% elif course_code == 'BSE' %}badge-bse
+            {% elif course_code == 'BSBM' %}badge-bsbm
+            {% elif course_code == 'BSP' %}badge-bsp
+            {% elif course_code == 'BSHM' %}badge-bshm
+            {% elif course_code == 'BSC' %}badge-bsc
+            {% else %}bg-secondary text-white{% endif %}"
+            style="width: 32px; height: 32px; font-size: 0.75rem;">
+            {{ other_person.first_name|slice:':1'|upper|default:other_person.username|slice:':1'|upper }}
+          </div>
+        {% endwith %}
+      </div>
+    </div>
+
+    <div class="flex-grow-1 min-width-0">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <h6 class="mb-0 fw-bold text-dark text-truncate">{{ other_person.first_name }}</h6>
+        {% if other_person.is_staff %}
+          <span class="badge bg-danger-subtle text-danger rounded-pill border border-danger-subtle" style="font-size: 0.65rem;">ADMIN</span>
+        {% else %}
+          <span class="badge bg-primary-subtle text-primary rounded-pill border border-primary-subtle" style="font-size: 0.65rem;">STUDENT</span>
+        {% endif %}
+      </div>
+
+      <div class="d-flex align-items-center gap-2 mb-1">
+        {% with course_code=other_person.course|upper %}
+        <span class="fw-bold" style="font-size: 0.75rem; 
+            {% if course_code == 'BSIT' %}color: #4cd164;
+            {% elif course_code == 'BSCS' %}color: #ff5252;
+            {% elif course_code == 'BSE' %}color: #42a5f5;
+            {% elif course_code == 'BSBM' %}color: #d4c424; /* Adjusted for readability on white */
+            {% elif course_code == 'BSP' %}color: #ab47bc;
+            {% elif course_code == 'BSHM' %}color: #ff4081;
+            {% elif course_code == 'BSC' %}color: #8b0000;
+            {% else %}color: #198754;{% endif %}">
+            {{ other_person.course|default:'BSIT' }}
+        </span>
+        {% endwith %}
+        
+        <span class="text-muted" style="font-size: 0.6rem;">●</span>
+        <span class="text-muted fw-medium" style="font-size: 0.75rem;">Section {{ other_person.section|default:'N/A' }}</span>
+      </div>
+
+      <p class="text-muted small mb-0 text-truncate">{{ conversation.product.name }}</p>
+    </div>
+
+    <div class="ms-3">
+      <i class="bi bi-chevron-right text-muted opacity-50"></i>
+    </div>
+  </div>
+</a>
+<style>
+  .transition-all {
+    transition: all 0.2s ease-in-out;
+  }
+  .list-group-item-action:hover {
+    background-color: #fcfcfc;
+  }
+  .min-width-0 {
+    min-width: 0;
+  }
+  .badge-bsit {
+    background-color: #4cd164 !important;
+    color: white;
+  }
+  
+  .badge-bscs {
+    background-color: #ff5252 !important;
+    color: white;
+  }
+  
+  .badge-bse {
+    background-color: #42a5f5 !important;
+    color: white;
+  }
+  
+  .badge-bsbm {
+    background-color: #ffeb3b !important;
+    color: #333;
+  }
+  
+  .badge-bsp {
+    background-color: #ab47bc !important;
+    color: white;
+  }
+  
+  .badge-bshm {
+    background-color: #ff4081 !important;
+    color: white;
+  }
+  
+  .badge[class*='badge-'] {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+  }
+  
+  .badge[class*='badge-']:hover {
+    transform: translateY(-1px);
+  }
+  /* Custom Deep Red for Criminology */
+  .badge-bsc {
+    background-color: #8b0000 !important;
+    color: #ffffff !important;
+  }
+  
+  .badge-bsc:hover {
+    background-color: #a00000 !important;
+  }
+</style>

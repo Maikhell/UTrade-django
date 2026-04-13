@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import items_views, services_views, user_views, authenticate, admin_views, cart_views, order_views
+from .views import items_views, services_views, user_views, authenticate, admin_views, cart_views, order_views, chat_views
+
 
 urlpatterns = [
      path('', items_views.ProductListView.as_view(), name='landingpage'), 
@@ -41,13 +42,18 @@ urlpatterns = [
      path('order/delivered/<int:order_id>/', order_views.mark_order_delivered, name='order.delivered'),
      #Rating
      path('order/<int:order_id>/rate/', order_views.submit_review, name='submit_rating'),
-     #Services
      path('addservices/', services_views.ServiceCreateView.as_view(), name = 'services.create'),
      path('services/', services_views.ServiceListView.as_view(), name = 'services.list'),
      
+     #Chats
+     path('inbox/', chat_views.inbox, name='inbox'),
+     path('chat/<int:conversation_id>/', chat_views.chat_view, name='chat_view'),
+     path('start_chat/<int:product_id>/', chat_views.start_chat, name='start_chat'),
+     
      #Users
      path('verify-account/', user_views.submit_verification, name='user.verify'),
-
+     path('update-terms-agreement/', user_views.update_terms_agreement, name='update_terms_agreement'),
+     
      path('security/admin/', admin_views.security_admin, name='security_admin'),
 
      path('api/prohibited-words/', admin_views.get_prohibited_words, name='api_prohibited_words'),

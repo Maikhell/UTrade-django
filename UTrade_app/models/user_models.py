@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser 
 from django.db import models
 from django.core.validators import RegexValidator
 from django.templatetags.static import static
@@ -33,7 +33,7 @@ class User(AbstractUser):
         null=True, 
         verbose_name='COR_file'
     )
-
+    has_agreed_to_terms = models.BooleanField(default=False)
     course = models.CharField(max_length=100, blank=True, null=True,)
     section = models.CharField(max_length=30, blank=True, null=True,) 
     phone_number = models.CharField(max_length=15, blank=True, null=True)
@@ -69,3 +69,19 @@ class User(AbstractUser):
         return f"User_{self.id}" 
     def __str__(self):
         return str(self.get_short_name)
+    
+class Conversation(models.Model):
+
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='buyer_chats')
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_chats')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class ChatMessage(models.Model):
+    conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+    def __str__(self):
+        return f"{self.user.username}: {self.content[:20]}"

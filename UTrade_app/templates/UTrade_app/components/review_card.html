@@ -42,8 +42,28 @@
         <button onclick="updateStatus('{{ item.id }}', 'Approved', '{{ type }}')" class="btn btn-success w-100 rounded-pill"><i class="bi bi-check-lg me-2"></i>Approve</button>
         <button onclick="updateStatus('{{ item.id }}', 'Rejected', '{{ type }}')" class="btn btn-outline-danger w-100 rounded-pill"><i class="bi bi-x-lg me-2"></i>Reject</button>
 
-        <button type="button" class="btn btn-link btn-sm text-secondary text-decoration-none" onclick="prepareModalData('{{ type }}', {{ item.id }})">View Full Details</button>
-      </div>
+          <button type="button" 
+        class="btn btn-link btn-sm text-secondary text-decoration-none" 
+        onclick="showDetails(
+            '{{ item.name|escapejs }}', 
+            '{{ item.description|escapejs }}', 
+            '{{ item.seller.get_full_name|default:item.seller.username|escapejs }}', 
+            '{{ item.seller.course|escapejs }}', 
+            '{{ item.seller.section|escapejs }}', 
+            '{% if type == 'service' %}{{ item.base_price }}{% else %}{{ item.get_price_range }}{% endif %}', 
+            '{{ item.category.name|escapejs }}', 
+            [{% for img in item.images.all %}'{{ img.image.url }}'{% if not forloop.last %},{% endif %}{% endfor %}], 
+            [{% if type == 'product' %}{% for v in item.variants.all %}{ name: '{{ v.name|escapejs }}', price: '{{ v.price }}', stock: '{{ v.stock }}' }{% if not forloop.last %},{% endif %}{% endfor %}{% endif %}],
+            '{% if item.seller.profile_picture %}{{ item.seller.profile_picture.url }}{% endif %}',
+            { 
+                type: '{{ type }}', 
+                leadTime: '{{ item.lead_time|default:""|escapejs }}', 
+                location: '{{ item.location|default:""|escapejs }}' 
+            }
+        ); prepareModalData('{{ type }}', {{ item.id }})">
+    View Full Details
+</button>     
+ </div>
     </div>
   </div>
 </div>

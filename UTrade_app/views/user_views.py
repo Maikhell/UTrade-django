@@ -9,6 +9,8 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
+from django.http import JsonResponse
+
 
 
 class UserCreateView(CreateView):
@@ -49,6 +51,11 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
             
         return super().form_valid(form)
 
+from django.views.generic import ListView
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q, Count
+from ..models import Product, Order, MeetupLocation
+
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product
     template_name = 'UTrade_app/users/account/seller_inventory.html'
@@ -59,30 +66,30 @@ class UserProductsView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # Aggregate counts for the seller dashboard
-        counts = Product.objects.filter(seller=self.request.user).aggregate(
+        user = self.request.user
+
+        counts = Product.objects.filter(seller=user).aggregate(
             approved=Count('id', filter=Q(status='Approved')),
             pending=Count('id', filter=Q(status='Pending')),
             rejected=Count('id', filter=Q(status='Rejected'))
         )
         
-        # Filter for orders that need the seller's attention
         incoming_orders = Order.objects.filter(
-                seller=self.request.user
-            ).filter(
-                Q(status='Pending') | Q(status='Paid')
-            ).exclude(
-                status='Accepted' 
-            ).order_by('-created_at')
+            seller=user
+        ).filter(
+            Q(status='Pending') | Q(status='Paid')
+        ).order_by('-created_at')
 
-        # Filter for orders already accepted and waiting for meetup
         accepted_orders = Order.objects.filter(
-            seller=self.request.user,
+            seller=user,
             status='Accepted'
         ).order_by('-created_at')
+
+        completed_orders = Order.objects.filter(
+            seller=user, 
+            status='Completed'
+        ).order_by('-updated_at')
         
-        # Fetch active meetup locations for the 'Accept Order' modal
         locations = MeetupLocation.objects.filter(is_active=True).order_by('name')
         
         context.update({
@@ -92,40 +99,34 @@ class UserProductsView(LoginRequiredMixin, ListView):
             'incoming_orders': incoming_orders, 
             'incoming_count': incoming_orders.count(),
             'accepted_orders': accepted_orders,
-            'accepted_count': accepted_orders.count(), # Added count for the UI header
-            'locations': locations, # Added the dynamic locations here
+            'accepted_count': accepted_orders.count(),
+            'completed_orders': completed_orders,
+            'completed_count': completed_orders.count(),
+            'locations': locations, 
         })
+        
         return context
 
 class ProductUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Product
-    # Added 'seller' logic security and streamlined the fields
     fields = ['name', 'description', 'category'] 
     template_name = 'UTrade_app/users/account/edit_product.html'
     success_url = reverse_lazy('seller_inventory')
     success_message = "Product updated successfully!"
 
     def get_queryset(self):
-        # Security: Ensure users can only edit their own products
         return Product.objects.filter(seller=self.request.user)
 
     def form_valid(self, form):
-        # 1. Force status back to 'Pending' so Admin can re-verify the edits
         form.instance.status = 'Pending'
         
-        # 2. Re-assign the seller just to be safe (prevents manual POST manipulation)
         form.instance.seller = self.request.user
         
-        # 3. Add the info message about the re-review process
         messages.info(self.request, "Product changes saved! It is now pending admin review before going live again.")
         
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
-        """
-        If your edit_product.html template needs the MeetupLocations 
-        or other shop stats, add them here.
-        """
         context = super().get_context_data(**kwargs)
         from ..models import MeetupLocation # Local import to avoid circular issues
         context['locations'] = MeetupLocation.objects.filter(is_active=True)
@@ -160,3 +161,11 @@ def submit_verification(request):
             messages.success(request, "COR submitted! Admin will review your account.")
             
     return redirect('user.account')
+@login_required
+def update_terms_agreement(request):
+    if request.method == "POST":
+        user = request.user
+        user.has_agreed_to_terms = True
+        user.save()
+        return JsonResponse({"status": "success"})
+    return JsonResponse({"status": "error"}, status=400)

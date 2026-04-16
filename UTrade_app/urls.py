@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import items_views, services_views, user_views, authenticate, admin_views, cart_views, order_views, chat_views
+from .views import items_views, services_views, user_views, authenticate, admin_views, cart_views, order_views, chat_views, organization_views
 
 
 urlpatterns = [
@@ -8,7 +8,6 @@ urlpatterns = [
      path('login/', authenticate.Login.as_view(), name = 'user.login'),
      path('logout/', authenticate.Logout.as_view(), name = 'user.logout'),
      path('account/', user_views.UserAccountView.as_view(), name = 'user.account'),
-     path('userprofile/', user_views.UserProfileView.as_view(), name = 'user.profile'),
      
      #Admin
      path('admindashboard/', admin_views.AdminDashboard.as_view(), name="admin.dashboard"),
@@ -51,11 +50,19 @@ urlpatterns = [
      path('start_chat/<int:product_id>/', chat_views.start_chat, name='start_chat'),
      
      #Users
-     path('verify-account/', user_views.submit_verification, name='user.verify'),
      path('update-terms-agreement/', user_views.update_terms_agreement, name='update_terms_agreement'),
-     
+     path('profile/update-cor/', user_views.update_cor, name='update_cor'),
+     path('profile/register-officer/', user_views.register_officer, name='register_officer'),
      path('security/admin/', admin_views.security_admin, name='security_admin'),
+     path('userprofile/', user_views.UserProfileView.as_view(), name = 'user.profile'),
 
+     #Organization
+     path('organization/dashboard/', organization_views.organization_panel, name='organization.panel'),
+     path('organization/dashboard/', organization_views.organization_panel, name='org.dashboard'),
+    path('organization/update/<str:item_type>/<int:item_id>/', organization_views.update_status_org, name='org.update_status'),
+    # PDF Generation
+     # path('organization/orders/pdf/<str:order_type>/', organization_views.generate_order_pdf, name='generate_order_pdf'),
+     
      path('api/prohibited-words/', admin_views.get_prohibited_words, name='api_prohibited_words'),
      path('security/bad-words/add/', admin_views.add_bad_word, name='add_bad_word'),
      path('security/categories/add/', admin_views.add_category, name='add_category'),

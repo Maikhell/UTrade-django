@@ -26,6 +26,11 @@
           Users <span class="badge bg-dark ms-2">{{ pending_users.count }}</span>
         </button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link rounded-pill px-4 fw-bold" id="officers-tab" data-bs-toggle="pill" data-bs-target="#officers" type="button" role="tab">
+          Officers <span class="badge bg-warning text-dark ms-2">{{ pending_officers.count }}</span>
+        </button>
+      </li>
     </ul>
 
     <div class="tab-content" id="reviewTabsContent">
@@ -79,14 +84,61 @@
                     <span class="small text-muted ms-1">{{ pending_user.section }}</span>
                   </td>
                   <td>
-                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3" 
-                            onclick="showUserDetails('{{ pending_user.first_name|escapejs }}', '{{ pending_user.last_name|escapejs }}', '{{ pending_user.student_no|escapejs }}', '{{ pending_user.course|escapejs }}', '{{ pending_user.section|escapejs }}', '{% if pending_user.cor_file %}{{ pending_user.cor_file.url }}{% endif %}')">
+                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showUserDetails('{{ pending_user.first_name|escapejs }}', '{{ pending_user.last_name|escapejs }}', '{{ pending_user.student_no|escapejs }}', '{{ pending_user.course|escapejs }}', '{{ pending_user.section|escapejs }}', '{% if pending_user.cor_file %}{{ pending_user.cor_file.url }}{% endif %}')">
                       <i class="bi bi-file-earmark-text me-1"></i>View COR
                     </button>
                   </td>
                   <td class="text-end">
                     <button onclick="updateStatus('{{ pending_user.id }}', 'Approved', 'user')" class="btn btn-sm btn-success rounded-3 me-1">Approve</button>
                     <button onclick="updateStatus('{{ pending_user.id }}', 'Rejected', 'user')" class="btn btn-sm btn-danger rounded-3">Reject</button>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="officers" role="tabpanel">
+        <div class="card border-0 shadow-sm rounded-4">
+          <div class="table-responsive p-3">
+            <table class="table align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Officer Info</th>
+                  <th>Org / Position</th>
+                  <th>ID Verification</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for off in pending_officers %}
+                <tr id="review-row-off-{{ off.id }}">
+                  <td>
+                    <div class="fw-bold">{{ off.first_name }} {{ off.last_name }}</div>
+                    <div class="small text-muted">{{ off.student_no }}</div>
+                  </td>
+                  <td>
+                    <span class="badge rounded-pill bg-dark">{{ off.organization }}</span>
+                    <div class="small text-muted">{{ off.position }}</div>
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-outline-warning rounded-pill px-3" 
+                            onclick="showOfficerID('{% if off.officer_id_image %}{{ off.officer_id_image.url }}{% endif %}')">
+                      <i class="bi bi-person-badge me-1"></i>View Officer ID
+                    </button>
+                  </td>
+                  <td class="text-end">
+                    <button onclick="updateStatus('{{ off.id }}', 'Approved', 'officer')" class="btn btn-sm btn-success rounded-3 me-1">Approve</button>
+                    <button onclick="updateStatus('{{ off.id }}', 'Rejected', 'officer')" class="btn btn-sm btn-danger rounded-3">Reject</button>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="text-center py-5">
+                    <i class="bi bi-shield-exclamation display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No pending officer applications.</p>
                   </td>
                 </tr>
                 {% endfor %}
@@ -102,7 +154,7 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content rounded-4 border-0">
         <div class="modal-header">
-          <h5 class="fw-bold mb-0">Certificate of Registration</h5>
+          <h5 class="fw-bold mb-0">Verification Document</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body text-center bg-light">
@@ -122,27 +174,24 @@
         <div class="modal-body">
           <div class="row">
             <div class="col-md-6">
-              <div id="modalImageContainer" class="bg-light rounded-3 p-2 text-center overflow-auto" style="max-height: 400px;">
-                </div>
+              <div id="modalImageContainer" class="bg-light rounded-3 p-2 text-center overflow-auto" style="max-height: 400px;"></div>
             </div>
             <div class="col-md-6">
               <div class="d-flex align-items-center mb-3">
                 <div id="modalSellerPlaceholder" class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-2" style="width: 40px; height: 40px; font-weight: bold;">U</div>
-                <img id="modalSellerImage" src="" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover; display: none;">
+                <img id="modalSellerImage" src="" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover; display: none;" />
                 <div>
                   <div class="fw-bold small" id="modalSeller">Seller Name</div>
-                  <div class="text-muted smallest" style="font-size: 0.75rem;"><span id="modalCourse">BSIT</span> - <span id="modalSection">3A</span></div>
+                  <div class="text-muted smallest" style="font-size: 0.75rem;">
+                    <span id="modalCourse">BSIT</span> - <span id="modalSection">3A</span>
+                  </div>
                 </div>
               </div>
-
               <h4 class="fw-bold text-primary mb-1" id="modalPrice">₱0.00</h4>
               <span class="badge bg-light text-dark border mb-3" id="modalCategory">Category</span>
-              
               <p class="text-secondary small mb-3" id="modalDesc">Description text here...</p>
-
               <label class="fw-bold small text-uppercase mb-2">Availability / Variants</label>
-              <div id="modalVariantList">
-                </div>
+              <div id="modalVariantList"></div>
             </div>
           </div>
         </div>
@@ -156,4 +205,16 @@
 
 {% block extra_js %}
   <script src="{% static 'UTrade_app/js/admin_review.js' %}"></script>
+  <script>
+    // Specific function to show Officer ID in the existing modal
+    function showOfficerID(imageUrl) {
+        if (imageUrl && imageUrl !== '') {
+            document.getElementById('cor_image').src = imageUrl;
+            var myModal = new bootstrap.Modal(document.getElementById('corModal'));
+            myModal.show();
+        } else {
+            alert("No ID image found for this officer.");
+        }
+    }
+  </script>
 {% endblock %}

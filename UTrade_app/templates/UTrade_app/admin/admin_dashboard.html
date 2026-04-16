@@ -4,204 +4,300 @@
 {% block title %}
   Admin Dashboard
 {% endblock %}
+
 {% block content %}
-  {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'UTrade_app/css/admin_dashboard.css' %}" />
-  {% endblock %}
-  <div class="container mb-2">
-    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
-  </div>
-  <div class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-5">
-      <div>
-        <h1 class="fw-bold text-dark mb-1">Admin Dashboard</h1>
-        <p class="text-muted mb-0">Manage your users, products, and platform health.</p>
-      </div>
-    </div>
+  <div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+      <a href="{% url 'user.account' %}" class="btn btn-link text-decoration-none p-0 text-muted"><i class="bi bi-chevron-left"></i> Back to My Account</a>
+    </nav>
 
-    <div class="row g-4 mb-5">
-      <div class="col-md-4">
-        <div class="card stat-card bg-primary text-white p-4 rounded-4 shadow-sm">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase small fw-bold opacity-75">Total Users</h6>
-              <h2 class="fw-bold mb-0">{{ users.count|default:'0' }}</h2>
-            </div>
-            <i class="bi bi-people fs-1 opacity-50"></i>
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex align-items-center">
+          <div class="bg-dark text-white rounded-4 p-3 me-3">
+            <i class="bi bi-shield-lock fs-3"></i>
           </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card stat-card bg-success text-white p-4 rounded-4 shadow-sm">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase small fw-bold opacity-75">Verified Users</h6>
-              <h2 class="fw-bold mb-0">{{ verified.count|default:'0' }}</h2>
-            </div>
-            <i class="bi bi-person-check fs-1 opacity-50"></i>
+          <div>
+            <h2 class="fw-bold mb-0">Admin Dashboard</h2>
+            <p class="text-muted mb-0">Platform-wide oversight for all users, products, and health.</p>
           </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card stat-card bg-success text-white p-4 rounded-4 shadow-sm">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase small fw-bold opacity-75">Active Listings</h6>
-              <h2 class="fw-bold mb-0">{{ products.count|default:'0' }}</h2>
-            </div>
-            <i class="bi bi-bag-check fs-1 opacity-50"></i>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card stat-card bg-info text-white p-4 rounded-4 shadow-sm">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase small fw-bold opacity-75">Admins</h6>
-              <h2 class="fw-bold mb-0">{{ admin|default:'0' }}</h2>
-            </div>
-            <i class="bi bi-person-gear fs-1 opacity-50"></i>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card stat-card bg-danger text-white p-4 rounded-4 shadow-sm">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase small fw-bold opacity-75">Unverified Users</h6>
-              <h2 class="fw-bold mb-0">{{ unverified.count|default:'0' }}</h2>
-            </div>
-            <i class="bi bi-person-exclamation fs-1 opacity-50"></i>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card stat-card bg-warning text-dark p-4 rounded-4 shadow-sm position-relative" style="cursor: pointer;">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-uppercase small fw-bold opacity-75">Pending Reviews</h6>
-              <h2 class="fw-bold mb-0">{{ pending_products|length }}</h2>
-            </div>
-            <i class="bi bi-clock-history fs-1 opacity-50"></i>
-          </div>
-
-          <a href="{% url 'admin.review' %}" class="stretched-link"></a>
         </div>
       </div>
     </div>
 
-    <div class="mb-4">
-      <h3 class="fw-bold mb-4">User Management</h3>
-      <div class="table-container border">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light text-muted">
-              <tr>
-                <th class="ps-4 py-3">User</th>
-                <th class="py-3">Status</th>
-                <th class="py-3">Role</th>
-                <th class="py-3">Joined</th>
-                <th class="py-3 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for u in users %}
+    <div class="row g-3 mb-5">
+      <div class="col-md-4 col-lg-2">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+          <small class="text-uppercase text-muted fw-bold small">Total Users</small>
+          <h3 class="fw-bold text-primary mb-0">{{ users.count|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
+          <small class="text-uppercase text-muted fw-bold small">Verified</small>
+          <h3 class="fw-bold text-success mb-0">{{ verified.count|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+          <small class="text-uppercase text-muted fw-bold small">Listings</small>
+          <h3 class="fw-bold text-dark mb-0">{{ products.count|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-danger border-4">
+          <small class="text-uppercase text-muted fw-bold small">Unverified</small>
+          <h3 class="fw-bold text-danger mb-0">{{ unverified.count|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+          <small class="text-uppercase text-muted fw-bold small">Admins</small>
+          <h3 class="fw-bold text-info mb-0">{{ admin|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 bg-warning text-dark hover-lift" style="cursor: pointer;" onclick="document.getElementById('reviews-tab').click();">
+          <small class="text-uppercase fw-bold small opacity-75">Officer Requests</small>
+          <h3 class="fw-bold mb-0">{{ pending_officers.count|default:'0' }}</h3>
+        </div>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs border-0 mb-4" id="adminTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active fw-bold border-0 bg-transparent px-4" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-pane">User Management</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane">Product Inventory</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews-pane">
+          Officer Requests{% if pending_officers %}
+            <span class="badge bg-danger ms-1">{{ pending_officers.count }}</span>
+          {% endif %}
+        </button>
+      </li>
+          <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane">Pending Business Request </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="users-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
                 <tr>
-                  <td class="ps-4">
-                    <div class="d-flex align-items-center">
-                      {% if u.image %}
-                        <img src="{{ u.image.url }}" class="rounded-circle me-3 border" style="width: 40px; height: 40px; object-fit: cover;" alt="{{ u.username }}" />
-                      {% else %}
-                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3 border" style="width: 40px; height: 40px;">
-                          <span class="fw-bold text-success">{{ u.username|slice:':1'|upper }}</span>
+                  <th class="ps-4">User</th>
+                  <th>Status</th>
+                  <th>Role</th>
+                  <th>Joined</th>
+                  <th class="text-end pe-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in users %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center">
+                        {% if u.image %}
+                          <img src="{{ u.image.url }}" class="rounded-circle me-3 border" style="width: 40px; height: 40px; object-fit: cover;" />
+                        {% else %}
+                          <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3 border fw-bold text-success" style="width: 40px; height: 40px;">{{ u.username|slice:':1'|upper }}</div>
+                        {% endif %}
+                        <div>
+                          <div class="fw-bold text-dark">{{ u.username }}</div>
+                          <small class="text-muted">{{ u.email }}</small>
                         </div>
-                      {% endif %}
-
-                      <div>
-                        <div class="fw-bold text-dark">{{ u.username }}</div>
-                        <div class="small text-muted">{{ u.email }}</div>
                       </div>
-                    </div>
-                  </td>
-                  <td>
-                    {% if u.status == 'verified' %}
-                      <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">Verified</span>
-                    {% else %}
-                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill">Unverified</span>
-                    {% endif %}
-                  </td>
-                  <td>
-                    {% if u.is_staff %}
-                      <span class="text-primary fw-medium"><i class="bi bi-shield-check me-1"></i>Admin</span>
-                    {% else %}
-                      <span class="text-secondary">Member</span>
-                    {% endif %}
-                  </td>
-                  <td class="text-muted small">{{ u.date_joined|date:'M d, Y' }}</td>
-                  <td class="text-center pe-4">
-                    <button class="btn btn-sm btn-outline-success rounded-pill px-3 ms-2">Message</button>
-                  </td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="5" class="text-center py-5 text-muted fst-italic">No users found in the system.</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                    </td>
+                    <td>
+                      {% if u.status == 'verified' %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">Verified</span>
+                      {% else %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-2 rounded-pill">Unverified</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if u.is_staff %}
+                        <span class="text-primary fw-medium small"><i class="bi bi-shield-check me-1"></i>Admin</span>
+                      {% elif u.is_officer %}
+                        <span class="text-info fw-medium small"><i class="bi bi-building me-1"></i>Officer</span>
+                      {% else %}
+                        <span class="text-secondary small">Member</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ u.date_joined|date:'M d, Y' }}</td>
+                    <td class="text-end pe-4">
+                      <button class="btn btn-sm btn-outline-success rounded-pill px-3">Message</button>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">No users found.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="mb-4">
-      <h3 class="fw-bold mb-4">Product Inventory</h3>
-      <div class="table-container border">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="bg-light text-muted">
-              <tr>
-                <th class="ps-4 py-3">Product</th>
-                <th class="py-3">Seller</th>
-                <th class="py-3">Category</th>
-                <th class="py-3">Price Range</th> <th class="py-3 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for p in products %}
+
+      <div class="tab-pane fade" id="inventory-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
                 <tr>
-                  <td class="ps-4">
-                    <div class="d-flex align-items-center">
-                      {% if p.image %}
-                        <img src="{{ p.image.url }}" class="rounded me-3 border" style="width: 40px; height: 40px; object-fit: cover;" />
-                      {% endif %}
-                      <span class="fw-bold">{{ p.name }}</span>
-                    </div>
-                  </td>
-                  <td class="text-muted small">{{ p.seller.get_short_name }}</td>
-                  <td>
-                    <span class="badge bg-light text-dark border">{{ p.category.name }}</span>
-                  </td>
-                  <td class="fw-bold text-success">₱{{ p.get_price_range }}</td>
-                  <td class="text-center">
-                    <span class="badge {% if p.status == 'Approved' %}
-                        bg-success
-                      {% elif p.status == 'Pending' %}
-                        bg-warning
+                  <th class="ps-4">Product</th>
+                  <th>Seller</th>
+                  <th>Category</th>
+                  <th>Price Range</th>
+                  <th class="text-end pe-4">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in products %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center">
+                        {% if p.image %}
+                          <img src="{{ p.image.url }}" class="rounded me-3 border" style="width: 40px; height: 40px; object-fit: cover;" />
+                        {% endif %}
+                        <span class="fw-bold">{{ p.name }}</span>
+                      </div>
+                    </td>
+                    <td class="text-muted small">{{ p.seller.get_short_name }}</td>
+                    <td>
+                      <span class="badge bg-light text-dark border">{{ p.category.name }}</span>
+                    </td>
+                    <td class="fw-bold text-success">₱{{ p.get_price_range }}</td>
+                    <td class="text-end pe-4">
+                      <span class="badge {% if p.status == 'Approved' %}
+                          
+                          bg-success
+
+                        {% elif p.status == 'Pending' %}
+                          
+                          bg-warning
+
+                        {% else %}
+                          
+                          bg-danger
+
+                        {% endif %} rounded-pill">
+                        {{ p.status }}
+                      </span>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">No products listed.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="reviews-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mt-3">
+          <div class="card-header bg-white border-0 py-3">
+            <h5 class="fw-bold mb-0 text-dark">Officer Applications</h5>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Applicant</th>
+                  <th>Student ID</th>
+                  <th>Org / Position</th>
+                  <th>Evidence</th>
+                  <th class="text-end pe-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for off in pending_officers %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="fw-bold text-dark">{{ off.get_full_name|default:off.username }}</div>
+                      <small class="text-muted">{{ off.email }}</small>
+                    </td>
+                    <td>
+                      <span class="text-muted small">{{ off.student_no }}</span>
+                    </td>
+                    <td>
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill">{{ off.organization }}</span>
+                      <div class="small text-muted">{{ off.position }}</div>
+                    </td>
+                    <td>
+                      {% if off.officer_id_image %}
+                        <button class="btn btn-sm btn-link text-decoration-none p-0" onclick="viewDoc('{{ off.officer_id_image.url }}')"><i class="bi bi-file-earmark-person me-1"></i>View ID</button>
                       {% else %}
-                        bg-danger
-                      {% endif %} rounded-pill">
-                      {{ p.status }}
-                    </span>
-                  </td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="5" class="text-center py-5 text-muted">No products listed.</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                        <span class="text-muted small">No ID Uploaded</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                      <form method="POST" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="user_id" value="{{ off.id }}" />
+                        <button type="submit" name="action" value="Approve" class="btn btn-sm btn-success rounded-3 px-3">Approve</button>
+                        <button type="submit" name="action" value="Reject" class="btn btn-sm btn-outline-danger rounded-3 px-3">Reject</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">No pending officer requests found.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="docModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4">
+        <div class="modal-body p-0 text-center">
+          <img id="docPreview" src="" class="img-fluid rounded-4" alt="Document Preview" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function viewDoc(url) {
+      if (url && url !== 'None') {
+        document.getElementById('docPreview').src = url
+        new bootstrap.Modal(document.getElementById('docModal')).show()
+      } else {
+        alert('No document uploaded.')
+      }
+    }
+  </script>
+
+  <style>
+    .hover-lift {
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .hover-lift:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+    }
+    .nav-tabs .nav-link {
+      color: #6c757d;
+      border-bottom: 3px solid transparent !important;
+    }
+    .nav-tabs .nav-link.active {
+      color: #0d6efd !important;
+      border-bottom: 3px solid #0d6efd !important;
+    }
+  </style>
 {% endblock %}

@@ -190,3 +190,12 @@ function prepareModalData(type, id) {
     const myModal = new bootstrap.Modal(document.getElementById('productModal'));
     myModal.show();
 }
+function showOfficerID(imageUrl) {
+    if (imageUrl) {
+        document.getElementById('cor_image').src = imageUrl;
+        var myModal = new bootstrap.Modal(document.getElementById('corModal'));
+        myModal.show();
+    } else {
+        alert("No ID image uploaded.");
+    }
+}

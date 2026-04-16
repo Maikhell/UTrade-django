@@ -1,0 +1,393 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  {{ org_name }} Dashboard
+{% endblock %}
+
+{% block content %}
+  <div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+      <a href="{% url 'user.account' %}" class="btn btn-link text-decoration-none p-0 text-muted"><i class="bi bi-chevron-left"></i> Back to My Account</a>
+    </nav>
+
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex align-items-center">
+          <div class="bg-primary text-white rounded-4 p-3 me-3">
+            <i class="bi bi-building-gear fs-3"></i>
+          </div>
+          <div>
+            <h2 class="fw-bold mb-0">{{ org_name }} Management</h2>
+            <p class="text-muted mb-0">Departmental oversight for all {{ target_course }} students and listings.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-5">
+      <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+          <small class="text-uppercase text-muted fw-bold small">Total Students</small>
+          <h3 class="fw-bold text-primary mb-0">{{ users.count|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
+          <small class="text-uppercase text-muted fw-bold small">Verified</small>
+          <h3 class="fw-bold text-success mb-0">{{ verified_count|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+          <small class="text-uppercase text-muted fw-bold small">Dept. Listings</small>
+          <h3 class="fw-bold text-dark mb-0">{{ products.count|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
+          <small class="text-uppercase text-muted fw-bold small">Pending Products</small>
+          <h3 class="fw-bold text-warning mb-0">{{ pending_products.count|default:'0' }}</h3>
+        </div>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active fw-bold border-0 bg-transparent px-4" id="students-tab" data-bs-toggle="tab" data-bs-target="#students-pane">Students</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="verifications-tab" data-bs-toggle="tab" data-bs-target="#verifications-pane">
+          Pending Verifications{% if pending_users %}
+            <span class="badge bg-danger ms-1">{{ pending_users.count }}</span>
+          {% endif %}
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="pending-products-tab" data-bs-toggle="tab" data-bs-target="#pending-products-pane">
+          Pending Products{% if pending_products %}
+            <span class="badge bg-warning text-dark ms-1">{{ pending_products.count }}</span>
+          {% endif %}
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="market-tab" data-bs-toggle="tab" data-bs-target="#market-pane">Marketplace</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-pane">Orders</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="students-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Student</th>
+                  <th>Status</th>
+                  <th>Joined</th>
+                  <th class="text-end pe-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in users %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="fw-bold text-dark">{{ u.get_full_name|default:u.username }}</div>
+                      <small class="text-muted">{{ u.email }}</small>
+                    </td>
+                    <td>
+                      <span class="badge {% if u.status == 'verified' %}
+                          
+                          bg-success-subtle text-success
+
+                        {% else %}
+                          
+                          bg-secondary-subtle text-secondary
+
+                        {% endif %} rounded-pill px-3">
+                        {{ u.status|capfirst }}
+                      </span>
+                    </td>
+                    <td class="text-muted small">{{ u.date_joined|date:'M d, Y' }}</td>
+                    <td class="text-end pe-4">
+                      <button class="btn btn-sm btn-outline-primary rounded-pill px-3">View Profile</button>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="4" class="text-center py-5">No students found for this department.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="verifications-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Applicant</th>
+                  <th>Student No</th>
+                  <th>Course</th>
+                  <th>Evidence</th>
+                  <th class="text-end pe-4">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for u in pending_users %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="fw-bold text-dark">{{ u.get_full_name }}</div>
+                      <small class="text-muted">{{ u.email }}</small>
+                    </td>
+                    <td>{{ u.student_no }}</td>
+                    <td>
+                      <span class="badge bg-info-subtle text-info border border-info-subtle">{{ u.course }}</span>
+                    </td>
+                    <td>
+                      {% if u.cor_file %}
+                        <button class="btn btn-sm btn-link text-decoration-none p-0" onclick="viewDoc('{{ u.cor_file.url }}')"><i class="bi bi-file-earmark-text me-1"></i>View COR</button>
+                      {% else %}
+                        <span class="text-muted small">No File</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                      <button class="btn btn-sm btn-success rounded-3 px-3" onclick="confirmAction('user', '{{ u.id }}', 'approved', '{{ u.get_full_name }}')">Verify</button>
+                      <button class="btn btn-sm btn-outline-danger rounded-3 px-3" onclick="confirmAction('user', '{{ u.id }}', 'rejected', '{{ u.get_full_name }}')">Decline</button>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">No pending verifications.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="pending-products-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Product</th>
+                  <th>Seller</th>
+                  <th>Price Range</th>
+                  <th class="text-end pe-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in pending_products %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="d-flex align-items-center">
+                        {% if p.image %}
+                          <img src="{{ p.image.url }}" class="rounded me-2" style="width: 32px; height: 32px; object-fit: cover;" />
+                        {% endif %}
+                        <span class="fw-bold">{{ p.name }}</span>
+                      </div>
+                    </td>
+                    <td class="text-muted small">{{ p.seller.get_full_name|default:p.seller.username }}</td>
+                    <td class="text-success fw-bold">₱{{ p.get_price_range }}</td>
+                    <td class="text-end pe-4">
+                      <button class="btn btn-sm btn-success rounded-3 px-3" onclick="confirmAction('product', '{{ p.id }}', 'Approved', '{{ p.name }}')">Approve</button>
+                      <button class="btn btn-sm btn-outline-danger rounded-3 px-3" onclick="confirmAction('product', '{{ p.id }}', 'Rejected', '{{ p.name }}')">Reject</button>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="4" class="text-center py-5 text-muted">No pending products from students in your department.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="market-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Product</th>
+                  <th>Seller</th>
+                  <th>Price Range</th>
+                  <th class="text-end pe-4">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in products %}
+                  <tr>
+                    <td class="ps-4 fw-bold text-dark">{{ p.name }}</td>
+                    <td class="text-muted small">{{ p.seller.username }}</td>
+                    <td class="text-success fw-bold">₱{{ p.get_price_range }}</td>
+                    <td class="text-end pe-4">
+                      <span class="badge {% if p.status == 'Approved' %}
+                          
+                          bg-success
+
+                        {% elif p.status == 'Pending' %}
+                          
+                          bg-warning
+
+                        {% else %}
+                          
+                          bg-danger
+
+                        {% endif %} rounded-pill">
+                        {{ p.status }}
+                      </span>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="4" class="text-center py-5">No listings found.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="orders-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+          <div class="card-header bg-white py-3 border-0">
+            <h5 class="fw-bold mb-0">Incoming Pre-Orders</h5>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Order ID</th>
+                  <th>Buyer</th>
+                  <th>Product</th>
+                  <th>Total</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in incoming_orders %}
+
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">No incoming orders.</td>
+                  </tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="text-start mb-5">
+          <button class="btn btn-outline-danger rounded-3 px-4 shadow-sm"><i class="bi bi-file-pdf me-2"></i>Generate Incoming Orders PDF</button>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+          <div class="card-header bg-white py-3 border-0">
+            <h5 class="fw-bold mb-0">Completed Orders</h5>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Order ID</th>
+                  <th>Buyer</th>
+                  <th>Product</th>
+                  <th>Total</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in completed_orders %}
+
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">No completed orders.</td>
+                  </tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="text-start mb-4">
+          <button class="btn btn-outline-danger rounded-3 px-4 shadow-sm"><i class="bi bi-file-pdf me-2"></i>Generate Completed Orders PDF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="docModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4">
+        <div class="modal-body p-0 text-center">
+          <img id="docPreview" src="" class="img-fluid rounded-4" alt="Document Preview" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function viewDoc(url) {
+      if (url && url !== 'None') {
+        document.getElementById('docPreview').src = url
+        new bootstrap.Modal(document.getElementById('docModal')).show()
+      } else {
+        Swal.fire('Error', 'No document uploaded.', 'error')
+      }
+    }
+    
+    function confirmAction(type, id, status, name) {
+      const isNegative = status.toLowerCase() === 'rejected' || status.toLowerCase() === 'declined'
+      const actionTitle = isNegative ? 'Reject' : 'Approve'
+      const confirmButtonColor = isNegative ? '#d33' : '#198754'
+    
+      Swal.fire({
+        title: `${actionTitle} ${type === 'user' ? 'Student' : 'Product'}?`,
+        text: `Are you sure you want to ${actionTitle.toLowerCase()} "${name}"?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: confirmButtonColor,
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: `Yes, ${actionTitle.toLowerCase()} it!`
+      }).then((result) => {
+        if (result.isConfirmed) {
+          updateStatus(type, id, status)
+        }
+      })
+    }
+    
+    function updateStatus(type, id, status) {
+      Swal.fire({
+        title: 'Updating...',
+        text: 'Please wait while we process the request.',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading()
+        }
+      })
+    
+      window.location.href = `/organization/update/${type}/${id}/?status=${status}`
+    }
+  </script>
+
+  <style>
+    .nav-tabs .nav-link {
+      color: #6c757d;
+      border-bottom: 3px solid transparent !important;
+    }
+    .nav-tabs .nav-link.active {
+      color: #0d6efd !important;
+      border-bottom: 3px solid #0d6efd !important;
+    }
+  </style>
+{% endblock %}

@@ -38,7 +38,15 @@ class User(AbstractUser):
     section = models.CharField(max_length=30, blank=True, null=True,) 
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     status = models.CharField(max_length=20, default='unverified')
-    
+    is_officer = models.BooleanField(default=False)
+    officer_status = models.CharField(
+        max_length=20, 
+        choices=[('unverified', 'Unverified'), ('pending', 'Pending'), ('verified', 'Verified')],
+        default='unverified'
+    )
+    organization = models.CharField(max_length=50, blank=True, null=True)
+    position = models.CharField(max_length=50, blank=True, null=True)
+    officer_id_image = models.ImageField(upload_to='officer_ids/', blank=True, null=True)
     display_name = models.CharField(max_length=150, blank=True, null=True, unique=True)
     image = models.ImageField(
         upload_to=user_profile_path, 

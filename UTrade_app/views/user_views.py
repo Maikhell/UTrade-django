@@ -28,7 +28,19 @@ class UserCreateView(CreateView):
     
 class UserAccountView(TemplateView):
     template_name = 'UTrade_app/users/account/accounts.html'
-   
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        if self.request.user.is_authenticated:
+            context['incoming_orders_count'] = Order.objects.filter(
+                items__product_variant__product__seller=self.request.user,
+                status='Pending'
+            ).distinct().count()
+        else:
+            context['incoming_orders_count'] = 0
+            
+        return context
 class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = User
     form_class = UserProfileForm
@@ -144,24 +156,6 @@ class ProductDeleteView(LoginRequiredMixin, DeleteView):
         messages.success(request, f"Listing for '{product.name}' was successfully removed.")
         return super().delete(request, *args, **kwargs)  
 @login_required
-def submit_verification(request):
-    if request.method == 'POST':
-        cor_file = request.FILES.get('cor_file')
-        user = request.user
-        
-        # Validation check
-        if not all([user.first_name, user.last_name, user.student_no, user.course, user.section]):
-            messages.error(request, "Please complete your profile before verifying.")
-            return redirect('user.profile')
-
-        if cor_file:
-            user.cor_file = cor_file 
-            user.status = 'Pending' 
-            user.save()
-            messages.success(request, "COR submitted! Admin will review your account.")
-            
-    return redirect('user.account')
-@login_required
 def update_terms_agreement(request):
     if request.method == "POST":
         user = request.user
@@ -169,3 +163,49 @@ def update_terms_agreement(request):
         user.save()
         return JsonResponse({"status": "success"})
     return JsonResponse({"status": "error"}, status=400)
+
+@login_required
+def update_cor(request):
+    if request.method == 'POST':
+        user = request.user
+        cor_file = request.FILES.get('cor_file')
+        required_fields = [user.first_name, user.last_name, user.student_no, user.course, user.section]
+        if not all(required_fields):
+            messages.error(request, "Please complete your Profile (Name, Student No, Course, and Section) before uploading your COR.")
+            return redirect('user.profile') # Adjust name to your edit profile URL
+
+        if cor_file:
+            user.cor_file = cor_file
+            user.status = 'Pending' 
+            user.save()
+            if user.status == 'unverified':
+                messages.success(request, "COR submitted! Admin will review your account soon.")
+            else:
+                messages.success(request, "Your COR has been updated and is now pending for re-verification.")
+        else:
+            messages.error(request, "Please select a file to upload.")
+
+    return redirect('user.account')
+@login_required
+def register_officer(request):
+    if request.method == 'POST':
+        user = request.user
+        
+        organization = request.POST.get('organization')
+        position = request.POST.get('position')
+        officer_id_image = request.FILES.get('officer_id_image')
+
+        if organization and position and officer_id_image:
+            user.organization = organization
+            user.position = position
+            user.officer_id_image = officer_id_image
+            user.officer_status = 'pending'
+            user.save()
+
+            messages.success(request, "Officer application submitted! Please wait for admin verification.")
+        else:
+            messages.error(request, "Please fill in all fields and upload your ID.")
+            
+        return redirect('user.profile')
+    
+    return redirect('user.account')

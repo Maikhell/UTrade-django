@@ -22,6 +22,7 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
+        # Optimize queries with aggregate
         user_stats = User.objects.aggregate(
             total_admin=Count('id', filter=Q(is_staff=True)),
             unverified=Count('id', filter=Q(status='unverified')),
@@ -30,6 +31,7 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         
         all_products = Product.objects.all().select_related('seller', 'category').prefetch_related('variants').order_by('-created_at')
         
+        # FIX: Added pending_officers to this context
         context.update({
             'users': User.objects.all().order_by('-date_joined')[:10],
             'admin': user_stats['total_admin'],        
@@ -37,6 +39,7 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
             'verified': user_stats['verified'],      
             'products': all_products[:10],
             'pending_products': [p for p in all_products if p.status == 'Pending'][:5],
+            'pending_officers': User.objects.filter(officer_status__iexact='Pending'),
         })
         return context
     
@@ -52,7 +55,6 @@ def update_item_status(request, item_id): # Renamed for clarity
         
         ModelClass = Product if item_type == 'product' else Services
         
-        # Use get_object_or_404 for cleaner error handling
         item = get_object_or_404(ModelClass, id=item_id)
         
         item.status = new_status
@@ -77,21 +79,18 @@ class AdminReviewListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Fetch Pending Products
         context['pending_products'] = Product.objects.filter(status='Pending')\
             .select_related('seller', 'category')\
             .prefetch_related('variants', 'images')\
             .order_by('created_at')
-            
-        # Fetch Pending Services
         context['pending_services'] = Services.objects.filter(status='Pending')\
             .select_related('seller', 'category')\
             .prefetch_related('images')\
             .order_by('created_at')
-        #Retrieve the pending users dapat
-        context['pending_users'] = User.objects.filter(status='Pending').only(
+        context['pending_users'] = User.objects.filter(status__iexact='Pending').only(
             'first_name', 'last_name', 'course', 'section', 'student_no', 'cor_file'
         ).order_by('date_joined')
+        context  ['pending_officers'] = User.objects.filter(officer_status__iexact='Pending')    
         return context
 
     def test_func(self):
@@ -103,13 +102,12 @@ class UpdateStatusView(View):
     def post(self, request, item_type, item_id):
         try:
             data = json.loads(request.body)
-            new_status = data.get('status')
-
+            new_status = data.get('status', '').lower().strip()
             item_type = item_type.lower().strip()
 
             if item_type == 'user':
                 target_user = get_object_or_404(User, id=item_id)
-                if new_status == 'Approved':
+                if new_status == 'approved': 
                     target_user.status = 'verified'
                     target_user.is_active = True
                 else:
@@ -117,19 +115,31 @@ class UpdateStatusView(View):
                 target_user.save()
                 return JsonResponse({'status': 'success'})
 
+            elif item_type == 'officer':
+                target_user = get_object_or_404(User, id=item_id)
+                if new_status == 'approved':
+                    target_user.officer_status = 'verified'
+                    target_user.is_officer = True  
+                else:
+                    target_user.officer_status = 'Rejected'
+                    target_user.is_officer = False
+                
+                target_user.save()
+                return JsonResponse({'status': 'success'})
+
             elif item_type == 'product':
                 target_product = get_object_or_404(Product, id=item_id)
-                target_product.status = new_status
+                target_product.status = 'Approved' if new_status == 'approved' else 'Rejected'
                 target_product.save()
                 return JsonResponse({'status': 'success'})
 
             elif item_type == 'service':
                 target_service = get_object_or_404(Services, id=item_id)
-                target_service.status = new_status
+                target_service.status = 'Approved' if new_status == 'approved' else 'Rejected'
                 target_service.save()
                 return JsonResponse({'status': 'success'})
 
-            return JsonResponse({'status': 'error', 'message': 'Invalid item type'}, status=400)
+            return JsonResponse({'status': 'error', 'message': f'Invalid type: {item_type}'}, status=400)
 
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
@@ -142,7 +152,7 @@ def security_admin(request):
     context = {
         'prohibited_words': ProhibitedWord.objects.all().order_by('-created_at'),
         'categories': Category.objects.all().order_by('name'),
-        'meetups': MeetupLocation.objects.all().order_by('name'), # Ensure this is here!    
+        'meetups': MeetupLocation.objects.all().order_by('name'),  
 }
     return render(request, 'UTrade_app/admin/admin_security.html', context)
 
@@ -190,20 +200,17 @@ def delete_category(request, cat_id):
         return JsonResponse({'status': 'error', 'message': 'Category not found.'})
     
 @require_POST
-@login_required # Ensure only logged-in users/admins can add spots
+@login_required 
 def add_meetup(request):
-    # Change 'location' to match what your JS formData.append uses
     location_name = request.POST.get('location', '').strip() 
     
     if location_name:
-        # Check if it already exists (case-insensitive)
         if MeetupLocation.objects.filter(name__iexact=location_name).exists():
             return JsonResponse({'status': 'error', 'message': 'Location already exists.'}, status=400)
 
-        # Create the new location with the audit trail
         location = MeetupLocation.objects.create(
             name=location_name,
-            added_by=request.user  # This is the fix!
+            added_by=request.user 
         )
         
         return JsonResponse({

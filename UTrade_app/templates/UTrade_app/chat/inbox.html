@@ -1,49 +1,49 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}Inbox{% endblock %}
+{% block title %}
+  Inbox
+{% endblock %}
 
 {% block content %}
-<div class="container py-4">
+  <div>
+    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
+  </div>
+  <div class="container py-4">
     <h3 class="fw-bold mb-4">Messages</h3>
 
     <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-                <div class="list-group list-group-flush">
-                    {% for conversation in conversations %}
-                        {% if request.user == conversation.buyer %}
-                            {% with other_person=conversation.seller %}
-                                {% include "UTrade_app/partials/inbox_item.html" %}
-                            {% endwith %}
-                        {% else %}
-                            {% with other_person=conversation.buyer %}
-                                {% include "UTrade_app/partials/inbox_item.html" %}
-                            {% endwith %}
-                        {% endif %}
-                    {% empty %}
-                        <div class="p-5 text-center text-muted">
-                            <i class="bi bi-chat-dots display-4"></i>
-                            <p class="mt-3">No messages yet.</p>
-                        </div>
-                    {% endfor %}
-                </div>
-            </div>
+      <div class="col-lg-8 mx-auto">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="list-group list-group-flush">
+            {% for conversation in conversations %}
+              {% if request.user == conversation.buyer %}
+                {% with other_person=conversation.seller %}
+                  {% include 'UTrade_app/partials/inbox_item.html' %}
+                {% endwith %}
+              {% else %}
+                {% with other_person=conversation.buyer %}
+                  {% include 'UTrade_app/partials/inbox_item.html' %}
+                {% endwith %}
+              {% endif %}
+            {% empty %}
+              <div class="p-5 text-center text-muted">
+                <i class="bi bi-chat-dots display-4"></i>
+                <p class="mt-3">No messages yet.</p>
+              </div>
+            {% endfor %}
+          </div>
         </div>
+      </div>
     </div>
-</div>
+  </div>
 
-{% if conversations %}
-    {% comment %} 
-        Since you have a loop, I've moved the logic here. 
-        Update the field names (e.g., .course, .section) to match your user_models.py 
-    {% endcomment %}
-{% endif %}
-
+  {% if conversations %}
+  {% endif %}
 {% endblock %}
 
 {% block extra_content %}
-<script type="text/html" id="inbox-template">
+  <script type="text/html" id="inbox-template">
     {% for conversation in conversations %}
         {% if request.user == conversation.buyer %}{% with other=conversation.seller %}
         <a href="{% url 'chat_view' conversation.id %}" class="list-group-item list-group-item-action p-3 border-0 border-bottom">

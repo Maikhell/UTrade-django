@@ -55,6 +55,31 @@
     transform: scale(1.1);
 }
 
+.btn-logout {
+    /* Default state (Mobile & Desktop) */
+    background-color: #fff5f5;
+    /* Very light red */
+    color: #dc3545;
+    /* Bootstrap Danger Red */
+    border: 1px solid #fee2e2;
+    transition: all 0.3s ease;
+}
+
+.btn-logout i {
+    color: #dc3545;
+}
+
+/* Enhances the look on desktop if they DO hover */
+.btn-logout:hover {
+    background-color: #dc3545;
+    color: white !important;
+    border-color: #dc3545;
+}
+
+.btn-logout:hover i {
+    color: white;
+}
+
 .badge-bsit {
     background-color: #4cd164 !important;
     color: white;

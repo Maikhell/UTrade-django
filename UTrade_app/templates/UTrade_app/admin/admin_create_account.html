@@ -1,0 +1,93 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  Create Administrative Account
+{% endblock %}
+
+{% block content %}
+  <div class="container py-5">
+    <div class="mx-auto" style="max-width: 600px;">
+      <nav aria-label="breadcrumb" class="mb-4">
+        <a href="{% url 'user.account' %}" class="btn btn-link text-decoration-none p-0 text-muted"><i class="bi bi-chevron-left"></i> Back to Dashboard</a>
+      </nav>
+
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="bg-dark p-4 text-white">
+          <h4 class="fw-bold mb-1"><i class="bi bi-person-plus-fill me-2"></i>New Admin Account</h4>
+          <p class="text-white-50 small mb-0">Create credentials for university personnel and associations.</p>
+        </div>
+
+        <div class="card-body p-4 p-md-5">
+          <form method="POST">
+            {% csrf_token %}
+
+            <div class="mb-4">
+              <label class="form-label small fw-bold text-uppercase text-muted">Account Type</label>
+              <select name="special_role" id="roleSelector" class="form-select form-select-lg rounded-3 border-2" required onchange="updateRoleInfo(this.value)">
+                <option value="" selected disabled>Select Role...</option>
+                <option value="management">University Management</option>
+                <option value="campus_admin">Campus Administrator</option> 
+                <option value="alumni">Alumni Association</option>
+              </select>
+              <div id="roleHelp" class="form-text mt-2 p-2 bg-light rounded-3 small text-primary">Please select a role to see granted permissions.</div>
+            </div>
+
+            <hr class="my-4 opacity-25" />
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Username</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-at text-muted"></i></span>
+                <input type="text" name="username" class="form-control rounded-end-3 border-start-0" placeholder="e.g. cba_admin" required />
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Full Name (Optional)</label>
+              <input type="text" name="full_name" class="form-control rounded-3" placeholder="e.g. John Doe" />
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label small fw-bold text-uppercase text-muted">Temporary Password</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-key text-muted"></i></span>
+                <input type="password" name="password" id="passwordInput" class="form-control border-start-0 border-end-0" required />
+                <button class="btn btn-outline-secondary border-start-0 rounded-end-3" type="button" onclick="togglePassword()"><i class="bi bi-eye" id="toggleIcon"></i></button>
+              </div>
+              <small class="text-muted">Users should change this password upon first login.</small>
+            </div>
+
+            <div class="d-grid pt-2">
+              <button type="submit" class="btn btn-dark btn-lg rounded-4 fw-bold shadow-sm">Create Account</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function updateRoleInfo(role) {
+      const helpBox = document.getElementById('roleHelp')
+      const infos = {
+        management: '<strong>Management:</strong> Can view overall platform analytics and generate system-wide reports.',
+        campus_admin: '<strong>Campus Admin:</strong> Access to user management, role editing, and account verification.',
+        alumni: '<strong>Alumni Assoc:</strong> Managed access for alumni listings and verification of graduate users.'
+      }
+      helpBox.innerHTML = infos[role] || 'Please select a role to see granted permissions.'
+    }
+    
+    function togglePassword() {
+      const passInput = document.getElementById('passwordInput')
+      const icon = document.getElementById('toggleIcon')
+      if (passInput.type === 'password') {
+        passInput.type = 'text'
+        icon.classList.replace('bi-eye', 'bi-eye-slash')
+      } else {
+        passInput.type = 'password'
+        icon.classList.replace('bi-eye-slash', 'bi-eye')
+      }
+    }
+  </script>
+{% endblock %}

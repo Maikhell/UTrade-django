@@ -12,6 +12,8 @@ urlpatterns = [
      #Admin
      path('admindashboard/', admin_views.AdminDashboard.as_view(), name="admin.dashboard"),
      path('pendingproducts/', admin_views.AdminReviewListView.as_view(), name='admin.review'),
+     path('generate-pdf/', admin_views.generate_pdf, name='generate.pdf'),
+     path('admin-dashboard/create-account/', admin_views.admin_create_account, name='admin.create_account'),
      #Admin Update
      path('review/update/<str:item_type>/<int:item_id>/', admin_views.UpdateStatusView.as_view(), name='update_status'),     
      path('browse/', items_views.ProductListView.as_view(), name = 'product.list'),
@@ -59,7 +61,7 @@ urlpatterns = [
      #Organization
      path('organization/dashboard/', organization_views.organization_panel, name='organization.panel'),
      path('organization/dashboard/', organization_views.organization_panel, name='org.dashboard'),
-    path('organization/update/<str:item_type>/<int:item_id>/', organization_views.update_status_org, name='org.update_status'),
+     path('organization/update/<str:item_type>/<int:item_id>/', organization_views.update_status_org, name='org.update_status'),
     # PDF Generation
      # path('organization/orders/pdf/<str:order_type>/', organization_views.generate_order_pdf, name='generate_order_pdf'),
      

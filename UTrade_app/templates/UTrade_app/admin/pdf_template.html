@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        @page { size: letter; margin: 1in; }
+        body { font-family: sans-serif; color: #333; line-height: 1.4; }
+        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 9pt; }
+        th { background-color: #f8f9fa; font-weight: bold; text-transform: uppercase; }
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: right; font-size: 8pt; color: #777; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1 style="margin: 0;">UTrade Marketplace</h1>
+        <h3 style="margin: 5px 0; color: #555;">{{ report_title }}</h3>
+        <p style="font-size: 9pt;">Generated on: {% now "F j, Y, g:i a" %}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 25%;">Name / Username</th>
+                <th style="width: 20%;">Student No.</th>
+                <th style="width: 15%;">Status</th>
+                <th style="width: 20%;">System Role</th>
+                <th style="width: 20%;">Registration Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td><strong>{{ u.username }}</strong><br/><small>{{ u.get_full_name|default:"" }}</small></td>
+                <td>{{ u.student_no|default:"N/A" }}</td>
+                <td>{{ u.status|title }}</td>
+                <td>
+                    {% if u.is_staff %}Campus Admin
+                    {% elif u.is_officer %}Org Officer
+                    {% else %}{{ u.user_role|title }}{% endif %}
+                </td>
+                <td>{{ u.date_joined|date:"M d, Y" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="footer">
+        Page <pdf:pagenumber> of <pdf:pagecount> | Authorized by: {{ generated_by }}
+    </div>
+</body>
+</html>

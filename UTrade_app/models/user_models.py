@@ -15,9 +15,11 @@ class User(AbstractUser):
     )
     ROLE_CHOICES = [
         ('student', 'Student'),
-        ('teacher', 'Teacher'),
-        ('alumni', 'Alumni'),
-        ('staff', 'University Staff'),
+        ('system_admin', 'System Admin'), 
+        ('campus_admin', 'Campus Admin'),
+        ('org_officer', 'Organization Officer'),
+        ('alumni_assoc', 'Alumni Association'),
+        ('management', 'Management'),
     ]
     
     user_role = models.CharField(

@@ -136,23 +136,25 @@
                     </div>
                   </div>
 
-                  <div class="card border-0 shadow-sm rounded-4 mt-4 bg-dark text-white">
+                  <div class="card border-0 shadow-sm rounded-4 mt-4 bg-light text-dark">
                     <div class="card-body p-4">
                       <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0 text-white">Officer Registration</h5>
-                        {% if user.is_officer %}
-                          <span class="badge bg-info rounded-pill px-3">Registered Officer</span>
+                        <h5 class="fw-bold mb-0 text-dark">Officer Registration</h5>
+                        {% if user.officer_status == 'verified' %}
+                          <span class="badge bg-success rounded-pill px-3">Verified Officer</span>
+                        {% elif user.officer_status == 'pending' %}
+                          <span class="badge bg-warning text-dark rounded-pill px-3">Pending Officer</span>
                         {% endif %}
                       </div>
-                      <p class="text-white-50 small">
+                      <p class="text-dark-50 small">
                         Are you an elected student leader? Register as an officer to access organization management tools.
                       </p>
                       <button type="button" 
-                              class="btn btn-outline-light w-100 rounded-pill fw-bold py-2" 
+                              class="btn btn-outline-success w-100 rounded-pill fw-bold py-2" 
                               data-bs-toggle="modal" 
                               data-bs-target="#officerRegistrationModal">
                         <i class="bi bi-shield-check me-2"></i> 
-                        {% if user.is_officer %}Update Officer Details{% else %}Register as Officer{% endif %}
+                        {% if user.officer_status == 'verified' %}Update Officer Details{% else %}Register as Officer{% endif %}
                       </button>
                     </div>
                   </div>
@@ -183,7 +185,6 @@
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
             <strong>Important:</strong> Ensure your Profile names are saved before uploading.
           </div>
-
           {% if user.cor_file %}
             <div class="mb-4 text-center">
               <label class="small fw-bold text-uppercase text-muted d-block mb-2">Current Document on File</label>
@@ -192,19 +193,78 @@
               </div>
             </div>
           {% endif %}
-
           <form id="verificationForm" action="{% url 'update_cor' %}" method="POST" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="mb-3">
               <label for="new_cor" class="form-label small fw-bold text-uppercase text-muted">Upload Document</label>
               <input type="file" name="cor_file" id="new_cor" class="form-control rounded-3" accept="image/*,.pdf" required>
-              <div class="form-text mt-2" style="font-size: 0.75rem;">
-                <i class="bi bi-info-circle me-1"></i> 
-                Status will be set to <strong>Pending</strong> for admin review.
-              </div>
             </div>
-            <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold py-2">
-              Submit for Verification
+            <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold py-2">Submit for Verification</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="officerRegistrationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="fw-bold">Officer Application</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger border-0 small mb-4">
+            <i class="bi bi-exclamation-octagon-fill me-2"></i>
+            <strong>STRICT WARNING:</strong> Only elected or officially appointed student officers shall sign up. Providing false information may lead to account suspension.
+          </div>
+          
+          <form id="officerRegistrationForm" action="{% url 'register_officer' %}" method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Organization</label>
+              <select name="organization" class="form-select rounded-3" required>
+                <option value="" selected disabled>Select Organization</option>
+                <option value="CSG">CSG</option>
+                <option value="ITS - BSIT">ITS - BSIT</option>
+                <option value="ACS - BSCS">ACS - BSCS</option>
+                <option value="BSHMS - BSHM">BSHMS - BSHM</option>
+                <option value="TES - BSED">TES - BSED</option>
+                <option value="LCDCS - BSCRIM">LCDCS - BSCRIM</option>
+                <option value="LLP - BSP">LLP - BSP</option>
+                <option value="LMS-JMA - BSBA-MM">LMS-JMA - BSBA-MM</option>
+                <option value="SHR - BSBA-HR">SHR - BSBA-HR</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Position</label>
+              <select name="position" class="form-select rounded-3" required>
+                <option value="" selected disabled>Select Position</option>
+                <option value="President">President</option>
+                <option value="Vice President">Vice President</option>
+                <option value="Secretary">Secretary</option>
+                <option value="Assistant Secretary">Assistant Secretary</option>
+                <option value="Treasurer">Treasurer</option>
+                <option value="Assistant Treasurer">Assistant Treasurer</option>
+                <option value="Auditor">Auditor</option>
+                <option value="Business Manager">Business Manager</option>
+                <option value="P.R.O">P.R.O</option>
+                <option value="Gad Rep">Gad Rep</option>
+                <option value="Senator">Senator</option>
+                <option value="Committees">Committees</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Officer ID / Proof of Appointment</label>
+              <input type="file" name="officer_id_image" class="form-control rounded-3" accept="image/*" required>
+              <div class="form-text mt-1" style="font-size: 0.7rem;">Please upload a clear photo of your Officer ID or appointment letter.</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold py-2 mt-2">
+              Submit Application
             </button>
           </form>
         </div>

@@ -12,16 +12,12 @@ import io
 
 @login_required
 def alumni_dashboard_view(request):
-    # 1. Permission Check (Fixing the Ghost Mismatch)
-    # Using str().strip() ensures hidden spaces or object types don't fail the check
     current_role = str(request.user.user_role).strip()
     if current_role != 'alumni_assoc' and not request.user.is_staff:
         return HttpResponseForbidden(f"Access Denied: Role '{current_role}' unauthorized.")
     
     search_query = request.GET.get('search', '')
     
-    # 2. Fix FieldError: Use 'status' instead of 'is_verified'
-    # Assuming 'pending' or 'unverified' is your default status for new alumni
     pending_users = User.objects.filter(
         user_role='alumni', 
         status='unverified' 
@@ -44,7 +40,6 @@ def alumni_dashboard_view(request):
         Q(item_type='Alumni') | Q(action__icontains='Verified')
     ).order_by('-timestamp')[:50]
 
-    # 3. Update context filters to use 'status'
     context = {
         'pending_users': pending_users,
         'all_alumni_list': all_alumni_list,
@@ -64,7 +59,7 @@ def update_alumni_status(request, user_id):
         return HttpResponseForbidden()
 
     target_user = get_object_or_404(User, id=user_id)
-    new_status = request.GET.get('status') # This comes from your JS: ?status=verified
+    new_status = request.GET.get('status') 
 
     if new_status == 'verified':
         # Updating the correct field 'status'

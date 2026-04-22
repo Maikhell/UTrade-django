@@ -1,23 +1,21 @@
 import json
-import logging
 import uuid
 from datetime import datetime
-from django.shortcuts import render
-from django.views.generic import ListView,TemplateView, View
+import logging
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.views.generic import ListView, TemplateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import get_user_model
-from ..models import Product, Services, User, ProhibitedWord, Category,MeetupLocation
-from django.db.models import Count, Q
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
-from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 from django.db.models import Count, Q
-from django.http import HttpResponse
 from django.template.loader import get_template
+
 from xhtml2pdf import pisa
+
+from ..models import Product, Services, User, ProhibitedWord
 User = get_user_model()
 class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'UTrade_app/admin/admin_dashboard.html'
@@ -106,15 +104,18 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
             target_user.save()
             messages.success(request, f"Permissions for {target_user.username} updated to {new_role}.")
 
-        elif action == 'Approve':
+        elif action == 'ApproveOfficer': 
             target_user.officer_status = 'verified'
             target_user.is_officer = True
+            target_user.user_role = 'officer' 
             target_user.save()
             messages.success(request, f"Officer privileges granted to {target_user.username}.")
         
-        elif action == 'Reject':
+        elif action == 'RejectOfficer':   
             target_user.officer_status = 'Rejected'
             target_user.is_officer = False
+            target_user.organization = ''
+            target_user.position = ''
             target_user.save()
             messages.warning(request, f"Officer application for {target_user.username} rejected.")
             
@@ -191,90 +192,7 @@ class UpdateStatusView(View):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
         
-def get_prohibited_words(request):
-    words = list(ProhibitedWord.objects.values_list('word', flat=True))
-    return JsonResponse({'prohibited_words': words})
 
-def security_admin(request):
-    context = {
-        'prohibited_words': ProhibitedWord.objects.all().order_by('-created_at'),
-        'categories': Category.objects.all().order_by('name'),
-        'meetups': MeetupLocation.objects.all().order_by('name'),  
-}
-    return render(request, 'UTrade_app/admin/admin_security.html', context)
-
-@require_POST
-def add_bad_word(request):
-    word_text = request.POST.get('word', '').strip().lower()
-    if word_text:
-        word_obj, created = ProhibitedWord.objects.get_or_create(word=word_text)
-        if created:
-            return JsonResponse({
-                'status': 'success', 
-                'word': word_obj.word, 
-                'id': word_obj.id
-            })
-        return JsonResponse({'status': 'error', 'message': 'Word already exists.'})
-    return JsonResponse({'status': 'error', 'message': 'Invalid input.'})
-
-@require_POST
-def delete_bad_word(request, word_id):
-    try:
-        word = ProhibitedWord.objects.get(id=word_id)
-        word.delete()
-        return JsonResponse({'status': 'success'})
-    except ProhibitedWord.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Word not found.'})
-    
-@require_POST
-def add_category(request):
-    name = request.POST.get('name', '').strip()
-    if name:
-        # get_or_create prevents duplicates
-        category, created = Category.objects.get_or_create(name=name)
-        if created:
-            return JsonResponse({'status': 'success', 'name': category.name, 'id': category.id})
-        return JsonResponse({'status': 'error', 'message': 'Category already exists.'})
-    return JsonResponse({'status': 'error', 'message': 'Name cannot be empty.'})
-
-@require_POST
-def delete_category(request, cat_id):
-    try:
-        category = Category.objects.get(id=cat_id)
-        category.delete()
-        return JsonResponse({'status': 'success'})
-    except Category.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Category not found.'})
-    
-@require_POST
-@login_required 
-def add_meetup(request):
-    location_name = request.POST.get('location', '').strip() 
-    
-    if location_name:
-        if MeetupLocation.objects.filter(name__iexact=location_name).exists():
-            return JsonResponse({'status': 'error', 'message': 'Location already exists.'}, status=400)
-
-        location = MeetupLocation.objects.create(
-            name=location_name,
-            added_by=request.user 
-        )
-        
-        return JsonResponse({
-            'status': 'success', 
-            'location': location.name, 
-            'id': location.id
-        })
-        
-    return JsonResponse({'status': 'error', 'message': 'Location name is required.'}, status=400)
-@require_POST
-def delete_meetup(request, loc_id):
-    try:
-        location = MeetupLocation.objects.get(id=loc_id)
-        location.delete()
-        return JsonResponse({'status': 'success'})
-    except MeetupLocation.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Location not found.'})
     
 def generate_pdf(request):
     user_filter = request.GET.get('filter', 'all')
@@ -339,7 +257,7 @@ def admin_create_account(request):
         return redirect('home')
 
     if request.method == 'POST':
-        role = request.POST.get('special_role')
+        role = request.POST.get('special_role') 
         uname = request.POST.get('username')
         pword = request.POST.get('password')
         full_name = request.POST.get('full_name', '')
@@ -347,7 +265,6 @@ def admin_create_account(request):
         if User.objects.filter(username=uname).exists():
             messages.error(request, "Username already taken.")
         else:
-            # Generate unique system identifiers
             unique_suffix = str(uuid.uuid4())[:8]
             
             new_user = User.objects.create_user(
@@ -360,17 +277,14 @@ def admin_create_account(request):
             new_user.first_name = full_name
             new_user.user_role = role
             
-            new_user.is_staff = False
-            new_user.is_superuser = False
+            new_user.is_verified = True 
             
-            new_user.status = 'verified'
-            
-            if role == 'alumni':
+            if role == 'alumni_assoc':
                 new_user.organization = 'Alumni Association'
-            
+
             new_user.save()
             
-            messages.success(request, f"Success! {role.replace('_', ' ').title()} account created for {uname}.")
+            messages.success(request, f"Success! {role.replace('_', ' ').title()} account created.")
             return redirect('admin.dashboard')
 
     return render(request, 'UTrade_app/admin/admin_create_account.html')

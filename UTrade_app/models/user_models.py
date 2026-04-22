@@ -15,6 +15,7 @@ class User(AbstractUser):
     )
     ROLE_CHOICES = [
         ('student', 'Student'),
+        ('alumni', 'Alumni'),
         ('system_admin', 'System Admin'), 
         ('campus_admin', 'Campus Admin'),
         ('org_officer', 'Organization Officer'),

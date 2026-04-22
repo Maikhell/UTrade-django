@@ -40,16 +40,11 @@
       </div>
       <div class="col-md-3">
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <small class="text-uppercase text-muted fw-bold small">Dept. Listings</small>
+          <small class="text-uppercase text-muted fw-bold small">Deptartment's Listings</small>
           <h3 class="fw-bold text-dark mb-0">{{ products.count|default:'0' }}</h3>
         </div>
       </div>
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
-          <small class="text-uppercase text-muted fw-bold small">Pending Products</small>
-          <h3 class="fw-bold text-warning mb-0">{{ pending_products.count|default:'0' }}</h3>
-        </div>
-      </div>
+
     </div>
 
     <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">
@@ -63,21 +58,58 @@
           {% endif %}
         </button>
       </li>
-      <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="pending-products-tab" data-bs-toggle="tab" data-bs-target="#pending-products-pane">
-          Pending Products{% if pending_products %}
-            <span class="badge bg-warning text-dark ms-1">{{ pending_products.count }}</span>
-          {% endif %}
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="market-tab" data-bs-toggle="tab" data-bs-target="#market-pane">Marketplace</button>
-      </li>
+  
       <li class="nav-item">
         <button class="nav-link fw-bold border-0 bg-transparent px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-pane">Orders</button>
       </li>
+            <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-pane">Logs</button>
+      </li>
     </ul>
+ <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-light">
+          <form method="GET" class="row g-3 align-items-center">
+  <div class="col-lg-4">
+    <div class="input-group">
+      <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3">
+        <i class="bi bi-search text-muted"></i>
+      </span>
+      <input type="text" name="search" class="form-control border-start-0 rounded-end-pill py-2" placeholder="Search BSIT student or ID..." value="{{ request.GET.search|default:'' }}">
+    </div>
+  </div>
+  
+  <div class="col-md-3 col-lg-2">
+    <select name="status_filter" class="form-select rounded-pill border-0 shadow-sm">
+      <option value="">All Status</option>
+      <option value="verified" {% if request.GET.status_filter == 'verified' %}selected{% endif %}>Verified</option>
+      <option value="unverified" {% if request.GET.status_filter == 'unverified' %}selected{% endif %}>Unverified</option>
+    </select>
+  </div>
 
+  <div class="col-md-3 col-lg-2">
+    <select name="role_filter" class="form-select rounded-pill border-0 shadow-sm">
+      <option value="">All Roles</option>
+      <option value="student" {% if request.GET.role_filter == 'student' %}selected{% endif %}>Student</option>
+      <option value="officer" {% if request.GET.role_filter == 'officer' %}selected{% endif %}>Officer</option>
+    </select>
+  </div>
+
+  <div class="col-md-3 col-lg-2">
+    <select name="sort" class="form-select rounded-pill border-0 shadow-sm">
+      <option value="-date_joined" {% if request.GET.sort == '-date_joined' %}selected{% endif %}>Newest Joined</option>
+      <option value="date_joined" {% if request.GET.sort == 'date_joined' %}selected{% endif %}>Oldest Joined</option>
+      <option value="username" {% if request.GET.sort == 'username' %}selected{% endif %}>A - Z</option>
+      <option value="-username" {% if request.GET.sort == '-username' %}selected{% endif %}>Z - A</option>
+    </select>
+  </div>
+
+  <div class="col-md-3 col-lg-2 d-flex gap-2">
+    <button type="submit" class="btn btn-primary rounded-pill px-4 flex-grow-1 shadow-sm">Apply</button>
+    <a href="{% url 'organization.panel' %}" class="btn btn-outline-secondary rounded-pill border-0">
+      <i class="bi bi-arrow-counterclockwise"></i>
+    </a>
+  </div>
+</form>
+        </div>
     <div class="tab-content">
       <div class="tab-pane fade show active" id="students-pane">
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
@@ -91,6 +123,7 @@
                   <th class="text-end pe-4">Actions</th>
                 </tr>
               </thead>
+              
               <tbody>
                 {% for u in users %}
                   <tr>
@@ -113,7 +146,7 @@
                     </td>
                     <td class="text-muted small">{{ u.date_joined|date:'M d, Y' }}</td>
                     <td class="text-end pe-4">
-                      <button class="btn btn-sm btn-outline-primary rounded-pill px-3">View Profile</button>
+                      <button class="btn btn-sm btn-outline-success rounded-pill px-3">Message</button>
                     </td>
                   </tr>
                 {% empty %}
@@ -159,8 +192,15 @@
                       {% endif %}
                     </td>
                     <td class="text-end pe-4">
-                      <button class="btn btn-sm btn-success rounded-3 px-3" onclick="confirmAction('user', '{{ u.id }}', 'approved', '{{ u.get_full_name }}')">Verify</button>
-                      <button class="btn btn-sm btn-outline-danger rounded-3 px-3" onclick="confirmAction('user', '{{ u.id }}', 'rejected', '{{ u.get_full_name }}')">Decline</button>
+                   <button class="btn btn-sm btn-success rounded-3 px-3" 
+        onclick="confirmAction('user', '{{ u.id }}', 'verified', '{{ u.get_full_name }}')">
+    Verify
+</button>
+
+<button class="btn btn-sm btn-outline-danger rounded-3 px-3" 
+        onclick="confirmAction('user', '{{ u.id }}', 'unverified', '{{ u.get_full_name }}')">
+    Decline
+</button>
                     </td>
                   </tr>
                 {% empty %}
@@ -186,35 +226,113 @@
                   <th class="text-end pe-4">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {% for p in pending_products %}
-                  <tr>
-                    <td class="ps-4">
-                      <div class="d-flex align-items-center">
-                        {% if p.image %}
-                          <img src="{{ p.image.url }}" class="rounded me-2" style="width: 32px; height: 32px; object-fit: cover;" />
-                        {% endif %}
-                        <span class="fw-bold">{{ p.name }}</span>
-                      </div>
-                    </td>
-                    <td class="text-muted small">{{ p.seller.get_full_name|default:p.seller.username }}</td>
-                    <td class="text-success fw-bold">₱{{ p.get_price_range }}</td>
-                    <td class="text-end pe-4">
-                      <button class="btn btn-sm btn-success rounded-3 px-3" onclick="confirmAction('product', '{{ p.id }}', 'Approved', '{{ p.name }}')">Approve</button>
-                      <button class="btn btn-sm btn-outline-danger rounded-3 px-3" onclick="confirmAction('product', '{{ p.id }}', 'Rejected', '{{ p.name }}')">Reject</button>
-                    </td>
-                  </tr>
-                {% empty %}
-                  <tr>
-                    <td colspan="4" class="text-center py-5 text-muted">No pending products from students in your department.</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
+              
             </table>
           </div>
         </div>
       </div>
+      <div class="tab-pane fade" id="orders-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+          <div class="card-header bg-white py-3 border-0">
+            <h5 class="fw-bold mb-0">Incoming Pre-Orders</h5>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Order ID</th>
+                  <th>Buyer</th>
+                  <th>Product</th>
+                  <th>Total</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in incoming_orders %}
 
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">No incoming orders.</td>
+                  </tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="text-start mb-5">
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+          <div class="card-header bg-white py-3 border-0">
+            <h5 class="fw-bold mb-0">Completed Orders</h5>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Order ID</th>
+                  <th>Buyer</th>
+                  <th>Product</th>
+                  <th>Total</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in completed_orders %}
+
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">No completed orders.</td>
+                  </tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="text-start mb-4">
+        </div>
+      </div>
+      <div class="container mt-4">
+        <div class="d-flex justify-content-end">
+          <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#pdfModal"><i class="bi bi-file-pdf me-2"></i>Generate Report</button>
+        </div>
+        <div class="modal fade" id="pdfModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="fw-bold mb-0">Export Report</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small">Select the group of {{ target_course }} students to include in the PDF:</p>
+        <form action="{% url 'generate.pdf.orgs' %}" method="GET">
+          <div class="d-grid gap-2">
+            <button type="submit" name="filter" value="all" class="btn btn-outline-dark text-start">
+              <i class="bi bi-people me-2"></i> All Dept. Students
+            </button>
+            
+            <button type="submit" name="filter" value="verified" class="btn btn-outline-success text-start">
+              <i class="bi bi-check-circle me-2"></i> Verified Only
+            </button>
+            
+            <button type="submit" name="filter" value="unverified" class="btn btn-outline-danger text-start">
+              <i class="bi bi-x-circle me-2"></i> Unverified Only
+            </button>
+
+            <button type="submit" name="filter" value="officer" class="btn btn-outline-info text-start">
+              <i class="bi bi-person-badge me-2"></i> Dept. Officers
+            </button>
+
+            <hr class="my-2 opacity-25">
+            
+            <div class="text-center">
+                <small class="text-muted" style="font-size: 0.75rem;">File: {{ org_name }}_Report.pdf</small>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+        </div>
       <div class="tab-pane fade" id="market-pane">
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
           <div class="table-responsive">
@@ -262,67 +380,7 @@
         </div>
       </div>
 
-      <div class="tab-pane fade" id="orders-pane">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
-          <div class="card-header bg-white py-3 border-0">
-            <h5 class="fw-bold mb-0">Incoming Pre-Orders</h5>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="bg-light">
-                <tr>
-                  <th class="ps-4">Order ID</th>
-                  <th>Buyer</th>
-                  <th>Product</th>
-                  <th>Total</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for order in incoming_orders %}
-
-                {% empty %}
-                  <tr>
-                    <td colspan="5" class="text-center py-4 text-muted">No incoming orders.</td>
-                  </tr>{% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="text-start mb-5">
-          <button class="btn btn-outline-danger rounded-3 px-4 shadow-sm"><i class="bi bi-file-pdf me-2"></i>Generate Incoming Orders PDF</button>
-        </div>
-
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
-          <div class="card-header bg-white py-3 border-0">
-            <h5 class="fw-bold mb-0">Completed Orders</h5>
-          </div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="bg-light">
-                <tr>
-                  <th class="ps-4">Order ID</th>
-                  <th>Buyer</th>
-                  <th>Product</th>
-                  <th>Total</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for order in completed_orders %}
-
-                {% empty %}
-                  <tr>
-                    <td colspan="5" class="text-center py-4 text-muted">No completed orders.</td>
-                  </tr>{% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="text-start mb-4">
-          <button class="btn btn-outline-danger rounded-3 px-4 shadow-sm"><i class="bi bi-file-pdf me-2"></i>Generate Completed Orders PDF</button>
-        </div>
-      </div>
+      
     </div>
   </div>
 

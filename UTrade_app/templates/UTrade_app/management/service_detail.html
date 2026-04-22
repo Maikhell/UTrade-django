@@ -1,0 +1,68 @@
+{% extends 'UTrade_app/base.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <a href="{% url 'organization.panel' %}" class="btn btn-link text-decoration-none p-0 text-muted">
+            <i class="bi bi-chevron-left"></i> Back to Management Dashboard
+        </a>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-6">
+            {% if service.image %}
+                <img src="{{ service.image.url }}" class="img-fluid rounded-4 shadow" alt="{{ service.name }}">
+            {% else %}
+                <div class="bg-light d-flex align-items-center justify-content-center rounded-4" style="height: 400px;">
+                    <i class="bi bi-image text-muted fs-1"></i>
+                </div>
+            {% endif %}
+        </div>
+        <div class="col-md-6">
+            <span class="badge bg-info text-dark mb-2">{{ service.category.name }}</span>
+            <h1 class="fw-bold">{{ service.name }}</h1>
+            <p class="text-muted">Offered by: {{ service.seller.get_full_name }}</p>
+            
+            <div class="card border-0 bg-light p-3 mb-4">
+                <h4 class="fw-bold text-primary mb-0">₱{{ service.price_min }} - ₱{{ service.price_max }}</h4>
+                <small class="text-muted">Estimated Price Range</small>
+            </div>
+            
+            <h5>Description</h5>
+            <p>{{ service.description }}</p>
+            
+            {% if request.user.is_staff %}
+            <div class="mt-4 p-3 border rounded-4 bg-white shadow-sm">
+                <p class="small fw-bold text-uppercase text-muted mb-2">Management Actions</p>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success rounded-pill px-4" onclick="confirmAction('service', '{{ service.id }}', 'Approved', '{{ service.name }}')">
+                        Approve Service
+                    </button>
+                    <button class="btn btn-outline-danger rounded-pill px-4" onclick="confirmAction('service', '{{ service.id }}', 'Rejected', '{{ service.name }}')">
+                        Reject
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmAction(type, id, status, name) {
+        const isNegative = ['rejected', 'declined', 'unverified'].includes(status.toLowerCase());
+        Swal.fire({
+            title: `${isNegative ? 'Reject' : 'Approve'} ${type}?`,
+            text: `Proceed with "${name}"?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: isNegative ? '#d33' : '#198754',
+            confirmButtonText: 'Confirm'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = `/management/update/${type}/${id}/?status=${status}`;
+            }
+        });
+    }
+</script>
+{% endblock %}

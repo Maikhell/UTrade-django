@@ -113,7 +113,7 @@ function changeImage(imageUrl, element) {
     }
 }
 
-function openVariantSelector(productId, productName) {
+function openVariantSelector(productId, productName, isPreorder = false) {
     const variantDataElement = document.getElementById('variant-data');
     if (!variantDataElement) {
         console.error("Variant data not found!");
@@ -123,7 +123,7 @@ function openVariantSelector(productId, productName) {
     const variants = JSON.parse(variantDataElement.textContent);
 
     if (variants.length === 0) {
-        addToCart(productId, null); // Pass null instead of false
+        addToCart(productId, null);
         return;
     }
 
@@ -141,7 +141,7 @@ function openVariantSelector(productId, productName) {
 
         variantHtml += `
             <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-3 mb-2 border ${opacityClass}" 
-                   style="cursor: ${isOutOfStock ? 'not-allowed' : 'pointer'}; padding: 12px 15px;">
+                    style="cursor: ${isOutOfStock ? 'not-allowed' : 'pointer'}; padding: 12px 15px;">
                 <div class="d-flex align-items-center">
                     <input class="form-check-input me-3 border-success" type="radio" name="swal-variant" value="${v.id}" ${disabledAttr}>
                     <div>
@@ -161,8 +161,9 @@ function openVariantSelector(productId, productName) {
         title: 'Choose Variation',
         html: variantHtml,
         showCancelButton: true,
-        confirmButtonText: 'Add to Cart',
-        confirmButtonColor: '#198754',
+        // Fixed: Combined logic into single properties to prevent overwriting
+        confirmButtonText: isPreorder ? '<i class="bi bi-calendar-check me-2"></i> Pre-order Now' : '<i class="bi bi-cart-plus me-2"></i> Add to Cart',
+        confirmButtonColor: isPreorder ? '#0d6efd' : '#198754',
         cancelButtonText: 'Cancel',
         cancelButtonColor: '#6c757d',
         customClass: {

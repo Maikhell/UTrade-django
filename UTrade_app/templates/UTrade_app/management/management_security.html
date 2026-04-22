@@ -11,7 +11,9 @@
 
 {% block content %}
   <input type="hidden" id="csrf_token" value="{{ csrf_token }}" />
-
+  <div>
+    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
+  </div>
   <div class="container py-5">
     <div class="d-flex align-items-center mb-4">
       <div class="bg-success text-white rounded p-2 me-3">
@@ -121,5 +123,5 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'UTrade_app/js/admin_security.js' %}"></script>
+  <script src="{% static 'UTrade_app/js/management.js' %}"></script>
 {% endblock %}

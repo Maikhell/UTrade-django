@@ -11,8 +11,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
 from django.http import JsonResponse
 
-
-
 class UserCreateView(CreateView):
     model = User 
     form_class = UserRegistrationForm
@@ -20,10 +18,25 @@ class UserCreateView(CreateView):
     success_url = reverse_lazy('product.list')
     
     def form_valid(self, form):
-        user = form.save()
+        user = form.save(commit=False)
+        
+        chosen_role = self.request.POST.get('user_role', 'student')
+        
+        # Strict validation to prevent role injection
+        if chosen_role in ['student', 'alumni']:
+            user.user_role = chosen_role
+        else:
+            user.user_role = 'student'
+            
+        user.save()
+        
         self.object = user 
         login(self.request, user, backend='django.contrib.auth.backends.ModelBackend')
-        messages.success(self.request, "Welcome! Your account was created.")
+        
+        # Customize the welcome message based on role
+        role_name = "Alumnus" if user.user_role == 'alumni' else "Student"
+        messages.success(self.request, f"Welcome! Your {role_name} account was created.")
+    
         return redirect(self.get_success_url())
     
 class UserAccountView(TemplateView):
@@ -47,26 +60,40 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     template_name = 'UTrade_app/users/account/profile.html'
     success_url = reverse_lazy('user.profile')
     success_message = "Your profile has been updated successfully!" 
-    
+
     def get_object(self):
         return self.request.user
 
+    def post(self, request, *args, **kwargs):
+        """
+        Explicitly handle the POST request to ensure manual HTML 
+        inputs are captured by the form.
+        """
+        self.object = self.get_object()
+        form = self.get_form()
+        
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            # Debugging: This will show you EXACTLY why it didn't save in your terminal
+            print("Form Errors:", form.errors)
+            messages.error(self.request, "Validation failed. Please check your inputs.")
+            return self.form_invalid(form)
+
     def form_valid(self, form):
+        if 'image' in self.request.FILES:
+            form.instance.image = self.request.FILES['image']
+
+        # Sync Display Name to Username
         display_name = form.cleaned_data.get('display_name')
         if display_name:
             if User.objects.filter(username=display_name).exclude(pk=self.request.user.pk).exists():
-                messages.error(self.request, "That display name is already taken. Please choose another.")
+                messages.error(self.request, "Display name already taken.")
                 return self.form_invalid(form)
-            
             form.instance.username = display_name
+
         return super().form_valid(form)
             
-        return super().form_valid(form)
-
-from django.views.generic import ListView
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q, Count
-from ..models import Product, Order, MeetupLocation
 
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product

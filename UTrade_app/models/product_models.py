@@ -13,6 +13,7 @@ class Product(BaseItem):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name="products")
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_listings')
     sold = models.IntegerField(default=0)
+    pre_order = models.BooleanField(default=False)
     meetup_location = models.ForeignKey(
         MeetupLocation, 
         on_delete=models.SET_NULL, 
@@ -34,7 +35,10 @@ class Product(BaseItem):
         if not variants: return "0.00"
         prices = [v.price for v in variants]
         return f"{min(prices)} - {max(prices)}" if min(prices) != max(prices) else f"{min(prices)}"
-
+    @property
+    def owner_name(self):
+        return self.seller.get_full_name() or self.seller.username
+    
     def average_rating(self):
         avg = self.reviews.aggregate(Avg('rating'))['rating__avg']
         return round(avg, 1) if avg else 0.0

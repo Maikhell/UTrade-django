@@ -15,7 +15,9 @@ class Services(BaseItem):
 
     def __str__(self):
         return f"{self.name} by {self.seller.get_short_name}"
-    
+    @property
+    def owner_name(self):
+        return self.seller.get_full_name() or self.seller.username    
 class ServicesImage(models.Model):
     service = models.ForeignKey(Services, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='images/')

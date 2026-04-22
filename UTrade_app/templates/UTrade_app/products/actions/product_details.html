@@ -49,13 +49,18 @@
       <div class="col-lg-5">
         <div class="ps-lg-3">
           <div class="d-flex justify-content-between align-items-start mb-2">
-            <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">{{ product.category.name }}</span>
+            <div class="d-flex gap-2">
+              <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">{{ product.category.name }}</span>
+              {% if product.is_preorder %}
+                <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill"><i class="bi bi-clock-history me-1"></i> Pre-order</span>
+              {% endif %}
+            </div>
             <small class="text-muted">ID: #UT-{{ product.id }}</small>
           </div>
 
           <h1 class="fw-bold text-dark mb-1">{{ product.name }}</h1>
           <p class="text-muted small mb-3">
-            Listed by <span class="fw-bold text-success">@Listed by <span class="fw-bold text-success">@{{ product.seller.username }}</span></span>
+            Listed by <span class="fw-bold text-success">@{{ product.seller.username }}</span>
           </p>
 
           <div class="d-flex align-items-center gap-3 mb-4 py-2 border-top border-bottom">
@@ -68,43 +73,7 @@
             </div>
             <div class="vr text-muted opacity-25"></div>
             <div>
-              <span class="fw-bold {% if product.get_total_stock < 5 %}
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                  text-danger
-
-
-
-
-
-
-
-
-                {% else %}
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                  
-                  text-dark
-
-
-
-
-
-
-
-
-                {% endif %}">
+              <span class="fw-bold {% if product.get_total_stock < 5 %}text-danger{% else %}text-dark{% endif %}">
                 {{ product.get_total_stock }}
               </span>
               <span class="text-muted small ms-1">Total Available</span>
@@ -129,12 +98,33 @@
 
           <div class="d-grid gap-3">
             {% if product.get_total_stock > 0 %}
-              <button id="addToCartBtn" onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}')" class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm"><i class="bi bi-cart-plus me-2"></i> Add to Cart</button>
+              {% if product.is_preorder %}
+                <button id="addToCartBtn" 
+                        onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', true)" 
+                        class="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
+                  <i class="bi bi-calendar-check me-2"></i> Pre-order Now
+                </button>
+              {% else %}
+                <button id="addToCartBtn" 
+                        onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', false)" 
+                        class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
+                  <i class="bi bi-cart-plus me-2"></i> Add to Cart
+                </button>
+              {% endif %}
             {% else %}
-              <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled><i class="bi bi-exclamation-octagon me-2"></i> Out of Stock</button>
+              <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled>
+                <i class="bi bi-exclamation-octagon me-2"></i> Out of Stock
+              </button>
             {% endif %}
 
-            <a href="{% url 'start_chat' product.id %}" class="btn btn-primary btn-lg rounded-3 w-100 fw-bold shadow-sm py-3"><i class="bi bi-chat-dots-fill me-2"></i> Message Seller</a>
+            <div class="d-flex gap-2">
+              <a href="{% url 'start_chat' product.id %}" class="btn btn-outline-primary btn-lg rounded-3 flex-grow-1 fw-bold shadow-sm py-3">
+                  <i class="bi bi-chat-dots-fill me-2"></i> Message Seller
+              </a>
+              <button class="btn btn-outline-danger btn-lg rounded-3 px-4 shadow-sm" onclick="toggleWishlist('{{ product.id }}', this)">
+                  <i class="bi {% if user_has_wishlisted %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
+              </button>
+            </div>
           </div>
 
           <div class="card mt-5 border-0 bg-light rounded-4 p-3 shadow-sm">
@@ -170,10 +160,9 @@
       }{% if not forloop.last %},{% endif %}
     {% endfor %}
   ]
-</script>
+  </script>
 {% endblock %}
 
 {% block extra_js %}
   <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
-  <script src="{% static 'UTrade_app/js/product_details.js' %}"></script>
 {% endblock %}

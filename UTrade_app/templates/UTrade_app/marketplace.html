@@ -11,43 +11,20 @@
   {% endblock %}
 
   <div class="container py-5">
+    
     <div class="mb-5">
       <h1 class="fw-bolder text-dark mb-0">Categories</h1>
       <div class="category-line mb-3"></div>
       <div class="d-flex flex-wrap gap-2 my-4">
         <a href="{% url 'product.list' %}" class="text-decoration-none">
-          <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if not request.GET.category %}
-              
-              
-              bg-dark
-
-
-            {% else %}
-              
-              
-              bg-secondary
-
-
-            {% endif %}"
+          <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if not request.GET.category %}bg-dark{% else %}bg-secondary{% endif %}"
             style="font-size: 0.65rem; letter-spacing: 1px;">
             All Items
           </span>
         </a>
         {% for category in categories %}
           <a href="?category={{ category.id }}" class="text-decoration-none">
-            <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if request.GET.category == category.id|stringformat:'i' %}
-                
-                
-                bg-success
-
-
-              {% else %}
-                
-                
-                bg-secondary opacity-50
-
-
-              {% endif %}">
+            <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if request.GET.category == category.id|stringformat:'i' %}bg-success{% else %}bg-secondary opacity-50{% endif %}">
               {{ category.name }}
             </span>
           </a>
@@ -55,8 +32,64 @@
       </div>
     </div>
 
+    {% if official_products %}
+    <div class="mb-5">
+      <div class="d-flex align-items-center mb-2">
+        <h1 class="fw-bolder text-dark mb-0">Official Merchandise</h1>
+        <span class="badge bg-primary ms-3 rounded-pill text-uppercase" style="font-size: 0.7rem;">Verified Orgs</span>
+      </div>
+      <div class="category-line mb-4" style="background: #0d6efd; width: 80px;"></div>
+      
+      <div class="row row-cols-2 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+        {% for product in official_products %}
+          <div class="col">
+            <div class="card h-100 shadow-sm product-card border-0 border-top border-primary border-3 overflow-hidden position-relative">
+              <div class="img-container bg-light" style="height: 200px; overflow: hidden; position: relative;">
+                {% if product.image %}
+                  <img src="{{ product.image.url }}" alt="{{ product.name }}" class="w-100 h-100" style="object-fit: cover;" />
+                {% else %}
+                  <div class="d-flex align-items-center justify-content-center h-100 text-muted">
+                    <i class="bi bi-image h1"></i>
+                  </div>
+                {% endif %}
+                <div class="position-absolute top-0 end-0 m-2" style="z-index: 2;">
+                  <span class="badge rounded-pill bg-primary px-2 py-1 text-uppercase fw-bold shadow-sm" style="font-size: 0.6rem;">Official</span>
+                </div>
+              </div>
+
+              <div class="card-body p-3 d-flex flex-column">
+                <small class="text-primary fw-bold text-uppercase" style="font-size: 0.7rem;">
+                  <i class="bi bi-patch-check-fill"></i> {{ product.seller.organization|default:"UTrade Official" }}
+                </small>
+                
+                {% if not user.is_authenticated %}
+                  <a href="javascript:void(0)" onclick="showLoginPrompt()" class="stretched-link text-decoration-none"><h6 class="card-title fw-bold text-dark text-truncate mb-1 mt-1">{{ product.name }}</h6></a>
+                {% elif user.status == 'unverified' or user.status == 'Pending' %}
+                  <a href="javascript:void(0)" onclick="showVerificationModal()" class="stretched-link text-decoration-none"><h6 class="card-title fw-bold text-dark text-truncate mb-1 mt-1">{{ product.name }}</h6></a>
+                {% else %}
+                  <a href="{% url 'product.detail' product.id %}" class="stretched-link text-decoration-none"><h6 class="card-title fw-bold text-dark text-truncate mb-1 mt-1">{{ product.name }}</h6></a>
+                {% endif %}
+                
+                <p class="h6 fw-bold text-success mb-2">₱{{ product.get_price_range }}</p>
+
+                <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top">
+                  <div class="small text-warning">
+                    <i class="bi bi-star-fill"></i>
+                    <span class="text-muted ms-1">{{ product.average_rating }}</span>
+                  </div>
+                  <div class="small text-muted">{{ product.sold|default:0 }} sold</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    <hr class="my-5 opacity-10">
+    {% endif %}
+
     <div class="mb-4">
-      <h1 class="fw-bolder text-dark mb-0">Marketplace</h1>
+      <h1 class="fw-bolder text-dark mb-0">Student Marketplace</h1>
       <div class="category-line"></div>
     </div>
 
@@ -76,9 +109,6 @@
                 <span class="badge rounded-pill bg-success px-2 py-1 text-uppercase fw-bold shadow-sm" style="font-size: 0.6rem;">{{ product.category.name|default:'Item' }}</span>
               </div>
             </div>
-            <input type="hidden" id="user-auth-status" value="{{ user.is_authenticated|yesno:'true,false' }}" />
-            <input type="hidden" id="user-verification-status" value="{{ user.status }}" />
-            <input type="hidden" id="login-url" value="{% url 'user.login' %}" />
 
             <div class="card-body p-3 d-flex flex-column">
               {% if not user.is_authenticated %}
@@ -108,6 +138,10 @@
       {% endfor %}
     </div>
   </div>
+
+  <input type="hidden" id="user-auth-status" value="{{ user.is_authenticated|yesno:'true,false' }}" />
+  <input type="hidden" id="user-verification-status" value="{{ user.status }}" />
+  <input type="hidden" id="login-url" value="{% url 'user.login' %}" />
 
   <div class="modal fade" id="verificationModal" tabindex="-1" aria-labelledby="verificationModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

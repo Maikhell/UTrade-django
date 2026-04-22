@@ -62,8 +62,10 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             return self.form_invalid(form)
             
         product = form.save(commit=False)
+        product.pre_order = form.cleaned_data.get('pre_order') == True or form.cleaned_data.get('pre_order') == "True"
         product.seller = self.request.user
         product.status = 'Pending'
+        product.pre_order = form.cleaned_data.get('pre_order', False)
         product.save()
         return redirect('product.list')
     
@@ -88,7 +90,9 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 prod_stocks = request.POST.get(f'prod_{i}_stocks', 0)
                 raw_category = request.POST.get(f'prod_{i}_category', '')
                 raw_meetup = request.POST.get(f'prod_{i}_meetup', '').strip()
-                
+                is_pre_order = request.POST.get(f'prod_{i}_pre_order') == 'True'
+                raw_pre_order = request.POST.get(f'prod_{i}_pre_order', 'false').lower()
+                is_pre_order = raw_pre_order == 'true'
                 meetup_obj = None
                 if raw_meetup:
                     if raw_meetup.startswith('NEW:'):
@@ -144,6 +148,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     category=category_obj,
                     meetup_location=meetup_obj,
                     seller=request.user,
+                    pre_order=is_pre_order,
                     status='Pending'
                 )
 
@@ -223,7 +228,13 @@ class ProductListView(ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        queryset = Product.objects.filter(status='Approved').select_related('category', 'seller')        
+        # Base queryset for STANDARD student sellers only
+        queryset = Product.objects.filter(
+            status='Approved'
+        ).exclude(
+            seller__user_role__in=['management', 'organization']
+        ).select_related('category', 'seller')
+        
         query = self.request.GET.get('q')
         if query:
             queryset = queryset.filter(
@@ -240,11 +251,33 @@ class ProductListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.all()
-        # Ensure to pass the current search and category back to the template
-        context['current_category'] = self.request.GET.get('category')
-        context['search_query'] = self.request.GET.get('q') 
         
+        # 1. Fetch Official Products (Management & Organization) separately
+        official_queryset = Product.objects.filter(
+            status='Approved',
+            seller__user_role__in=['management', 'organization']
+        ).select_related('category', 'seller')
+
+        # Apply same search/category filters to official products if they exist
+        query = self.request.GET.get('q')
+        category_id = self.request.GET.get('category')
+        
+        if query:
+            official_queryset = official_queryset.filter(
+                Q(name__icontains=query) | 
+                Q(description__icontains=query)
+            )
+        if category_id:
+            official_queryset = official_queryset.filter(category_id=category_id)
+            
+        context['official_products'] = official_queryset.order_by('-created_at').distinct()
+
+        # 2. General Context Data
+        context['categories'] = Category.objects.all()
+        context['current_category'] = category_id
+        context['search_query'] = query 
+        
+        # 3. User Interaction Data (Wishlist/Cart)
         if self.request.user.is_authenticated:
             user_wishlist = Wishlist.objects.filter(user=self.request.user).values_list('product_id', flat=True)
             context['user_wishlist_ids'] = set(user_wishlist)

@@ -95,6 +95,7 @@ function addToStaging() {
     const descEl = document.getElementById('description');
     const categoryEl = document.getElementById('category');
     const finalLocationsInput = document.getElementById('final_locations');
+    const preOrderElement = document.getElementById('is_pre_order');
 
     const isVariantMode = !document.getElementById('attributes_section').classList.contains('d-none');
 
@@ -165,7 +166,7 @@ function addToStaging() {
     }
     const conditionEl = document.getElementById('variant_condition');
     const globalCondition = conditionEl ? conditionEl.value : "Brand New";
-
+    const isPreOrder = preOrderElement ? preOrderElement.value : "False";
     const productId = Date.now();
     const paymentEl = document.querySelector('input[name="payment"]:checked');
     const payment = paymentEl ? paymentEl.value : 'Not Specified';
@@ -177,6 +178,7 @@ function addToStaging() {
         stocks: finalStocks,
         description: descEl.value,
         category: categoryId,
+        pre_order: isPreOrder,
         condition: globalCondition,
         meetup: finalLocationsInput ? finalLocationsInput.value : '',
         payment: payment,
@@ -304,6 +306,9 @@ async function submitToAdmin() {
         formData.append(`prod_${index}_condition`, product.condition);
         formData.append(`prod_${index}_meetup`, product.meetup);
         formData.append(`prod_${index}_payment`, product.payment);
+
+        formData.append(`prod_${index}_pre_order`, product.pre_order);
+
         formData.append(`prod_${index}_variants`, JSON.stringify(product.variants));
 
         product.files.forEach((file, fileIndex) => {

@@ -38,6 +38,7 @@
 
               <form method="POST" enctype="multipart/form-data" id="profileForm">
                 {% csrf_token %}
+                <input type="hidden" id="user_role_type" value="{{ user.user_role }}">
 
                 <input type="file" name="image" id="id_profile_picture" class="d-none" onchange="previewAvatar(event)" />
 
@@ -60,6 +61,7 @@
                     <label class="form-label small fw-bold text-secondary">Student Number</label>
                     <input type="text" name="student_no" class="form-control rounded-3" value="{{ user.student_no }}" placeholder="202X-XXXXX-XX" />
                   </div>
+
                   <div class="col-md-6">
                     <label class="form-label small fw-bold text-secondary">Contact Number</label>
                     <input type="text" name="phone_number" class="form-control rounded-3" value="{{ user.phone_number }}" placeholder="09XXXXXXXXX" />
@@ -108,10 +110,11 @@
                       {% endif %}
                     {% endif %}
                   </div>
+
                   <div class="card border-0 shadow-sm rounded-4 mt-4 bg-light">
                     <div class="card-body p-4">
                       <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0">Student Verification</h5>
+                        <h5 class="fw-bold mb-0">Verification Status</h5>
                         {% if user.status == 'verified' %}
                           <span class="badge bg-success rounded-pill px-3">Verified</span>
                         {% elif user.status == 'pending' %}
@@ -121,41 +124,38 @@
                         {% endif %}
                       </div>
                       <p class="text-muted small">
-                        {% if user.status == 'unverified' %}
-                          Please upload your Certificate of Registration (COR) to start selling on UTrade.
-                        {% else %}
-                          Keep your Certificate of Registration (COR) up to date to maintain your selling privileges.
-                        {% endif %}
+                        Please upload your Certificate of Registration (COR) or Alumni ID to maintain selling privileges.
                       </p>
                       <button type="button" 
                               class="btn {% if user.status == 'unverified' %}btn-danger{% else %}btn-outline-primary{% endif %} w-100 rounded-pill fw-bold py-2" 
                               data-bs-toggle="modal" 
                               data-bs-target="#updateCorModal">
                         <i class="bi bi-file-earmark-person me-2"></i> 
-                        {% if user.status == 'unverified' %}Get Verified Now{% else %}View or Update COR{% endif %}
+                        {% if user.status == 'unverified' %}Get Verified Now{% else %}View or Update Document{% endif %}
                       </button>
                     </div>
                   </div>
+
                   <div class="card border-0 shadow-sm rounded-4 mt-4 bg-dark text-white">
-                      <div class="card-body p-4">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                          <h5 class="fw-bold mb-0 text-white">Officer Registration</h5>
-                          {% if user.is_officer %}
-                            <span class="badge bg-info rounded-pill px-3">Registered Officer</span>
-                          {% endif %}
-                        </div>
-                        <p class="text-white-50 small">
-                          Are you an elected student leader? Register as an officer to access organization management tools.
-                        </p>
-                        <button type="button" 
-                                class="btn btn-outline-light w-100 rounded-pill fw-bold py-2" 
-                                data-bs-toggle="modal" 
-                                data-bs-target="#officerRegistrationModal">
-                          <i class="bi bi-shield-check me-2"></i> 
-                          {% if user.is_officer %}Update Officer Details{% else %}Register as Officer{% endif %}
-                        </button>
+                    <div class="card-body p-4">
+                      <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0 text-white">Officer Registration</h5>
+                        {% if user.is_officer %}
+                          <span class="badge bg-info rounded-pill px-3">Registered Officer</span>
+                        {% endif %}
                       </div>
+                      <p class="text-white-50 small">
+                        Are you an elected student leader? Register as an officer to access organization management tools.
+                      </p>
+                      <button type="button" 
+                              class="btn btn-outline-light w-100 rounded-pill fw-bold py-2" 
+                              data-bs-toggle="modal" 
+                              data-bs-target="#officerRegistrationModal">
+                        <i class="bi bi-shield-check me-2"></i> 
+                        {% if user.is_officer %}Update Officer Details{% else %}Register as Officer{% endif %}
+                      </button>
                     </div>
+                  </div>
 
                   <div class="mt-5 d-flex gap-2">
                     <button type="submit" class="btn btn-success px-4 fw-bold rounded-3">Save Changes</button>
@@ -174,30 +174,29 @@
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content rounded-4 border-0 shadow">
         <div class="modal-header border-0 pb-0">
-          <h5 class="fw-bold">{% if user.status == 'unverified' %}Account Verification{% else %}My COR File{% endif %}</h5>
+          <h5 class="fw-bold">Document Verification</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
+          <div id="error-message" class="d-none mb-3"></div>
           <div class="alert alert-warning border-0 small mb-4">
             <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <strong>Important:</strong> Ensure your Profile details are saved before uploading.
+            <strong>Important:</strong> Ensure your Profile names are saved before uploading.
           </div>
 
           {% if user.cor_file %}
             <div class="mb-4 text-center">
-              <label class="small fw-bold text-uppercase text-muted d-block mb-2">Current COR on File</label>
+              <label class="small fw-bold text-uppercase text-muted d-block mb-2">Current Document on File</label>
               <div class="bg-light rounded-3 p-2">
                 <img src="{{ user.cor_file.url }}" class="img-fluid rounded border shadow-sm" style="max-height: 200px;">
               </div>
             </div>
           {% endif %}
 
-          <form action="{% url 'update_cor' %}" method="POST" enctype="multipart/form-data">
+          <form id="verificationForm" action="{% url 'update_cor' %}" method="POST" enctype="multipart/form-data">
             {% csrf_token %}
             <div class="mb-3">
-              <label for="new_cor" class="form-label small fw-bold text-uppercase text-muted">
-                {% if user.status == 'unverified' %}Upload your COR{% else %}Upload New COR (Yearly Update){% endif %}
-              </label>
+              <label for="new_cor" class="form-label small fw-bold text-uppercase text-muted">Upload Document</label>
               <input type="file" name="cor_file" id="new_cor" class="form-control rounded-3" accept="image/*,.pdf" required>
               <div class="form-text mt-2" style="font-size: 0.75rem;">
                 <i class="bi bi-info-circle me-1"></i> 
@@ -212,73 +211,7 @@
       </div>
     </div>
   </div>
-<div class="modal fade" id="officerRegistrationModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content rounded-4 border-0 shadow">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="fw-bold">Officer Verification</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="alert alert-danger border-0 small mb-4">
-          <i class="bi bi-exclamation-octagon-fill me-2"></i>
-          <strong>Strict Warning:</strong> This form is strictly for **actually elected officers** of the organizations listed. Misrepresentation of authority may result in disciplinary action.
-        </div>
 
-        <form action="{% url 'register_officer' %}" method="POST" enctype="multipart/form-data">
-          {% csrf_token %}
-          
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-uppercase text-muted">Organization</label>
-            <select name="organization" class="form-select rounded-3" required>
-              <option value="" selected disabled>Select Organization</option>
-              <option value="CSG">CSG | Central Student Government</option>
-              <option value="ITS">ITS | Information Technology Society (BSIT)</option>
-              <option value="ACS">ACS | Association of Computer Students (BSCS)</option>
-              <option value="BSHMS">BSHMS | Hospitality Management Society (BSHM)</option>
-              <option value="TES">TES | Teachers Education Society (BSED)</option>
-              <option value="LCDCS">LCDCS | Lyceum Criminology Students (BSCRIM)</option>
-              <option value="LLP">LLP | Lyceum League of Psychologists (BSP)</option>
-              <option value="LMS-JMA">LMS-JMA | Junior Marketing Association (BSBA-MM)</option>
-              <option value="SHR">SHR | Society of Human Resource (BSBA-HR)</option>
-            </select>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-uppercase text-muted">Position</label>
-            <select name="position" class="form-select rounded-3" required>
-              <option value="" selected disabled>Select Position</option>
-              <option value="President">President</option>
-              <option value="Vice President">Vice President</option>
-              <option value="Secretary">Secretary</option>
-              <option value="Assistant Secretary">Assistant Secretary</option>
-              <option value="Treasurer">Treasurer</option>
-              <option value="Assistant Treasurer">Assistant Treasurer</option>
-              <option value="Auditor">Auditor</option>
-              <option value="Business Manager">Business Manager</option>
-              <option value="P.R.O">P.R.O</option>
-              <option value="GAD Representative">GAD Representative</option>
-              <option value="Senator">Senator</option>
-              <option value="Committees">Committees</option>
-            </select>
-          </div>
-
-          <div class="mb-4">
-            <label class="form-label small fw-bold text-uppercase text-muted">Officer ID / Certificate of Election</label>
-            <input type="file" name="officer_id_image" class="form-control rounded-3" accept="image/*" required>
-            <div class="form-text mt-2" style="font-size: 0.75rem;">
-              Upload a clear photo of your Officer ID or Appointment Letter for verification.
-            </div>
-          </div>
-
-          <button type="submit" class="btn btn-dark w-100 rounded-pill fw-bold py-2">
-            Submit Officer Credentials
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
   {% if messages %}
     {% for message in messages %}
       <div id="django-messages" 

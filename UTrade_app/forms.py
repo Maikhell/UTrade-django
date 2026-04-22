@@ -5,11 +5,15 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'description', 'category']
+        fields = ['name', 'description', 'category', 'pre_order']
         widgets = {
             'description': forms.Textarea(attrs={'cols': 80, 'rows': 5, 'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
+            'pre_order': forms.Select(
+                choices=[(False, 'Live (On-hand Stock)'), (True, 'Pre-order (Advance Order)')],
+                attrs={'class': 'form-select'}
+            ),
         }
 
 class VariantForm(forms.ModelForm):
@@ -88,18 +92,34 @@ class UserRegistrationForm(forms.ModelForm):
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = User
+        # Ensure 'image' matches your Model field name (e.g., profile_picture)
         fields = ['first_name', 'last_name', 'display_name', 'phone_number', 'student_no', 'image', 'course', 'section']
         widgets = {
             'image': forms.FileInput(attrs={'id': 'id_profile_picture', 'class': 'd-none', 'onchange': 'previewAvatar(event)'}),
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'display_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'student_no': forms.TextInput(attrs={'class': 'form-control'}),
-            'course': forms.TextInput(attrs={'class': 'form-control'}),
-            'section': forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control rounded-3'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control rounded-3'}),
+            'display_name': forms.TextInput(attrs={'class': 'form-control rounded-3'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control rounded-3'}),
+            'student_no': forms.TextInput(attrs={'class': 'form-control rounded-3'}),
+            'course': forms.Select(attrs={'class': 'form-select rounded-3'}), # Use Select for course
+            'section': forms.TextInput(attrs={'class': 'form-control rounded-3', 'maxlength': '3'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super(UserProfileForm, self).__init__(*args, **kwargs)
+        
+        # Set optional fields
+        optional_fields = ['student_no', 'course', 'section', 'phone_number', 'display_name']
+        for field in optional_fields:
+            self.fields[field].required = False
+            
+        # Logic for Student requirements
+        if self.instance and self.instance.pk:
+            if getattr(self.instance, 'user_role', None) == 'student':
+                self.fields['student_no'].required = True
+                self.fields['course'].required = True
+                self.fields['section'].required = True
+                
 class UserLoginForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

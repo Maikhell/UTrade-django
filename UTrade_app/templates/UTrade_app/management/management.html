@@ -1,0 +1,550 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  Management Dashboard | {{ org_name }}
+{% endblock %}
+
+{% block content %}
+  <div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+      <a href="{% url 'user.account' %}" class="btn btn-link text-decoration-none p-0 text-muted">
+        <i class="bi bi-chevron-left"></i> Back to My Account
+      </a>
+    </nav>
+
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex align-items-center">
+          <div class="bg-primary text-white rounded-4 p-3 me-3">
+            <i class="bi bi-building-gear fs-3"></i>
+          </div>
+          <div>
+            <h2 class="fw-bold mb-0">{{ org_name }} Dashboard</h2>
+            <p class="text-muted mb-0">
+              Departmental oversight for all {{ target_course }} students and listings.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<div class="row g-3 mb-5">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+      <small class="text-uppercase text-muted fw-bold small">Total Listings</small>
+      <h3 class="fw-bold text-primary mb-0">{{ approved_count|default:'0' }}</h3>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
+      <small class="text-uppercase text-muted fw-bold small">Pending Items</small>
+      <h3 class="fw-bold text-warning mb-0">
+        {{ pending_products_count|add:pending_services_count|default:'0' }}
+      </h3>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
+      <small class="text-uppercase text-muted fw-bold small">Active Products</small>
+      <h3 class="fw-bold text-success mb-0">{{ active_products_count|default:'0' }}</h3>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-info border-4">
+      <small class="text-uppercase text-muted fw-bold small">Active Services</small>
+      <h3 class="fw-bold text-info mb-0">{{ active_services_count|default:'0' }}</h3>
+    </div>
+  </div>
+</div>
+
+    <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">
+      <li class="nav-item">
+      <button class="nav-link fw-bold border-0 bg-transparent px-4" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane">
+        Live Inventory
+        <span class="badge bg-secondary-subtle text-dark ms-1">{{ approved_count }}</span>
+      </button>
+    </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="services-tab" data-bs-toggle="tab" data-bs-target="#services-pane">
+          Services
+          {% if pending_services.count > 0 %}
+            <span class="badge bg-danger ms-1 text-white">{{ pending_services.count }}</span>
+          {% endif %}
+        </button>
+      </li>
+ 
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-pane">
+          Products
+          {% if pending_products_count > 0 %}
+            <span class="badge bg-danger ms-1 text-white">{{ pending_products_count }}</span>
+          {% endif %}
+        </button>
+      </li>
+
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-pane">
+          Orders
+        </button>
+      </li>
+
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane">
+          Logs
+        </button>
+      </li>
+          <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports-pane">
+          Reports
+        </button>
+      </li>
+    </ul>
+
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-light">
+      <form method="GET" class="row g-3 mb-4">
+    <div class="col-md-5">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+            <input type="text" name="search" class="form-control border-start-0" 
+                   placeholder="Search name, seller, or price..." value="{{ request.GET.search }}">
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <select name="pre_order" class="form-select">
+            <option value="">All Listing Types</option>
+            <option value="False" {% if request.GET.pre_order == 'False' %}selected{% endif %}>On-hand Only</option>
+            <option value="True" {% if request.GET.pre_order == 'True' %}selected{% endif %}>Pre-order Only</option>
+        </select>
+    </div>
+
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+    <div class="col-md-2">
+        <a href="{% url 'management.panel' %}" class="btn btn-light w-100">Reset</a>
+    </div>
+</form>
+    </div>
+
+    <div class="tab-content">
+      <div class="tab-pane fade" id="inventory-pane">
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light">
+          <tr>
+            <th class="ps-4">Item Name</th>
+            <th>Type</th>
+            <th>Seller/Provider</th>
+            <th>Price</th>
+            <th class="text-end pe-4">Manage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in approved_items %}
+          <tr>
+    <td class="ps-4">
+        <div class="fw-bold">{{ item.name }}</div>
+        <span class="badge bg-success-subtle text-success border-0" style="font-size: 0.7rem;">Active</span>
+    </td>
+    <td>
+        {% if item.is_service %}
+            <span class="text-info"><i class="bi bi-tools me-1"></i>Service</span>
+        {% else %}
+            <span class="text-warning"><i class="bi bi-box-seam me-1"></i>Product</span>
+        {% endif %}
+    </td>
+    <td>{{ item.owner_name }}</td>
+   <td class="fw-bold text-dark">
+    ₱{% if item.is_service %}
+        {{ item.base_price }}
+    {% else %}
+        {{ item.get_price_range }}
+    {% endif %}
+</td>
+    <td class="text-end pe-4">
+        <a href="{% if item.is_service %}{% url 'service.details' item.id %}{% else %}{% url 'product.detail.view' item.id %}{% endif %}" class="btn btn-sm btn-light rounded-3">
+            <i class="bi bi-pencil-square"></i> Edit
+        </a>
+    </td>
+</tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center py-5 text-muted">No live listings found in the marketplace.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="tab-pane fade" id="reports-pane">
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light">
+          <tr>
+            <th class="ps-4">Reported Subject</th>
+            <th>Type</th>
+            <th>Reporter</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th class="text-end pe-4">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in reported_items %}
+            {% empty %}
+          <tr>
+            <td colspan="6" class="text-center py-5">
+              <div class="text-muted">
+                <i class="bi bi-shield-check display-4 d-block mb-3"></i>
+                <span>No active reports to review. The community is looking good!</span>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+      <div class="tab-pane fade" id="services-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Service Name</th>
+                  <th>Category</th>
+                  <th>Price Range</th>
+                  <th>Provider</th>
+                  <th class="text-end pe-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in pending_services %}
+                  <tr>
+                    <td class="ps-4">
+                      <strong>{{ s.name }}</strong>
+                    </td>
+                    <td>
+                      <span class="badge bg-info-subtle text-info rounded-pill px-3">
+                        {{ s.category.name|default:"General Service" }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="fw-bold text-dark">₱{{ s.price_min }} - ₱{{ s.price_max }}</span>
+                    </td>
+                    <td>
+                      <div class="small">{{ s.seller.get_full_name }}</div>
+                      <small class="text-muted">{{ s.seller.course }}</small>
+                    </td>
+                    <td class="text-end pe-4">
+                      <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'service.details' s.id %}" class="btn btn-sm btn-outline-primary rounded-3">
+                          <i class="bi bi-eye"></i> View
+                        </a>
+
+                        <button class="btn btn-sm btn-success rounded-3" onclick="confirmAction('service', '{{ s.id }}', 'Approved', '{{ s.name }}')">
+                          Approve
+                        </button>
+                        <button class="btn btn-sm btn-danger rounded-3" onclick="confirmAction('service', '{{ s.id }}', 'Rejected', '{{ s.name }}')">
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">
+                      <i class="bi bi-clipboard-x fs-2 d-block mb-2"></i>
+                      No pending services to review.
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+        <div class="tab-pane fade" id="logs-pane">
+  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="bg-light">
+          <tr>
+            <th class="ps-4">Timestamp</th>
+            <th>User / Officer</th>
+            <th>Action Performed</th>
+            <th>Target Item</th>
+            <th class="text-end pe-4">Status</th>
+          </tr>
+        </thead>
+       <tbody>
+  {% for log in logs %}
+  <tr>
+    <td class="ps-4">
+        <div class="fw-bold">{{ log.timestamp|date:"M d, Y" }}</div>
+        <small class="text-muted">{{ log.timestamp|time:"h:i A" }}</small>
+    </td>
+    <td>
+        <div class="fw-bold text-dark">{{ log.user.get_full_name|default:log.user.username }}</div>
+        <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">{{ log.user.user_role }}</span>
+    </td>
+    <td>
+        <span class="text-primary fw-semibold">{{ log.action }}</span>
+    </td>
+    <td>
+        <div class="small fw-bold">{{ log.item_name }}</div>
+        <div class="text-muted" style="font-size: 0.75rem;">{{ log.item_type }}</div>
+    </td>
+    <td class="text-end pe-4">
+        <span class="badge bg-success-subtle text-success">Completed</span>
+    </td>
+  </tr>
+  {% empty %}
+  <tr><td colspan="5" class="text-center py-5 text-muted">No activity recorded yet.</td></tr>
+  {% endfor %}
+</tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+      <div class="tab-pane fade" id="products-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Product</th>
+                  <th>Seller</th>
+                  <th>Type</th>
+                  <th class="text-end pe-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in pending_products %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="fw-bold">{{ p.name }}</div>
+                      <small class="text-muted">₱{{ p.get_price_range }}</small>
+                    </td>
+                    <td>{{ p.seller.get_full_name }}</td>
+                    <td>
+                      {% if p.pre_order %}
+                        <span class="badge bg-info text-dark rounded-pill">Pre-order</span>
+                      {% else %}
+                        <span class="badge bg-light text-dark border rounded-pill">On-hand</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                      <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'product.detail.view' p.id %}" class="btn btn-sm btn-outline-primary rounded-3">
+                          <i class="bi bi-eye"></i> View
+                        </a>
+
+                        <button class="btn btn-sm btn-success rounded-3" onclick="confirmAction('product', '{{ p.id }}', 'Approved', '{{ p.name }}')">
+                          Approve
+                        </button>
+                        <button class="btn btn-sm btn-danger rounded-3" onclick="confirmAction('product', '{{ p.id }}', 'Rejected', '{{ p.name }}')">
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="4" class="text-center py-5 text-muted">No products pending review.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      
+      <div class="tab-pane fade" id="orders-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+          <div class="card-header bg-white py-3 border-0 d-flex justify-content-between">
+            <h5 class="fw-bold mb-0">Department Pre-Orders</h5>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Order ID</th>
+                  <th>Buyer</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in incoming_orders %}
+                  <tr>
+                    <td class="ps-4 fw-bold">#{{ order.id }}</td>
+                    <td>{{ order.user.get_full_name }}</td>
+                    <td>
+                      <span class="badge bg-warning-subtle text-warning rounded-pill">{{ order.status }}</span>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="3" class="text-center py-4 text-muted">No active orders.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+          <div class="card-header bg-white py-3 border-0 d-flex justify-content-between">
+            <h5 class="fw-bold mb-0">Accepted Orders</h5>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Order ID</th>
+                  <th>Buyer</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in incoming_orders %}
+                  <tr>
+                    <td class="ps-4 fw-bold">#{{ order.id }}</td>
+                    <td>{{ order.user.get_full_name }}</td>
+                    <td>
+                      <span class="badge bg-warning-subtle text-warning rounded-pill">{{ order.status }}</span>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="3" class="text-center py-4 text-muted">No accepted orders.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+          <div class="card-header bg-white py-3 border-0 d-flex justify-content-between">
+            <h5 class="fw-bold mb-0">Completed Orders</h5>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Order ID</th>
+                  <th>Buyer</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for order in incoming_orders %}
+                  <tr>
+                    <td class="ps-4 fw-bold">#{{ order.id }}</td>
+                    <td>{{ order.user.get_full_name }}</td>
+                    <td>
+                      <span class="badge bg-warning-subtle text-warning rounded-pill">{{ order.status }}</span>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="3" class="text-center py-4 text-muted">No active orders.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<div class="d-flex justify-content-end mt-3">
+  <button class="btn btn-success rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#pdfModal">
+    <i class="bi bi-file-pdf"></i> Generate Report
+  </button>
+</div>
+
+<div class="modal fade" id="pdfModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0">
+        <h5 class="modal-title fw-bold">Select Report Type</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="list-group list-group-flush">
+          <a href="{% url 'generate.report.pdf' %}?report_type=live_products" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
+            <i class="bi bi-box-seam text-success me-2"></i> All Live Products (On-hand)
+          </a>
+          <a href="{% url 'generate.report.pdf' %}?report_type=pre_orders" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
+            <i class="bi bi-clock-history text-primary me-2"></i> All Pre-orders (Management)
+          </a>
+          <a href="{% url 'generate.report.pdf' %}?report_type=completed_preorders" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
+          <i class="bi bi-cart-check-fill text-success me-2"></i> Completed Pre-Orders Only
+        </a>
+          <a href="{% url 'generate.report.pdf' %}?report_type=all_services" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
+            <i class="bi bi-tools text-info me-2"></i> All Services
+          </a>
+          <a href="{% url 'generate.report.pdf' %}?report_type=all_products" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
+            <i class="bi bi-archive text-warning me-2"></i> All Products Masterlist
+          </a>
+          <a href="{% url 'generate.report.pdf' %}?report_type=user_logs" class="list-group-item list-group-item-action py-3 border-0 rounded-3 bg-light">
+            <i class="bi bi-journal-text text-danger me-2"></i> User Activity Logs
+          </a>
+          <a href="#" class="list-group-item list-group-item-action py-3 border-0 rounded-3 bg-light">
+            <i class="bi bi-exclamation-octagon text-danger me-2"></i> Reported Users & Chats
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <div class="modal fade" id="docModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4">
+          <div class="modal-body p-0 text-center">
+            <img id="docPreview" src="" class="img-fluid rounded-4" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function viewDoc(url) {
+        if (url && url !== 'None') {
+          document.getElementById('docPreview').src = url
+          new bootstrap.Modal(document.getElementById('docModal')).show()
+        }
+      }
+
+      function confirmAction(type, id, status, name) {
+        const isNegative = ['rejected', 'declined', 'unverified'].includes(status.toLowerCase())
+        Swal.fire({
+          title: `${isNegative ? 'Reject' : 'Approve'} ${type}?`,
+          text: `Proceed with "${name}"?`,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonColor: isNegative ? '#d33' : '#198754',
+          confirmButtonText: 'Confirm'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            window.location.href = `/management/update/${type}/${id}/?status=${status}`
+          }
+        })
+      }
+    </script>
+{% endblock %}

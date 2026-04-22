@@ -1,0 +1,276 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  Alumni Association Dashboard | UTrade
+{% endblock %}
+
+{% block content %}
+  <div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+      <a href="{% url 'user.account' %}" class="btn btn-link text-decoration-none p-0 text-muted">
+        <i class="bi bi-chevron-left"></i> Back to My Account
+      </a>
+    </nav>
+
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="d-flex align-items-center">
+          <div class="bg-dark text-white rounded-4 p-3 me-3">
+            <i class="bi bi-mortarboard fs-3"></i>
+          </div>
+          <div>
+            <h2 class="fw-bold mb-0">Alumni Association Dashboard</h2>
+            <p class="text-muted mb-0">
+              Manage alumni verifications and maintain the graduate database.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-5">
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-primary border-4">
+          <small class="text-uppercase text-muted fw-bold small">Total Alumni</small>
+          <h3 class="fw-bold text-primary mb-0">{{ total_alumni_count|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
+          <small class="text-uppercase text-muted fw-bold small">Pending Verifications</small>
+          <h3 class="fw-bold text-warning mb-0">{{ pending_alumni_count|default:'0' }}</h3>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
+          <small class="text-uppercase text-muted fw-bold small">Verified This Month</small>
+          <h3 class="fw-bold text-success mb-0">{{ verified_recent_count|default:'0' }}</h3>
+        </div>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs border-0 mb-4" id="alumniTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active fw-bold border-0 bg-transparent px-4" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane">
+          Pending Verification
+          {% if pending_alumni_count > 0 %}
+            <span class="badge bg-danger ms-1 text-white">{{ pending_alumni_count }}</span>
+          {% endif %}
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="all-alumni-tab" data-bs-toggle="tab" data-bs-target="#all-alumni-pane">
+          All Alumni
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane">
+          Activity Logs
+        </button>
+      </li>
+    </ul>
+
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-light">
+      <form method="GET" class="row g-3">
+        <div class="col-md-8">
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+            <input type="text" name="search" class="form-control border-start-0" 
+                   placeholder="Search name, student number, or course..." value="{{ request.GET.search }}">
+          </div>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary w-100">Search</button>
+        </div>
+        <div class="col-md-2">
+          <a href="{% url 'alumni.dashboard' %}" class="btn btn-outline-secondary w-100">Reset</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="tab-content">
+      <div class="tab-pane fade show active" id="pending-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Full Name</th>
+                  <th>Student No.</th>
+                  <th>Course</th>
+                  <th>Proof</th>
+                  <th class="text-end pe-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for user in pending_users %}
+                <tr>
+                  <td class="ps-4">
+                    <div class="fw-bold">{{ user.get_full_name }}</div>
+                    <small class="text-muted">{{ user.email }}</small>
+                  </td>
+                  <td>{{ user.student_no|default:"---" }}</td>
+                  <td><span class="badge bg-secondary-subtle text-dark">{{ user.course }}</span></td>
+                  <td>
+                    {% if user.cor_file %}
+                    <button class="btn btn-sm btn-link text-primary p-0" onclick="viewDoc('{{ user.cor_file.url }}')">
+                      <i class="bi bi-file-earmark-image"></i> View ID
+                    </button>
+                    {% else %}
+                    <small class="text-muted">No file uploaded</small>
+                    {% endif %}
+                  </td>
+                  <td class="text-end pe-4">
+                    <button class="btn btn-sm btn-success rounded-3 me-1" onclick="confirmAction('{{ user.id }}', 'verified', '{{ user.get_full_name }}')">Approve</button>
+                    <button class="btn btn-sm btn-outline-danger rounded-3" onclick="confirmAction('{{ user.id }}', 'unverified', '{{ user.get_full_name }}')">Reject</button>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center py-5 text-muted">No pending verifications at this time.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="all-alumni-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Alumnus</th>
+                  <th>Student No.</th>
+                  <th>Batch/Course</th>
+                  <th>Status</th>
+                  <th class="text-end pe-4">Profile</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for alumni in all_alumni_list %}
+                <tr>
+                  <td class="ps-4">
+                    <div class="fw-bold">{{ alumni.get_full_name }}</div>
+                  </td>
+                  <td>{{ alumni.student_no }}</td>
+                  <td>{{ alumni.course }}</td>
+                  <td>
+                    <span class="badge bg-success-subtle text-success border-0">Verified</span>
+                  </td>
+                  <td class="text-end pe-4">
+                    <a href="#" class="btn btn-sm btn-light rounded-pill"><i class="bi bi-person-lines-fill"></i> Details</a>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center py-5 text-muted">No alumni records found.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-pane fade" id="logs-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th class="ps-4">Timestamp</th>
+                  <th>Officer</th>
+                  <th>Action</th>
+                  <th>Target Alumnus</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in alumni_logs %}
+                <tr>
+                  <td class="ps-4">
+                    <div class="small fw-bold">{{ log.timestamp|date:"M d, Y" }}</div>
+                    <small class="text-muted">{{ log.timestamp|time:"h:i A" }}</small>
+                  </td>
+                  <td>{{ log.user.get_full_name }}</td>
+                  <td><span class="text-primary fw-semibold">{{ log.action }}</span></td>
+                  <td>{{ log.item_name }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center py-5 text-muted">No recent activity recorded.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end mt-4">
+      <button class="btn btn-success rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#pdfModal">
+        <i class="bi bi-file-pdf"></i> Generate PDF Report
+      </button>
+    </div>
+  </div>
+
+  <div class="modal fade" id="pdfModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content rounded-4 border-0 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="modal-header border-0 pb-0">Export Alumni Data</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="list-group list-group-flush">
+            <a href="{% url 'generate.reports.pdf' %}?report_type=alumni_masterlist" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
+              <i class="bi bi-people-fill text-primary me-2"></i> Verified Alumni Masterlist
+            </a>
+            <a href="{% url 'generate.reports.pdf' %}?report_type=alumni_logs" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
+              <i class="bi bi-journal-text text-danger me-2"></i> Verification Activity Logs
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="docModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 rounded-4">
+        <div class="modal-header">
+          <h5 class="fw-bold">Document Verification</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-0 text-center bg-dark rounded-bottom-4">
+          <img id="docPreview" src="" class="img-fluid" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function viewDoc(url) {
+      if (url && url !== 'None') {
+        document.getElementById('docPreview').src = url
+        new bootstrap.Modal(document.getElementById('docModal')).show()
+      }
+    }
+
+    function confirmAction(id, status, name) {
+      const isNegative = status === 'unverified';
+      Swal.fire({
+        title: `${isNegative ? 'Reject' : 'Verify'} Account?`,
+        text: `Are you sure you want to ${isNegative ? 'reject' : 'verify'} ${name}?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: isNegative ? '#d33' : '#198754',
+        confirmButtonText: 'Yes, proceed'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Fixed the URL structure to match your urls.py exactly:
+          // path('alumni-association/alumni/<int:user_id>/', ...)
+          window.location.href = `/alumni-association/alumni/${id}/?status=${status}`;
+        }
+      })
+    }
+  </script>
+{% endblock %}

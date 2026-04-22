@@ -151,7 +151,18 @@
                 </div>
               </div>
             </div>
-
+            {% if request.user.user_role == 'officer' or request.user.user_role == 'management' %}
+              <div class="mb-3">
+                <label class="form-label small fw-bold text-primary">Listing Type</label>
+                <select id="is_pre_order" class="form-select bg-light border-0 py-2">
+                  <option value="False">Live (On-hand Stock)</option>
+                  <option value="True">Pre-order (Advance Order)</option>
+                </select>
+                <small class="text-muted" style="font-size: 0.7rem;">Pre-orders will be tagged for advance payment collection.</small>
+              </div>
+            {% else %}
+              <input type="hidden" id="is_pre_order" value="False" />
+            {% endif %}
             <div class="mb-4">
               <label class="form-label small fw-bold text-secondary d-block">Accepted Payment</label>
               <div class="btn-group w-100">

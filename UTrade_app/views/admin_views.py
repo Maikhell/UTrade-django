@@ -91,11 +91,26 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
                 target_user.position = request.POST.get('position') or ''
                 target_user.officer_status = 'verified'
             
-            elif new_role == 'alumni':
+            elif new_role == 'alumni_assoc':
                 target_user.organization = 'Alumni Association'
                 target_user.position = 'Member'
                 target_user.officer_status = '' 
-            
+                
+            elif new_role == 'student':
+                target_user.organization = ''
+                target_user.position = ''
+                target_user.officer_status = '' 
+                               
+            elif new_role == 'management':
+                target_user.organization = 'Management'
+                target_user.position = 'Member'
+                target_user.officer_status = '' 
+                
+            elif new_role == 'campus_admin':
+                target_user.organization = 'Campus Admin'
+                target_user.position = 'Member'
+                target_user.officer_status = '' 
+                
             else: 
                 target_user.organization = ''
                 target_user.position = ''

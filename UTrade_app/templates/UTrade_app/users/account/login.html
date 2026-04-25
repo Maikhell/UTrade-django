@@ -8,7 +8,34 @@
 {% block content %}
   {% block extra_css %}
     <link rel="stylesheet" href="{% static 'UTrade_app/css/login.css' %}" />
+    <style>
+      /* Toggle Styles */
+      .login-toggle-container {
+        display: flex;
+        background: #f8f9fa;
+        padding: 5px;
+        border-radius: 50px;
+        margin-bottom: 25px;
+      }
+      .toggle-btn {
+        flex: 1;
+        border: none;
+        background: none;
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        border-radius: 50px;
+        transition: 0.3s;
+        color: #6c757d;
+      }
+      .toggle-btn.active {
+        background: #198754;
+        color: white;
+        box-shadow: 0 4px 10px rgba(25, 135, 84, 0.2);
+      }
+    </style>
   {% endblock %}
+
   <section class="row g-0 vh-100 align-items-center bg-success">
     <div class="col-md-6 d-flex flex-column justify-content-center align-items-center p-5 text-center">
       <div class="glass-bg p-4 mb-4">
@@ -23,6 +50,11 @@
         <h2 class="fw-bold text-dark mb-1">Welcome Back</h2>
         <p class="text-muted mb-4">Please enter your details to sign in.</p>
 
+        <div class="login-toggle-container">
+          <button type="button" id="btn-student" class="toggle-btn active" onclick="setLoginMode('student')">STUDENT</button>
+          <button type="button" id="btn-mgmt" class="toggle-btn" onclick="setLoginMode('mgmt')">STAFF</button>
+        </div>
+
         {% if form.non_field_errors %}
           <div class="alert alert-danger rounded-3 small">
             {% for error in form.non_field_errors %}
@@ -35,8 +67,8 @@
           {% csrf_token %}
 
           <div class="mb-3">
-            <label class="form-label small fw-bold text-secondary">Student No</label>
-            <input type="text" name="username" placeholder="000000000" class="form-control form-control-xl bg-light" required />
+            <label id="login-label" class="form-label small fw-bold text-secondary">Student No</label>
+            <input type="text" id="login-input" name="username" placeholder="000000000" class="form-control form-control-xl bg-light" required />
           </div>
 
           <div class="mb-4">
@@ -61,4 +93,27 @@
       </div>
     </div>
   </section>
+
+  <script>
+    function setLoginMode(mode) {
+      const label = document.getElementById('login-label')
+      const input = document.getElementById('login-input')
+      const btnStudent = document.getElementById('btn-student')
+      const btnMgmt = document.getElementById('btn-mgmt')
+    
+      if (mode === 'mgmt') {
+        label.innerText = 'Username'
+        input.placeholder = 'Enter username'
+    
+        btnMgmt.classList.add('active')
+        btnStudent.classList.remove('active')
+      } else {
+        label.innerText = 'Student No'
+        input.placeholder = '000000000'
+    
+        btnStudent.classList.add('active')
+        btnMgmt.classList.remove('active')
+      }
+    }
+  </script>
 {% endblock %}

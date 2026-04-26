@@ -27,7 +27,7 @@
               <select name="special_role" id="roleSelector" class="form-select form-select-lg rounded-3 border-2" required onchange="updateRoleInfo(this.value)">
                 <option value="" selected disabled>Select Role...</option>
                 <option value="management">University Management</option>
-                <option value="campus_admin">Campus Administrator</option> 
+                <option value="campus_admin">Campus Administrator</option>
                 <option value="alumni_assoc">Alumni Association</option>
               </select>
               <div id="roleHelp" class="form-text mt-2 p-2 bg-light rounded-3 small text-primary">Please select a role to see granted permissions.</div>
@@ -42,7 +42,13 @@
                 <input type="text" name="username" class="form-control rounded-end-3 border-start-0" placeholder="e.g. cba_admin" required />
               </div>
             </div>
-
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-uppercase text-muted">Email Address</label>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-envelope text-muted"></i></span>
+                <input type="email" name="email" class="form-control rounded-end-3 border-start-0" placeholder="e.g. admin@university.edu.ph" required />
+              </div>
+            </div>
             <div class="mb-3">
               <label class="form-label small fw-bold text-uppercase text-muted">Full Name (Optional)</label>
               <input type="text" name="full_name" class="form-control rounded-3" placeholder="e.g. John Doe" />

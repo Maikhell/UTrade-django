@@ -47,7 +47,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         return None
 
     def form_valid(self, form):
-        # handle single form submittions
         name = form.cleaned_data.get('name', '')
         desc = form.cleaned_data.get('description', '')
         category = form.cleaned_data.get('category') 
@@ -83,7 +82,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
 
         try:
             for i in range(total_products):
-                # 1. Data Extraction
                 prod_name = request.POST.get(f'prod_{i}_name', '')
                 prod_desc = request.POST.get(f'prod_{i}_desc', '')
                 prod_price = request.POST.get(f'prod_{i}_price', 0)
@@ -113,10 +111,8 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                             }
                         )
                     elif raw_meetup.isdigit():
-                        # Only query by ID if the string is numeric
                         meetup_obj = MeetupLocation.objects.filter(id=int(raw_meetup)).first()
                     else:
-                        # Fallback for unexpected strings that aren't prefixed with NEW:
                         meetup_obj, _ = MeetupLocation.objects.get_or_create(
                             name__iexact=raw_meetup,
                             defaults={
@@ -125,11 +121,9 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                             }
                         )
 
-                # 3. Prohibited Content Check for Product
                 if self.is_content_prohibited(prod_name) or self.is_content_prohibited(prod_desc):
                     return JsonResponse({'status': 'error', 'message': f'Prohibited content in {prod_name}.'}, status=400)
 
-                # 4. Category Logic
                 category_obj = None
                 if raw_category:
                     if raw_category.startswith('NEW:'):
@@ -141,7 +135,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     elif raw_category.isdigit():
                         category_obj = Category.objects.filter(id=int(raw_category)).first()
 
-                # 5. Product Creation
                 new_product = Product.objects.create(
                     name=prod_name,
                     description=prod_desc,
@@ -152,7 +145,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     status='Pending'
                 )
 
-                # 6. Image Handling
                 saved_images_objects = []
                 image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
                 
@@ -166,7 +158,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                             new_product.image = img_file
                             new_product.save()
 
-                # 7. Variants Handling
                 variants_data = request.POST.get(f'prod_{i}_variants', '[]')
                 try:
                     variants_list = json.loads(variants_data)
@@ -228,62 +219,47 @@ class ProductListView(ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        # Base queryset for STANDARD student sellers only
-        queryset = Product.objects.filter(
-            status='Approved'
-        ).exclude(
-            seller__user_role__in=['management', 'organization']
-        ).select_related('category', 'seller')
+        queryset = Product.objects.filter(status='Approved').select_related('category', 'seller')
         
         query = self.request.GET.get('q')
+        category_id = self.request.GET.get('category')
+        user_type = self.request.GET.get('type') 
+
         if query:
             queryset = queryset.filter(
                 Q(name__icontains=query) | 
                 Q(description__icontains=query) |
-                Q(category__name__icontains=query)
+                Q(category__name__icontains=query) |
+                Q(seller__user_role__icontains=query) |
+                Q(seller__organization__icontains=query)
             )
 
-        category_id = self.request.GET.get('category')
         if category_id:
             queryset = queryset.filter(category_id=category_id)
+
+        if user_type == 'management':
+            queryset = queryset.filter(seller__user_role__in=['management', 'admin'])
+        elif user_type == 'organization':
+            queryset = queryset.filter(seller__user_role__in=['organization', 'alumni_assoc', 'officer'])
+        elif user_type == 'student':
+            queryset = queryset.exclude(seller__user_role__in=['management', 'admin', 'organization', 'alumni_assoc'])
 
         return queryset.order_by('-created_at').distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        # 1. Fetch Official Products (Management & Organization) separately
-        official_queryset = Product.objects.filter(
-            status='Approved',
-            seller__user_role__in=['management', 'organization']
-        ).select_related('category', 'seller')
-
-        # Apply same search/category filters to official products if they exist
-        query = self.request.GET.get('q')
-        category_id = self.request.GET.get('category')
-        
-        if query:
-            official_queryset = official_queryset.filter(
-                Q(name__icontains=query) | 
-                Q(description__icontains=query)
-            )
-        if category_id:
-            official_queryset = official_queryset.filter(category_id=category_id)
-            
-        context['official_products'] = official_queryset.order_by('-created_at').distinct()
-
-        # 2. General Context Data
         context['categories'] = Category.objects.all()
-        context['current_category'] = category_id
-        context['search_query'] = query 
+        context['current_category'] = self.request.GET.get('category')
+        context['current_type'] = self.request.GET.get('type')
+        context['search_query'] = self.request.GET.get('q') 
         
-        # 3. User Interaction Data (Wishlist/Cart)
         if self.request.user.is_authenticated:
-            user_wishlist = Wishlist.objects.filter(user=self.request.user).values_list('product_id', flat=True)
-            context['user_wishlist_ids'] = set(user_wishlist)
-            
-            user_cart = CartItem.objects.filter(cart__user=self.request.user).values_list('variant__product_id', flat=True)
-            context['user_cart_ids'] = set(user_cart)
+            context['user_wishlist_ids'] = set(
+                Wishlist.objects.filter(user=self.request.user).values_list('product_id', flat=True)
+            )
+            context['user_cart_ids'] = set(
+                CartItem.objects.filter(cart__user=self.request.user).values_list('variant__product_id', flat=True)
+            )
         else:
             context['user_wishlist_ids'] = []
             context['user_cart_ids'] = [] 

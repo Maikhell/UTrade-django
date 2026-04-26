@@ -65,6 +65,7 @@
 
         <form method="post" action="{% url 'user.login' %}">
           {% csrf_token %}
+          <input type="hidden" name="login_mode" id="login-mode" value="student" />
 
           <div class="mb-3">
             <label id="login-label" class="form-label small fw-bold text-secondary">Student No</label>
@@ -98,19 +99,20 @@
     function setLoginMode(mode) {
       const label = document.getElementById('login-label')
       const input = document.getElementById('login-input')
+      const modeInput = document.getElementById('login-mode')
       const btnStudent = document.getElementById('btn-student')
       const btnMgmt = document.getElementById('btn-mgmt')
+    
+      modeInput.value = mode // Set hidden input value
     
       if (mode === 'mgmt') {
         label.innerText = 'Username'
         input.placeholder = 'Enter username'
-    
         btnMgmt.classList.add('active')
         btnStudent.classList.remove('active')
       } else {
         label.innerText = 'Student No'
         input.placeholder = '000000000'
-    
         btnStudent.classList.add('active')
         btnMgmt.classList.remove('active')
       }

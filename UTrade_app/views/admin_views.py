@@ -274,24 +274,25 @@ def admin_create_account(request):
     if request.method == 'POST':
         role = request.POST.get('special_role') 
         uname = request.POST.get('username')
+        email = request.POST.get('email') 
         pword = request.POST.get('password')
         full_name = request.POST.get('full_name', '')
 
         if User.objects.filter(username=uname).exists():
             messages.error(request, "Username already taken.")
+        elif User.objects.filter(email=email).exists():
+            messages.error(request, "An account with this email already exists.")
         else:
             unique_suffix = str(uuid.uuid4())[:8]
             
-            # Create user with a placeholder email
             new_user = User.objects.create_user(
                 username=uname, 
                 password=pword,
-                email=f"{uname}_{unique_suffix}@utrade.system",
+                email=email,
             )
             
             new_user.first_name = full_name
             new_user.user_role = role
-            
             new_user.status = 'verified' 
             
             if role == 'officer':
@@ -300,18 +301,17 @@ def admin_create_account(request):
                 new_user.student_no = uname 
 
             elif role == 'alumni_assoc':
-                new_user.user_role = 'alumni_assoc'
                 new_user.organization = 'Alumni Association'
                 new_user.student_no = f"ALM-{unique_suffix}"
                 
             elif role == 'campus_admin':
-                new_user.user_role = 'campus_admin'
                 new_user.organization = 'Campus Admin'
-                new_user.student_no = f"ALM-{unique_suffix}"            
+                new_user.student_no = f"CAD-{unique_suffix}" 
+                new_user.is_staff = True 
             
             elif role == 'management' or role == 'admin':
-                new_user.is_staff = False
                 new_user.student_no = f"ADM-{unique_suffix}"
+                new_user.is_staff = True 
 
             new_user.save()
             

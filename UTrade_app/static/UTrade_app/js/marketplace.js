@@ -52,7 +52,6 @@ async function toggleWishlist(productId, buttonElement, isWishlistPage = false) 
 }
 
 function addToCart(productId, buttonElement) {
-    // Check if buttonElement is actually a DOM element before using querySelector
     const isElement = buttonElement instanceof HTMLElement;
     const icon = isElement ? buttonElement.querySelector('i') : null;
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
@@ -64,41 +63,56 @@ function addToCart(productId, buttonElement) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                // Only update UI elements if buttonElement was a valid element
-                if (isElement && icon) {
-                    icon.classList.replace('bi-cart-plus', 'bi-cart-check-fill');
-                    buttonElement.classList.add('btn-success');
-                }
-
-                const badge = document.getElementById('cart-count');
-                if (badge) {
-                    badge.innerText = data.cart_count;
-                    badge.style.display = 'inline-block';
-
-                    badge.animate([
-                        { transform: 'scale(1)' },
-                        { transform: 'scale(1.5)' },
-                        { transform: 'scale(1)' }
-                    ], { duration: 300 });
-                }
-
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: 'Added to Cart',
-                    showConfirmButton: false,
-                    timer: 1500,
-                    timerProgressBar: true
-                });
+    .then(response => response.json())
+    .then(data => {
+        // CHANGED: Check for data.success to match your Django View
+        if (data.success === true) {
+            
+            if (isElement && icon) {
+                icon.classList.replace('bi-cart-plus', 'bi-cart-check-fill');
+                buttonElement.classList.add('btn-success');
             }
-        })
-        .catch(error => console.error('Error:', error));
-}
 
+            const badge = document.getElementById('cart-count');
+            if (badge) {
+                badge.innerText = data.cart_count;
+                badge.style.display = 'inline-block';
+
+                badge.animate([
+                    { transform: 'scale(1)' },
+                    { transform: 'scale(1.5)' },
+                    { transform: 'scale(1)' }
+                ], { duration: 300 });
+            }
+
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'Added to Cart',
+                showConfirmButton: false,
+                timer: 1500,
+                timerProgressBar: true
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Wait!',
+                text: data.message || 'Could not add item to cart.',
+                confirmButtonColor: '#198754'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'warning',
+            title: 'Please Login',
+            text: 'You need an account to add items to your cart.',
+            confirmButtonColor: '#198754'
+        });
+    });
+}
 function changeImage(imageUrl, element) {
     const mainImg = document.getElementById('mainDisplayImage');
     if (mainImg) {

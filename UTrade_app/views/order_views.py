@@ -112,6 +112,8 @@ def order_success(request, order_id):
 def order_history(request):
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
     
+    pending_orders = orders.filter(status='Pending')
+    
     pickup_orders = orders.filter(
         Q(status='Accepted') | 
         Q(status='Delivered') |
@@ -120,15 +122,12 @@ def order_history(request):
     
     context = {
         'orders': orders,
+        'pending_orders': pending_orders,
+        'pending_count': pending_orders.count(),
         'pickup_orders': pickup_orders,
         'pickup_count': pickup_orders.count(),
     }
-    return render(request, 'UTrade_app/orders/orders.html', {
-        'orders': orders,
-        'pickup_orders': pickup_orders,
-        'pickup_count': pickup_orders.count(),
-    })
-
+    return render(request, 'UTrade_app/orders/orders.html', context)
 @login_required
 def accept_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, seller=request.user)

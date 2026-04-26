@@ -8,6 +8,18 @@
 {% block content %}
   {% block extra_css %}
     <link rel="stylesheet" href="{% static 'UTrade_app/css/marketplace.css' %}" />
+    <style>
+      /* Hover animation for category badges */
+      .badge {
+        transition: all 0.25s ease;
+      }
+
+      .badge:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        opacity: 1 !important;
+      }
+    </style>
   {% endblock %}
 
   <div class="container py-5">

@@ -89,17 +89,25 @@ function openVariantSelector(productId, productName) {
 function performAddToCart(variantId) {
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
+    // 1. Log to console to verify the URL being called
+    console.log("Calling URL:", `/cart/add/${variantId}/`);
+
     fetch(`/cart/add/${variantId}/`, {  
         method: 'POST',
         headers: {
             'X-CSRFToken': csrftoken,
             'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest' // Helps Django identify AJAX
         },
-        body: JSON.stringify({
-            'quantity': 1
-        })
+        body: JSON.stringify({ 'quantity': 1 })
     })
-    .then(response => response.json())
+    .then(response => {
+        // 2. Check if the server actually returned a success status
+        if (!response.ok) {
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             const cartCountBadge = document.getElementById('cart-count');
@@ -113,18 +121,29 @@ function performAddToCart(variantId) {
                 title: 'Added to Cart!',
                 text: 'Your item is waiting in the shopping cart.',
                 showConfirmButton: false,
-                timer: 1500
+                timer: 1500,
+                iconColor: '#198754'
             });
         } else {
-            Swal.fire('Error', data.message || 'Could not add to cart', 'error');
+            Swal.fire({
+                icon: 'error',
+                title: 'Could not add to cart',
+                text: data.message || 'Check stock availability.',
+                confirmButtonColor: '#198754'
+            });
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        Swal.fire('Error', 'Something went wrong', 'error');
+        console.error('Full Error Object:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Connection Error',
+            text: 'Ensure you are logged in and the server is reachable.',
+            confirmButtonColor: '#d33'
+        });
     });
 }
-// Identifies the product name and triggers the variation selection modal
+
 function addToCartWithVariant(productId) {
     const productName = document.querySelector('h1')?.innerText || "Product";
     openVariantSelector(productId, productName);

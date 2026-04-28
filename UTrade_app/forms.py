@@ -1,11 +1,10 @@
 from django import forms
 from .models import Product, User, Services, ProductVariant, ProductImage
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'description', 'category', 'pre_order']
+        fields = ['name', 'description', 'category', 'pre_order', 'accepted_payments']
         widgets = {
             'description': forms.Textarea(attrs={'cols': 80, 'rows': 5, 'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -14,8 +13,8 @@ class ProductForm(forms.ModelForm):
                 choices=[(False, 'Live (On-hand Stock)'), (True, 'Pre-order (Advance Order)')],
                 attrs={'class': 'form-select'}
             ),
+            'accepted_payments': forms.Select(attrs={'class': 'form-select'}),
         }
-
 class VariantForm(forms.ModelForm):
     """Form specifically for adding/editing product variations"""
     assigned_image = forms.ModelChoiceField(

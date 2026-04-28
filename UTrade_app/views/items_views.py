@@ -135,6 +135,8 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     elif raw_category.isdigit():
                         category_obj = Category.objects.filter(id=int(raw_category)).first()
 
+                prod_payment = request.POST.get(f'prod_{i}_payment', 'BOTH')    
+                                         
                 new_product = Product.objects.create(
                     name=prod_name,
                     description=prod_desc,
@@ -142,6 +144,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     meetup_location=meetup_obj,
                     seller=request.user,
                     pre_order=is_pre_order,
+                    accepted_payments=prod_payment,
                     status='Pending'
                 )
 

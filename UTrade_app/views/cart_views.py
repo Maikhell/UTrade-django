@@ -99,6 +99,12 @@ def checkout_view(request):
 
     total_price = sum(item.get_cost() for item in cart_items)
 
+
+    item_methods = [item.variant.product.accepted_payments for item in cart_items]  
+    
+    can_use_gcash = all(m in ['GCASH', 'BOTH'] for m in item_methods)
+    can_use_cop = all(m in ['COP', 'BOTH'] for m in item_methods)
+
     unique_locations = MeetupLocation.objects.filter(
         is_active=True
     ).values_list('name', flat=True).order_by('name')
@@ -108,5 +114,7 @@ def checkout_view(request):
         'total_price': total_price,
         'user': request.user,
         'available_locations': unique_locations,
+        'can_use_gcash': can_use_gcash,
+        'can_use_cop': can_use_cop,
     }   
     return render(request, 'UTrade_app/cart/checkout.html', context)

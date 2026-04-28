@@ -5,12 +5,14 @@ from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from ..models import CartItem, Order, OrderItem, Review
+from ..models import CartItem, Order, OrderItem, Review, Product
 from django.db.models import Q
 from django.contrib import messages
 
 @login_required
+@transaction.atomic
 def place_order(request):
+    
     if request.method == "POST":
         payment_method = request.POST.get('payment_method')
         item_ids = request.POST.getlist('item_ids')
@@ -39,7 +41,14 @@ def place_order(request):
                     buyer_note=request.POST.get('buyer_note'),         
                     status='Pending'
                 )
-
+                for item in selected_items:
+                    variant = item.variant
+                    if variant.stocks >= item.quantity:
+                        variant.stocks -= item.quantity
+                        variant.save()
+                    else:
+                        raise Exception(f"Not enough stock for {variant.product.name}")
+                    
                 for item in selected_items:
                     OrderItem.objects.create(
                         order=new_order,
@@ -86,14 +95,12 @@ def place_order(request):
                     return redirect('cart_detail')
 
             return redirect('order_success', order_id=new_order.id)
-
+       
         except Exception as e:
             print(traceback.format_exc())
             return redirect('cart_detail')
 
     return redirect('cart_detail')
-
-
 
 @login_required
 def order_success(request, order_id):

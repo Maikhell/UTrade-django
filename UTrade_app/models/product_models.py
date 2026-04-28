@@ -18,7 +18,17 @@ class Product(BaseItem):
         MeetupLocation, 
         on_delete=models.SET_NULL, 
         null=True, 
-        related_name="products"
+        related_name="products"    
+    )
+    PAYMENT_METHODS = [
+        ('GCASH', 'GCash Only'),
+        ('COP', 'Cash on Pickup Only'),
+        ('BOTH', 'GCash and COP'),
+    ]
+    accepted_payments = models.CharField(
+        max_length=10, 
+        choices=PAYMENT_METHODS, 
+        default='BOTH'
     )
     def __str__(self):
         return self.name

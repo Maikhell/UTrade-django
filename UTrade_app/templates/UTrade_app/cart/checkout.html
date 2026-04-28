@@ -153,29 +153,45 @@
             </div>
           </div>
           <div class="card border-0 shadow-sm rounded-4 p-4">
-            <h5 class="fw-bold mb-4">Payment Method</h5>
-            <div class="row g-2">
-              <div class="col-md-6">
-                <label class="payment-option w-100 h-100">
-                  <input type="radio" name="payment_method" value="GCASH_ONLINE" class="d-none" checked />
-                  <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
-                    <i class="bi bi-lightning-charge-fill text-warning mb-2 h4"></i>
-                    <div class="fw-bold small">Online GCash</div>
-                    <small class="text-muted" style="font-size: 0.6rem;">Instant Verification</small>
-                  </div>
-                </label>
-              </div>
-              <div class="col-md-6">
-                <label class="payment-option w-100 h-100">
-                  <input type="radio" name="payment_method" value="COP" class="d-none" />
-                  <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
-                    <i class="bi bi-cash-stack h4 text-success mb-2"></i>
-                    <div class="fw-bold small">Cash on Pickup</div>
-                    <small class="text-muted" style="font-size: 0.6rem;">Pay at meet-up</small>
-                  </div>
-                </label>
-              </div>
-            </div>
+            
+            <h5 class="fw-bold mb-4">Payment Method <br>                     <small class="text-muted italic" style="font-size: 0.75rem;"><i class="bi bi-info-circle me-1"></i>The payment method depends on the seller's choices.</small></h5>
+           <div class="row g-2">
+  {% if can_use_gcash %}
+    <div class="col-md-6">
+      <label class="payment-option w-100 h-100">
+        <input type="radio" name="payment_method" value="GCASH" class="d-none" checked />
+        <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
+          <i class="bi bi-lightning-charge-fill text-warning mb-2 h4"></i>
+          <div class="fw-bold small">Online GCash</div>
+          <small class="text-muted" style="font-size: 0.6rem;">Instant Verification</small>
+        </div>
+      </label>
+    </div>
+  {% endif %}
+
+  {% if can_use_cop %}
+    <div class="col-md-6">
+      <label class="payment-option w-100 h-100">
+        <input type="radio" name="payment_method" value="COP" class="d-none" 
+               {% if not can_use_gcash %}checked{% endif %} />
+        <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
+          <i class="bi bi-cash-stack h4 text-success mb-2"></i>
+          <div class="fw-bold small">Cash on Pickup</div>
+          <small class="text-muted" style="font-size: 0.6rem;">Pay at meet-up</small>
+        </div>
+      </label>
+    </div>
+  {% endif %}
+  
+  {% if not can_use_gcash and not can_use_cop %}
+    <div class="col-12">
+        <div class="alert alert-danger mb-0" style="font-size: 0.8rem;">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            These items have conflicting payment methods. Please checkout separately.
+        </div>
+    </div>
+  {% endif %}
+</div>
           </div>
         </div>
 

@@ -56,7 +56,7 @@ class Login(LoginView):
 
         if user is not None:
             if mode == 'mgmt':
-                allowed_roles = ['management', 'admin', 'officer', 'campus_admin']
+                allowed_roles = ['management', 'admin', 'officer', 'campus_admin','alumni_assoc']
                 if not user.is_superuser and (not user.is_staff and user.user_role not in allowed_roles):
                     messages.error(request, "Access denied. This is not a staff account.")
                     return self.render_to_response(self.get_context_data())

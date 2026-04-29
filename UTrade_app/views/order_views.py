@@ -5,8 +5,10 @@ from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from ..models import CartItem, Order, OrderItem, Review, Product
+
+from ..models import CartItem, Order, OrderItem, Review, Product, ChatMessage, Conversation
 from django.db.models import Q
+from django.http import JsonResponse
 from django.contrib import messages
 
 @login_required
@@ -39,7 +41,7 @@ def place_order(request):
                     payment_method=payment_method, # Will save 'GCASH'
                     pickup_location=request.POST.get('pickup_location'),
                     buyer_note=request.POST.get('buyer_note'),         
-                    status='Pending'
+                    status='Pending '
                 )
                 for item in selected_items:
                     variant = item.variant
@@ -135,6 +137,50 @@ def order_history(request):
         'pickup_count': pickup_orders.count(),
     }
     return render(request, 'UTrade_app/orders/orders.html', context)
+from django.db import transaction
+
+@login_required
+@transaction.atomic 
+def cancel_order(request, order_id):
+    if request.method == 'POST':
+        order = get_object_or_404(Order, id=order_id, user=request.user)
+        
+        if order.status != 'Pending':
+            return JsonResponse({'status': 'error', 'message': 'Order cannot be cancelled.'}, status=400)
+        
+        for item in order.items.all():
+            variant = item.product_variant
+            variant.stocks += item.quantity
+            variant.save()
+            
+        reason = request.POST.get('reason', 'No reason provided')
+        order.status = 'Cancelled'
+        order.cancellation_reason = reason 
+        order.save()
+        
+        first_item = order.items.first()
+        product = first_item.product_variant.product if first_item else None
+        
+        if product:
+
+            conversation, created = Conversation.objects.get_or_create(
+                product=product,
+                buyer=request.user,
+                seller=order.seller
+            )
+
+            notification_text = f"🚨 SYSTEM: Order #{order.id} has been cancelled by the buyer.\nReason: {reason}"
+            
+            ChatMessage.objects.create(
+                conversation=conversation,
+                user=request.user,
+                content=notification_text,
+                is_read=False
+            )
+        
+        return JsonResponse({'status': 'success', 'message': 'Order cancelled successfully.'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
 @login_required
 def accept_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, seller=request.user)

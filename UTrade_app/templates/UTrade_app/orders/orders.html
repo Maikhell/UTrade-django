@@ -6,6 +6,7 @@
 {% endblock %}
 
 {% block content %}
+  {% csrf_token %}
   <div class="mb-3">
     <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
   </div>
@@ -16,16 +17,14 @@
     <ul class="nav nav-pills mb-3 bg-white p-2 rounded-3 shadow-sm" id="orderTabs" role="tablist">
       <li class="nav-item flex-fill" role="presentation">
         <button class="nav-link active w-100 fw-semibold position-relative" id="pending-tab" data-bs-toggle="pill" data-bs-target="#pending" type="button" role="tab">
-          Orders
-          {% if pending_count > 0 %}
+          Orders{% if pending_count > 0 %}
             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">{{ pending_count }}</span>
           {% endif %}
         </button>
       </li>
       <li class="nav-item flex-fill" role="presentation">
         <button class="nav-link w-100 fw-semibold position-relative" id="pickup-tab" data-bs-toggle="pill" data-bs-target="#pickup" type="button" role="tab">
-          To Pickup
-          {% if pickup_count > 0 %}
+          To Pickup{% if pickup_count > 0 %}
             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ pickup_count }}</span>
           {% endif %}
         </button>
@@ -36,7 +35,6 @@
     </ul>
 
     <div class="tab-content" id="orderTabsContent">
-      
       <div class="tab-pane fade show active" id="pending" role="tabpanel">
         {% for order in pending_orders %}
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
@@ -70,9 +68,7 @@
                   <small class="text-muted d-block">Order Total</small>
                   <span class="fw-bold">₱{{ order.total_amount }}</span>
                 </div>
-                <div>
-                  <button class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Order</button>
-                </div>
+                <button onclick="handleCancelOrder('{{ order.id }}')" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Order</button>
               </div>
             </div>
           </div>
@@ -117,7 +113,6 @@
 
                 {% if order.status == 'Delivered' %}
                   <form action="{% url 'confirm_receipt' order.id %}" method="POST">
-                    {% csrf_token %}
                     <button type="submit" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">Confirm Received</button>
                   </form>
                 {% else %}
@@ -190,7 +185,6 @@
                         <small class="text-muted">{{ item.quantity }}x - ₱{{ item.price }}</small>
                       </div>
                     </div>
-                   
                   {% endfor %}
                 </div>
 
@@ -203,7 +197,7 @@
                   </div>
                   <div class="d-flex gap-2">
                     {% if order.status == 'Completed' %}
-                        <button class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}"><i class="bi bi-star-fill me-1"></i> Rate</button>
+                      <button class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}"><i class="bi bi-star-fill me-1"></i> Rate</button>
                     {% endif %}
                     <button class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#historyDetails{{ order.id }}"><i class="bi bi-eye me-1"></i> Details</button>
                   </div>
@@ -217,10 +211,79 @@
   </div>
 
   <style>
-    .card { transition: transform 0.2s; }
-    .card:active { transform: scale(0.98); }
-    .bg-primary-subtle { background-color: #e7f1ff !important; color: #084298 !important; }
-    .bg-warning-subtle { background-color: #fff3cd !important; color: #664d03 !important; }
-    .nav-pills .nav-link.active { background-color: #198754; } /* Success color matches UTrade theme */
+    .card {
+      transition: transform 0.2s;
+    }
+    .card:active {
+      transform: scale(0.98);
+    }
+    .bg-primary-subtle {
+      background-color: #e7f1ff !important;
+      color: #084298 !important;
+    }
+    .bg-warning-subtle {
+      background-color: #fff3cd !important;
+      color: #664d03 !important;
+    }
+    .nav-pills .nav-link.active {
+      background-color: #198754;
+    } /* Success color matches UTrade theme */
   </style>
+
+  <script>
+    async function handleCancelOrder(orderId) {
+      const { value: reason } = await Swal.fire({
+        title: 'Cancel Order?',
+        text: 'Please tell us why you are cancelling:',
+        input: 'select',
+        inputOptions: {
+          'Changed mind': 'Changed my mind',
+          'Found better price': 'Found a better price',
+          'Accidental order': 'Accidental order',
+          'Seller not responding': 'Seller is not responding',
+          Other: 'Other'
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, cancel it!',
+        inputValidator: (value) => {
+          return new Promise((resolve) => {
+            if (value) {
+              resolve()
+            } else {
+              resolve('You need to select a reason.')
+            }
+          })
+        }
+      })
+    
+      if (reason) {
+        const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value
+        try {
+          const response = await fetch(`/orders/cancel/${orderId}/`, {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': csrftoken,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `reason=${reason}`
+          })
+    
+          const result = await response.json()
+    
+          if (result.status === 'success') {
+            Swal.fire('Cancelled!', result.message, 'success').then(() => {
+              location.reload() // Refresh to update status
+            })
+          } else {
+            Swal.fire('Error', result.message, 'error')
+          }
+        } catch (error) {
+          Swal.fire('Error', 'Something went wrong.', 'error')
+        }
+      }
+    }
+  </script>
 {% endblock %}

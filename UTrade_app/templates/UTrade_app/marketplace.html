@@ -125,7 +125,7 @@
                 {% if product.seller.user_role == 'management' or product.seller.user_role == 'admin' %}
                   <span class="badge rounded-pill bg-primary px-2 py-1 text-uppercase fw-bold shadow-sm" style="font-size: 0.6rem;">Official</span>
                 {% elif product.seller.user_role == 'organization' or product.seller.user_role == 'alumni_assoc' or product.seller.user_role == 'officer' %}
-                  <span class="badge rounded-pill bg-info text-dark px-2 py-1 text-uppercase fw-bold shadow-sm" style="font-size: 0.6rem;">Verified Org</span>
+                  <span class="badge rounded-pill bg-info text-dark px-2 py-1 text-uppercase fw-bold shadow-sm" style="font-size: 0.6rem;">Student Organizations</span>
                 {% else %}
                   <span class="badge rounded-pill bg-success px-2 py-1 text-uppercase fw-bold shadow-sm" style="font-size: 0.6rem;">{{ product.category.name|default:'Item' }}</span>
                 {% endif %}

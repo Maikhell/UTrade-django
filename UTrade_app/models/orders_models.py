@@ -21,6 +21,22 @@ class Order(models.Model):
         on_delete=models.CASCADE, 
         related_name='orders'
     )
+    CANCELLATION_CHOICES = [
+        ('Changed mind', 'Changed my mind'),
+        ('Found better price', 'Found a better price'),
+        ('Accidental order', 'Accidental order'),
+        ('Seller not responding', 'Seller is not responding'),
+        ('Other', 'Other'),
+    ]
+
+    cancellation_reason = models.CharField(
+        max_length=100, 
+        choices=CANCELLATION_CHOICES, 
+        null=True, 
+        blank=True
+    )
+    cancellation_note = models.TextField(null=True, blank=True)
+    
     meetup_location = models.CharField(max_length=255, blank=True, null=True)
     pickup_time = models.DateTimeField(blank=True, null=True) 
     seller_note = models.TextField(blank=True, null=True)

@@ -6,7 +6,7 @@ from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant, MeetupLocation 
+from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant, MeetupLocation, ProhibitedWord 
 from django.http import JsonResponse
 import re
 import json
@@ -24,7 +24,10 @@ def landing_page(request):
         'categories': categories,
         'products': products
     })
-
+def prohibited_words_api(request):
+    words = list(ProhibitedWord.objects.values_list('word', flat=True))
+    return JsonResponse({'prohibited_words': words})
+    
 class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'Utrade_app/products/actions/addproduct.html'
@@ -53,7 +56,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         
         flagged_name = self.is_content_prohibited(name)
         flagged_desc = self.is_content_prohibited(desc)
-        f_cat = self.is_content_prohibited(category.name) if category else None
         
         if flagged_name or flagged_desc:
             word = flagged_name or flagged_desc
@@ -61,10 +63,13 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             return self.form_invalid(form)
             
         product = form.save(commit=False)
-        product.pre_order = form.cleaned_data.get('pre_order') == True or form.cleaned_data.get('pre_order') == "True"
         product.seller = self.request.user
         product.status = 'Pending'
         product.pre_order = form.cleaned_data.get('pre_order', False)
+        
+        # Capture owner_type for standard form submissions
+        product.owner_type = self.request.POST.get('owner_type', 'PERSONAL')
+        
         product.save()
         return redirect('product.list')
     
@@ -88,14 +93,15 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 prod_stocks = request.POST.get(f'prod_{i}_stocks', 0)
                 raw_category = request.POST.get(f'prod_{i}_category', '')
                 raw_meetup = request.POST.get(f'prod_{i}_meetup', '').strip()
-                is_pre_order = request.POST.get(f'prod_{i}_pre_order') == 'True'
                 raw_pre_order = request.POST.get(f'prod_{i}_pre_order', 'false').lower()
                 is_pre_order = raw_pre_order == 'true'
+                
+                raw_owner = request.POST.get(f'prod_{i}_owner_type', 'PERSONAL')
+                prod_owner_type = raw_owner if raw_owner in ['PERSONAL', 'ORGANIZATION'] else 'PERSONAL'
                 meetup_obj = None
                 if raw_meetup:
                     if raw_meetup.startswith('NEW:'):
                         new_loc_name = raw_meetup.replace('NEW:', '').strip()
-                        
                         flagged_loc = self.is_content_prohibited(new_loc_name)
                         if flagged_loc:
                             return JsonResponse({
@@ -105,20 +111,14 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
 
                         meetup_obj, _ = MeetupLocation.objects.get_or_create(
                             name__iexact=new_loc_name,
-                            defaults={
-                                'name': new_loc_name,
-                                'added_by': request.user 
-                            }
+                            defaults={'name': new_loc_name, 'added_by': request.user}
                         )
                     elif raw_meetup.isdigit():
                         meetup_obj = MeetupLocation.objects.filter(id=int(raw_meetup)).first()
                     else:
                         meetup_obj, _ = MeetupLocation.objects.get_or_create(
                             name__iexact=raw_meetup,
-                            defaults={
-                                'name': raw_meetup,
-                                'added_by': request.user
-                            }
+                            defaults={'name': raw_meetup, 'added_by': request.user}
                         )
 
                 if self.is_content_prohibited(prod_name) or self.is_content_prohibited(prod_desc):
@@ -135,8 +135,8 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     elif raw_category.isdigit():
                         category_obj = Category.objects.filter(id=int(raw_category)).first()
 
-                prod_payment = request.POST.get(f'prod_{i}_payment', 'BOTH')    
-                                         
+                prod_payment = request.POST.get(f'prod_{i}_payment', 'BOTH')                                     
+                
                 new_product = Product.objects.create(
                     name=prod_name,
                     description=prod_desc,
@@ -145,6 +145,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     seller=request.user,
                     pre_order=is_pre_order,
                     accepted_payments=prod_payment,
+                    owner_type=prod_owner_type,
                     status='Pending'
                 )
 
@@ -198,7 +199,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         except Exception as e:
             print(f"Error saving product: {str(e)}")
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
-        
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'Utrade_app/products/actions/product_details.html'
@@ -243,7 +243,7 @@ class ProductListView(ListView):
         if user_type == 'management':
             queryset = queryset.filter(seller__user_role__in=['management', 'admin'])
         elif user_type == 'organization':
-            queryset = queryset.filter(seller__user_role__in=['organization', 'alumni_assoc', 'officer'])
+            queryset = queryset.filter(owner_type='ORGANIZATION')
         elif user_type == 'student':
             queryset = queryset.exclude(seller__user_role__in=['management', 'admin', 'organization', 'alumni_assoc'])
 

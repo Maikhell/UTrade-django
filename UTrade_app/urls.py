@@ -88,4 +88,10 @@ urlpatterns = [
     # Delete Operations
     path('management/security/delete-word/<int:word_id>/', management_views.delete_bad_word, name='delete_bad_word'),
     path('management/security/categories/delete/<int:cat_id>/', management_views.delete_category, name='delete_category'),
-    path('management/security/delete-meetup/<int:loc_id>/', management_views.delete_meetup, name='delete_meetup'),]
+    path('management/security/delete-meetup/<int:loc_id>/', management_views.delete_meetup, name='delete_meetup'),
+    
+    #
+    path('api/prohibited-words/', items_views.prohibited_words_api, name='prohibited_words_api'),
+
+    ]
+   

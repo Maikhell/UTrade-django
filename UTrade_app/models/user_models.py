@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser 
 from django.db import models
+from .organization_models import Organization
 from django.core.validators import RegexValidator
 from django.templatetags.static import static
 
@@ -47,7 +48,14 @@ class User(AbstractUser):
         choices=[('unverified', 'Unverified'), ('pending', 'Pending'), ('verified', 'Verified')],
         default='unverified'
     )
-    organization = models.CharField(max_length=50, blank=True, null=True)
+    organization = models.CharField(max_length=50, blank=True, null=True)  
+    org_link = models.ForeignKey(
+        'Organization', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name="members"
+    )
     position = models.CharField(max_length=50, blank=True, null=True)
     officer_id_image = models.ImageField(upload_to='officer_ids/', blank=True, null=True)
     display_name = models.CharField(max_length=150, blank=True, null=True, unique=True)

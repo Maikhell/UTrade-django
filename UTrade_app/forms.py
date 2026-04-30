@@ -4,7 +4,7 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'description', 'category', 'pre_order', 'accepted_payments']
+        fields = ['name', 'description', 'category', 'pre_order', 'accepted_payments','owner_type']
         widgets = {
             'description': forms.Textarea(attrs={'cols': 80, 'rows': 5, 'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),

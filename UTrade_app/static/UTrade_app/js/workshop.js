@@ -25,14 +25,12 @@ window.sizePresets = {
     Clothing: ['S', 'M', 'L', 'XL', 'XXL'],
     Shoes: ['38', '39', '40', '41', '42', '43', '44'],
     Footwear: ['38', '39', '40', '41', '42', '43', '44'],
-    Watches: ['36', '38', '40', '41', '42', '43',]
+    Watches: ['36', '38', '40', '41', '42', '43']
 };
-
 function previewMultipleImages(event) {
     const container = document.getElementById('image_preview_container');
     container.innerHTML = '';
     selectedFiles = Array.from(event.target.files);
-
     selectedFiles.forEach((file, index) => {
         const reader = new FileReader();
         reader.onload = function (e) {
@@ -46,11 +44,10 @@ function previewMultipleImages(event) {
                      class="preview-box ${isMain ? 'is-main-image' : ''}">
             `;
             container.appendChild(wrapper);
-        }
+        };
         reader.readAsDataURL(file);
     });
 }
-
 function addTag(type) {
     const input = document.getElementById(`${type}_input`);
     const tagContainer = document.getElementById(`${type}_tags`);
@@ -68,7 +65,6 @@ function addTag(type) {
     }
     input.value = '';
 }
-
 function toggleOtherCategory(select) {
     const otherDiv = document.getElementById('other_category_div');
     if (select.value === 'other') {
@@ -77,9 +73,9 @@ function toggleOtherCategory(select) {
         otherDiv.classList.add('d-none');
     }
 }
-
 function toggleCustomCondition(select) {
     const customInput = document.getElementById('custom_condition_input');
+    if (!customInput) return;
     if (select.value === 'Other') {
         customInput.classList.remove('d-none');
         customInput.focus();
@@ -87,7 +83,6 @@ function toggleCustomCondition(select) {
         customInput.classList.add('d-none');
     }
 }
-
 function addToStaging() {
     const nameEl = document.getElementById('name');
     const priceEl = document.getElementById('price');
@@ -95,13 +90,9 @@ function addToStaging() {
     const descEl = document.getElementById('description');
     const categoryEl = document.getElementById('category');
     const finalLocationsInput = document.getElementById('final_locations');
-    
     const preOrderElement = document.getElementById('is_pre_order');
-
     const isVariantMode = !document.getElementById('attributes_section').classList.contains('d-none');
-
     [nameEl, priceEl, stocksEl].forEach(el => el.classList.remove('is-invalid'));
-
     let hasError = false;
     if (window.locationTags.length === 0) {
         Swal.fire('Location Required', 'Please add at least one campus meetup spot.', 'warning');
@@ -116,19 +107,16 @@ function addToStaging() {
         nameEl.classList.add('is-invalid');
         return;
     }
-
     if (checkProhibitedContent(descEl.value)) {
         Swal.fire('Prohibited Content', 'The description contains restricted words.', 'error');
         descEl.classList.add('is-invalid');
         return;
     }
-
     if (checkProhibitedContent(window.locationTags.join(' '))) {
         Swal.fire('Prohibited Content', 'One of your meetup locations contains restricted words.', 'error');
         return;
     }
     let finalPrice, finalStocks;
-
     if (isVariantMode) {
         if (productVariants.length === 0) {
             Swal.fire('Variations Required', 'Please add at least one size or variety using the "Add" button.', 'warning');
@@ -142,12 +130,10 @@ function addToStaging() {
         finalPrice = priceEl.value;
         finalStocks = stocksEl.value;
     }
-
     if (selectedFiles.length === 0) {
         Swal.fire('Photos Required', 'Please select at least one photo for your product.', 'warning');
         return;
     }
-
     if (hasError) {
         return Swal.fire({
             title: 'Required Fields',
@@ -156,10 +142,8 @@ function addToStaging() {
             confirmButtonColor: '#dc3545'
         });
     }
-
     let categoryId = categoryEl.value;
     let categoryName = categoryEl.options[categoryEl.selectedIndex].text;
-
     if (categoryId === 'other') {
         const customValue = document.getElementById('custom_category').value.trim();
         categoryId = `NEW:${customValue}`;
@@ -169,9 +153,8 @@ function addToStaging() {
     const globalCondition = conditionEl ? conditionEl.value : "Brand New";
     const isPreOrder = preOrderElement ? preOrderElement.value : "False";
     const productId = Date.now();
-    const paymentEl = document.querySelector('input[name="payment_method"]:checked');
+    const paymentEl = document.querySelector('input[name="payment"]:checked');
     const payment = paymentEl ? paymentEl.value : 'BOTH';
-
     const productData = {
         id: productId,
         name: nameEl.value,
@@ -184,23 +167,19 @@ function addToStaging() {
         meetup: finalLocationsInput ? finalLocationsInput.value : '',
         payment: payment,
         files: [...selectedFiles],
-        variants: [...productVariants]
+        variants: [...productVariants],
+        owner_type: document.getElementById('owner_type')?.value || 'PERSONAL'
     };
-
     allStagedProducts.push(productData);
     itemCount = allStagedProducts.length;
     document.getElementById('item_count').innerText = itemCount;
-
     const stagingArea = document.getElementById('staging_area');
     if (stagingArea.querySelector('.empty-msg')) stagingArea.innerHTML = '';
-
     const firstImagePreview = document.querySelector('#image_preview_container img');
     const firstImageSrc = firstImagePreview ? firstImagePreview.src : null;
-
     const imageHtml = firstImageSrc
         ? `<img src="${firstImageSrc}" class="rounded shadow-sm me-3" style="width: 70px; height: 70px; object-fit: cover; border: 1px solid #dee2e6;">`
         : `<div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 70px; height: 70px; border: 1px solid #dee2e6;"><i class="bi bi-image text-muted"></i></div>`;
-
     const itemCard = `
         <div class="card staged-item mb-3 p-3 bg-white border-0 shadow-sm animate__animated animate__fadeInRight" data-id="${productId}">
             <div class="d-flex align-items-start mb-2">
@@ -222,15 +201,12 @@ function addToStaging() {
             <div class="d-flex flex-wrap gap-1 mb-2">
                 <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-tag me-1"></i>${categoryName}</span>
                 <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-geo-alt me-1"></i>${productData.meetup}</span>
-                <span class="badge ${payment === 'GCash' ? 'bg-primary' : 'bg-success'} text-white fw-normal">
+                <span class="badge ${payment === 'GCASH' ? 'bg-primary' : 'bg-success'} text-white fw-normal">
                     <i class="bi bi-wallet2 me-1"></i>${payment}
                 </span>
             </div>
         </div>`;
-
     stagingArea.insertAdjacentHTML('afterbegin', itemCard);
-
-    // SweetAlert2 Toast Success Notification
     const Toast = Swal.mixin({
         toast: true,
         position: 'top-end',
@@ -242,7 +218,6 @@ function addToStaging() {
         icon: 'success',
         title: 'Item added to staging list'
     });
-
     document.getElementById('product_form').reset();
     window.locationTags = [];
     renderLocationTags();
@@ -255,10 +230,8 @@ function addToStaging() {
             <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
             Item added. Ready for next.
         </div>`;
-
     handleCategoryChange(categoryEl);
 }
-
 async function submitToAdmin() {
     if (allStagedProducts.length === 0) {
         return Swal.fire({
@@ -268,12 +241,10 @@ async function submitToAdmin() {
             confirmButtonColor: '#198754'
         });
     }
-
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     if (!csrftoken) {
         return Swal.fire('Error', 'CSRF Token missing. Check your HTML template!', 'error');
     }
-
     const confirmation = await Swal.fire({
         title: 'Submit for Authorization?',
         text: `Are you sure you want to send ${allStagedProducts.length} item(s) for review?`,
@@ -284,9 +255,7 @@ async function submitToAdmin() {
         confirmButtonText: 'Yes, submit it!',
         cancelButtonText: 'Wait, let me check'
     });
-
     if (!confirmation.isConfirmed) return;
-
     Swal.fire({
         title: 'Sending to Admin...',
         text: 'Please wait while we process your request.',
@@ -295,9 +264,7 @@ async function submitToAdmin() {
             Swal.showLoading();
         }
     });
-
     const formData = new FormData();
-
     allStagedProducts.forEach((product, index) => {
         formData.append(`prod_${index}_name`, product.name);
         formData.append(`prod_${index}_price`, product.price);
@@ -307,19 +274,15 @@ async function submitToAdmin() {
         formData.append(`prod_${index}_condition`, product.condition);
         formData.append(`prod_${index}_meetup`, product.meetup);
         formData.append(`prod_${index}_payment`, product.payment);
-
         formData.append(`prod_${index}_pre_order`, product.pre_order);
-
+        formData.append(`prod_${index}_owner_type`, product.owner_type);
         formData.append(`prod_${index}_variants`, JSON.stringify(product.variants));
-
         product.files.forEach((file, fileIndex) => {
             formData.append(`prod_${index}_image_${fileIndex}`, file);
         });
         formData.append(`prod_${index}_image_count`, product.files.length);
     });
-
     formData.append('total_products', allStagedProducts.length);
-
     try {
         const response = await fetch(window.location.href, {
             method: 'POST',
@@ -351,7 +314,6 @@ async function submitToAdmin() {
         });
     }
 }
-
 function removeItem(btn, productId) {
     btn.closest('.staged-item').remove();
     allStagedProducts = allStagedProducts.filter(item => item.id !== productId);
@@ -361,7 +323,6 @@ function removeItem(btn, productId) {
         document.getElementById('staging_area').innerHTML = '<div class="text-center py-5 text-muted small empty-msg">List is empty.</div>';
     }
 }
-
 function removeTag(type, value, element) {
     currentAttributes[`${type}s`] = currentAttributes[`${type}s`].filter(val => val !== value);
     element.parentElement.remove();
@@ -372,42 +333,40 @@ function removeTag(type, value, element) {
         }
     });
 }
-
 function handleCategoryChange(selectElement) {
-    const selectedText = selectElement.options[selectElement.selectedIndex].text;
+    const selectedText = selectElement.options[selectElement.selectedIndex].text.trim();
     const attrSection = document.getElementById('attributes_section');
     const otherDiv = document.getElementById('other_category_div');
     const simplePriceSection = document.getElementById('simple_price_section');
     const suggestionContainer = document.getElementById('size_suggestions_container');
     const suggestionButtons = document.getElementById('suggestion_buttons');
     const stocksInput = document.getElementById('stocks');
-
     attrSection.classList.add('d-none');
     otherDiv.classList.add('d-none');
     suggestionContainer.classList.add('d-none');
+    if (simplePriceSection) simplePriceSection.classList.remove('d-none');
     stocksInput.readOnly = false;
-
     const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture', 'Watches'];
-
     if (showVariantsFor.includes(selectedText)) {
         attrSection.classList.remove('d-none');
-        simplePriceSection.classList.add('d-none');
+        if (simplePriceSection) simplePriceSection.classList.add('d-none');
         stocksInput.readOnly = true;
-    } else {
-        attrSection.classList.add('d-none');
-        simplePriceSection.classList.remove('d-none');
-        stocksInput.readOnly = false;
     }
-
-    if (window.sizePresets[selectedText]) {
+    if (window.sizePresets && window.sizePresets[selectedText]) {
         suggestionContainer.classList.remove('d-none');
         suggestionButtons.innerHTML = '';
         window.sizePresets[selectedText].forEach(size => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'btn btn-outline-success btn-sm rounded-pill px-3 suggestion-btn';
+            btn.className = 'btn btn-outline-success btn-sm rounded-pill px-3 suggestion-btn me-2 mb-2';
             btn.innerText = size;
-            btn.onclick = () => document.getElementById('variant_name').value = size;
+            btn.onclick = function () {
+                const variantInput = document.getElementById('variant_name');
+                if (variantInput) {
+                    variantInput.value = size;
+                    variantInput.focus();
+                }
+            };
             suggestionButtons.appendChild(btn);
         });
     }
@@ -415,7 +374,6 @@ function handleCategoryChange(selectElement) {
         otherDiv.classList.remove('d-none');
     }
 }
-
 function addVariant() {
     const nameInput = document.getElementById('variant_name');
     const stockInput = document.getElementById('variant_stock');
@@ -424,37 +382,34 @@ function addVariant() {
     const flawsInput = document.getElementById('variant_flaws');
     const customConditionInput = document.getElementById('custom_condition_input');
     const listContainer = document.getElementById('variant_list');
-
+    // Safely handle potentially null elements
+    const conditionValue = conditionSelect ? conditionSelect.value : 'Brand New';
+    const flawsValue = flawsInput ? flawsInput.value.trim() : '';
+    const customConditionValue = customConditionInput ? customConditionInput.value.trim() : '';
     if (!nameInput.value || !stockInput.value) {
         Swal.fire('Missing Info', "Please provide a name and stock.", 'warning');
         return;
     }
-
-    let finalCondition = conditionSelect.value;
-    if (finalCondition === 'Other') {
-        finalCondition = customConditionInput.value.trim() || 'Other';
+    let finalCondition = conditionValue;
+    if (finalCondition === 'Other' && customConditionValue) {
+        finalCondition = customConditionValue;
     }
-
     const variant = {
         name: nameInput.value,
         stock: parseInt(stockInput.value),
         price: parseFloat(priceInput.value) || 0,
         condition: finalCondition,
-        flaws: flawsInput.value.trim(),
+        flaws: flawsValue,
         imageIndex: currentSelectedImageIndex
     };
-
     productVariants.push(variant);
-
     const div = document.createElement('div');
     div.className = "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white animate__animated animate__fadeInUp";
-
     let thumbHtml = '';
     if (currentSelectedImageIndex !== null && selectedFiles[currentSelectedImageIndex]) {
         const thumbUrl = URL.createObjectURL(selectedFiles[currentSelectedImageIndex]);
         thumbHtml = `<img src="${thumbUrl}" style="width: 35px; height: 35px; object-fit: cover;" class="rounded me-2 border">`;
     }
-
     div.innerHTML = `
         ${thumbHtml}
         <div class="flex-grow-1">
@@ -470,27 +425,32 @@ function addVariant() {
         <button type="button" class="btn-close" style="font-size: 0.6rem;" onclick="removeVariant(this, '${variant.name}')"></button>
     `;
     listContainer.appendChild(div);
-
+    // Reset form fields
     nameInput.value = '';
     stockInput.value = '';
     priceInput.value = '';
-    flawsInput.value = '';
-    conditionSelect.value = 'Brand New';
-    customConditionInput.value = '';
-    customConditionInput.classList.add('d-none');
-
+    
+    if (flawsInput) {
+        flawsInput.value = '';
+    }
+    
+    if (conditionSelect) {
+        conditionSelect.value = 'Brand New';
+    }
+    
+    if (customConditionInput) {
+        customConditionInput.value = '';
+        customConditionInput.classList.add('d-none');
+    }
     const imgBtn = document.querySelector('[onclick="openVariantImagePicker()"]');
-    if (imgBtn) imgBtn.innerHTML = `<i class="bi bi-image me-1"></i> Pick Variant Image`;
-
+    if (imgBtn) imgBtn.innerHTML = `<i class="bi bi-image me-1"></i> Pick Image`;
     currentSelectedImageIndex = null;
     updateTotalStock();
 }
-
 function openVariantImagePicker() {
     if (selectedFiles.length === 0) {
         return Swal.fire('No Photos', 'Please upload product photos first!', 'info');
     }
-
     let html = '<div class="row g-2">';
     selectedFiles.forEach((file, index) => {
         const url = URL.createObjectURL(file);
@@ -505,7 +465,6 @@ function openVariantImagePicker() {
             </div>`;
     });
     html += '</div>';
-
     Swal.fire({
         title: 'Assign Image to Variant',
         html: html,
@@ -513,29 +472,24 @@ function openVariantImagePicker() {
         customClass: { popup: 'rounded-4' }
     });
 }
-
 function selectVariantImage(index) {
     currentSelectedImageIndex = index;
     const btn = document.querySelector('[onclick="openVariantImagePicker()"]');
     if (btn) btn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> Image Selected`;
     Swal.close();
 }
-
 function removeVariant(btn, name) {
     productVariants = productVariants.filter(v => v.name !== name);
     btn.parentElement.remove();
     updateTotalStock();
 }
-
 function updateTotalStock() {
     const total = productVariants.reduce((sum, v) => sum + v.stock, 0);
     document.getElementById('stocks').value = total;
 }
-
 document.addEventListener('input', (e) => {
     if (e.target.classList.contains('is-invalid')) e.target.classList.remove('is-invalid');
 });
-
 document.addEventListener('DOMContentLoaded', () => {
     const locInput = document.getElementById('location_input');
     if (locInput) {
@@ -547,11 +501,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
 function addLocationTag() {
     const input = document.getElementById('location_input');
     const value = input.value.trim();
-
     if (value && !window.locationTags.includes(value)) {
         window.locationTags.push(value);
         renderLocationTags();
@@ -560,18 +512,14 @@ function addLocationTag() {
         Swal.fire('Duplicate', 'This location is already added.', 'info');
     }
 }
-
 function removeLocationTag(index) {
     window.locationTags.splice(index, 1);
     renderLocationTags();
 }
-
 function renderLocationTags() {
     const container = document.getElementById('location_tags_container');
     const hiddenInput = document.getElementById('final_locations');
-
     container.innerHTML = '';
-
     window.locationTags.forEach((tag, index) => {
         const badge = document.createElement('span');
         badge.className = 'badge bg-success d-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-sm animate__animated animate__fadeIn';
@@ -582,7 +530,6 @@ function renderLocationTags() {
         `;
         container.appendChild(badge);
     });
-
     hiddenInput.value = window.locationTags.join(', ');
 }
 function checkProhibitedContent(text) {

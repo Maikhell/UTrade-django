@@ -12,7 +12,6 @@
 
   <div class="container mb-3 d-flex justify-content-between align-items-center">
     <a href="{% url 'user.account' %}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Back to Account</a>
-
     <a href="{% url 'services.create' %}" class="btn btn-primary px-4 shadow-sm"><i class="bi bi-plus-lg me-2"></i>Add Services</a>
   </div>
 
@@ -21,11 +20,12 @@
       <div class="col-lg-3">
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
           <h6 class="fw-bold text-uppercase small text-muted mb-3"><i class="bi bi-images me-2"></i>1. Product Gallery</h6>
-
           <div class="mb-3">
-            <label class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill"><i class="bi bi-plus-lg me-1"></i> Select Photos<input type="file" id="image_input" class="d-none" accept="image/*" multiple onchange="previewMultipleImages(event)" /></label>
+            <label class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill">
+              <i class="bi bi-plus-lg me-1"></i> Select Photos
+              <input type="file" id="image_input" class="d-none" accept="image/*" multiple onchange="previewMultipleImages(event)" />
+            </label>
           </div>
-
           <div id="image_preview_container" class="image-preview-grid column-scroll">
             <div class="text-center py-5 text-muted small w-100" style="grid-column: span 2;">
               <i class="bi bi-cloud-upload display-6 d-block mb-2"></i>
@@ -75,49 +75,24 @@
 
             <div id="attributes_section" class="d-none mt-4 p-3 rounded bg-light border">
               <h6 class="fw-bold mb-3"><i class="bi bi-layers-half me-2"></i>Product Variations</h6>
-
-              <div id="attribute_pills" class="mb-2"></div>
-
               <div id="size_suggestions_container" class="mb-3 d-none">
-                <small class="text-muted d-block mb-2">Quick Select:</small>
-                <div id="suggestion_buttons" class="d-flex flex-wrap gap-2"></div>
-              </div>
-
+        <label class="form-label small fw-bold text-success">Quick Select:</label>
+        <div id="suggestion_buttons" class="d-flex flex-wrap gap-2"></div>
+    </div>
+              <div id="attribute_pills" class="mb-2"></div>
               <div class="row g-2 mb-2">
-                <div class="col-md-4">
-                  <input type="text" id="variant_name" class="form-control" placeholder="Size/Color" />
-                </div>
-                <div class="col-md-4">
-                  <input type="number" id="variant_price" class="form-control" placeholder="Price" />
-                </div>
-                <div class="col-md-4">
-                  <input type="number" id="variant_stock" class="form-control" placeholder="Stock" />
-                </div>
+                
+                <div class="col-md-4"><input type="text" id="variant_name" class="form-control" placeholder="Size/Color" /></div>
+                <div class="col-md-4"><input type="number" id="variant_price" class="form-control" placeholder="Price" /></div>
+                <div class="col-md-4"><input type="number" id="variant_stock" class="form-control" placeholder="Stock" /></div>
               </div>
-
-              <div class="row g-2 mb-3">
-                <div class="col-md-6">
-                  <select id="variant_condition" class="form-select shadow-sm" onchange="toggleCustomCondition(this)">
-                    <option value="Brand New">Brand New</option>
-                    <option value="Like New">Like New</option>
-                    <option value="Good">Good</option>
-                    <option value="Fair">Fair</option>
-                    <option value="Other">Other (Custom)</option>
-                  </select>
-                  <input type="text" id="custom_condition_input" class="form-control mt-2 d-none" placeholder="Enter custom condition..." />
-                </div>
-                <div class="col-md-6">
-                  <input type="text" id="variant_flaws" class="form-control shadow-sm" placeholder="Describe flaws/issues" />
-                </div>
-              </div>
-
               <div class="d-flex gap-2 mb-3">
-                <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="openVariantImagePicker()"><i class="bi bi-image me-1"></i> Pick Variant Image</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="openVariantImagePicker()"><i class="bi bi-image me-1"></i> Pick Image</button>
                 <button type="button" class="btn btn-success btn-sm w-100" onclick="addVariant()"><i class="bi bi-plus-circle me-1"></i> Add Variant</button>
               </div>
-
               <div id="variant_list" class="mt-3"></div>
             </div>
+
             <div class="row g-2 mb-3">
               <div id="simple_price_section" class="col-6">
                 <label class="form-label small fw-bold text-secondary">Price (₱)</label>
@@ -125,32 +100,28 @@
               </div>
             </div>
 
-            <div class="row g-2 mb-3">
-              <div class="col-12">
-                <label class="form-label small fw-bold text-secondary">Campus Meetup Spots</label>
-
-                <div id="location_tags_container" class="d-flex flex-wrap gap-2 mb-2 p-2 bg-light rounded-3 border-0"></div>
-
-                <div class="input-group">
-                  <input type="text" id="location_input" class="form-control bg-light border-0 py-2" placeholder="Type a location and press Enter (e.g. Library)" />
-                  <button class="btn btn-success" type="button" onclick="addLocationTag()">Add</button>
-                </div>
-
-                <input type="hidden" name="location_options" id="final_locations" />
-
-                <div class="mt-3 p-3 rounded-3 border-start border-4 border-danger" style="background-color: #fff5f5;">
-                  <div class="d-flex">
-                    <i class="bi bi-shield-exclamation text-danger me-2 fs-5"></i>
-                    <div>
-                      <h6 class="fw-bold text-danger small mb-1">Campus Safety Protocol</h6>
-                      <p class="mb-0 text-muted" style="font-size: 0.75rem;">
-                        <strong>Note:</strong> Meetup locations are strictly monitored by Admins. All trades must occur within campus grounds. Users found attempting to meet outside campus may result in an <strong>immediate account ban</strong>.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+            <div class="mb-3">
+              <label class="form-label small fw-bold text-secondary">Campus Meetup Spots</label>
+              <div id="location_tags_container" class="d-flex flex-wrap gap-2 mb-2 p-2 bg-light rounded-3"></div>
+              <div class="input-group">
+                <input type="text" id="location_input" class="form-control bg-light border-0" placeholder="Type location (e.g. Library)" />
+                <button class="btn btn-success" type="button" onclick="addLocationTag()">Add</button>
               </div>
+              <input type="hidden" name="location_options" id="final_locations" />
             </div>
+
+            {% if request.user.is_officer %}
+              <div class="mb-3 rounded-3 ">
+                <label class="form-label small fw-bold text-primary">Selling As</label>
+                <select id="owner_type" name="owner_type" class="form-select bg-white border-0 py-2 shadow-sm">
+                  <option value="PERSONAL">Personal Listing (My Profile)</option>
+                  <option value="ORGANIZATION">Organization Listing ({{ request.user.org_link.name|default:request.user.organization }})</option>
+                </select>
+              </div>
+            {% else %}
+              <input type="hidden" id="owner_type" name="owner_type" value="PERSONAL" />
+            {% endif %}
+
             {% if request.user.user_role == 'officer' or request.user.user_role == 'management' %}
               <div class="mb-3">
                 <label class="form-label small fw-bold text-primary">Listing Type</label>
@@ -158,11 +129,11 @@
                   <option value="False">Live (On-hand Stock)</option>
                   <option value="True">Pre-order (Advance Order)</option>
                 </select>
-                <small class="text-muted" style="font-size: 0.7rem;">Pre-orders will be tagged for advance payment collection.</small>
               </div>
             {% else %}
               <input type="hidden" id="is_pre_order" value="False" />
             {% endif %}
+
             <div class="mb-4">
               <label class="form-label small fw-bold text-secondary d-block">Accepted Payment</label>
               <div class="btn-group w-100">
@@ -186,11 +157,9 @@
             <h6 class="fw-bold text-uppercase small text-muted mb-0">3. Staging List</h6>
             <span id="item_count" class="badge bg-dark rounded-pill">0</span>
           </div>
-
           <div id="staging_area" class="column-scroll mb-3">
             <div class="text-center py-5 text-muted empty-msg">List is empty.</div>
           </div>
-
           <div class="mt-auto">
             <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">Send for Authentication</button>
           </div>

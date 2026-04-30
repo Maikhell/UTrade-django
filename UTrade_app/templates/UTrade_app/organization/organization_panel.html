@@ -18,8 +18,7 @@
             <i class="bi bi-building-gear fs-3"></i>
           </div>
           <div>
-            <h2 class="fw-bold mb-0">{{ org_name }} Management</h2>
-            <p class="text-muted mb-0">Departmental oversight for all {{ target_course }} students and listings.</p>
+          <h2 class="fw-bold mb-0">{{ org_full_name|default:org_name }} Management</h2>            <p class="text-muted mb-0">Departmental oversight for all {{ target_course }} students and listings.</p>
           </div>
         </div>
       </div>
@@ -47,25 +46,24 @@
 
     </div>
 
-    <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">
-      <li class="nav-item">
-        <button class="nav-link active fw-bold border-0 bg-transparent px-4" id="students-tab" data-bs-toggle="tab" data-bs-target="#students-pane">Students</button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="verifications-tab" data-bs-toggle="tab" data-bs-target="#verifications-pane">
-          Pending Verifications{% if pending_users %}
-            <span class="badge bg-danger ms-1">{{ pending_users.count }}</span>
-          {% endif %}
-        </button>
-      </li>
-  
-      <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-pane">Orders</button>
-      </li>
-            <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-pane">Logs</button>
-      </li>
-    </ul>
+   <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">
+  <li class="nav-item">
+    <button class="nav-link active fw-bold border-0 bg-transparent px-4" id="students-tab" data-bs-toggle="tab" data-bs-target="#students-pane">Students</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link fw-bold border-0 bg-transparent px-4" id="verifications-tab" data-bs-toggle="tab" data-bs-target="#verifications-pane">
+      Pending Verifications{% if pending_users.count > 0 %}
+        <span class="badge bg-danger ms-1">{{ pending_users.count }}</span>
+      {% endif %}
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link fw-bold border-0 bg-transparent px-4" id="market-tab" data-bs-toggle="tab" data-bs-target="#market-pane">Market Listings</button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link fw-bold border-0 bg-transparent px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-pane">Orders</button>
+  </li>
+</ul>
  <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-light">
           <form method="GET" class="row g-3 align-items-center">
   <div class="col-lg-4">
@@ -73,8 +71,9 @@
       <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3">
         <i class="bi bi-search text-muted"></i>
       </span>
-      <input type="text" name="search" class="form-control border-start-0 rounded-end-pill py-2" placeholder="Search BSIT student or ID..." value="{{ request.GET.search|default:'' }}">
-    </div>
+<input type="text" name="search" class="form-control border-start-0 rounded-end-pill py-2" 
+       placeholder="Search {{ target_course }} student or ID..." 
+       value="{{ request.GET.search|default:'' }}">    </div>
   </div>
   
   <div class="col-md-3 col-lg-2">
@@ -302,8 +301,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <p class="text-muted small">Select the group of {{ target_course }} students to include in the PDF:</p>
-        <form action="{% url 'generate.pdf.orgs' %}" method="GET">
+<p class="text-muted small">Select the group of <strong>{{ target_course }}</strong> students to include in the PDF:</p>        <form action="{% url 'generate.pdf.orgs' %}" method="GET">
           <div class="d-grid gap-2">
             <button type="submit" name="filter" value="all" class="btn btn-outline-dark text-start">
               <i class="bi bi-people me-2"></i> All Dept. Students

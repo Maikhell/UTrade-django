@@ -3,6 +3,7 @@ from .base import BaseItem, MeetupLocation
 from django.db.models import Avg, Sum 
 from .user_models import User
 from .orders_models import Order, OrderItem
+from .organization_models import Organization
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -14,12 +15,33 @@ class Product(BaseItem):
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_listings')
     sold = models.IntegerField(default=0)
     pre_order = models.BooleanField(default=False)
+    
+    OWNER_TYPE_CHOICES = [
+        ('PERSONAL', 'Personal'),
+        ('ORGANIZATION', 'Organization'),
+    ]
+    owner_type = models.CharField(
+        max_length=15, 
+        choices=OWNER_TYPE_CHOICES, 
+        default='PERSONAL'
+    )
+
+    related_org = models.ForeignKey(
+        Organization, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name="products",
+        help_text="Select the organization if this is not a personal listing"
+    )
+
     meetup_location = models.ForeignKey(
         MeetupLocation, 
         on_delete=models.SET_NULL, 
         null=True, 
         related_name="products"    
     )
+
     PAYMENT_METHODS = [
         ('GCASH', 'GCash Only'),
         ('COP', 'Cash on Pickup Only'),
@@ -30,6 +52,7 @@ class Product(BaseItem):
         choices=PAYMENT_METHODS, 
         default='BOTH'
     )
+
     def __str__(self):
         return self.name
     
@@ -45,10 +68,21 @@ class Product(BaseItem):
         if not variants: return "0.00"
         prices = [v.price for v in variants]
         return f"{min(prices)} - {max(prices)}" if min(prices) != max(prices) else f"{min(prices)}"
+
     @property
     def owner_name(self):
         return self.seller.get_full_name() or self.seller.username
-    
+
+    @property
+    def display_seller_name(self):
+        """
+        If it's an Org item, return the Org's full name (e.g., 'Information Technology Society').
+        Otherwise, return the student's name.
+        """
+        if self.owner_type == 'ORGANIZATION' and self.related_org:
+            return self.related_org.full_name
+        return self.owner_name
+
     def average_rating(self):
         avg = self.reviews.aggregate(Avg('rating'))['rating__avg']
         return round(avg, 1) if avg else 0.0
@@ -79,7 +113,7 @@ class ProductImage(models.Model):
         return f"Image for {self.product.name}"
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
-    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='order_reviews', null=True) # Link to Order
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='order_reviews', null=True) 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)]) 
     comment = models.TextField(blank=True)

@@ -97,7 +97,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 is_pre_order = raw_pre_order == 'true'
                 
                 raw_owner = request.POST.get(f'prod_{i}_owner_type', 'PERSONAL')
-                prod_owner_type = raw_owner if raw_owner in ['PERSONAL', 'ORGANIZATION'] else 'PERSONAL'
+                prod_owner_type = raw_owner if raw_owner in ['PERSONAL', 'ORGANIZATION','MANAGEMENT'] else 'PERSONAL'
                 meetup_obj = None
                 if raw_meetup:
                     if raw_meetup.startswith('NEW:'):
@@ -203,7 +203,6 @@ class ProductDetailView(DetailView):
     model = Product
     template_name = 'Utrade_app/products/actions/product_details.html'
     context_object_name = 'product'
-
     def get_queryset(self):
         return super().get_queryset().select_related('seller', 'category')
 

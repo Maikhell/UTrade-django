@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      body {
+        font-family: 'Helvetica', 'Arial', sans-serif;
+        color: #333;
+        margin: 0;
+        padding: 20px;
+      }
+      .receipt-header {
+        text-align: center;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+      .receipt-header h1 {
+        margin: 0;
+        color: #007bff;
+        text-transform: uppercase;
+      }
+      .info-section {
+        display: table;
+        width: 100%;
+        margin-bottom: 30px;
+      }
+      .info-column {
+        display: table-cell;
+        width: 50%;
+        vertical-align: top;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        padding: 10px;
+        text-align: left;
+        font-size: 14px;
+      }
+      td {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        font-size: 13px;
+      }
+      .total-section {
+        text-align: right;
+        margin-top: 20px;
+      }
+      .total-amount {
+        font-size: 18px;
+        font-weight: bold;
+        color: #007bff;
+      }
+      .footer {
+        margin-top: 50px;
+        text-align: center;
+        font-size: 10px;
+        color: #777;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="receipt-header">
+      <h1>UTrade E-Receipt</h1>
+      <p>Order #{{ order.id }} | Date: {{ order.created_at|date:'F d, Y' }}</p>
+    </div>
+
+    <div class="info-section">
+      <div class="info-column">
+        <strong>Seller:</strong><br />
+        {{ order.seller.get_full_name|default:order.seller.username }}<br />
+        {{ order.seller.email }}
+      </div>
+      <div class="info-column">
+        <strong>Buyer:</strong><br />
+        {{ buyer.get_full_name|default:buyer.username }}<br />
+        Student No: {{ buyer.student_no }}
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Item Description</th>
+          <th>Qty</th>
+          <th>Unit Price</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if is_preorder %}
+          <!-- Pre-Order Single Item Display -->
+          <tr>
+            <td>{{ order.product_variant.product.name }} ({{ order.product_variant.variant_name }})</td>
+            <td>{{ order.quantity }}</td>
+            <td>₱{{ order.product_variant.price }}</td>
+            <!-- Use total_price directly for the row total -->
+            <td>₱{{ order.total_price }}</td>
+          </tr>
+        {% else %}
+          <!-- Regular Order Items Loop -->
+          {% for item in items %}
+            <tr>
+              <td>{{ item.product_variant.product.name }} ({{ item.product_variant.variant_name }})</td>
+              <td>{{ item.quantity }}</td>
+              <td>₱{{ item.price }}</td>
+              <td>₱{{ item.get_total_item_price }}</td>
+            </tr>
+          {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+
+    <div class="total-section">
+      <p>
+        Payment Method: <strong>{{ order.payment_method|default:'Cash on Pickup' }}</strong>
+      </p>
+      <p>
+        Status: <strong>{{ order.status }}</strong>
+      </p>
+      <div class="total-amount">
+        Total Paid: ₱{% if is_preorder %}
+          {{ order.total_price }}
+        {% else %}
+          {{ order.total_amount }}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Thank you for using UTrade! This is a system-generated receipt.</p>
+      <p>
+        Generated on{% now 'Y-m-d H:i:s' %}
+      </p>
+    </div>
+  </body>
+</html>

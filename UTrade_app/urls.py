@@ -45,7 +45,10 @@ urlpatterns = [
     path('order/delivered/<int:order_id>/', order_views.mark_order_delivered, name='order.delivered'),
     path('order/confirm-receipt/<int:order_id>/', order_views.confirm_receipt, name='confirm_receipt'),
     path('order/<int:order_id>/rate/', order_views.submit_review, name='submit_rating'),
-
+    path('preorder/request/<int:variant_id>/', order_views.submit_preorder_request, name='preorder.request'),
+    path('preorder/update-status/<int:order_id>/', order_views.update_preorder_status, name='update_preorder_status'),  
+    path('order/receipt/<int:order_id>/', order_views.generate_receipt, name='generate_receipt'), 
+    path('preorder/receipt/<int:preorder_id>/', order_views.generate_preorder_receipt, name='generate_preorder_receipt'),
     # --- Communication (Chats) ---
     path('inbox/', chat_views.inbox, name='inbox'),
     path('chat/<int:conversation_id>/', chat_views.chat_view, name='chat_view'),

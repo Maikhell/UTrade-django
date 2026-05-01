@@ -141,6 +141,7 @@
             <th class="ps-4">Item Name</th>
             <th>Type</th>
             <th>Seller/Provider</th>
+            <th>Stock</th>
             <th>Price</th>
             <th class="text-end pe-4">Manage</th>
           </tr>
@@ -160,6 +161,7 @@
         {% endif %}
     </td>
     <td>{{ item.owner_name }}</td>
+    <td>{{product.get_total_stock}}</td>
    <td class="fw-bold text-dark">
     ₱{% if item.is_service %}
         {{ item.base_price }}
@@ -369,106 +371,132 @@
         </div>
       </div>
 
-      
-      <div class="tab-pane fade" id="orders-pane">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-          <div class="card-header bg-white py-3 border-0 d-flex justify-content-between">
-            <h5 class="fw-bold mb-0">Department Pre-Orders</h5>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="bg-light">
-                <tr>
-                  <th class="ps-4">Order ID</th>
-                  <th>Buyer</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for order in incoming_orders %}
-                  <tr>
-                    <td class="ps-4 fw-bold">#{{ order.id }}</td>
-                    <td>{{ order.user.get_full_name }}</td>
-                    <td>
-                      <span class="badge bg-warning-subtle text-warning rounded-pill">{{ order.status }}</span>
-                    </td>
-                  </tr>
-                {% empty %}
-                  <tr>
-                    <td colspan="3" class="text-center py-4 text-muted">No active orders.</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+      {% csrf_token %}
+     <div class="tab-pane fade" id="orders-pane">
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+        <div class="card-header bg-white py-3 border-0">
+            <h5 class="fw-bold mb-0 text-primary">Pending Pre-Orders</h5>
         </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">Request ID</th>
+                        <th>Student Info</th>
+                        <th>Product & Variant</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in incoming_orders %}
+                        {% if order.status == 'PENDING' %}
+                        <tr>
+                            <td class="ps-4 fw-bold">#PR-{{ order.id }}</td>
+                            <td>
+                                <div class="fw-bold">{{ order.full_name_at_time }}</div>
+                                <div class="small text-muted">{{ order.student_no_at_time }} | {{ order.course_at_time }}-{{ order.section_at_time }}</div>
+                            </td>
+                            <td>
+                                <div class="small fw-bold">{{ order.product_variant.product.name }}</div>
+                                <div class="badge bg-secondary-subtle text-secondary">{{ order.product_variant.variant_name }}</div>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <button onclick="handlePreOrder('{{ order.id }}', 'APPROVED')" class="btn btn-sm btn-success rounded-pill px-3">Accept</button>
+                                    <button onclick="handlePreOrder('{{ order.id }}', 'DECLINED')" class="btn btn-sm btn-outline-danger rounded-pill px-3">Reject</button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    {% empty %}
+                        <tr><td colspan="4" class="text-center py-4 text-muted">No pending pre-orders.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. ACCEPTED/APPROVED ORDERS -->
+    <!-- 2. ACCEPTED/APPROVED/PREPARING/READY ORDERS -->
 <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-          <div class="card-header bg-white py-3 border-0 d-flex justify-content-between">
-            <h5 class="fw-bold mb-0">Accepted Orders</h5>
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="bg-light">
+    <div class="card-header bg-white py-3 border-0">
+        <h5 class="fw-bold mb-0 text-success">Active Fulfillment</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
                 <tr>
-                  <th class="ps-4">Order ID</th>
-                  <th>Buyer</th>
-                  <th>Status</th>
+                    <th class="ps-4">Order ID</th>
+                    <th>Buyer</th>
+                    <th>Status</th>
+                    <th>Actions</th>
                 </tr>
-              </thead>
-              <tbody>
+            </thead>
+            <tbody>
                 {% for order in incoming_orders %}
-                  <tr>
-                    <td class="ps-4 fw-bold">#{{ order.id }}</td>
-                    <td>{{ order.user.get_full_name }}</td>
-                    <td>
-                      <span class="badge bg-warning-subtle text-warning rounded-pill">{{ order.status }}</span>
-                    </td>
-                  </tr>
-                {% empty %}
-                  <tr>
-                    <td colspan="3" class="text-center py-4 text-muted">No accepted orders.</td>
-                  </tr>
+                    {% if order.status == 'APPROVED' or order.status == 'PREPARING' or order.status == 'READY' %}
+                    <tr>
+                        <td class="ps-4 fw-bold">#{{ order.id }}</td>
+                        <td>{{ order.full_name_at_time }}</td>
+                        <td>
+                            {% if order.status == 'APPROVED' %}
+                                <span class="badge bg-success-subtle text-success">Approved</span>
+                            {% elif order.status == 'PREPARING' %}
+                                <span class="badge bg-info-subtle text-info">Preparing</span>
+                            {% elif order.status == 'READY' %}
+                                <span class="badge bg-warning-subtle text-warning">Ready for Pickup</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if order.status == 'APPROVED' %}
+                                <button onclick="handlePreOrder('{{ order.id }}', 'PREPARING')" class="btn btn-sm btn-info text-white rounded-pill">Start Preparing</button>
+                            {% elif order.status == 'PREPARING' %}
+                                <button onclick="handlePreOrder('{{ order.id }}', 'READY')" class="btn btn-sm btn-warning rounded-pill">Set to Ready</button>
+                            {% elif order.status == 'READY' %}
+                                <button onclick="handlePreOrder('{{ order.id }}', 'COMPLETED')" class="btn btn-sm btn-primary rounded-pill">Mark as Picked Up</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
                 {% endfor %}
-              </tbody>
-            </table>
-          </div>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+    <!-- 3. COMPLETED ORDERS -->
+    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+        <div class="card-header bg-white py-3 border-0">
+            <h5 class="fw-bold mb-0 text-muted">Order History (Completed)</h5>
         </div>
-
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-          <div class="card-header bg-white py-3 border-0 d-flex justify-content-between">
-            <h5 class="fw-bold mb-0">Completed Orders</h5>
-          </div>
-
-          <div class="table-responsive">
+        <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
-              <thead class="bg-light">
-                <tr>
-                  <th class="ps-4">Order ID</th>
-                  <th>Buyer</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for order in incoming_orders %}
-                  <tr>
-                    <td class="ps-4 fw-bold">#{{ order.id }}</td>
-                    <td>{{ order.user.get_full_name }}</td>
-                    <td>
-                      <span class="badge bg-warning-subtle text-warning rounded-pill">{{ order.status }}</span>
-                    </td>
-                  </tr>
-                {% empty %}
-                  <tr>
-                    <td colspan="3" class="text-center py-4 text-muted">No active orders.</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">Order ID</th>
+                        <th>Buyer</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in incoming_orders %}
+                        {% if order.status == 'COMPLETED' or order.status == 'DECLINED' %}
+                        <tr class="opacity-75">
+                            <td class="ps-4">#{{ order.id }}</td>
+                            <td>{{ order.full_name_at_time }}</td>
+                            <td>
+                                <span class="badge {% if order.status == 'COMPLETED' %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
+                                    {{ order.status }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
             </table>
-          </div>
         </div>
-      </div>
+    </div>
+</div>
     </div>
 
 <div class="d-flex justify-content-end mt-3">
@@ -546,5 +574,62 @@
           }
         })
       }
+function handlePreOrder(orderId, newStatus) {
+    // 1. Safely get the CSRF element
+    const csrfElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    
+    // 2. Check if it exists BEFORE reading .value
+    if (!csrfElement) {
+        console.error("CSRF token not found!");
+        Swal.fire('Error', 'Security token missing. Please refresh the page.', 'error');
+        return;
+    }
+    
+    const csrftoken = csrfElement.value;
+
+    // 3. Dynamic messages based on status
+    const statusMap = {
+        'APPROVED': { title: 'Accept pre-order?', text: 'This will move the order to the Approved list.', color: '#198754' },
+        'PREPARING': { title: 'Start preparing?', text: 'Notify the student that you are packing the item.', color: '#0dcaf0' },
+        'READY': { title: 'Item ready?', text: 'Notify the student that the item is ready for pickup.', color: '#ffc107' },
+        'COMPLETED': { title: 'Mark as Picked Up?', text: 'This will finalize the transaction.', color: '#0d6efd' },
+        'DECLINED': { title: 'Reject order?', text: 'This will notify the student and cancel the request.', color: '#dc3545' }
+    };
+
+    const config = statusMap[newStatus] || { title: 'Update Status?', text: `Change to ${newStatus}`, color: '#6c757d' };
+
+    Swal.fire({
+        title: config.title,
+        text: config.text,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: config.color,
+        confirmButtonText: 'Yes, proceed'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`{% url 'update_preorder_status' 0 %}`.replace('0', orderId), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 'status': newStatus })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Updated!', 'Order status updated successfully.', 'success')
+                    .then(() => location.reload());
+                } else {
+                    Swal.fire('Error', data.message || 'Update failed', 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire('Error', 'Server communication error.', 'error');
+            });
+        }
+    });
+}
     </script>
 {% endblock %}

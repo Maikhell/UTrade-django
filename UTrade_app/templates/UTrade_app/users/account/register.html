@@ -28,7 +28,7 @@
           {% csrf_token %}
           <input type="hidden" name="user_role" id="id_user_role" value="student" />
           <div class="mb-3">
-            <label class="form-label small fw-bold text-secondary">Student No</label>
+            <label class="form-label small fw-bold text-secondary">Student Number</label>
             <input type="text" name="student_no" id="id_student_no" value="{{ form.student_no.value|default:'' }}" placeholder="000000000" class="form-control form-control-xl bg-light {% if form.student_no.errors %}is-invalid{% endif %}" required />
             {% if form.student_no.errors %}
               <div class="invalid-feedback">

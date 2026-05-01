@@ -17,15 +17,19 @@
     <ul class="nav nav-pills mb-3 bg-white p-2 rounded-3 shadow-sm" id="orderTabs" role="tablist">
       <li class="nav-item flex-fill" role="presentation">
         <button class="nav-link active w-100 fw-semibold position-relative" id="pending-tab" data-bs-toggle="pill" data-bs-target="#pending" type="button" role="tab">
-          Orders{% if pending_count > 0 %}
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">{{ pending_count }}</span>
+          Orders{% if pending_count > 0 or preorder_pending_count > 0 %}
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
+                {{ pending_count|add:preorder_pending_count }}
+            </span>
           {% endif %}
         </button>
       </li>
       <li class="nav-item flex-fill" role="presentation">
         <button class="nav-link w-100 fw-semibold position-relative" id="pickup-tab" data-bs-toggle="pill" data-bs-target="#pickup" type="button" role="tab">
-          To Pickup{% if pickup_count > 0 %}
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">{{ pickup_count }}</span>
+          To Pickup{% if pickup_count > 0 or preorder_ready_count > 0 %}
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                {{ pickup_count|add:preorder_ready_count }}
+            </span>
           {% endif %}
         </button>
       </li>
@@ -36,6 +40,42 @@
 
     <div class="tab-content" id="orderTabsContent">
       <div class="tab-pane fade show active" id="pending" role="tabpanel">
+        
+        <!-- NEW: PRE-ORDER SECTION IN PENDING TAB -->
+        {% for po in preorders %}
+            {% if po.status == 'PENDING' or po.status == 'APPROVED' or po.status == 'PREPARING' %}
+            <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden border-start border-4 border-info">
+                <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-info-subtle">
+                    <span class="small fw-bold text-uppercase text-info-emphasis">
+                        <i class="bi bi-clock-history"></i> PRE-ORDER: {{ po.status }}
+                    </span>
+                    <span class="small text-muted">Req #{{ po.id }} | {{ po.created_at|date:'M d' }}</span>
+                </div>
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" />
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0 small fw-bold">{{ po.product_variant.product.name }}</h6>
+                            <small class="text-muted">{{ po.quantity }}x - {{ po.product_variant.variant_name }}</small>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted d-block">Estimated Total</small>
+                            <span class="fw-bold text-info">₱{{ po.total_price }}</span>
+                        </div>
+                        {% if po.status == 'PENDING' %}
+                            <button onclick="handlePreOrder('{{ po.id }}', 'DECLINED')" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Request</button>
+                        {% else %}
+                            <span class="badge bg-light text-dark border">Order is being processed</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+
+        <!-- EXISTING REGULAR ORDERS -->
         {% for order in pending_orders %}
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
             <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-warning-subtle">
@@ -73,11 +113,38 @@
             </div>
           </div>
         {% empty %}
-          <div class="text-center py-5 text-muted">No pending orders.</div>
+            {% if not preorders %}<div class="text-center py-5 text-muted">No pending orders.</div>{% endif %}
         {% endfor %}
       </div>
 
       <div class="tab-pane fade" id="pickup" role="tabpanel">
+        
+        <!-- NEW: PRE-ORDERS READY FOR PICKUP -->
+        {% for po in preorders %}
+            {% if po.status == 'READY' %}
+            <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden border-start border-4 border-warning">
+                <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-warning-subtle">
+                    <span class="small fw-bold text-uppercase text-warning-emphasis"><i class="bi bi-geo-alt-fill"></i> PRE-ORDER: Ready for Pickup</span>
+                    <span class="small text-muted">Order #{{ po.id }}</span>
+                </div>
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" />
+                        <div class="flex-grow-1">
+                            <h6 class="mb-0 small fw-bold">{{ po.product_variant.product.name }}</h6>
+                            <small class="text-muted">{{ po.quantity }}x - ₱{{ po.total_price }}</small>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-success-subtle text-success p-2 px-3 rounded-pill">Pay at Pickup</span>
+                        <button onclick="handlePreOrder('{{ po.id }}', 'COMPLETED')" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">Complete Delivery</button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+
+        <!-- EXISTING REGULAR PICKUP ORDERS -->
         {% for order in pickup_orders %}
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
             <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-primary-subtle">
@@ -121,169 +188,261 @@
               </div>
             </div>
           </div>
-
-          <div class="modal fade" id="pickupDetails{{ order.id }}" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content rounded-4 border-0 shadow">
-                <div class="modal-header border-0 pb-0">
-                  <h5 class="fw-bold mb-0">Pickup Instructions</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                  <div class="p-3 bg-light rounded-4 mb-3">
-                    <div class="mb-3">
-                      <label class="text-muted small d-block">Meetup Location</label>
-                      <span class="fw-bold text-dark"><i class="bi bi-geo-alt-fill text-danger me-1"></i> {{ order.meetup_location|default:'Not set by seller yet' }}</span>
-                    </div>
-                    <div class="mb-3">
-                      <label class="text-muted small d-block">Pickup Schedule</label>
-                      <span class="fw-bold text-dark"><i class="bi bi-calendar-event text-primary me-1"></i> {{ order.pickup_time|default:'Not scheduled yet' }}</span>
-                    </div>
-                  </div>
-                  <div class="alert alert-info py-2 rounded-3 mb-0">
-                    <small><i class="bi bi-info-circle me-1"></i> Use the "Message" button if you need to request a different time.</small>
-                  </div>
-                </div>
-                <div class="modal-footer border-0 pt-0">
-                  <button type="button" class="btn btn-secondary w-100 rounded-pill fw-bold" data-bs-dismiss="modal">Close</button>
-                </div>
-              </div>
-            </div>
-          </div>
         {% empty %}
-          <div class="text-center py-5 text-muted">No orders to pickup right now.</div>
+            {% if not preorders %}<div class="text-center py-5 text-muted">No orders to pickup right now.</div>{% endif %}
         {% endfor %}
       </div>
 
       <div class="tab-pane fade" id="all" role="tabpanel">
-        {% for order in orders %}
-          {% if order.status == 'Completed' or order.status == 'Cancelled' %}
+    <!-- Combined History for Regular Orders and Pre-Orders -->
+    {% for order in orders %}
+        {% if order.status == 'Completed' or order.status == 'Cancelled' %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
-              <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-light">
-                <span class="small fw-bold text-uppercase">
-                  {% if order.status == 'Completed' %}
-                    <i class="bi bi-check-circle-fill text-success"></i> Completed
-                  {% else %}
-                    <i class="bi bi-x-circle-fill text-danger"></i> {{ order.status }}
-                  {% endif %}
-                </span>
-                <span class="small text-muted">Order #{{ order.id }} | {{ order.created_at|date:'M d' }}</span>
-              </div>
-
-              <div class="card-body p-3">
-                <div class="mb-3">
-                  <small class="text-muted">Seller:</small>
-                  <span class="fw-bold small">{{ order.seller.first_name|default:order.seller.username }}</span>
+                <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-light">
+                    <span class="small fw-bold text-uppercase">
+                        {% if order.status == 'Completed' %}
+                            <i class="bi bi-check-circle-fill text-success"></i> Completed
+                        {% else %}
+                            <i class="bi bi-x-circle-fill text-danger"></i> {{ order.status }}
+                        {% endif %}
+                    </span>
+                    <span class="small text-muted">Order #{{ order.id }} | {{ order.created_at|date:'M d' }}</span>
                 </div>
 
-                <div class="d-flex flex-column gap-3">
-                  {% for item in order.items.all %}
-                    <div class="d-flex align-items-center">
-                      <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" />
-                      <div class="flex-grow-1">
-                        <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
-                        <small class="text-muted">{{ item.quantity }}x - ₱{{ item.price }}</small>
-                      </div>
+                <div class="card-body p-3">
+                    <div class="mb-3">
+                        <small class="text-muted">Seller:</small>
+                        <span class="fw-bold small">{{ order.seller.first_name|default:order.seller.username }}</span>
                     </div>
-                  {% endfor %}
-                </div>
 
-                <hr class="my-3 opacity-25" />
+                    <div class="d-flex flex-column gap-3">
+                        {% for item in order.items.all %}
+                            <div class="d-flex align-items-center">
+                                <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" />
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
+                                    <small class="text-muted">{{ item.quantity }}x - ₱{{ item.price }}</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
 
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <small class="text-muted d-block">Total Paid</small>
-                    <span class="fw-bold">₱{{ order.total_amount }}</span>
-                  </div>
-                  <div class="d-flex gap-2">
-                    {% if order.status == 'Completed' %}
-                      <button class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}"><i class="bi bi-star-fill me-1"></i> Rate</button>
-                    {% endif %}
-                    <button class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#historyDetails{{ order.id }}"><i class="bi bi-eye me-1"></i> Details</button>
-                  </div>
+                    <hr class="my-3 opacity-25" />
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted d-block">Total Paid</small>
+                            <span class="fw-bold">₱{{ order.total_amount }}</span>
+                        </div>
+                        <div class="d-flex gap-2">
+                            {% if order.status == 'Completed' %}
+                                <!-- E-Receipt Button -->
+                                <a href="{% url 'generate_receipt' order.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i> Receipt
+                                </a>
+                                <button class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}">
+                                    <i class="bi bi-star-fill me-1"></i> Rate
+                                </button>
+                            {% endif %}
+                            <button class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#historyDetails{{ order.id }}">
+                                <i class="bi bi-eye me-1"></i> Details
+                            </button>
+                        </div>
+                    </div>
                 </div>
-              </div>
             </div>
-          {% endif %}
-        {% endfor %}
-      </div>
+        {% endif %}
+    {% empty %}
+        <div class="text-center py-5 text-muted">No order history found.</div>
+    {% endfor %}
+
+    <!-- NEW: Completed Pre-Orders in History -->
+    <!-- Completed Pre-Orders in History -->
+{% for po in preorders %}
+    {% if po.status == 'COMPLETED' or po.status == 'DECLINED' %}
+        <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden opacity-75">
+            <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-light">
+                <span class="small fw-bold text-uppercase">
+                    <i class="bi bi-clock-history"></i> PRE-ORDER: {{ po.status }}
+                </span>
+                <span class="small text-muted">Req #{{ po.id }}</span>
+            </div>
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center">
+                    <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 40px; height: 40px; object-fit: cover;" />
+                    <div class="flex-grow-1">
+                        <h6 class="mb-0 small fw-bold">{{ po.product_variant.product.name }}</h6>
+                        <small class="text-muted">₱{{ po.total_price }}</small>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        {% if po.status == 'COMPLETED' %}
+                            <!-- E-Receipt Button for Pre-Orders -->
+                            <a href="{% url 'generate_preorder_receipt' po.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold">
+                                <i class="bi bi-file-earmark-pdf me-1"></i> Receipt
+                            </a>
+                            <span class="badge bg-success-subtle text-success d-flex align-items-center">Finished</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endfor %}
+</div>
     </div>
   </div>
 
   <style>
-    .card {
-      transition: transform 0.2s;
-    }
-    .card:active {
-      transform: scale(0.98);
-    }
-    .bg-primary-subtle {
-      background-color: #e7f1ff !important;
-      color: #084298 !important;
-    }
-    .bg-warning-subtle {
-      background-color: #fff3cd !important;
-      color: #664d03 !important;
-    }
-    .nav-pills .nav-link.active {
-      background-color: #198754;
-    } /* Success color matches UTrade theme */
+    /* Same styles as original */
+    .bg-info-subtle { background-color: #cff4fc !important; color: #055160 !important; }
+    .border-info { border-color: #0dcaf0 !important; }
+    /* ... rest of your styles ... */
   </style>
 
   <script>
-    async function handleCancelOrder(orderId) {
-      const { value: reason } = await Swal.fire({
-        title: 'Cancel Order?',
-        text: 'Please tell us why you are cancelling:',
-        input: 'select',
-        inputOptions: {
-          'Changed mind': 'Changed my mind',
-          'Found better price': 'Found a better price',
-          'Accidental order': 'Accidental order',
-          'Seller not responding': 'Seller is not responding',
-          Other: 'Other'
-        },
-        inputPlaceholder: 'Select a reason',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, cancel it!',
-        inputValidator: (value) => {
-          return new Promise((resolve) => {
-            if (value) {
-              resolve()
-            } else {
-              resolve('You need to select a reason.')
+    // Add this to your existing scripts to handle the Pre-Order status changes
+    async function handlePreOrder(orderId, newStatus) {
+        const confirmText = newStatus === 'DECLINED' ? 'Cancel this pre-order?' : 'Confirm delivery completion?';
+        const confirmBtn = newStatus === 'DECLINED' ? '#dc3545' : '#198754';
+
+        const { isConfirmed } = await Swal.fire({
+            title: confirmText,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: confirmBtn,
+            confirmButtonText: 'Yes, proceed'
+        });
+
+        if (isConfirmed) {
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            try {
+                const response = await fetch(`/preorder/update-status/${orderId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrftoken,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 'status': newStatus })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    location.reload();
+                } else {
+                    Swal.fire('Error', data.message, 'error');
+                }
+            } catch (error) {
+                Swal.fire('Error', 'Communication failed.', 'error');
             }
-          })
         }
+    }
+
+    async function handleCancelOrder(orderId) {
+
+      const { value: reason } = await Swal.fire({
+
+        title: 'Cancel Order?',
+
+        text: 'Please tell us why you are cancelling:',
+
+        input: 'select',
+
+        inputOptions: {
+
+          'Changed mind': 'Changed my mind',
+
+          'Found better price': 'Found a better price',
+
+          'Accidental order': 'Accidental order',
+
+          'Seller not responding': 'Seller is not responding',
+
+          Other: 'Other'
+
+        },
+
+        inputPlaceholder: 'Select a reason',
+
+        showCancelButton: true,
+
+        confirmButtonColor: '#dc3545',
+
+        cancelButtonColor: '#6c757d',
+
+        confirmButtonText: 'Yes, cancel it!',
+
+        inputValidator: (value) => {
+
+          return new Promise((resolve) => {
+
+            if (value) {
+
+              resolve()
+
+            } else {
+
+              resolve('You need to select a reason.')
+
+            }
+
+          })
+
+        }
+
       })
+
     
+
       if (reason) {
+
         const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value
+
         try {
+
           const response = await fetch(`/orders/cancel/${orderId}/`, {
+
             method: 'POST',
+
             headers: {
+
               'X-CSRFToken': csrftoken,
+
               'Content-Type': 'application/x-www-form-urlencoded'
+
             },
+
             body: `reason=${reason}`
+
           })
+
     
+
           const result = await response.json()
+
     
+
           if (result.status === 'success') {
+
             Swal.fire('Cancelled!', result.message, 'success').then(() => {
+
               location.reload() // Refresh to update status
+
             })
+
           } else {
+
             Swal.fire('Error', result.message, 'error')
+
           }
+
         } catch (error) {
+
           Swal.fire('Error', 'Something went wrong.', 'error')
+
         }
+
       }
+
     }
   </script>
 {% endblock %}

@@ -19,6 +19,7 @@ class Product(BaseItem):
     OWNER_TYPE_CHOICES = [
         ('PERSONAL', 'Personal'),
         ('ORGANIZATION', 'Organization'),
+        ('MANAGEMENT', 'Management'),
     ]
     owner_type = models.CharField(
         max_length=15, 
@@ -58,7 +59,6 @@ class Product(BaseItem):
     
     @property
     def get_total_stock(self):
-        """Calculates the sum of stocks from all variants associated with this product."""
         total = self.variants.aggregate(Sum('stocks'))['stocks__sum']
         return total if total is not None else 0
 
@@ -75,10 +75,6 @@ class Product(BaseItem):
 
     @property
     def display_seller_name(self):
-        """
-        If it's an Org item, return the Org's full name (e.g., 'Information Technology Society').
-        Otherwise, return the student's name.
-        """
         if self.owner_type == 'ORGANIZATION' and self.related_org:
             return self.related_org.full_name
         return self.owner_name
@@ -86,7 +82,7 @@ class Product(BaseItem):
     def average_rating(self):
         avg = self.reviews.aggregate(Avg('rating'))['rating__avg']
         return round(avg, 1) if avg else 0.0
-    
+
 class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -171,3 +167,39 @@ class CartItem(models.Model):
     @property
     def display_name(self):
         return f"{self.variant.product.name} ({self.variant.variant_name})"
+class PreOrderRequest(models.Model):
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending Approval'),
+        ('APPROVED', 'Approved'),
+        ('PREPARING', 'Seller Preparing Item'), 
+        ('READY', 'Ready for Pickup'),          
+        ('DECLINED', 'Declined'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='preorder_requests')
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_preorders')
+    product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name='preorders')
+    
+    quantity = models.PositiveIntegerField(default=1)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    
+    full_name_at_time = models.CharField(max_length=255)
+    student_no_at_time = models.CharField(max_length=50)
+    course_at_time = models.CharField(max_length=100)
+    section_at_time = models.CharField(max_length=50)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Pre-order: {self.product_variant.product.name} by {self.buyer.username} ({self.status})"
+    def get_total_price(self):
+        return self.product_variant.price * self.quantity
+
+    def get_total_price(self):
+        return self.product_variant.price * self.quantity

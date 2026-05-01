@@ -11,5 +11,6 @@ from .product_models import (
     Wishlist, 
     Review, 
     Cart, 
-    CartItem
+    CartItem,
+    PreOrderRequest
 )

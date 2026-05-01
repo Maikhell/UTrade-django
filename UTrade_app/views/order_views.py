@@ -1,12 +1,16 @@
 import traceback
 import requests
 import base64
+import json
 from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.http import HttpResponse
+from django.template.loader import render_to_string
+from weasyprint import HTML
 
-from ..models import CartItem, Order, OrderItem, Review, Product, ChatMessage, Conversation
+from ..models import CartItem, Order, OrderItem, Review, ProductVariant, ChatMessage, Conversation,PreOrderRequest
 from django.db.models import Q
 from django.http import JsonResponse
 from django.contrib import messages
@@ -104,6 +108,30 @@ def place_order(request):
 
     return redirect('cart_detail')
 
+def submit_preorder_request(request, variant_id): # Add variant_id here
+    if request.method == 'POST':
+        try:
+            # We get variant_id from the URL parameter now, not the JSON body
+            variant = ProductVariant.objects.get(id=variant_id)
+            
+            # Create the request record
+            PreOrderRequest.objects.create(
+                buyer=request.user,
+                seller=variant.product.seller,
+                product_variant=variant,
+                status='PENDING', 
+                full_name_at_time=request.user.get_full_name(), # Added this
+                student_no_at_time=request.user.student_no,
+                course_at_time=request.user.course,
+                section_at_time=request.user.section
+            )
+            
+            return JsonResponse({'success': True, 'message': 'Request submitted'}) # Changed 'status' to 'success' to match your JS
+            
+        except ProductVariant.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Variant not found'})
+
+    return JsonResponse({'success': False, 'message': 'Invalid request'})
 @login_required
 def order_success(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
@@ -128,16 +156,32 @@ def order_history(request):
         Q(status='Delivered') |
         (Q(payment_method='GCASH') & Q(status='Paid'))
     )
-    
+
+    preorders = PreOrderRequest.objects.filter(buyer=request.user).order_by('-created_at')
+
+    # Pre-orders that are still in the 'processing' phase
+    preorder_pending = preorders.filter(
+        status__in=['PENDING', 'APPROVED', 'PREPARING']
+    )
+
+    # Pre-orders that are ready for the buyer to collect
+    preorder_ready = preorders.filter(status='READY')
+
     context = {
+        # Regular Orders
         'orders': orders,
         'pending_orders': pending_orders,
         'pending_count': pending_orders.count(),
         'pickup_orders': pickup_orders,
         'pickup_count': pickup_orders.count(),
+
+        # Pre-Orders
+        'preorders': preorders,
+        'preorder_pending_count': preorder_pending.count(),
+        'preorder_ready_count': preorder_ready.count(),
     }
+    
     return render(request, 'UTrade_app/orders/orders.html', context)
-from django.db import transaction
 
 @login_required
 @transaction.atomic 
@@ -266,3 +310,68 @@ def submit_review(request, order_id):
         return redirect('order_history')
     
     return redirect('order_history')
+
+def update_preorder_status(request, order_id):
+    try:
+        data = json.loads(request.body)
+        new_status = data.get('status')
+        
+        order = get_object_or_404(Order, id=order_id)
+        
+        valid_statuses = ['PENDING', 'APPROVED', 'PREPARING', 'READY', 'COMPLETED', 'DECLINED']
+        
+        if new_status in valid_statuses:
+            order.status = new_status
+            order.save()
+            return JsonResponse({
+                'success': True, 
+                'message': f'Order status updated to {new_status}'
+            })
+        else:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Invalid status provided'
+            }, status=400)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    
+def generate_receipt(request, order_id):
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+    
+    context = {
+        'order': order,
+        'items': order.items.all(),
+        'buyer': request.user,
+        'seller': order.seller,
+    }
+
+    html_string = render_to_string('UTrade_app/orders/receipt_pdf.html', context)
+
+    # Create PDF
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="Receipt_Order_{order.id}.pdf"'
+
+    HTML(string=html_string, base_url=request.build_absolute_uri()).write_pdf(response)
+
+    return response
+def generate_preorder_receipt(request, preorder_id):
+    preorder = get_object_or_404(PreOrderRequest, id=preorder_id, buyer=request.user, status='COMPLETED')
+    
+    context = {
+        'order': preorder,  
+        'buyer': preorder.buyer,
+        'is_preorder': True,
+        'date': preorder.updated_at, 
+    }
+    
+    html_string = render_to_string('UTrade_app/orders/receipt_pdf.html', context)
+    html = HTML(string=html_string, base_url=request.build_absolute_uri())
+    result = html.write_pdf()
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="PreOrder_Receipt_{preorder.id}.pdf"'
+    response.write(result)
+    return response

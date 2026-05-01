@@ -3,13 +3,14 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models import Q
-from ..models import CartItem, Order, OrderItem, Review, User, Product, Services, SystemLog
+from ..models import CartItem, Order, OrderItem, Review, User, Product, Services, SystemLog,PreOrderRequest
 from ..utils import log_action
 from itertools import chain
 from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.http import HttpResponse
 from django.utils import timezone
+from django.contrib import messages 
 
 from django.contrib.auth.decorators import user_passes_test, login_required
 from django.views.decorators.http import require_POST
@@ -71,6 +72,11 @@ class ManagementPanelView(LoginRequiredMixin, View):
 
         pending_products = Product.objects.filter(status='Pending')
         pending_services = Services.objects.filter(status='Pending')
+        
+        incoming_preorders = PreOrderRequest.objects.filter(
+            seller__user_role='management'
+        ).select_related('buyer', 'product_variant__product').order_by('-created_at')
+        
         all_orders = Order.objects.all().distinct()
 
         context = {
@@ -92,13 +98,13 @@ class ManagementPanelView(LoginRequiredMixin, View):
             
             # Logs and Orders
             'logs': SystemLog.objects.all()[:50],
-            'incoming_orders': all_orders.filter(status__in=['Pending', 'Processing']),
+            'incoming_orders': incoming_preorders,
             'completed_orders': all_orders.filter(status='Completed'),
         }
 
         return render(request, 'UTrade_app/management/management.html', context)
     
-from django.contrib import messages # Import this
+
 
 def update_status(request, type, id):
     new_status = request.GET.get('status')

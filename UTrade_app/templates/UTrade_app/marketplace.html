@@ -31,11 +31,15 @@
         <a href="{% url 'product.list' %}" class="text-decoration-none">
           <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if not request.GET.category %}
               
+              
               bg-dark
+
 
             {% else %}
               
+              
               bg-secondary
+
 
             {% endif %}"
             style="font-size: 0.65rem; letter-spacing: 1px;">
@@ -46,11 +50,15 @@
           <a href="?category={{ category.id }}" class="text-decoration-none">
             <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if request.GET.category == category.id|stringformat:'i' %}
                 
+                
                 bg-success
+
 
               {% else %}
                 
+                
                 bg-secondary opacity-50
+
 
               {% endif %}">
               {{ category.name }}
@@ -63,11 +71,15 @@
         <a href="?type=student" class="text-decoration-none">
           <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if request.GET.type == 'student' %}
               
+              
               bg-success
+
 
             {% else %}
               
+              
               bg-outline-success border border-success text-success
+
 
             {% endif %}"
             style="font-size: 0.65rem; letter-spacing: 1px;">
@@ -78,11 +90,15 @@
         <a href="?type=management" class="text-decoration-none">
           <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if request.GET.type == 'management' %}
               
+              
               bg-primary
+
 
             {% else %}
               
+              
               bg-outline-primary border border-primary text-primary
+
 
             {% endif %}"
             style="font-size: 0.65rem; letter-spacing: 1px;">
@@ -92,11 +108,15 @@
         <a href="?type=organization" class="text-decoration-none">
           <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if request.GET.type == 'organization' %}
               
+              
               bg-info text-dark
+
 
             {% else %}
               
+              
               bg-outline-info border border-info text-info
+
 
             {% endif %}"
             style="font-size: 0.65rem; letter-spacing: 1px;">
@@ -123,10 +143,14 @@
       {% for product in products %}
         <div class="col">
           <div class="card h-100 shadow-sm product-card border-0 overflow-hidden position-relative 
-        {% if product.seller.user_role == 'management' or product.seller.user_role == 'admin' %}             
+        {% if product.seller.user_role == 'management' or product.seller.user_role == 'admin' %}
+                           
           border-top border-primary border-3
+
             {% elif product.owner_type == 'ORGANIZATION' %}
+              
           border-top border-info border-3
+
             {% endif %}">
             <div class="img-container bg-light" style="height: 200px; overflow: hidden; position: relative;">
               {% if product.image %}
@@ -137,6 +161,13 @@
                 </div>
               {% endif %}
 
+              {% if product.pre_order %}
+                <div class="position-absolute top-0 start-0 m-2" style="z-index: 2;">
+                  <span class="badge bg-warning text-dark px-2 py-1 shadow-sm" style="font-size: 0.55rem; letter-spacing: 0.5px;"><i class="bi bi-clock-history"></i> PRE-ORDER</span>
+                </div>
+              {% endif %}
+
+              <!-- Ownership/Category Badges (Top-Right) -->
               <div class="position-absolute top-0 end-0 m-2" style="z-index: 2;">
                 {% if product.seller.user_role == 'management' or product.seller.user_role == 'admin' %}
                   <span class="badge rounded-pill bg-primary px-2 py-1 text-uppercase fw-bold shadow-sm" style="font-size: 0.6rem;">Official</span>

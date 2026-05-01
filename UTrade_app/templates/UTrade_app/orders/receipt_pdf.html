@@ -98,8 +98,8 @@
             <td>{{ order.product_variant.product.name }} ({{ order.product_variant.variant_name }})</td>
             <td>{{ order.quantity }}</td>
             <td>₱{{ order.product_variant.price }}</td>
-            <!-- Use total_price directly for the row total -->
-            <td>₱{{ order.total_price }}</td>
+            <!-- Call the method here (No parentheses!) -->
+            <td>₱{{ order.get_total_price }}</td>
           </tr>
         {% else %}
           <!-- Regular Order Items Loop -->
@@ -116,6 +116,8 @@
     </table>
 
     <div class="total-section">
+      <!--  Pre-orders usually don't have a payment_method field in your model, 
+         so we provide a default  -->
       <p>
         Payment Method: <strong>{{ order.payment_method|default:'Cash on Pickup' }}</strong>
       </p>
@@ -124,7 +126,7 @@
       </p>
       <div class="total-amount">
         Total Paid: ₱{% if is_preorder %}
-          {{ order.total_price }}
+          {{ order.get_total_price }}
         {% else %}
           {{ order.total_amount }}
         {% endif %}

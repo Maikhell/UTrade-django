@@ -66,6 +66,27 @@ class UserRegistrationForm(forms.ModelForm):
         model = User
         fields = ['student_no', 'email'] 
 
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        # Get the role from the POST data directly
+        role = self.data.get('user_role')
+
+        if email:
+            email = email.lower()
+            
+            # Validation for Student accounts
+            if role == 'student':
+                if not email.endswith('@cvsu.edu.ph'):
+                    raise forms.ValidationError(
+                        "Students are required to use their official @cvsu.edu.ph email."
+                    )
+            
+            # General uniqueness check
+            if User.objects.filter(email=email).exists():
+                raise forms.ValidationError("This email is already registered.")
+        
+        return email
+
     def clean(self):
         cleaned_data = super().clean()
         p1 = cleaned_data.get("password1")

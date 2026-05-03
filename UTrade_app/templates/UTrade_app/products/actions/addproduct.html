@@ -79,7 +79,7 @@
               <div id="attribute_pills" class="mb-2"></div>
               <div class="row g-2 mb-2">
                 <div class="col-md-4">
-                  <input type="text" id="variant_name" class="form-control" placeholder="Size/Color" />
+                  <input type="text" id="variant_name" class="form-control" placeholder="Variant Name" />
                 </div>
                 <div class="col-md-4">
                   <input type="number" id="variant_price" class="form-control" placeholder="Price" />
@@ -94,21 +94,22 @@
               </div>
               <div id="variant_list" class="mt-3"></div>
             </div>
-
-            <div class="row g-2 mb-3">
-              <div id="simple_price_section" class="col-6">
-                <label class="form-label small fw-bold text-secondary">Price (₱)</label>
-                <input type="number" id="price" class="form-control bg-light border-0" />
-              </div>
+            <!-- Hidden but still exists so the JS doesn't break -->
+            <div id="simple_price_section" class="d-none">
+              <input type="number" id="price" value="0" />
             </div>
 
             <div class="mb-3">
-              <label class="form-label small fw-bold text-secondary">Campus Meetup Spots</label>
-              <div id="location_tags_container" class="d-flex flex-wrap gap-2 mb-2 p-2 bg-light rounded-3"></div>
-              <div class="input-group">
-                <input type="text" id="location_input" class="form-control bg-light border-0" placeholder="Type location (e.g. Library)" />
-                <button class="btn btn-success" type="button" onclick="addLocationTag()">Add</button>
+              <label class="form-label small fw-bold text-secondary">Campus Meetup Spots (Select all that apply)</label>
+              <div class="p-3 bg-light rounded-3 border-0" style="max-height: 200px; overflow-y: auto;">
+                {% for location in meetup_locations %}
+                  <div class="form-check mb-2">
+                    <input class="form-check-input location-checkbox" type="checkbox" value="{{ location.name }}" id="loc_{{ forloop.index }}" onchange="updateMultiLocations()" />
+                    <label class="form-check-label small" for="loc_{{ forloop.index }}">{{ location.name }}</label>
+                  </div>
+                {% endfor %}
               </div>
+
               <input type="hidden" name="location_options" id="final_locations" />
             </div>
 
@@ -116,7 +117,7 @@
               <div class="mb-3 rounded-3">
                 <label class="form-label small fw-bold text-primary">Selling As</label>
                 <select id="owner_type" name="owner_type" class="form-select bg-white border-0 py-2 shadow-sm">
-                  <option value="MANAGEMENT" selected>Management Listing </option>
+                  <option value="MANAGEMENT" selected>Management Listing</option>
                 </select>
               </div>
             {% elif request.user.is_officer %}
@@ -162,13 +163,44 @@
 
       <div class="col-lg-4">
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+          <!-- HEADER SECTION -->
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold text-uppercase small text-muted mb-0">3. Staging List</h6>
-            <span id="item_count" class="badge bg-dark rounded-pill">0</span>
+            <!-- This ID is required for your JavaScript innerText update -->
+            <span id="item_count" class="badge bg-dark rounded-pill">{{ staged_items|length }}</span>
           </div>
+
+          <!-- STAGING AREA (The Container) -->
           <div id="staging_area" class="column-scroll mb-3">
-            <div class="text-center py-5 text-muted empty-msg">List is empty.</div>
+            {% if not staged_items %}
+              <div class="text-center py-5 text-muted empty-msg">List is empty.</div>
+            {% endif %}
+
+            {% for item in staged_items %}
+              <div class="card staged-item mb-3 p-3 bg-white border-0 shadow-sm" data-id="{{ item.id }}">
+                <div class="d-flex align-items-start mb-2">
+                  <!-- If your StagedImage model has a main image, show it here -->
+                  {% with img=item.images.first %}
+                    {% if img %}
+                      <img src="{{ img.image.url }}" class="rounded shadow-sm me-3" style="width: 50px; height: 50px; object-fit: cover;" />
+                    {% endif %}
+                  {% endwith %}
+
+                  <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <h6 class="mb-0 fw-bold text-dark">{{ item.name }}</h6>
+                      <div class="d-flex flex-column gap-2">
+                        <button class="btn btn-sm text-danger p-0" onclick="removeItem(this, {{ item.id }})"><i class="bi bi-trash-fill"></i></button>
+                        <button class="btn btn-sm text-primary p-0" onclick="editItem({{ item.id }})"><i class="bi bi-pencil-square"></i></button>
+                      </div>
+                    </div>
+                    <div class="small text-muted">₱{{ item.variants.first.price|default:'0' }}</div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
           </div>
+
           <div class="mt-auto">
             <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">Send for Authentication</button>
           </div>

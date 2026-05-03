@@ -82,7 +82,40 @@ class Product(BaseItem):
     def average_rating(self):
         avg = self.reviews.aggregate(Avg('rating'))['rating__avg']
         return round(avg, 1) if avg else 0.0
+class StagedProduct(models.Model):
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='staged_products')
+    
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
+    pre_order = models.BooleanField(default=False)
+    
+    owner_type = models.CharField(max_length=15, choices=Product.OWNER_TYPE_CHOICES, default='PERSONAL')
+    related_org = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    meetup_locations_list = models.TextField(help_text="Comma-separated list of locations")
+    
+    accepted_payments = models.CharField(max_length=10, choices=Product.PAYMENT_METHODS, default='BOTH')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_submitted = models.BooleanField(default=False) 
 
+    def __str__(self):
+        return f"Staged: {self.name} by {self.seller.username}"
+
+class StagedVariant(models.Model):
+    staged_product = models.ForeignKey(StagedProduct, on_delete=models.CASCADE, related_name='variants')
+    variant_name = models.CharField(max_length=255)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    stocks = models.PositiveIntegerField(default=1)
+    condition = models.CharField(max_length=50, default="Brand New")
+    flaws = models.TextField(blank=True, null=True)
+    image_index = models.IntegerField(null=True, blank=True) 
+
+class StagedImage(models.Model):
+    staged_product = models.ForeignKey(StagedProduct, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='products/staged/')
+    is_main = models.BooleanField(default=False)
 class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)

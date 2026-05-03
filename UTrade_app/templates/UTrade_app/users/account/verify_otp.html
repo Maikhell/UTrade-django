@@ -1,0 +1,30 @@
+{% extends 'UTrade_app/base.html' %} <!-- Adjust path to your actual base.html -->
+{% load static %}
+
+{% block content %}
+<div class="container vh-100 d-flex align-items-center justify-content-center">
+    <div class="card shadow-lg border-0 p-4" style="max-width: 400px; width: 100%; border-radius: 20px;">
+        <div class="text-center mb-4">
+            <div class="bg-success bg-opacity-10 p-3 rounded-circle d-inline-block mb-3">
+                <i class="bi bi-envelope-check text-success fs-2"></i>
+            </div>
+            <h3 class="fw-bold">Verify Email</h3>
+            <p class="text-muted small">Enter the 6-digit code sent to your <strong>@cvsu.edu.ph</strong> email.</p>
+        </div>
+
+        <form method="POST" action="{% url 'verify_otp' %}">
+            {% csrf_token %}
+            <div class="mb-3">
+                <input type="text" name="otp" class="form-control form-control-lg text-center fw-bold fs-3" 
+                       placeholder="000000" maxlength="6" pattern="\d{6}" required autofocus>
+            </div>
+            <button type="submit" class="btn btn-success w-100 btn-xl fw-bold shadow-sm mb-3">Verify Now</button>
+            
+            <div class="text-center">
+                <p class="small text-muted mb-0">Didn't get the code?</p>
+                <a href="#" class="text-success small fw-bold text-decoration-none">Resend Code</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

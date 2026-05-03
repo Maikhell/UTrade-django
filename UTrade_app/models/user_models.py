@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from .organization_models import Organization
 from django.core.validators import RegexValidator
+from django.core.exceptions import ValidationError
 from django.templatetags.static import static
 
 def user_profile_path(instance, filename):
@@ -29,7 +30,13 @@ class User(AbstractUser):
         choices=ROLE_CHOICES, 
         default='student'
     )
-    email = models.EmailField(unique=True) 
+    email = models.EmailField(
+        unique=True, 
+    ) 
+
+    is_email_verified = models.BooleanField(default=False)
+    otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_expiry = models.DateTimeField(blank=True, null=True)
     
     cor_file = models.ImageField(
         upload_to=user_profile_path, 

@@ -41,7 +41,7 @@
 
           <div class="mb-3">
             <label class="form-label small fw-bold text-secondary">Email</label>
-            <input type="email" name="email" value="{{ form.email.value|default:'' }}" placeholder="johndoe@gmail.com" class="form-control form-control-xl bg-light {% if form.email.errors %}is-invalid{% endif %}" required />
+            <input type="email" name="email" value="{{ form.email.value|default:'' }}" placeholder="student.name@cvsu.edu.ph" class="form-control form-control-xl bg-light {% if form.email.errors %}is-invalid{% endif %}" required />
             {% if form.email.errors %}
               <div class="invalid-feedback">
                 {% for error in form.email.errors %}
@@ -98,27 +98,61 @@
       </div>
     </div>
 
-    <div class="modal fade" id="termsModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content border-0 shadow">
-          <div class="modal-header bg-success text-white">
-            <h5 class="modal-title fw-bold">Terms and Services</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body text-dark p-4" style="font-size: 0.9rem;">
-            <h6>1. Prohibited Items</h6>
-            <p>UTrade strictly prohibits the listing of alcohol, e-cigarettes, and academic materials.</p>
-            <h6>2. User Conduct</h6>
-            <p>Users must provide valid student identification and engage in fair trading.</p>
-            <h6>3. Liability</h6>
-            <p>We are a platform for connection; we aren't responsible for item quality or meetup disputes.</p>
-          </div>
-          <div class="modal-footer border-0">
-            <button type="button" class="btn btn-success w-100 fw-bold" data-bs-dismiss="modal">I Understand</button>
-          </div>
+   <div class="modal fade" id="termsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-success text-white">
+        <div class="d-flex align-items-center">
+          <i class="bi bi-shield-check fs-4 me-2"></i>
+          <h5 class="modal-title fw-bold">UTrade Platform Terms & Conditions</h5>
         </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-dark p-4" style="font-size: 0.95rem; line-height: 1.6;">
+        
+        <div class="alert alert-info py-2 mb-4 border-0" style="font-size: 0.85rem;">
+          <strong>Notice:</strong> By registering for UTrade, you agree to comply with all university policies and the regulations set forth below.
+        </div>
+
+        <section class="mb-4">
+          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">1. Eligibility & Verification</h6>
+          <p class="text-muted">Access to UTrade is strictly limited to verified members of the University community. Users must provide an identification number. Providing false credentials or attempting to register with expired or future-dated identification will result in immediate account suspension.</p>
+        </section>
+
+        <section class="mb-4">
+          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">2. Prohibited Listings</h6>
+          <p class="text-muted">To maintain a safe academic environment, the following are strictly prohibited:</p>
+          <ul class="text-muted">
+            <li>Alcohol, tobacco, e-cigarettes, or related paraphernalia.</li>
+            <li>Academic materials including test banks, leaked exams, or commission-based academic services.</li>
+            <li>Counterfeit goods, weapons, or hazardous substances.</li>
+          </ul>
+        </section>
+
+        <section class="mb-4">
+          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">3. Transaction & Payment Policy</h6>
+          <p class="text-muted">UTrade facilitates a manual payment verification system via GCash QR codes. Users are responsible for verifying payment receipts before completing hand-overs. UTrade does not act as an escrow and is not liable for financial discrepancies between buyers and sellers.</p>
+        </section>
+
+        <section class="mb-4">
+          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">4. Liability & Safety</h6>
+          <p class="text-muted">Users are encouraged to conduct meet-ups in high-traffic, well-lit areas on campus. UTrade provides the platform for connection but does not guarantee the quality, safety, or legality of the items advertised. All trades are conducted at the user's own risk.</p>
+        </section>
+
+        <section class="mb-0">
+          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">5. Data Privacy</h6>
+          <p class="text-muted mb-0">Your personal information, including Student Numbers and CVSU email addresses, is collected solely for verification and system communication purposes. We do not share your data with third-party entities outside of university-approved administrative oversight.</p>
+        </section>
+
+      </div>
+      <div class="modal-footer border-0 p-4">
+        <button type="button" class="btn btn-success w-100 fw-bold py-2 shadow-sm" data-bs-dismiss="modal">
+          I AGREE TO THE TERMS
+        </button>
       </div>
     </div>
+  </div>
+</div>
   </section>
   {% block extra_js %}
     <script src="{% static 'UTrade_app/js/register.js' %}"></script>

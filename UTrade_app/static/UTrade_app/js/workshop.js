@@ -83,44 +83,43 @@ function toggleCustomCondition(select) {
         customInput.classList.add('d-none');
     }
 }
-function addToStaging() {
+async function addToStaging() {
+    // 1. Elements
     const nameEl = document.getElementById('name');
     const priceEl = document.getElementById('price');
     const stocksEl = document.getElementById('stocks');
     const descEl = document.getElementById('description');
     const categoryEl = document.getElementById('category');
-    const finalLocationsInput = document.getElementById('final_locations');
     const preOrderElement = document.getElementById('is_pre_order');
-    const isVariantMode = !document.getElementById('attributes_section').classList.contains('d-none');
-    [nameEl, priceEl, stocksEl].forEach(el => el.classList.remove('is-invalid'));
+    const locSelect = document.getElementById('location_select');
+    const finalLocationsInput = document.getElementById('final_locations');
+    const ownerTypeEl = document.getElementById('owner_type');
+    const attributesSection = document.getElementById('attributes_section');
+
+    const isVariantMode = attributesSection && !attributesSection.classList.contains('d-none');
+    
+    [nameEl, priceEl, stocksEl].forEach(el => el && el.classList.remove('is-invalid'));
     let hasError = false;
-    if (window.locationTags.length === 0) {
-        Swal.fire('Location Required', 'Please add at least one campus meetup spot.', 'warning');
-        return;
+
+    // 2. Validation
+    if (locSelect) finalLocationsInput.value = locSelect.value;
+
+    if (!finalLocationsInput || !finalLocationsInput.value.trim()) {
+        return Swal.fire('Location Required', 'Please select at least one campus meetup spot.', 'warning');
     }
     if (!nameEl.value.trim()) {
         nameEl.classList.add('is-invalid');
         hasError = true;
     }
-    if (checkProhibitedContent(nameEl.value)) {
-        Swal.fire('Prohibited Content', 'The product name contains restricted words.', 'error');
-        nameEl.classList.add('is-invalid');
-        return;
+
+    if (checkProhibitedContent(nameEl.value) || checkProhibitedContent(descEl.value)) {
+        return Swal.fire('Prohibited Content', 'Your text contains restricted words.', 'error');
     }
-    if (checkProhibitedContent(descEl.value)) {
-        Swal.fire('Prohibited Content', 'The description contains restricted words.', 'error');
-        descEl.classList.add('is-invalid');
-        return;
-    }
-    if (checkProhibitedContent(window.locationTags.join(' '))) {
-        Swal.fire('Prohibited Content', 'One of your meetup locations contains restricted words.', 'error');
-        return;
-    }
+
     let finalPrice, finalStocks;
     if (isVariantMode) {
         if (productVariants.length === 0) {
-            Swal.fire('Variations Required', 'Please add at least one size or variety using the "Add" button.', 'warning');
-            return;
+            return Swal.fire('Variations Required', 'Please add at least one variety.', 'warning');
         }
         finalPrice = productVariants[0].price;
         finalStocks = productVariants.reduce((sum, v) => sum + v.stock, 0);
@@ -130,110 +129,220 @@ function addToStaging() {
         finalPrice = priceEl.value;
         finalStocks = stocksEl.value;
     }
+
     if (selectedFiles.length === 0) {
-        Swal.fire('Photos Required', 'Please select at least one photo for your product.', 'warning');
-        return;
+        return Swal.fire('Photos Required', 'Please select at least one photo.', 'warning');
     }
-    if (hasError) {
-        return Swal.fire({
-            title: 'Required Fields',
-            text: 'Please fill in the red-highlighted fields.',
-            icon: 'error',
-            confirmButtonColor: '#dc3545'
-        });
-    }
+
+    if (hasError) return Swal.fire('Required Fields', 'Please fill in the highlighted fields.', 'error');
+
+    // 3. Category Formatting
     let categoryId = categoryEl.value;
-    let categoryName = categoryEl.options[categoryEl.selectedIndex].text;
+    let categoryName = "Uncategorized";
+    if (categoryEl.selectedIndex >= 0) {
+        categoryName = categoryEl.options[categoryEl.selectedIndex].text;
+    }
+
     if (categoryId === 'other') {
-        const customValue = document.getElementById('custom_category').value.trim();
+        const customValue = document.getElementById('custom_category')?.value.trim();
         categoryId = `NEW:${customValue}`;
         categoryName = customValue;
     }
-    const conditionEl = document.getElementById('variant_condition');
-    const globalCondition = conditionEl ? conditionEl.value : "Brand New";
-    const isPreOrder = preOrderElement ? preOrderElement.value : "False";
-    const productId = Date.now();
+
+    // 4. Prepare FormData
+    const formData = new FormData();
+    formData.append('name', nameEl.value);
+    formData.append('description', descEl.value);
+    formData.append('category', categoryId);
+    formData.append('location_options', finalLocationsInput.value);
+    formData.append('owner_type', ownerTypeEl?.value || 'PERSONAL');
+    
     const paymentEl = document.querySelector('input[name="payment"]:checked');
-    const payment = paymentEl ? paymentEl.value : 'BOTH';
-    const productData = {
-        id: productId,
-        name: nameEl.value,
-        price: finalPrice,
-        stocks: finalStocks,
-        description: descEl.value,
-        category: categoryId,
-        pre_order: isPreOrder,
-        condition: globalCondition,
-        meetup: finalLocationsInput ? finalLocationsInput.value : '',
-        payment: payment,
-        files: [...selectedFiles],
-        variants: [...productVariants],
-        owner_type: document.getElementById('owner_type')?.value || 'PERSONAL'
-    };
-    allStagedProducts.push(productData);
-    itemCount = allStagedProducts.length;
-    document.getElementById('item_count').innerText = itemCount;
-    const stagingArea = document.getElementById('staging_area');
-    if (stagingArea.querySelector('.empty-msg')) stagingArea.innerHTML = '';
-    const firstImagePreview = document.querySelector('#image_preview_container img');
-    const firstImageSrc = firstImagePreview ? firstImagePreview.src : null;
-    const imageHtml = firstImageSrc
-        ? `<img src="${firstImageSrc}" class="rounded shadow-sm me-3" style="width: 70px; height: 70px; object-fit: cover; border: 1px solid #dee2e6;">`
-        : `<div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 70px; height: 70px; border: 1px solid #dee2e6;"><i class="bi bi-image text-muted"></i></div>`;
-    const itemCard = `
-        <div class="card staged-item mb-3 p-3 bg-white border-0 shadow-sm animate__animated animate__fadeInRight" data-id="${productId}">
+    formData.append('payment', paymentEl ? paymentEl.value : 'BOTH');
+    formData.append('pre_order', preOrderElement ? preOrderElement.value : "False");
+    formData.append('variants', JSON.stringify(productVariants));
+
+    selectedFiles.forEach((file) => {
+        formData.append('images', file);
+    });
+
+    // 5. AJAX CALL (Updated URL to match your urls.py)
+    Swal.fire({
+        title: 'Saving to Staging...',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    try {
+        const response = await fetch('/api/staged-product/add/', { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.status !== 'success') {
+            throw new Error(result.message || 'Server error.');
+        }
+
+        const dbId = result.staged_id;
+        
+        // 6. UI Update
+        const firstImg = document.querySelector('#image_preview_container img');
+        const imageHtml = firstImg 
+            ? `<img src="${firstImg.src}" class="rounded shadow-sm me-3" style="width: 70px; height: 70px; object-fit: cover; border: 1px solid #dee2e6;">`
+            : `<div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 70px; height: 70px; border: 1px solid #dee2e6;"><i class="bi bi-image text-muted"></i></div>`;
+
+        const itemCard = `
+        <div class="card staged-item mb-3 p-3 bg-white border-0 shadow-sm animate__animated animate__fadeInRight" data-id="${dbId}">
             <div class="d-flex align-items-start mb-2">
                 ${imageHtml}
                 <div class="flex-grow-1">
                     <div class="d-flex justify-content-between">
-                        <h6 class="mb-0 fw-bold text-dark">${productData.name}</h6>
-                        <button class="btn btn-sm text-danger p-0" onclick="removeItem(this, ${productId})">
-                            <i class="bi bi-trash-fill"></i>
-                        </button>
+                        <h6 class="mb-0 fw-bold text-dark">${nameEl.value}</h6>
+                        <div class="d-flex flex-column gap-2">
+                            <button class="btn btn-sm text-danger p-0" onclick="removeItem(this, ${dbId})">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                            <button class="btn btn-sm text-primary p-0" onclick="editItem(${dbId})">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="mt-1">
-                        <span class="badge bg-success-subtle text-success small">₱${productData.price}</span>
-                        <span class="text-muted small ms-1">Stock: ${productData.stocks}</span>
+                        <span class="badge bg-success-subtle text-success small">₱${finalPrice}</span>
+                        <span class="text-muted small ms-1">Stock: ${finalStocks}</span>
                     </div>
                 </div>
             </div>
-            <div class="small text-muted mb-2 text-truncate-2" style="font-size: 0.85rem;">${productData.description}</div>
+            <div class="small text-muted mb-2 text-truncate-2" style="font-size: 0.85rem;">${descEl.value}</div>
             <div class="d-flex flex-wrap gap-1 mb-2">
                 <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-tag me-1"></i>${categoryName}</span>
-                <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-geo-alt me-1"></i>${productData.meetup}</span>
-                <span class="badge ${payment === 'GCASH' ? 'bg-primary' : 'bg-success'} text-white fw-normal">
-                    <i class="bi bi-wallet2 me-1"></i>${payment}
-                </span>
+                <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-geo-alt me-1"></i>${finalLocationsInput.value}</span>
             </div>
         </div>`;
-    stagingArea.insertAdjacentHTML('afterbegin', itemCard);
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true
+
+        const stagingArea = document.getElementById('staging_area');
+        if (stagingArea.querySelector('.empty-msg')) stagingArea.innerHTML = '';
+        stagingArea.insertAdjacentHTML('afterbegin', itemCard);
+
+        document.getElementById('item_count').innerText = document.querySelectorAll('.staged-item').length;
+
+        // 7. Cleanup
+        document.getElementById('product_form').reset();
+        window.selectedFiles = [];
+        window.productVariants = [];
+        window.locationTags = [];
+        document.getElementById('image_preview_container').innerHTML = `<div class="text-center py-5 text-muted small w-100">Item added successfully.</div>`;
+        document.getElementById('variant_list').innerHTML = '';
+        
+        if (categoryEl) {
+            categoryEl.value = "";
+            if(typeof handleCategoryChange === "function") handleCategoryChange(categoryEl);
+        }
+
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Saved to Staging List',
+            showConfirmButton: false,
+            timer: 2000
+        });
+
+    } catch (error) {
+        console.error("Staging Error:", error);
+        Swal.fire('Error', error.message || 'Failed to connect to server.', 'error');
+    }
+}
+async function editItem(stagedId) {
+    try {
+        const response = await fetch(`/api/staged-product/${stagedId}/`);
+        const data = await response.json();
+
+        if (data.error) throw new Error(data.error);
+
+        document.getElementById('name').value = data.name;
+        document.getElementById('description').value = data.description;
+        document.getElementById('category').value = data.category;
+        
+        const locs = data.locations.split(',').map(l => l.trim());
+        document.querySelectorAll('.location-checkbox').forEach(cb => {
+            cb.checked = locs.includes(cb.value);
+        });
+        document.getElementById('final_locations').value = data.locations;
+
+        const container = document.getElementById('image_preview_container');
+        container.innerHTML = '';
+        data.images.forEach(img => {
+            container.insertAdjacentHTML('beforeend', `
+                <div class="preview-wrapper">
+                    <img src="${img.url}" class="preview-box ${img.is_main ? 'is-main-image' : ''}">
+                </div>
+            `);
+        });
+
+        window.productVariants = data.variants.map(v => ({
+            name: v.variant_name,
+            price: v.price,
+            stock: v.stocks,
+            condition: v.condition
+        }));
+        renderVariantList(); 
+
+        await fetch(`/api/staged-product/delete/${stagedId}/`, { method: 'POST' });
+
+    } catch (err) {
+        Swal.fire('Error', 'Could not retrieve product data.', 'error');
+    }
+}
+function renderEditGallery(files) {
+    const container = document.getElementById('image_preview_container');
+    container.innerHTML = ''; 
+    
+    files.forEach((file, index) => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'preview-wrapper animate__animated animate__fadeIn';
+            wrapper.innerHTML = `
+                <img src="${e.target.result}" class="preview-box ${index === 0 ? 'is-main-image' : ''}">
+            `;
+            container.appendChild(wrapper);
+        };
+        reader.readAsDataURL(file);
     });
-    Toast.fire({
-        icon: 'success',
-        title: 'Item added to staging list'
+}
+function renderVariantList() {
+    const listContainer = document.getElementById('variant_list');
+    listContainer.innerHTML = '';
+
+    window.productVariants.forEach(variant => {
+        const div = document.createElement('div');
+        div.className = "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white";
+        div.innerHTML = `
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center">
+                    <span class="small fw-bold text-dark">${variant.name}</span>
+                    <span class="badge bg-info-subtle text-info ms-2" style="font-size: 0.6rem;">${variant.condition}</span>
+                </div>
+                <div class="text-muted" style="font-size: 0.7rem;">
+                    ₱${variant.price} | Stock: ${variant.stock}
+                </div>
+            </div>
+            <button type="button" class="btn-close" style="font-size: 0.6rem;" onclick="removeVariant(this, '${variant.name}')"></button>
+        `;
+        listContainer.appendChild(div);
     });
-    document.getElementById('product_form').reset();
-    window.locationTags = [];
-    renderLocationTags();
-    productVariants = [];
-    document.getElementById('variant_list').innerHTML = '';
-    const attrPills = document.getElementById('attribute_pills');
-    if (attrPills) attrPills.innerHTML = '';
-    document.getElementById('image_preview_container').innerHTML = `
-        <div class="text-center py-5 text-muted small w-100">
-            <i class="bi bi-check-circle-fill text-success d-block mb-2" style="font-size: 2rem;"></i>
-            Item added. Ready for next.
-        </div>`;
-    handleCategoryChange(categoryEl);
 }
 async function submitToAdmin() {
-    if (allStagedProducts.length === 0) {
+    // Get the current count from the UI badge or the list container
+    const stagedCount = document.querySelectorAll('.staged-item').length;
+
+    if (stagedCount === 0) {
         return Swal.fire({
             title: 'Empty List',
             text: 'Your staging list is empty! Add items first.',
@@ -241,13 +350,16 @@ async function submitToAdmin() {
             confirmButtonColor: '#198754'
         });
     }
+
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
     if (!csrftoken) {
         return Swal.fire('Error', 'CSRF Token missing. Check your HTML template!', 'error');
     }
+
+    // Confirmation Dialog
     const confirmation = await Swal.fire({
         title: 'Submit for Authorization?',
-        text: `Are you sure you want to send ${allStagedProducts.length} item(s) for review?`,
+        text: `Are you sure you want to send ${stagedCount} item(s) for review?`,
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#198754',
@@ -255,41 +367,32 @@ async function submitToAdmin() {
         confirmButtonText: 'Yes, submit it!',
         cancelButtonText: 'Wait, let me check'
     });
+
     if (!confirmation.isConfirmed) return;
+
+    // Show Loading State
     Swal.fire({
         title: 'Sending to Admin...',
-        text: 'Please wait while we process your request.',
+        text: 'Moving your items from staging to the authentication queue.',
         allowOutsideClick: false,
         didOpen: () => {
             Swal.showLoading();
         }
     });
+
     const formData = new FormData();
-    allStagedProducts.forEach((product, index) => {
-        formData.append(`prod_${index}_name`, product.name);
-        formData.append(`prod_${index}_price`, product.price);
-        formData.append(`prod_${index}_stocks`, product.stocks);
-        formData.append(`prod_${index}_desc`, product.description);
-        formData.append(`prod_${index}_category`, product.category);
-        formData.append(`prod_${index}_condition`, product.condition);
-        formData.append(`prod_${index}_meetup`, product.meetup);
-        formData.append(`prod_${index}_payment`, product.payment);
-        formData.append(`prod_${index}_pre_order`, product.pre_order);
-        formData.append(`prod_${index}_owner_type`, product.owner_type);
-        formData.append(`prod_${index}_variants`, JSON.stringify(product.variants));
-        product.files.forEach((file, fileIndex) => {
-            formData.append(`prod_${index}_image_${fileIndex}`, file);
-        });
-        formData.append(`prod_${index}_image_count`, product.files.length);
-    });
-    formData.append('total_products', allStagedProducts.length);
+    formData.append('action', 'submit_staging'); // Matches the updated view logic
+    formData.append('total_products', stagedCount); // Included just as a safety check
+
     try {
         const response = await fetch(window.location.href, {
             method: 'POST',
             headers: { 'X-CSRFToken': csrftoken },
             body: formData
         });
+
         const result = await response.json();
+
         if (result.status === 'success') {
             await Swal.fire({
                 icon: 'success',
@@ -297,7 +400,8 @@ async function submitToAdmin() {
                 text: 'Your items have been sent for review.',
                 confirmButtonColor: '#198754'
             });
-            window.location.reload();
+            
+            window.location.href = result.redirect_url || window.location.pathname;
         } else {
             Swal.fire({
                 icon: 'error',
@@ -334,24 +438,39 @@ function removeTag(type, value, element) {
     });
 }
 function handleCategoryChange(selectElement) {
-    const selectedText = selectElement.options[selectElement.selectedIndex].text.trim();
+    if (!selectElement || selectElement.selectedIndex === -1) {
+        const attrSection = document.getElementById('attributes_section');
+        const otherDiv = document.getElementById('other_category_div');
+        if (attrSection) attrSection.classList.add('d-none');
+        if (otherDiv) otherDiv.classList.add('d-none');
+        return;
+    }
+
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const selectedText = selectedOption.text.trim();
+    const selectedValue = selectElement.value;
+
     const attrSection = document.getElementById('attributes_section');
     const otherDiv = document.getElementById('other_category_div');
     const simplePriceSection = document.getElementById('simple_price_section');
     const suggestionContainer = document.getElementById('size_suggestions_container');
     const suggestionButtons = document.getElementById('suggestion_buttons');
     const stocksInput = document.getElementById('stocks');
+
     attrSection.classList.add('d-none');
     otherDiv.classList.add('d-none');
     suggestionContainer.classList.add('d-none');
     if (simplePriceSection) simplePriceSection.classList.remove('d-none');
-    stocksInput.readOnly = false;
+    if (stocksInput) stocksInput.readOnly = false;
+
+
     const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture', 'Watches'];
     if (showVariantsFor.includes(selectedText)) {
         attrSection.classList.remove('d-none');
         if (simplePriceSection) simplePriceSection.classList.add('d-none');
-        stocksInput.readOnly = true;
+        if (stocksInput) stocksInput.readOnly = true;
     }
+
     if (window.sizePresets && window.sizePresets[selectedText]) {
         suggestionContainer.classList.remove('d-none');
         suggestionButtons.innerHTML = '';
@@ -370,7 +489,8 @@ function handleCategoryChange(selectElement) {
             suggestionButtons.appendChild(btn);
         });
     }
-    if (selectElement.value === 'other') {
+
+    if (selectedValue === 'other') {
         otherDiv.classList.remove('d-none');
     }
 }
@@ -429,15 +549,15 @@ function addVariant() {
     nameInput.value = '';
     stockInput.value = '';
     priceInput.value = '';
-    
+
     if (flawsInput) {
         flawsInput.value = '';
     }
-    
+
     if (conditionSelect) {
         conditionSelect.value = 'Brand New';
     }
-    
+
     if (customConditionInput) {
         customConditionInput.value = '';
         customConditionInput.classList.add('d-none');
@@ -536,4 +656,18 @@ function checkProhibitedContent(text) {
     if (!text || window.PROHIBITED_WORDS.length === 0) return false;
     const lowerText = text.toLowerCase();
     return window.PROHIBITED_WORDS.some(word => lowerText.includes(word.toLowerCase()));
+}
+function updateHiddenLocation() {
+    const select = document.getElementById('location_select');
+    const hiddenInput = document.getElementById('final_locations');
+    hiddenInput.value = select.value;
+}
+function updateMultiLocations() {
+    const checkboxes = document.querySelectorAll('.location-checkbox:checked');
+    const selectedLocations = Array.from(checkboxes).map(cb => cb.value);
+
+    const hiddenInput = document.getElementById('final_locations');
+    hiddenInput.value = selectedLocations.join(', ');
+
+    console.log("Selected Locations:", hiddenInput.value);
 }

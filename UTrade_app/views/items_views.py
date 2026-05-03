@@ -1,12 +1,14 @@
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.db import transaction
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant, MeetupLocation, ProhibitedWord 
+from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant, MeetupLocation, ProhibitedWord, StagedProduct, StagedVariant, StagedImage 
 from django.http import JsonResponse
 import re
 import json
@@ -76,129 +78,75 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['categories'] = Category.objects.all()
+        context['meetup_locations'] = MeetupLocation.objects.all()
+        context['staged_items'] = StagedProduct.objects.filter(
+            seller=self.request.user, 
+            is_submitted=False
+        ).prefetch_related('variants', 'images')
         return context
     
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        total_products = int(request.POST.get('total_products', 0))
+        is_final_submit = request.POST.get('action') == 'submit_staging'
         
-        if total_products == 0:
+        if not is_final_submit:
+            # Fallback to standard single-product form submission
             return super().post(request, *args, **kwargs)
 
         try:
-            for i in range(total_products):
-                prod_name = request.POST.get(f'prod_{i}_name', '')
-                prod_desc = request.POST.get(f'prod_{i}_desc', '')
-                prod_price = request.POST.get(f'prod_{i}_price', 0)
-                prod_stocks = request.POST.get(f'prod_{i}_stocks', 0)
-                raw_category = request.POST.get(f'prod_{i}_category', '')
-                raw_meetup = request.POST.get(f'prod_{i}_meetup', '').strip()
-                raw_pre_order = request.POST.get(f'prod_{i}_pre_order', 'false').lower()
-                is_pre_order = raw_pre_order == 'true'
-                
-                raw_owner = request.POST.get(f'prod_{i}_owner_type', 'PERSONAL')
-                prod_owner_type = raw_owner if raw_owner in ['PERSONAL', 'ORGANIZATION','MANAGEMENT'] else 'PERSONAL'
-                meetup_obj = None
-                if raw_meetup:
-                    if raw_meetup.startswith('NEW:'):
-                        new_loc_name = raw_meetup.replace('NEW:', '').strip()
-                        flagged_loc = self.is_content_prohibited(new_loc_name)
-                        if flagged_loc:
-                            return JsonResponse({
-                                'status': 'error', 
-                                'message': f'Meetup location contains prohibited content: {flagged_loc}'
-                            }, status=400)
+            # 1. Fetch all staged items for this user that haven't been submitted
+            staged_items = StagedProduct.objects.filter(
+                seller=request.user, 
+                is_submitted=False
+            ).prefetch_related('variants', 'images')
 
-                        meetup_obj, _ = MeetupLocation.objects.get_or_create(
-                            name__iexact=new_loc_name,
-                            defaults={'name': new_loc_name, 'added_by': request.user}
-                        )
-                    elif raw_meetup.isdigit():
-                        meetup_obj = MeetupLocation.objects.filter(id=int(raw_meetup)).first()
-                    else:
-                        meetup_obj, _ = MeetupLocation.objects.get_or_create(
-                            name__iexact=raw_meetup,
-                            defaults={'name': raw_meetup, 'added_by': request.user}
-                        )
+            if not staged_items.exists():
+                return JsonResponse({'status': 'error', 'message': 'No items in staging to submit.'}, status=400)
 
-                if self.is_content_prohibited(prod_name) or self.is_content_prohibited(prod_desc):
-                    return JsonResponse({'status': 'error', 'message': f'Prohibited content in {prod_name}.'}, status=400)
-
-                category_obj = None
-                if raw_category:
-                    if raw_category.startswith('NEW:'):
-                        new_cat_name = raw_category.replace('NEW:', '').strip()
-                        category_obj, _ = Category.objects.get_or_create(
-                            name__iexact=new_cat_name, 
-                            defaults={'name': new_cat_name.title()}
-                        )
-                    elif raw_category.isdigit():
-                        category_obj = Category.objects.filter(id=int(raw_category)).first()
-
-                prod_payment = request.POST.get(f'prod_{i}_payment', 'BOTH')                                     
-                
+            for staged_prod in staged_items:
+                # 2. Convert StagedProduct -> Product
                 new_product = Product.objects.create(
-                    name=prod_name,
-                    description=prod_desc,
-                    category=category_obj,
-                    meetup_location=meetup_obj,
+                    name=staged_prod.name,
+                    description=staged_prod.description,
+                    category=staged_prod.category,
+                    # Assuming meetup_locations_list is a string or handle conversion to FK
                     seller=request.user,
-                    pre_order=is_pre_order,
-                    accepted_payments=prod_payment,
-                    owner_type=prod_owner_type,
+                    pre_order=staged_prod.pre_order,
+                    accepted_payments=staged_prod.accepted_payments,
+                    owner_type=staged_prod.owner_type,
                     status='Pending'
                 )
 
-                saved_images_objects = []
-                image_count = int(request.POST.get(f'prod_{i}_image_count', 0))
-                
-                for j in range(image_count):
-                    img_file = request.FILES.get(f'prod_{i}_image_{j}')
-                    if img_file:
-                        img_obj = ProductImage.objects.create(product=new_product, image=img_file)
-                        saved_images_objects.append(img_obj)
-                        
-                        if j == 0:
-                            new_product.image = img_file
-                            new_product.save()
+                # 3. Convert StagedImage -> ProductImage
+                for staged_img in staged_prod.images.all():
+                    new_img = ProductImage.objects.create(
+                        product=new_product,
+                        image=staged_img.image
+                    )
+                    # Set the main display image for the Product model
+                    if staged_img.is_main:
+                        new_product.image = staged_img.image
+                        new_product.save()
 
-                variants_data = request.POST.get(f'prod_{i}_variants', '[]')
-                try:
-                    variants_list = json.loads(variants_data)
-                    
-                    if not variants_list:
-                        ProductVariant.objects.create(
-                            product=new_product,
-                            variant_name="Default",
-                            price=prod_price,
-                            stocks=prod_stocks,
-                            condition="Brand New" 
-                        )
-                    else:
-                        for var in variants_list:
-                            variant_instance = ProductVariant(
-                                product=new_product,
-                                variant_name=var.get('name'),
-                                stocks=var.get('stock', 0),
-                                price=var.get('price', prod_price),
-                                condition=var.get('condition', 'Brand New'),    
-                                flaws_description=var.get('flaws', '') 
-                            )
-                            
-                            img_idx = var.get('imageIndex')
-                            if img_idx is not None and int(img_idx) < len(saved_images_objects):
-                                variant_instance.assigned_image = saved_images_objects[int(img_idx)]
-                            
-                            variant_instance.save()
-                            
-                except (json.JSONDecodeError, TypeError):
-                    pass 
+                # 4. Convert StagedVariant -> ProductVariant
+                for v in staged_prod.variants.all():
+                    ProductVariant.objects.create(
+                        product=new_product,
+                        variant_name=v.variant_name,
+                        price=v.price,
+                        stocks=v.stocks,
+                        condition=v.condition,
+                        flaws_description=v.flaws
+                    )
 
-            return JsonResponse({'status': 'success'})
-            
+                staged_prod.is_submitted = True
+                staged_prod.save()
+
+            return JsonResponse({'status': 'success', 'redirect_url': reverse('product.list')})
+
         except Exception as e:
-            print(f"Error saving product: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+            print(f"Final Submission Error: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': 'Failed to process staging list.'}, status=500)
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'Utrade_app/products/actions/product_details.html'
@@ -292,3 +240,80 @@ def toggle_wishlist(request, product_id):
     except Product.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Product not found'})
 
+@login_required
+@require_POST
+def add_to_staging_ajax(request):
+    def check_text(text):
+        if not text: return None
+        banned = ['alcohol', 'drugs', 'beer', 'wine', 'vape', 'tobacco', 'weed'] # and so on...
+        clean = re.sub(r'[^a-z]', '', text.lower())
+        for word in banned:
+            if word in clean: return word
+        return None
+
+    if check_text(request.POST.get('name')) or check_text(request.POST.get('description')):
+        return JsonResponse({'status': 'error', 'message': 'Prohibited content detected.'}, status=400)
+
+
+    staged_prod = StagedProduct.objects.create(
+        seller=request.user,
+        name=request.POST.get('name'),
+        description=request.POST.get('description'),
+        category_id=request.POST.get('category') if request.POST.get('category').isdigit() else None,
+        meetup_locations_list=request.POST.get('location_options'),
+        owner_type=request.POST.get('owner_type', 'PERSONAL'),
+        accepted_payments=request.POST.get('payment'),
+        pre_order=request.POST.get('pre_order') == 'True'
+    )
+
+
+    variants_data = json.loads(request.POST.get('variants', '[]'))
+    for v in variants_data:
+        StagedVariant.objects.create(
+            staged_product=staged_prod,
+            variant_name=v['name'],
+            price=v['price'],
+            stocks=v['stock'],
+            condition=v['condition'],
+            flaws=v.get('flaws', '')
+        )
+
+
+    images = request.FILES.getlist('images')
+    for i, img in enumerate(images):
+        StagedImage.objects.create(
+            staged_product=staged_prod,
+            image=img,
+            is_main=(i == 0)
+        )
+
+    return JsonResponse({'status': 'success', 'staged_id': staged_prod.id})
+def get_staged_product_details(request, staged_id):
+    try:
+        product = StagedProduct.objects.get(id=staged_id, seller=request.user)
+        
+        # Prepare variants list
+        variants = list(product.variants.values('variant_name', 'price', 'stocks', 'condition', 'flaws'))
+        
+        images = [{'url': img.image.url, 'is_main': img.is_main} for img in product.images.all()]
+
+        data = {
+            'name': product.name,
+            'description': product.description,
+            'category': product.category.id if product.category else '',
+            'locations': product.meetup_locations_list,
+            'variants': variants,
+            'images': images,
+            'payment': product.accepted_payments,
+        }
+        return JsonResponse(data)
+    except StagedProduct.DoesNotExist:
+        return JsonResponse({'error': 'Not found'}, status=404)
+def delete_staged_product(request, staged_id):
+    if request.method == "POST" or request.method == "DELETE":
+        try:
+            item = StagedProduct.objects.get(id=staged_id, seller=request.user)
+            item.delete()
+            return JsonResponse({'status': 'success'})
+        except StagedProduct.DoesNotExist:
+            return JsonResponse({'error': 'Item not found'}, status=404)

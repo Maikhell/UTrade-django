@@ -10,34 +10,40 @@ from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
 from django.http import JsonResponse
+from ..utils import send_otp_email
 
 class UserCreateView(CreateView):
     model = User 
     form_class = UserRegistrationForm
     template_name = 'UTrade_app/users/account/register.html'
-    success_url = reverse_lazy('product.list')
+    success_url = reverse_lazy('verify_otp') 
     
     def form_valid(self, form):
         user = form.save(commit=False)
         
         chosen_role = self.request.POST.get('user_role', 'student')
+        user.user_role = chosen_role if chosen_role in ['student', 'alumni'] else 'student'
+        user.is_active = False 
+        user.status = 'unverified'
         
-        # Strict validation to prevent role injection
-        if chosen_role in ['student', 'alumni']:
-            user.user_role = chosen_role
-        else:
-            user.user_role = 'student'
-            
         user.save()
         
-        self.object = user 
-        login(self.request, user, backend='django.contrib.auth.backends.ModelBackend')
+        self.request.session['pending_user_id'] = user.id
+        self.request.session.modified = True
+        self.request.session.save() 
         
-        # Customize the welcome message based on role
-        role_name = "Alumnus" if user.user_role == 'alumni' else "Student"
-        messages.success(self.request, f"Welcome! Your {role_name} account was created.")
-    
-        return redirect(self.get_success_url())
+        try:
+            send_otp_email(user)
+            messages.info(self.request, "A verification code has been sent to your CVSU email.")
+        except Exception as e:
+            print(f"SMTP/Email Error: {e}")
+            messages.warning(self.request, "Account created, but we had trouble sending the email.")
+
+        return redirect('/verify-email/')
+
+    def form_invalid(self, form):
+        print(f"Form Validation Errors: {form.errors}")
+        return super().form_invalid(form)
     
 class UserAccountView(TemplateView):
     template_name = 'UTrade_app/users/account/accounts.html'

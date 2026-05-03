@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     items_views, services_views, user_views, authenticate, 
     admin_views, cart_views, order_views, chat_views, 
-    organization_views, management_views,alumni_views
+    organization_views, management_views,alumni_views,
+    otplink_views
 )
 
 urlpatterns = [
@@ -95,6 +96,11 @@ urlpatterns = [
     
     #
     path('api/prohibited-words/', items_views.prohibited_words_api, name='prohibited_words_api'),
-
+    path('api/staged-product/add/', items_views.add_to_staging_ajax, name='add_to_staging_ajax'),
+    path('api/staged-product/<int:staged_id>/', items_views.get_staged_product_details, name='get_staged_details'),
+    path('api/staged-product/delete/<int:staged_id>/', items_views.delete_staged_product, name='delete_staged'),
+    
+    #otp
+    path('verify-email/', otplink_views.verify_otp, name='verify_otp'),
     ]
    

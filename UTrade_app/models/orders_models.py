@@ -94,3 +94,50 @@ class SystemLog(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.action} {self.item_type} ({self.timestamp})"
+    
+class Payout(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'), # Order just completed
+        ('processing', 'Withdrawal Initiated'), # Management moving money from Bank/PayMongo
+        ('completed', 'Transferred to Seller'),
+        ('rejected', 'Disputed/Hold'),
+    ]
+
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='payouts'
+    )
+    
+    # Links to the specific order being paid out
+    order = models.OneToOneField('Order', on_delete=models.CASCADE, related_name='payout')
+
+    # Financial Breakdown
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2) # Amount buyer paid
+    service_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # UTrade cut
+    seller_net_amount = models.DecimalField(max_digits=10, decimal_places=2) # What seller gets
+
+    # Seller's GCash Info (Captured at time of payout request)
+    gcash_name = models.CharField(max_length=100, help_text="Registered GCash Name")
+    gcash_number = models.CharField(max_length=11, help_text="09XXXXXXXXX")
+
+    # Management Proof & Oversight
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Management uploads the screenshot of the GCash "Success" screen here
+    transfer_proof = models.ImageField(upload_to='payout_receipts/', null=True, blank=True)
+    
+    reference_no = models.CharField(max_length=100, blank=True, help_text="GCash Ref No.")
+    processed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        limit_choices_to={'user_role': 'management'},
+        related_name='processed_payouts'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Payout for Order #{self.order.id} - {self.seller.username}"

@@ -18,32 +18,45 @@
         <p style="font-size: 9pt;">Generated on: {% now "F j, Y, g:i a" %}</p>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th style="width: 25%;">Name / Username</th>
-                <th style="width: 20%;">Student No.</th>
-                <th style="width: 15%;">Status</th>
-                <th style="width: 20%;">System Role</th>
-                <th style="width: 20%;">Registration Date</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in users %}
-            <tr>
-                <td><strong>{{ u.username }}</strong><br/><small>{{ u.get_full_name|default:"" }}</small></td>
-                <td>{{ u.student_no|default:"N/A" }}</td>
-                <td>{{ u.status|title }}</td>
-                <td>
-                    {% if u.is_staff %}Campus Admin
-                    {% elif u.is_officer %}Org Officer
-                    {% else %}{{ u.user_role|title }}{% endif %}
-                </td>
-                <td>{{ u.date_joined|date:"M d, Y" }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+ <table>
+    <thead>
+        <tr>
+            <th style="width: 25%;">Name / Username</th>
+            <!-- Generic header for mixed role reports -->
+            <th style="width: 20%;">ID Number</th> 
+            <th style="width: 15%;">Status</th>
+            <th style="width: 20%;">System Role</th>
+            <th style="width: 20%;">Registration Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for u in users %}
+        <tr>
+            <td><strong>{{ u.username }}</strong><br/><small>{{ u.get_full_name|default:"" }}</small></td>
+            <td>
+                <!-- Labeling logic for ID types -->
+                <small style="color: #666; display: block; font-size: 7pt; text-transform: uppercase;">
+                    {% if u.is_superuser %}System Admin No.
+                    {% elif u.user_role == 'management' %}Management No.
+                    {% elif u.is_staff %}Campus Admin No.
+                    {% elif u.user_role == 'alumni_assoc' %}Alumni Assoc No.
+                    {% else %}Student No.{% endif %}
+                </small>
+                {{ u.student_no|default:"N/A" }}
+            </td>
+            <td>{{ u.status|title }}</td>
+            <td>
+                <!-- Role title logic -->
+                {% if u.is_superuser %}System Admin
+                {% elif u.is_staff %}Campus Admin
+                {% elif u.is_officer %}Org Officer
+                {% else %}{{ u.user_role|title }}{% endif %}
+            </td>
+            <td>{{ u.date_joined|date:"M d, Y" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
     <div class="footer">
         Page <pdf:pagenumber> of <pdf:pagecount> | Authorized by: {{ generated_by }}

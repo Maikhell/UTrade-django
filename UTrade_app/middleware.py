@@ -17,7 +17,8 @@ class LoginRequiredMiddleware:
         exempt_urls = [
             reverse('user.login'),
             reverse('user.register'),
-            reverse('landingpage'),  
+            reverse('landingpage'),
+            reverse('verify_otp'),  
         ]
         if not request.user.is_authenticated and current_path not in exempt_urls:
             return redirect('landingpage')

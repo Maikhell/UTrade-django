@@ -1,5 +1,5 @@
 from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
-from ..models import User, Product, Order, MeetupLocation
+from ..models import User, Product, Order, MeetupLocation,Organization
 from django.urls import reverse_lazy
 from ..forms import UserRegistrationForm, UserProfileForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -87,17 +87,52 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
             return self.form_invalid(form)
 
     def form_valid(self, form):
+        # Handle profile image upload
         if 'image' in self.request.FILES:
             form.instance.image = self.request.FILES['image']
 
-        # Sync Display Name to Username
+        # Process Organization string (e.g., "ITS-BSIT")
+        org_raw_text = form.cleaned_data.get('organization') 
+        
+        if org_raw_text:
+            parts = [p.strip() for p in org_raw_text.split('-')]
+            name_acronym = parts[0]
+            course_code = parts[1] if len(parts) > 1 else ""
+
+            org_map = {
+                "ITS": "Information Technology Society",
+                "CSG": "Central Student Government",
+                "ACS": "Alliance of Computer Scientists",
+                "HMS": "Hospitality Management Society",
+                "LLP": "La Liga Psicologia",
+                "LCDCS": "La Ciencia de Crimines Sociedad",
+                "LMS-JMA": "Le Manager's Societe - Junior Marketing Association",
+                "SHR": "Societas Humana Resource",
+                "TES": "Teacher Education Society",
+            }
+
+            # get_or_create ensures the Org exists in your PostgreSQL database
+            org_obj, created = Organization.objects.get_or_create(
+                name=name_acronym,
+                defaults={
+                    'full_name': org_map.get(name_acronym, name_acronym),
+                    'course_code': course_code
+                }
+            )
+            
+            # Explicitly link the organization object to the user instance
+            form.instance.org_link = org_obj
+
+        # Handle Display Name / Username change
         display_name = form.cleaned_data.get('display_name')
         if display_name:
             if User.objects.filter(username=display_name).exclude(pk=self.request.user.pk).exists():
-                messages.error(self.request, "Display name already taken.")
+                messages.error(self.request, "This display name is already taken by another student.")
                 return self.form_invalid(form)
             form.instance.username = display_name
 
+        # The super().form_valid(form) call saves the form.instance (the User) 
+        # and includes the new org_link relationship.
         return super().form_valid(form)
             
 
@@ -113,26 +148,29 @@ class UserProductsView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
+        # Fix: Use iexact for PostgreSQL case-sensitivity safety
         counts = Product.objects.filter(seller=user).aggregate(
-            approved=Count('id', filter=Q(status='Approved')),
-            pending=Count('id', filter=Q(status='Pending')),
-            rejected=Count('id', filter=Q(status='Rejected'))
+            approved=Count('id', filter=Q(status__iexact='Approved')),
+            pending=Count('id', filter=Q(status__iexact='Pending')),
+            rejected=Count('id', filter=Q(status__iexact='Rejected'))
         )
         
-        incoming_orders = Order.objects.filter(
-            seller=user
-        ).filter(
-            Q(status='Pending') | Q(status='Paid')
+        # FIX: Filter orders by checking if the products inside the order belong to this seller
+        # Adjust 'items__product_variant__product__seller' based on your actual model names
+        seller_orders = Order.objects.filter(
+            items__product_variant__product__seller=user
+        ).distinct()
+
+        incoming_orders = seller_orders.filter(
+            Q(status__iexact='Pending') | Q(status__iexact='Paid')
         ).order_by('-created_at')
 
-        accepted_orders = Order.objects.filter(
-            seller=user,
-            status='Accepted'
+        accepted_orders = seller_orders.filter(
+            status__iexact='Accepted'
         ).order_by('-created_at')
 
-        completed_orders = Order.objects.filter(
-            seller=user, 
-            status='Completed'
+        completed_orders = seller_orders.filter(
+            status__iexact='Completed'
         ).order_by('-updated_at')
         
         locations = MeetupLocation.objects.filter(is_active=True).order_by('name')

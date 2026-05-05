@@ -76,13 +76,25 @@
               <span class="fw-bold {% if product.get_total_stock < 5 %}
                   
                   
+                  
+                  
+                  
                   text-danger
+
+
+
 
 
                 {% else %}
                   
                   
+                  
+                  
+                  
                   text-dark
+
+
+
 
 
                 {% endif %}">
@@ -99,57 +111,33 @@
             <p class="text-secondary" style="line-height: 1.7; white-space: pre-line;">{{ product.description }}</p>
 
             <div id="variantDetails" class="mt-3 p-3 bg-light rounded-3 d-none animate__animated animate__fadeIn">
-              <div class="small fw-bold text-uppercase text-muted mb-1">Variant Condition & Flaws:</div>
+              <div class="small fw-bold text-uppercase text-muted mb-1">Variant Details:</div>
               <div class="d-flex align-items-center mb-2">
                 <span id="variantConditionBadge" class="badge bg-warning text-dark me-2"></span>
+                <!-- Added Attribute Badge and Aligned Name -->
                 <span id="variantNameDisplay" class="text-dark fw-bold"></span>
+                <span id="variantAttributeDisplay" class="badge bg-secondary-subtle text-secondary ms-2" style="font-size: 0.75rem;"></span>
               </div>
               <p id="variantFlaws" class="text-danger small mb-0" style="font-style: italic;"></p>
             </div>
           </div>
 
           <div class="d-grid gap-3">
-    {% if product.get_total_stock > 0 %}
-        {# 1. Define who IS NOT allowed to purchase (Admins, Management, Alumni Assoc) #}
-        {% if user.is_staff or user.is_superuser or user.user_role == 'management' or user.user_role == 'alumni_assoc' %}
-            
-            <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled 
-                    title="Administrative accounts cannot place orders.">
-                <i class="bi bi-cart-x me-2"></i> Purchasing Disabled
-            </button>
-            <small class="text-muted text-center">Checkout is only available for Student and Alumni accounts.</small>
-
-        {% else %}
-            {# 2. Regular Student/Alumni Purchase Logic #}
-            {% if product.pre_order %}
-                <button id="preOrderBtn" onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', true)" 
-                        class="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
-                    <i class="bi bi-calendar-check me-2"></i> Pre-order Now
-                </button>
+            {% if product.get_total_stock > 0 %}
+              {% if user.is_staff or user.is_superuser or user.user_role == 'management' or user.user_role == 'alumni_assoc' %}
+                <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled><i class="bi bi-cart-x me-2"></i> Purchasing Disabled</button>
+              {% else %}
+                {# FIX: Changed product.pre_order to product.is_preorder #}
+                {% if product.is_preorder %}
+                  <button id="preOrderBtn" onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', true)" class="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm"><i class="bi bi-calendar-check me-2"></i> Pre-order Now</button>
+                {% else %}
+                  <button id="addToCartBtn" onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', false)" class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm"><i class="bi bi-cart-plus me-2"></i> Add to Cart</button>
+                {% endif %}
+              {% endif %}
             {% else %}
-                <button id="addToCartBtn" onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', false)" 
-                        class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
-                    <i class="bi bi-cart-plus me-2"></i> Add to Cart
-                </button>
+              <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled><i class="bi bi-exclamation-octagon me-2"></i> Out of Stock</button>
             {% endif %}
-        {% endif %}
-        
-    {% else %}
-        {# 3. Out of Stock Logic #}
-        <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled>
-            <i class="bi bi-exclamation-octagon me-2"></i> Out of Stock
-        </button>
-    {% endif %}
-
-    <div class="d-flex gap-2">
-        <a href="{% url 'start_chat' product.id %}" class="btn btn-outline-primary btn-lg rounded-3 flex-grow-1 fw-bold shadow-sm py-3">
-            <i class="bi bi-chat-dots-fill me-2"></i> Message Seller
-        </a>
-        <button class="btn btn-outline-danger btn-lg rounded-3 px-4 shadow-sm" onclick="toggleWishlist('{{ product.id }}', this)">
-            <i class="bi {% if user_has_wishlisted %}bi-heart-fill{% else %}bi-heart{% endif %}"></i>
-        </button>
-    </div>
-</div>
+          </div>
 
           <div class="card mt-5 border-0 bg-light rounded-4 p-3 shadow-sm">
             <div class="d-flex align-items-center">
@@ -171,20 +159,21 @@
   </div>
 
   <script id="variant-data" type="application/json">
-  [
-    {% for v in product.variants.all %}
-      {
-        "id": "{{ v.id }}",
-        "name": "{{ v.variant_name|escapejs }}",
-        "price": "{{ v.price }}",
-        "stock": {{ v.stocks }},
-        "condition": "{{ v.condition|escapejs }}",
-        "flaws": "{{ v.flaws_description|default:'No major flaws reported.'|escapejs }}",
-        "image_url": "{% if v.assigned_image %}{{ v.assigned_image.image.url }}{% else %}{{ product.images.first.image.url }}{% endif %}"
-      }{% if not forloop.last %},{% endif %}
-    {% endfor %}
-  ]
-  </script>
+[
+  {% for v in product.variants.all %}
+    {
+      "id": "{{ v.id }}",
+      "name": "{{ v.variant_name|escapejs }}",
+      "attribute": "{{ v.attribute_value|escapejs }}",  {# Added this to retrieve the separated attribute #}
+      "price": "{{ v.price }}",
+      "stock": {{ v.stocks }},
+      "condition": "{{ v.condition|escapejs }}",
+      "flaws": "{{ v.flaws_description|default:'No major flaws reported.'|escapejs }}",
+      "image_url": "{% if v.assigned_image %}{{ v.assigned_image.image.url }}{% else %}{{ product.images.first.image.url }}{% endif %}"
+    }{% if not forloop.last %},{% endif %}
+  {% endfor %}
+]
+</script>
 {% endblock %}
 
 {% block extra_js %}

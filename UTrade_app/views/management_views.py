@@ -3,7 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models import Q
-from ..models import CartItem, Order, OrderItem, Review, User, Product, Services, SystemLog,PreOrderRequest
+from ..models import CartItem, Order, OrderItem, Review, User, Product, Services, SystemLog,PreOrderRequest,Category, CategoryAttribute
 from ..utils import log_action
 from itertools import chain
 from django.template.loader import get_template
@@ -11,7 +11,9 @@ from xhtml2pdf import pisa
 from django.http import HttpResponse
 from django.utils import timezone
 from django.contrib import messages 
-
+import json
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test, login_required
 from django.views.decorators.http import require_POST
 from django.shortcuts import render
@@ -229,13 +231,48 @@ def delete_bad_word(request, word_id):
 @require_POST
 @user_passes_test(is_management)
 def add_category(request):
-    name = request.POST.get('name', '').strip()
-    if name:
-        category, created = Category.objects.get_or_create(name=name)
-        if created:
-            return JsonResponse({'status': 'success', 'name': category.name, 'id': category.id})
-        return JsonResponse({'status': 'error', 'message': 'Category already exists.'})
-    return JsonResponse({'status': 'error', 'message': 'Name cannot be empty.'})
+    if request.method == 'POST':
+        try:
+            # Parse the JSON data from the request body
+            data = json.loads(request.body)
+            name = data.get('name', '').strip()
+            attributes = data.get('attributes', []) # This is our list of {type, value}
+
+            if not name:
+                return JsonResponse({'status': 'error', 'message': 'Name cannot be empty.'})
+
+            # 1. Create the Category
+            category, created = Category.objects.get_or_create(name=name)
+            
+            if not created:
+                return JsonResponse({'status': 'error', 'message': 'Category already exists.'})
+
+            # 2. Loop through and create the linked Attributes
+            for attr in attributes:
+                attr_value = attr.get('value', '').strip()
+                attr_type = attr.get('type', 'size')
+                
+                if attr_value:
+                    CategoryAttribute.objects.get_or_create(
+                        category=category,
+                        value=attr_value,
+                        attribute_type=attr_type,
+                        defaults={
+                            'is_custom': False, # Mark as official admin attribute
+                            'created_by': request.user
+                        }
+                    )
+
+            return JsonResponse({
+                'status': 'success', 
+                'name': category.name, 
+                'id': category.id
+            })
+
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid data format.'})
+            
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
 
 @require_POST
 @user_passes_test(is_management)

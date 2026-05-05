@@ -59,14 +59,38 @@
             <p class="text-muted w-100" id="no-words-msg">No prohibited words added yet.</p>
           {% endfor %}
         </div>
-      </div>
+      </div><div class="tab-pane fade" id="categories">
+        <div class="mb-4 p-4 border rounded bg-light">
+          <h5 class="fw-bold mb-3">Add New Category</h5>
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label class="form-label small fw-bold">Category Name</label>
+              <input type="text" id="new_category_input" class="form-control" placeholder="Electronics, Books, etc." />
+            </div>
 
-      <div class="tab-pane fade" id="categories">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <h5 class="fw-bold mb-0">Product Categories</h5>
-          <div class="d-flex gap-2">
-            <input type="text" id="new_category_input" class="form-control" placeholder="Electronics, Books, etc." />
-            <button class="btn btn-success px-3" id="btn-add-category" data-url="{% url 'add_category' %}" onclick="submitCategory()"><i class="bi bi-plus-lg"></i></button>
+            <!-- Attribute Builder Section -->
+            <div class="col-md-12">
+              <label class="form-label small fw-bold">Pre-defined Attributes (Optional)</label>
+              <div id="attribute_fields_container">
+                <!-- Initial Row -->
+                <div class="input-group mb-2 attribute-row">
+                  <select class="form-select attr-type">
+                    <option value="size">Size</option>
+                    <option value="color">Color</option>
+                    <option value="volume">Volume/Weight</option>
+                    <option value="quantity">Quantity Unit</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input type="text" class="form-control attr-value" placeholder="Value (e.g. XL, Red, 500ml)" />
+                  <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove()"><i class="bi bi-trash"></i></button>
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-success mt-1" onclick="addAttributeRow()"><i class="bi bi-plus-circle me-1"></i> Add Another Attribute</button>
+            </div>
+
+            <div class="col-md-12 text-end mt-3">
+              <button class="btn btn-success px-4" id="btn-add-category" data-url="{% url 'add_category' %}" onclick="submitCategoryWithAttributes()"><i class="bi bi-check-circle me-2"></i>Save Category & Attributes</button>
+            </div>
           </div>
         </div>
 

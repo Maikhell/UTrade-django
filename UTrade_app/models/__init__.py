@@ -4,7 +4,8 @@ from .service_models import ServiceCategory, Services, ServicesImage
 from .orders_models import Order, OrderItem, SystemLog, Payout 
 from .organization_models import Organization
 from .product_models import (
-    Category, 
+    Category,
+    CategoryAttribute, 
     Product, 
     ProductVariant, 
     ProductImage, 

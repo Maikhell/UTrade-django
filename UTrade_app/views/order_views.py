@@ -45,7 +45,7 @@ def place_order(request):
                     payment_method=payment_method, # Will save 'GCASH'
                     pickup_location=request.POST.get('pickup_location'),
                     buyer_note=request.POST.get('buyer_note'),         
-                    status='Pending '
+                    status='Pending'
                 )
                 for item in selected_items:
                     variant = item.variant
@@ -147,7 +147,10 @@ def order_success(request, order_id):
     })
     
 def order_history(request):
-    orders = Order.objects.filter(user=request.user).order_by('-created_at')
+    orders = Order.objects.filter(user=request.user)\
+    .select_related('seller')\
+    .prefetch_related('items__product_variant__product')\
+    .order_by('-created_at')
     
     pending_orders = orders.filter(status='Pending')
     

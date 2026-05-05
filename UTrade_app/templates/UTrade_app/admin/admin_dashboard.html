@@ -143,7 +143,7 @@
                       </div>
                     </td>
                     <td>
-                      <span class="badge {% if u.status == 'verified' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} border px-3 py-2 rounded-pill">
+                      <span class="badge {% if u.status == 'verified' %}bg-success-subtle text-success{% elif u.status == 'Pending' %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %} border px-3 py-2 rounded-pill">
                         {{ u.status|title }}
                       </span>
                     </td>
@@ -186,39 +186,78 @@
   <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
-  <thead class="bg-light">
-    <tr>
-      <th>Applicant</th>
-      <th>Position</th>
-      <th class="text-end">Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for applicant in pending_officers %}
-      <tr>
-        <td>
-          <div class="fw-bold">{{ applicant.get_full_name|default:applicant.username }}</div>
-          <small class="text-muted">{{ applicant.student_no }}</small>
-        </td>
-        <td>{{ applicant.position }}</td>
-        <td class="text-end">
-          <button type="button" class="btn btn-sm btn-success rounded-pill" 
-                  onclick="confirmOfficerAction('{{ applicant.id }}', '{{ applicant.username }}', 'ApproveOfficer')">
-            Approve
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" 
-                  onclick="confirmOfficerAction('{{ applicant.id }}', '{{ applicant.username }}', 'RejectOfficer')">
-            Reject
-          </button>
-        </td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+        <thead class="bg-light">
+          <tr>
+            <th>Applicant</th>
+            <th>Organization</th> <!-- Added Header -->
+            <th>Position</th>
+            <th>Proof Image</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          {% for applicant in pending_officers %}
+            <tr>
+              <td>
+                <div class="fw-bold">
+                  {{ applicant.get_full_name|default:applicant.username }}
+                </div>
+                <small class="text-muted">{{ applicant.student_no }}</small>
+              </td>
+
+              <!-- Organization Column -->
+              <td>
+                <span class="badge bg-info-subtle text-info rounded-pill px-3">
+                  {% if applicant.org_link %}
+                    {{ applicant.org_link.name }}
+                  {% else %}
+                    {{ applicant.organization|default:"N/A" }}
+                  {% endif %}
+                </span>
+              </td>
+
+              <td>{{ applicant.position }}</td>
+
+              <td>
+                {% if applicant.officer_id_image %}
+                  <a href="{{ applicant.officer_id_image.url }}" target="_blank">
+                    <img src="{{ applicant.officer_id_image.url }}"
+                         alt="Proof for {{ applicant.username }}"
+                         class="rounded border"
+                         style="width: 50px; height: 50px; object-fit: cover; cursor: pointer;">
+                  </a>
+                {% else %}
+                  <span class="text-muted small">No proof uploaded</span>
+                {% endif %}
+              </td>
+
+              <td class="text-end">
+                <button type="button"
+                        class="btn btn-sm btn-success rounded-pill"
+                        onclick="confirmOfficerAction('{{ applicant.id }}', '{{ applicant.username }}', 'ApproveOfficer')">
+                  Approve
+                </button>
+                <button type="button"
+                        class="btn btn-sm btn-outline-danger rounded-pill"
+                        onclick="confirmOfficerAction('{{ applicant.id }}', '{{ applicant.username }}', 'RejectOfficer')">
+                  Reject
+                </button>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted"> <!-- Updated colspan to 5 -->
+                No pending officer applications.
+              </td>
+            </tr>
+          {% endfor %}
+
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
-  </div>
 
   <div class="modal fade" id="pdfModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">

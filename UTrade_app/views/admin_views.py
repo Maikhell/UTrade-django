@@ -12,6 +12,7 @@ from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.db.models import Count, Q
 from django.template.loader import get_template
+from ..models import User, Organization
 
 from xhtml2pdf import pisa
 
@@ -74,6 +75,26 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
         user_id = request.POST.get('user_id')
         target_user = get_object_or_404(User, id=user_id)
 
+        # Dictionary for mapping acronyms to full names
+        org_map = {
+            "ITS": "Information Technology Society",
+            "CSG": "Central Student Government",
+            "ACS": "Association of Computer Students",
+            "BSHMS": "Hospitality Management Society",
+            "TES": "Teachers Education Society",
+            "LCDCS": "Lyceum Criminology Students",
+            "LLP": "Lyceum League of Psychologists",
+            "LMS-JMA": "Junior Marketing Association",
+            "SHR": "Society of Human Resource",
+        }
+
+        # Dictionary for mapping acronyms to course codes
+        course_map = {
+            "ITS": "BSIT", "ACS": "BSCS", "BSHMS": "BSHM", 
+            "TES": "BSED", "LCDCS": "BSCRIM", "LLP": "BSP",
+            "LMS-JMA": "BSBA-MM", "SHR": "BSBA-HR", "CSG": "ALL"
+        }
+
         if action == 'UpdateUser':
             new_status = request.POST.get('status')
             new_role = request.POST.get('user_role') 
@@ -81,48 +102,60 @@ class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
             target_user.status = new_status
             target_user.user_role = new_role
             
+            # Reset specific flags before reapplying
             target_user.is_staff = False
             target_user.is_superuser = False
             target_user.is_officer = False
             
             if new_role == 'officer':
                 target_user.is_officer = True
-                target_user.organization = request.POST.get('organization') or ''
+                org_raw_text = request.POST.get('organization') # e.g., "ITS"
+                
+                if org_raw_text:
+                    # Use get_or_create to fill the Organization Table
+                    org_obj, created = Organization.objects.get_or_create(
+                        name=org_raw_text,
+                        defaults={
+                            'full_name': org_map.get(org_raw_text, org_raw_text),
+                            'course_code': course_map.get(org_raw_text, "")
+                        }
+                    )
+                    target_user.org_link = org_obj
+                    # Keep the string field for backward compatibility if needed
+                    target_user.organization = org_raw_text 
+                
                 target_user.position = request.POST.get('position') or ''
                 target_user.officer_status = 'verified'
             
-            elif new_role == 'alumni_assoc':
-                target_user.organization = 'Alumni Association'
+            elif new_role in ['student', 'management', 'campus_admin', 'alumni_assoc']:
+                # Handle other roles...
+                target_user.org_link = None # Clear the link for non-officers
+                target_user.organization = new_role.replace('_', ' ').title()
                 target_user.position = 'Member'
-                target_user.officer_status = '' 
+                target_user.officer_status = ''
                 
-            elif new_role == 'student':
-                target_user.organization = ''
-                target_user.position = ''
-                target_user.officer_status = '' 
-                               
-            elif new_role == 'management':
-                target_user.organization = 'Management'
-                target_user.position = 'Member'
-                target_user.officer_status = '' 
-                
-            elif new_role == 'campus_admin':
-                target_user.organization = 'Campus Admin'
-                target_user.position = 'Member'
-                target_user.officer_status = '' 
-                
-            else: 
-                target_user.organization = ''
-                target_user.position = ''
-                target_user.officer_status = '' 
-            
-            target_user.save()
-            messages.success(request, f"Permissions for {target_user.username} updated to {new_role}.")
+                if new_role == 'student':
+                    target_user.organization = ''
+                    target_user.position = ''
 
-        elif action == 'ApproveOfficer': 
+            target_user.save()
+            messages.success(request, f"Permissions for {target_user.username} updated.")
+
+        elif action == 'ApproveOfficer':
+            # Ensure that when approving, we also check for existing organization strings
             target_user.officer_status = 'verified'
             target_user.is_officer = True
-            target_user.user_role = 'officer' 
+            target_user.user_role = 'officer'
+            
+            # If they already had an organization string, link it to the model
+            if target_user.organization and not target_user.org_link:
+                org_name = target_user.organization
+                org_obj, _ = Organization.objects.get_or_create(
+                    name=org_name,
+                    defaults={'full_name': org_map.get(org_name, org_name)}
+                )
+                target_user.org_link = org_obj
+                
             target_user.save()
             messages.success(request, f"Officer privileges granted to {target_user.username}.")
         
@@ -190,24 +223,80 @@ logger = logging.getLogger(__name__)
 class UpdateStatusView(View):
     def post(self, request, item_type, item_id):
         try:
-            data = json.loads(request.body)
+            # Handle both JSON (AJAX) and standard POST data
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+            else:
+                data = request.POST
+
             new_status = data.get('status', '').lower().strip()
             item_type = item_type.lower().strip()
 
             if item_type == 'officer' and request.user.is_staff:
                 target_user = get_object_or_404(User, id=item_id)
-            if new_status == 'approved':
-                target_user.officer_status = 'verified'
-                target_user.is_officer = True  
-            else:
-                target_user.officer_status = 'Rejected'
-                target_user.save()
-            return JsonResponse({'status': 'success'})
+                
+                # Update basic officer flags
+                if new_status in ['approved', 'verified']:
+                    target_user.officer_status = 'verified'
+                    target_user.is_officer = True
+                    target_user.user_role = 'officer'
+                else:
+                    target_user.officer_status = 'Rejected'
+                    target_user.is_officer = False
+                
+                org_raw_text = data.get('organization')
+
+                if org_raw_text:
+                    # 1. Standardize the data input
+                    if '-' in org_raw_text:
+                        parts = [p.strip() for p in org_raw_text.split('-')]
+                        name_acronym = parts[0]
+                        course_code = parts[1]
+                    else:
+                        name_acronym = org_raw_text.strip()
+                        course_map = {
+                            "ITS": "BSIT", "ACS": "BSCS", "BSHMS": "BSHM", 
+                            "TES": "BSED", "LCDCS": "BSCRIM", "LLP": "BSP",
+                            "LMS-JMA": "BSBA-MM", "SHR": "BSBA-HR", "CSG": "ALL"
+                        }
+                        course_code = course_map.get(name_acronym, "")
+
+                    # 2. Formal Name Mapping for Organization Model
+                    org_map = {
+                        "ITS": "Information Technology Society",
+                        "CSG": "Central Student Government",
+                        "ACS": "Alliance of Computer Scientists",
+                        "BSHMS": "Hospitality Management Society",
+                        "LLP": "La Liga Psicologia",
+                        "LCDCS": "La Ciencia de Crimines Sociedad",
+                        "LMS-JMA": "Le Manager's Societe - Junior Marketing Association",
+                        "SHR": "Societas Humana Resource",
+                        "TES": "Teacher Education Society",
+                    }
+
+                    # 3. Use get_or_create to link to the Organization table
+                    org_obj, created = Organization.objects.get_or_create(
+                        name=name_acronym,
+                        defaults={
+                            'full_name': org_map.get(name_acronym, name_acronym),
+                            'course_code': course_code
+                        }
+                    )
+                    
+                    target_user.org_link = org_obj
+                    target_user.organization = name_acronym # Keep for redundancy
+                
+                position = data.get('position')
+                if position:
+                    target_user.position = position
+
+                target_user.save() 
+                return JsonResponse({'status': 'success', 'message': f'User {target_user.username} updated.'})
+
+            return JsonResponse({'status': 'error', 'message': 'Invalid item type or permission.'}, status=403)
 
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-        
-
     
 def generate_pdf(request):
     user_filter = request.GET.get('filter', 'all')

@@ -166,3 +166,65 @@ function submitCategory() {
             }
         });
 }
+function addAttributeRow() {
+    const container = document.getElementById('attribute_fields_container');
+    const newRow = document.createElement('div');
+    newRow.className = 'input-group mb-2 attribute-row';
+    newRow.innerHTML = `
+        <select class="form-select attr-type">
+            <option value="size">Size</option>
+            <option value="color">Color</option>
+            <option value="volume">Volume/Weight</option>
+            <option value="quantity">Quantity Unit</option>
+            <option value="other">Other</option>
+        </select>
+        <input type="text" class="form-control attr-value" placeholder="Value">
+        <button class="btn btn-outline-danger" type="button" onclick="this.parentElement.remove()"><i class="bi bi-trash"></i></button>
+    `;
+    container.appendChild(newRow);
+}
+
+// Function to collect all data and send to Django
+async function submitCategoryWithAttributes() {
+    const categoryName = document.getElementById('new_category_input').value;
+    const url = document.getElementById('btn-add-category').getAttribute('data-url');
+    const csrfToken = document.getElementById('csrf_token').value;
+
+    if (!categoryName) {
+        return Swal.fire('Error', 'Category name is required', 'error');
+    }
+
+    // Collect attributes
+    const attributes = [];
+    document.querySelectorAll('.attribute-row').forEach(row => {
+        const type = row.querySelector('.attr-type').value;
+        const value = row.querySelector('.attr-value').value;
+        if (value.trim()) {
+            attributes.push({ type: type, value: value.trim() });
+        }
+    });
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                name: categoryName,
+                attributes: attributes
+            })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            Swal.fire('Saved!', 'Category and attributes added.', 'success')
+                .then(() => location.reload());
+        } else {
+            Swal.fire('Error', result.message, 'error');
+        }
+    } catch (err) {
+        Swal.fire('Error', 'Server connection failed', 'error');
+    }
+}

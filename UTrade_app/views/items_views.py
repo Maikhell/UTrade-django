@@ -8,7 +8,7 @@ from django.urls import reverse_lazy
 from django.views.generic import  CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant, MeetupLocation, ProhibitedWord, StagedProduct, StagedVariant, StagedImage 
+from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant, MeetupLocation, ProhibitedWord, StagedProduct, StagedVariant, StagedImage, CategoryAttribute 
 from django.http import JsonResponse
 import re
 import json
@@ -17,6 +17,7 @@ from django.db.models import Q
 def landing_page(request):
     categories = Category.objects.all()
     products = Product.objects.all() 
+    meetup_locations = MeetupLocation.objects.all() 
     
     category_id = request.GET.get('category')
     if category_id:
@@ -24,7 +25,8 @@ def landing_page(request):
 
     return render(request, 'UTrade_app/landingpage.html', {
         'categories': categories,
-        'products': products
+        'products': products,
+        'meetup_locations': meetup_locations  
     })
 def prohibited_words_api(request):
     words = list(ProhibitedWord.objects.values_list('word', flat=True))
@@ -38,7 +40,15 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         'ecigarette', 'vape', 'smoke', 'tobacco', 'cigarette',
         'examanswer', 'leakage', 'leak', 'cheating', 'dregs','weed',
     ]
-
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['meetup_locations'] = MeetupLocation.objects.all()    
+        context['categories'] = Category.objects.all()
+        context['staged_items'] = StagedProduct.objects.filter(
+            seller=self.request.user, 
+            is_submitted=False
+        )
+        return context
     def is_content_prohibited(self, text):
         if not text: return None
         translations = {'4':'a', '@':'a', '1':'i', '!':'i', '3':'e', '0':'o', '5':'s', '$':'s', '7':'t', '8':'b'}
@@ -51,10 +61,22 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 return word
         return None
 
+    def get_or_create_custom_category(self, request):
+        """Helper to handle the 'Other' category logic from the request."""
+        category_id = request.POST.get('category')
+        custom_name = request.POST.get('custom_category_name') 
+
+        if category_id == 'other' and custom_name:
+            category, created = Category.objects.get_or_create(
+                name=custom_name.strip().title()
+            )
+            return category
+        
+        return Category.objects.filter(id=category_id).first()
+
     def form_valid(self, form):
         name = form.cleaned_data.get('name', '')
         desc = form.cleaned_data.get('description', '')
-        category = form.cleaned_data.get('category') 
         
         flagged_name = self.is_content_prohibited(name)
         flagged_desc = self.is_content_prohibited(desc)
@@ -65,36 +87,27 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             return self.form_invalid(form)
             
         product = form.save(commit=False)
+        
+        category = self.get_or_create_custom_category(self.request)
+        if category:
+            product.category = category
+        
         product.seller = self.request.user
         product.status = 'Pending'
         product.pre_order = form.cleaned_data.get('pre_order', False)
-        
-        # Capture owner_type for standard form submissions
         product.owner_type = self.request.POST.get('owner_type', 'PERSONAL')
         
         product.save()
         return redirect('product.list')
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.all()
-        context['meetup_locations'] = MeetupLocation.objects.all()
-        context['staged_items'] = StagedProduct.objects.filter(
-            seller=self.request.user, 
-            is_submitted=False
-        ).prefetch_related('variants', 'images')
-        return context
-    
+
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         is_final_submit = request.POST.get('action') == 'submit_staging'
         
         if not is_final_submit:
-            # Fallback to standard single-product form submission
             return super().post(request, *args, **kwargs)
 
         try:
-            # 1. Fetch all staged items for this user that haven't been submitted
             staged_items = StagedProduct.objects.filter(
                 seller=request.user, 
                 is_submitted=False
@@ -104,12 +117,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 return JsonResponse({'status': 'error', 'message': 'No items in staging to submit.'}, status=400)
 
             for staged_prod in staged_items:
-                # 2. Convert StagedProduct -> Product
+                # 1. Create the product WITHOUT the locations first
                 new_product = Product.objects.create(
                     name=staged_prod.name,
                     description=staged_prod.description,
                     category=staged_prod.category,
-                    # Assuming meetup_locations_list is a string or handle conversion to FK
                     seller=request.user,
                     pre_order=staged_prod.pre_order,
                     accepted_payments=staged_prod.accepted_payments,
@@ -117,36 +129,58 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     status='Pending'
                 )
 
-                # 3. Convert StagedImage -> ProductImage
+                if staged_prod.meetup_locations_list:
+                    try:
+                        location_ids = [
+                            int(loc_id.strip()) 
+                            for loc_id in staged_prod.meetup_locations_list.split(',') 
+                            if loc_id.strip().isdigit()
+                        ]
+                        
+                        # Use .set() to link multiple locations to the ManyToMany field
+                        if location_ids:
+                            new_product.meetup_locations.set(location_ids)
+                    except Exception as e:
+                        print(f"Error linking locations: {e}")
                 for staged_img in staged_prod.images.all():
-                    new_img = ProductImage.objects.create(
+                    ProductImage.objects.create(
                         product=new_product,
                         image=staged_img.image
                     )
-                    # Set the main display image for the Product model
                     if staged_img.is_main:
                         new_product.image = staged_img.image
                         new_product.save()
 
-                # 4. Convert StagedVariant -> ProductVariant
-                for v in staged_prod.variants.all():
-                    ProductVariant.objects.create(
-                        product=new_product,
-                        variant_name=v.variant_name,
-                        price=v.price,
-                        stocks=v.stocks,
-                        condition=v.condition,
-                        flaws_description=v.flaws
-                    )
+                # 5. Handle Variants & Potential Custom Attributes
+                    for v in staged_prod.variants.all():
+                        # 5.1 Create the Product Variant using your separated fields
+                        ProductVariant.objects.create(
+                            product=new_product,
+                            variant_name=v.variant_name,        # "Combo A", "Set 1"
+                            price=v.price,
+                            stocks=v.stocks,
+                            condition=v.condition,
+                            flaws_description=v.flaws,
+                            attribute_value=v.variant_attribute  # Link to the 'XL', 'Blue', etc.
+                        )
+                    
+                        if staged_prod.category and v.variant_attribute:
+                                CategoryAttribute.objects.get_or_create(
+                                    category=staged_prod.category,
+                                    value=v.variant_attribute.strip(), # Use the spec, not the variant name
+                                    defaults={
+                                        'is_custom': True, 
+                                        'created_by': request.user
+                                    }
+                                )
 
                 staged_prod.is_submitted = True
                 staged_prod.save()
 
-            return JsonResponse({'status': 'success', 'redirect_url': reverse('product.list')})
+            return JsonResponse({'status': 'success', 'redirect_url': reverse('product.create')})
 
         except Exception as e:
-            print(f"Final Submission Error: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': 'Failed to process staging list.'}, status=500)
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'Utrade_app/products/actions/product_details.html'
@@ -161,7 +195,9 @@ class ProductDetailView(DetailView):
             status='Approved'
         ).exclude(id=self.object.id).select_related('seller')[:4] 
         return context
-
+def get_attributes(request, category_id):
+    attributes = CategoryAttribute.objects.filter(category_id=category_id).values('value', 'attribute_type')
+    return JsonResponse({'attributes': list(attributes)})
 class ProductListView(ListView):
     model = Product
     template_name = 'UTrade_app/marketplace.html'
@@ -272,6 +308,8 @@ def add_to_staging_ajax(request):
         StagedVariant.objects.create(
             staged_product=staged_prod,
             variant_name=v['name'],
+            # ADD THIS LINE: This captures the 'XL', 'Red', etc., from JS
+            variant_attribute=v.get('attribute', ''), 
             price=v['price'],
             stocks=v['stock'],
             condition=v['condition'],

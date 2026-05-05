@@ -27,6 +27,7 @@ urlpatterns = [
     path('product/<int:pk>/delete/', user_views.ProductDeleteView.as_view(), name='product.delete'),
     path('wishlist/', items_views.WishlistListView.as_view(), name='wishlist.list'),
     path('wishlist/toggle/<int:product_id>/', items_views.toggle_wishlist, name='toggle_wishlist'),
+    path('api/get-attributes/<int:category_id>/', items_views.get_attributes, name='get_attributes'),
     
     path('services/', services_views.ServiceListView.as_view(), name='services.list'),
     path('addservices/', services_views.ServiceCreateView.as_view(), name='services.create'),

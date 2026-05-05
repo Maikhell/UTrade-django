@@ -61,15 +61,27 @@ function updateProductDisplay(variant) {
     const flawsEl = document.getElementById('variantFlaws');
     const conditionBadge = document.getElementById('variantConditionBadge');
     const nameDisplay = document.getElementById('variantNameDisplay');
+    // ADDED: Attribute display element
+    const attrDisplay = document.getElementById('variantAttributeDisplay');
 
-    if (priceEl) priceEl.innerText = `₱${variant.price}`;
+    if (priceEl) priceEl.innerText = `₱${parseFloat(variant.price).toFixed(2)}`;
     if (detailsDiv) detailsDiv.classList.remove('d-none');
     if (nameDisplay) nameDisplay.innerText = variant.name;
     if (conditionBadge) conditionBadge.innerText = variant.condition;
     if (flawsEl) flawsEl.innerText = `Notes: ${variant.flaws}`;
 
+    // NEW: Logic to show the separated attribute (XL, Red, etc.)
+    if (attrDisplay) {
+        if (variant.attribute) {
+            attrDisplay.innerText = variant.attribute;
+            attrDisplay.classList.remove('d-none');
+        } else {
+            attrDisplay.classList.add('d-none');
+        }
+    }
+
     const img = document.getElementById('mainDisplayImage');
-    if (img) img.src = variant.image_url;
+    if (img && variant.image_url) img.src = variant.image_url;
 }
 
 function changeImage(url, element = null) {
@@ -99,21 +111,16 @@ function changeImage(url, element = null) {
 // ================= VARIANT CHANGE =================
 function onVariantChange(variantId) {
     const selectedVariant = variantData.find(v => v.id == variantId);
-
     if (selectedVariant) {
         changeImage(selectedVariant.image_url);
-
-        const priceDisplay = document.querySelector('.display-5');
-        if (priceDisplay) {
-            priceDisplay.innerText = `₱${selectedVariant.price}`;
-        }
+        updateProductDisplay(selectedVariant);
     }
 }
 
 // ================= VARIANT SELECTOR =================
 function openVariantSelector(productId, productName, isPreOrder = false) {
     if (!variantData || variantData.length === 0) {
-        addToCart(productId, null);
+        isPreOrder ? performPreOrderRequest(productId) : performAddToCart(productId);
         return;
     }
 
@@ -127,15 +134,18 @@ function openVariantSelector(productId, productName, isPreOrder = false) {
         const isOut = v.stock <= 0;
 
         variantHtml += `
-            <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-3 mb-2 border ${isOut ? 'opacity-50 bg-light' : ''}">
+            <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-3 mb-2 border ${isOut ? 'opacity-50 bg-light' : ''}" style="cursor: pointer;">
                 <div class="d-flex align-items-center">
                     <input class="form-check-input me-3 border-success" type="radio" name="swal-variant" value="${v.id}" ${isOut ? 'disabled' : ''}>
-                    <div class="variant-img-wrapper rounded me-3 border" style="width:40px;height:40px;overflow:hidden;">
+                    <div class="variant-img-wrapper rounded me-3 border" style="width:45px;height:45px;overflow:hidden;flex-shrink:0;">
                         <img src="${v.image_url}" style="width:100%;height:100%;object-fit:cover;">
                     </div>
                     <div>
-                        <div class="fw-bold">${v.name}</div>
-                        <div class="text-success small">₱${v.price}</div>
+                        <div class="fw-bold lh-sm">${v.name}</div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="text-success small fw-bold">₱${parseFloat(v.price).toFixed(2)}</span>
+                            ${v.attribute ? `<span class="badge bg-secondary-subtle text-secondary" style="font-size:0.6rem;">${v.attribute}</span>` : ''}
+                        </div>
                     </div>
                 </div>
                 ${isOut ? '<span class="badge bg-danger">Sold Out</span>' : `<span class="badge bg-success-subtle text-success">Stock: ${v.stock}</span>`}
@@ -145,7 +155,7 @@ function openVariantSelector(productId, productName, isPreOrder = false) {
     variantHtml += `</div>`;
 
     Swal.fire({
-        title: isPreOrder ? `Pre-order ${productName}` : `Add ${productName} to Cart`,
+        title: isPreOrder ? `Pre-order ${productName}` : `Select Variant`,
         html: variantHtml,
         showCancelButton: true,
         confirmButtonText: isPreOrder ? 'Confirm Pre-order' : 'Add to Cart',
@@ -153,11 +163,13 @@ function openVariantSelector(productId, productName, isPreOrder = false) {
 
         didRender: () => {
             const radios = Swal.getHtmlContainer().querySelectorAll('input[name="swal-variant"]');
-
             radios.forEach(radio => {
                 radio.addEventListener('change', e => {
                     const v = variantData.find(x => x.id == e.target.value);
-                    if (v) changeImage(v.image_url);
+                    if (v) {
+                        changeImage(v.image_url);
+                        updateProductDisplay(v);
+                    }
                 });
             });
         },
@@ -222,7 +234,6 @@ function performAddToCart(variantId) {
                 badge.innerText = data.cart_count;
                 badge.style.display = 'block';
             }
-
             Swal.fire({ icon: 'success', title: 'Added to Cart!', timer: 1500, showConfirmButton: false });
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: data.message });
@@ -250,7 +261,6 @@ function addToCart(productId, buttonElement) {
                 badge.innerText = data.cart_count;
                 badge.style.display = 'inline-block';
             }
-
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Added to Cart', timer: 1500, showConfirmButton: false });
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: data.message });
@@ -267,7 +277,6 @@ function addToCartWithVariant(productId) {
 
 function showLoginPrompt() {
     const loginUrl = document.getElementById('login-url').value;
-
     Swal.fire({
         title: 'Login Required',
         text: 'You need to log in first.',
@@ -280,10 +289,15 @@ function showLoginPrompt() {
 }
 
 function showVerificationModal() {
-    const status = document.getElementById('user-verification-status').value;
-
+    const statusEl = document.getElementById('user-verification-status');
+    if (!statusEl) return;
+    
+    const status = statusEl.value;
     if (status === 'unverified' || status === 'Pending') {
-        const modal = new bootstrap.Modal(document.getElementById('verificationModal'));
-        modal.show();
+        const modalEl = document.getElementById('verificationModal');
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
     }
 }

@@ -17,6 +17,7 @@
 
   <div class="container-fluid py-4 workshop-container">
     <div class="row g-4">
+      <!-- 1. PRODUCT GALLERY -->
       <div class="col-lg-3">
         <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
           <h6 class="fw-bold text-uppercase small text-muted mb-3"><i class="bi bi-images me-2"></i>1. Product Gallery</h6>
@@ -32,6 +33,7 @@
         </div>
       </div>
 
+      <!-- 2. PRODUCT DETAILS -->
       <div class="col-lg-5">
         <div class="card border-0 shadow-lg rounded-4 p-4 h-100">
           <h5 class="fw-bold mb-4">2. Product Details</h5>
@@ -65,27 +67,52 @@
               </div>
             </div>
 
+            <!-- Custom Category Input -->
             <div id="other_category_div" class="mb-3 d-none">
               <label class="form-label small fw-bold text-success">New Category Name</label>
               <input type="text" id="custom_category" class="form-control border-success py-2" placeholder="Enter new category name..." />
             </div>
 
-            <div id="attributes_section" class="d-none mt-4 p-3 rounded bg-light border">
+            <!-- Attributes Section (FIXED DIV NESTING HERE) -->
+            <div id="attributes_section" class="mt-4 p-3 rounded bg-light border">
               <h6 class="fw-bold mb-3"><i class="bi bi-layers-half me-2"></i>Product Variations</h6>
-              <div id="size_suggestions_container" class="mb-3 d-none">
-                <label class="form-label small fw-bold text-success">Quick Select:</label>
-                <div id="suggestion_buttons" class="d-flex flex-wrap gap-2"></div>
+
+              <div id="size_suggestions_container" class="mb-3">
+                <label id="quick_select_label" class="form-label small fw-bold text-success">Quick Select:</label>
+                <div id="suggestion_buttons" class="d-flex flex-wrap gap-2">
+                  <span class="text-muted small">Select a category to see available variations.</span>
+                </div>
+                <div id="no_attributes_note" class="alert alert-info py-2 small d-none">
+                  <i class="bi bi-info-circle me-2"></i>No quick select yet. Please input your own attributes.
+                </div>
               </div>
+
               <div id="attribute_pills" class="mb-2"></div>
+
               <div class="row g-2 mb-2">
                 <div class="col-md-4">
-                  <input type="text" id="variant_name" class="form-control" placeholder="Variant Name" />
+                  <input type="text" id="variant_name" class="form-control form-control-sm" placeholder="Variant Name" />
                 </div>
                 <div class="col-md-4">
-                  <input type="number" id="variant_price" class="form-control" placeholder="Price" />
+                  <input type="number" id="variant_price" class="form-control form-control-sm" placeholder="Price" />
                 </div>
                 <div class="col-md-4">
-                  <input type="number" id="variant_stock" class="form-control" placeholder="Stock" />
+                  <input type="number" id="variant_stock" class="form-control form-control-sm" placeholder="Stock" />
+                </div>
+                <div class="col-md-4">
+                  <input type="text" id="variant_attribute" class="form-control form-control-sm" placeholder="e.g. XL, 32oz, Blue" />
+                </div>
+                <div class="col-md-4">
+                  <input type="text" id="variant_flaws" class="form-control form-control-sm" placeholder="Flaws " />
+                </div>
+                <div class="col-md-4">
+                  <select id="variant_condition" class="form-select form-select-sm" onchange="toggleCustomCondition(this)">
+                    <option value="Brand New">Brand New</option>
+                    <option value="Like New">Like New</option>
+                    <option value="Used - Good">Used - Good</option>
+                    <option value="Used - Fair">Used - Fair</option>
+                    <option value="Other">Other (Custom)</option>
+                  </select>
                 </div>
               </div>
               <div class="d-flex gap-2 mb-3">
@@ -94,55 +121,44 @@
               </div>
               <div id="variant_list" class="mt-3"></div>
             </div>
-            <!-- Hidden but still exists so the JS doesn't break -->
+
+            <!-- Hidden simple price for JS compatibility -->
             <div id="simple_price_section" class="d-none">
               <input type="number" id="price" value="0" />
             </div>
 
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-secondary">Campus Meetup Spots (Select all that apply)</label>
-              <div class="p-3 bg-light rounded-3 border-0" style="max-height: 200px; overflow-y: auto;">
+            <div class="my-3">
+              <label class="form-label small fw-bold text-secondary">Campus Meetup Spots</label>
+              <div class="p-3 bg-light rounded-3 border" style="max-height: 150px; overflow-y: auto;">
                 {% for location in meetup_locations %}
                   <div class="form-check mb-2">
-                    <input class="form-check-input location-checkbox" type="checkbox" value="{{ location.name }}" id="loc_{{ forloop.index }}" onchange="updateMultiLocations()" />
+                    <input class="form-check-input location-checkbox" type="checkbox" value="{{ location.id }}" id="loc_{{ forloop.index }}" onchange="updateMultiLocations()" />
                     <label class="form-check-label small" for="loc_{{ forloop.index }}">{{ location.name }}</label>
                   </div>
                 {% endfor %}
               </div>
-
               <input type="hidden" name="location_options" id="final_locations" />
             </div>
 
-            {% if request.user.user_role == 'management' %}
-              <div class="mb-3 rounded-3">
-                <label class="form-label small fw-bold text-primary">Selling As</label>
-                <select id="owner_type" name="owner_type" class="form-select bg-white border-0 py-2 shadow-sm">
-                  <option value="MANAGEMENT" selected>Management Listing</option>
-                </select>
+            <!-- Selling As / Listing Type Logic -->
+            <div class="row g-2 mb-3">
+              <div class="col-12">
+                {% if request.user.user_role == 'management' %}
+                  <label class="form-label small fw-bold text-primary">Selling As</label>
+                  <select id="owner_type" name="owner_type" class="form-select bg-white border py-2 shadow-sm">
+                    <option value="MANAGEMENT" selected>Management Listing</option>
+                  </select>
+                {% elif request.user.is_officer %}
+                  <label class="form-label small fw-bold text-primary">Selling As</label>
+                  <select id="owner_type" name="owner_type" class="form-select bg-white border py-2 shadow-sm">
+                    <option value="PERSONAL">Personal Listing</option>
+                    <option value="ORGANIZATION">Organization Listing</option>
+                  </select>
+                {% else %}
+                  <input type="hidden" id="owner_type" name="owner_type" value="PERSONAL" />
+                {% endif %}
               </div>
-            {% elif request.user.is_officer %}
-              <div class="mb-3 rounded-3">
-                <label class="form-label small fw-bold text-primary">Selling As</label>
-                <select id="owner_type" name="owner_type" class="form-select bg-white border-0 py-2 shadow-sm">
-                  <option value="PERSONAL">Personal Listing (My Profile)</option>
-                  <option value="ORGANIZATION">Organization Listing ({{ request.user.org_link.name|default:request.user.organization }})</option>
-                </select>
-              </div>
-            {% else %}
-              <input type="hidden" id="owner_type" name="owner_type" value="PERSONAL" />
-            {% endif %}
-
-            {% if request.user.user_role == 'officer' or request.user.user_role == 'management' %}
-              <div class="mb-3">
-                <label class="form-label small fw-bold text-primary">Listing Type</label>
-                <select id="is_pre_order" class="form-select bg-light border-0 py-2">
-                  <option value="False">Live (On-hand Stock)</option>
-                  <option value="True">Pre-order (Advance Order)</option>
-                </select>
-              </div>
-            {% else %}
-              <input type="hidden" id="is_pre_order" value="False" />
-            {% endif %}
+            </div>
 
             <div class="mb-4">
               <label class="form-label small fw-bold text-secondary d-block">Accepted Payment</label>
@@ -161,25 +177,22 @@
         </div>
       </div>
 
+      <!-- 3. STAGING LIST -->
       <div class="col-lg-4">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <!-- HEADER SECTION -->
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 d-flex flex-column">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold text-uppercase small text-muted mb-0">3. Staging List</h6>
-            <!-- This ID is required for your JavaScript innerText update -->
             <span id="item_count" class="badge bg-dark rounded-pill">{{ staged_items|length }}</span>
           </div>
 
-          <!-- STAGING AREA (The Container) -->
-          <div id="staging_area" class="column-scroll mb-3">
+          <div id="staging_area" class="column-scroll flex-grow-1 mb-3" style="overflow-y: auto;">
             {% if not staged_items %}
               <div class="text-center py-5 text-muted empty-msg">List is empty.</div>
             {% endif %}
 
             {% for item in staged_items %}
-              <div class="card staged-item mb-3 p-3 bg-white border-0 shadow-sm" data-id="{{ item.id }}">
-                <div class="d-flex align-items-start mb-2">
-                  <!-- If your StagedImage model has a main image, show it here -->
+              <div class="card staged-item mb-3 p-3 bg-white border shadow-sm" data-id="{{ item.id }}">
+                <div class="d-flex align-items-start">
                   {% with img=item.images.first %}
                     {% if img %}
                       <img src="{{ img.image.url }}" class="rounded shadow-sm me-3" style="width: 50px; height: 50px; object-fit: cover;" />
@@ -189,9 +202,9 @@
                   <div class="flex-grow-1">
                     <div class="d-flex justify-content-between align-items-start">
                       <h6 class="mb-0 fw-bold text-dark">{{ item.name }}</h6>
-                      <div class="d-flex flex-column gap-2">
-                        <button class="btn btn-sm text-danger p-0" onclick="removeItem(this, {{ item.id }})"><i class="bi bi-trash-fill"></i></button>
+                      <div class="d-flex gap-2">
                         <button class="btn btn-sm text-primary p-0" onclick="editItem({{ item.id }})"><i class="bi bi-pencil-square"></i></button>
+                        <button class="btn btn-sm text-danger p-0" onclick="removeItem(this, {{ item.id }})"><i class="bi bi-trash-fill"></i></button>
                       </div>
                     </div>
                     <div class="small text-muted">₱{{ item.variants.first.price|default:'0' }}</div>
@@ -201,7 +214,7 @@
             {% endfor %}
           </div>
 
-          <div class="mt-auto">
+          <div class="mt-auto pt-3 border-top">
             <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">Send for Authentication</button>
           </div>
         </div>

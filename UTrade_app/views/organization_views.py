@@ -17,7 +17,7 @@ def organization_panel(request):
 
     if organization_obj:
         target_course = organization_obj.course_code
-        org_users = User.objects.filter(course=target_course)
+        org_users = User.objects.filter(org_link=organization_obj)
 
         if search_query:
             org_users = org_users.filter(
@@ -43,22 +43,24 @@ def organization_panel(request):
             org_users = org_users.order_by('-date_joined')
         
         org_products = Product.objects.filter(
-            Q(seller__course=target_course) | Q(related_org=organization_obj)
+            Q(seller__org_link=organization_obj) | Q(related_org=organization_obj)
         ).distinct().order_by('-created_at')
 
         pending_products = org_products.filter(status='Pending')
-        pending_users = User.objects.filter(course=target_course, status__iexact='Pending')
-        
+        pending_users = User.objects.filter(
+            course=target_course, 
+            status__iexact='Pending'
+        )
         org_orders = Order.objects.filter(
-            items__product_variant__product__seller__course=target_course
+            items__product_variant__product__seller__org_link=organization_obj
         ).distinct().order_by('-created_at')
 
         incoming_orders = org_orders.filter(status='Pending')
         completed_orders = org_orders.filter(status='Completed')
-        verified_count = User.objects.filter(course=target_course, status='verified').count()
+        verified_count = org_users.filter(status='verified').count()
 
     else:
-        target_course = None
+        target_course = "None"
         org_users = User.objects.none()
         org_products = Product.objects.none()
         pending_products = Product.objects.none()
@@ -69,7 +71,7 @@ def organization_panel(request):
 
     context = {
         'org_name': organization_obj.name if organization_obj else "No Organization",
-        'org_full_name': organization_obj.full_name if organization_obj else "",
+        'org_full_name': organization_obj.full_name if organization_obj else "No Organization Assigned",
         'target_course': target_course,
         'users': org_users,
         'products': org_products,

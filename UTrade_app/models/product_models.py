@@ -4,12 +4,40 @@ from django.db.models import Avg, Sum
 from .user_models import User
 from .orders_models import Order, OrderItem
 from .organization_models import Organization
+from django.conf import settings
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     def __str__(self):
         return self.name
+class CategoryAttribute(models.Model):
+    ATTRIBUTE_TYPES = [
+        ('size', 'Size (e.g., XL, 42, 15-inch)'),
+        ('color', 'Color (e.g., Red, Blue, #FF0000)'),
+        ('volume', 'Volume/Weight (e.g., 12oz, 500ml, 1kg)'),
+        ('quantity', 'Quantity Unit (e.g., Per Pack, Bundle, Set)'),
+        ('other', 'Other'),
+    ]
 
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='attributes')
+    value = models.CharField(max_length=50)  # The actual data: '43', 'Blue', '16oz'
+    attribute_type = models.CharField(max_length=20, choices=ATTRIBUTE_TYPES, default='size')
+    
+    # Track custom user-added attributes
+    is_custom = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True
+    )
+
+    class Meta:
+        unique_together = ('category', 'value', 'attribute_type')
+        verbose_name = "Category Attribute"
+
+    def __str__(self):
+        return f"[{self.get_attribute_type_display()}] {self.category.name}: {self.value}"
 class Product(BaseItem):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name="products")
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_listings')
@@ -36,11 +64,10 @@ class Product(BaseItem):
         help_text="Select the organization if this is not a personal listing"
     )
 
-    meetup_location = models.ForeignKey(
+    meetup_locations = models.ManyToManyField(
         MeetupLocation, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        related_name="products"    
+        related_name="products",
+        blank=True
     )
 
     PAYMENT_METHODS = [
@@ -104,6 +131,7 @@ class StagedProduct(models.Model):
         return f"Staged: {self.name} by {self.seller.username}"
 
 class StagedVariant(models.Model):
+    variant_attribute = models.CharField(max_length=100, blank=True, null=True)
     staged_product = models.ForeignKey(StagedProduct, on_delete=models.CASCADE, related_name='variants')
     variant_name = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -171,7 +199,7 @@ class ProductVariant(models.Model):
     stocks = models.IntegerField(default=0)
     condition = models.CharField(max_length=50, default='Brand New') 
     flaws_description = models.TextField(blank=True, null=True)
-    
+    attribute_value = models.CharField(max_length=100) 
     assigned_image = models.ForeignKey(
         'ProductImage', 
         on_delete=models.SET_NULL, 

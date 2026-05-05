@@ -64,7 +64,7 @@ class Login(LoginView):
             login(request, user)
 
             name = user.first_name if user.first_name else user.username or user.student_no
-            messages.success(request, f"Welcome, {name}!")
+            messages.success(request, f"Welcome Back, {name}!")
             return redirect(self.get_success_url())
 
         messages.error(request, "Invalid credentials.")

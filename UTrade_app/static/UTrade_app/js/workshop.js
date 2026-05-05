@@ -1,6 +1,5 @@
 if (typeof window.itemCount === 'undefined') {
     window.itemCount = 0;
-    window.currentAttributes = { sizes: [], varieties: [], colors: [] };
     window.selectedFiles = [];
     window.allStagedProducts = [];
     window.productVariants = [];
@@ -20,13 +19,6 @@ async function loadProhibitedWords() {
     }
 }
 loadProhibitedWords();
-window.sizePresets = {
-    Clothes: ['S', 'M', 'L', 'XL', 'XXL'],
-    Clothing: ['S', 'M', 'L', 'XL', 'XXL'],
-    Shoes: ['38', '39', '40', '41', '42', '43', '44'],
-    Footwear: ['38', '39', '40', '41', '42', '43', '44'],
-    Watches: ['36', '38', '40', '41', '42', '43']
-};
 function previewMultipleImages(event) {
     const container = document.getElementById('image_preview_container');
     container.innerHTML = '';
@@ -64,14 +56,6 @@ function addTag(type) {
         tagContainer.insertAdjacentHTML('beforeend', pillHtml);
     }
     input.value = '';
-}
-function toggleOtherCategory(select) {
-    const otherDiv = document.getElementById('other_category_div');
-    if (select.value === 'other') {
-        otherDiv.classList.remove('d-none');
-    } else {
-        otherDiv.classList.add('d-none');
-    }
 }
 function toggleCustomCondition(select) {
     const customInput = document.getElementById('custom_condition_input');
@@ -136,24 +120,26 @@ async function addToStaging() {
 
     if (hasError) return Swal.fire('Required Fields', 'Please fill in the highlighted fields.', 'error');
 
-    // 3. Category Formatting
+    // 3. Category Formatting (UPDATED)
     let categoryId = categoryEl.value;
     let categoryName = "Uncategorized";
+    let customCategoryName = ""; // To pass explicitly to backend
+
     if (categoryEl.selectedIndex >= 0) {
         categoryName = categoryEl.options[categoryEl.selectedIndex].text;
     }
 
     if (categoryId === 'other') {
-        const customValue = document.getElementById('custom_category')?.value.trim();
-        categoryId = `NEW:${customValue}`;
-        categoryName = customValue;
+        customCategoryName = document.getElementById('custom_category')?.value.trim() || "";
+        categoryName = customCategoryName || "New Category";
     }
 
     // 4. Prepare FormData
     const formData = new FormData();
     formData.append('name', nameEl.value);
     formData.append('description', descEl.value);
-    formData.append('category', categoryId);
+    formData.append('category', categoryId); // Will be 'other' or a numeric ID
+    formData.append('custom_category_name', customCategoryName); // Handle creation on backend
     formData.append('location_options', finalLocationsInput.value);
     formData.append('owner_type', ownerTypeEl?.value || 'PERSONAL');
     
@@ -166,7 +152,7 @@ async function addToStaging() {
         formData.append('images', file);
     });
 
-    // 5. AJAX CALL (Updated URL to match your urls.py)
+    // 5. AJAX CALL
     Swal.fire({
         title: 'Saving to Staging...',
         allowOutsideClick: false,
@@ -241,6 +227,7 @@ async function addToStaging() {
         
         if (categoryEl) {
             categoryEl.value = "";
+            // Trigger dynamic reset of size/variation sections
             if(typeof handleCategoryChange === "function") handleCategoryChange(categoryEl);
         }
 
@@ -265,16 +252,43 @@ async function editItem(stagedId) {
 
         if (data.error) throw new Error(data.error);
 
+        // 1. Basic Information
         document.getElementById('name').value = data.name;
         document.getElementById('description').value = data.description;
-        document.getElementById('category').value = data.category;
         
+        // 2. Category & Custom Category Logic
+        const categorySelect = document.getElementById('category');
+        const customCategoryDiv = document.getElementById('other_category_div');
+        const customCategoryInput = document.getElementById('custom_category');
+        
+        // Check if the saved category ID exists in our current dropdown
+        const optionExists = Array.from(categorySelect.options).some(opt => opt.value == data.category);
+
+        if (optionExists) {
+            categorySelect.value = data.category;
+            if (customCategoryDiv) customCategoryDiv.classList.add('d-none');
+        } else {
+            // If it's a custom category from a previous entry, select "other"
+            categorySelect.value = 'other';
+            if (customCategoryDiv) {
+                customCategoryDiv.classList.remove('d-none');
+                if (customCategoryInput) customCategoryInput.value = data.category_name || ""; 
+            }
+        }
+
+        // Trigger dynamic UI logic (like fetching attributes/sizes for this category)
+        if (typeof handleCategoryChange === "function") {
+            handleCategoryChange(categorySelect);
+        }
+
+        // 3. Location Logic
         const locs = data.locations.split(',').map(l => l.trim());
         document.querySelectorAll('.location-checkbox').forEach(cb => {
             cb.checked = locs.includes(cb.value);
         });
         document.getElementById('final_locations').value = data.locations;
 
+        // 4. Image Previews
         const container = document.getElementById('image_preview_container');
         container.innerHTML = '';
         data.images.forEach(img => {
@@ -285,17 +299,32 @@ async function editItem(stagedId) {
             `);
         });
 
+        // 5. Variants Logic
         window.productVariants = data.variants.map(v => ({
             name: v.variant_name,
             price: v.price,
             stock: v.stocks,
             condition: v.condition
         }));
-        renderVariantList(); 
+        
+        if (typeof renderVariantList === "function") {
+            renderVariantList(); 
+        }
 
-        await fetch(`/api/staged-product/delete/${stagedId}/`, { method: 'POST' });
+        await fetch(`/api/staged-product/delete/${stagedId}/`, { 
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+        
+        // Update the UI count and remove the card
+        const card = document.querySelector(`.staged-item[data-id="${stagedId}"]`);
+        if (card) card.remove();
+        document.getElementById('item_count').innerText = document.querySelectorAll('.staged-item').length;
 
     } catch (err) {
+        console.error("Edit Error:", err);
         Swal.fire('Error', 'Could not retrieve product data.', 'error');
     }
 }
@@ -447,8 +476,8 @@ function handleCategoryChange(selectElement) {
     }
 
     const selectedOption = selectElement.options[selectElement.selectedIndex];
+    const selectedValue = selectElement.value; // This is the ID or 'other'
     const selectedText = selectedOption.text.trim();
-    const selectedValue = selectElement.value;
 
     const attrSection = document.getElementById('attributes_section');
     const otherDiv = document.getElementById('other_category_div');
@@ -456,114 +485,149 @@ function handleCategoryChange(selectElement) {
     const suggestionContainer = document.getElementById('size_suggestions_container');
     const suggestionButtons = document.getElementById('suggestion_buttons');
     const stocksInput = document.getElementById('stocks');
+    const noAttributesNote = document.getElementById('no_attributes_note');
 
+    // Reset default UI state
     attrSection.classList.add('d-none');
     otherDiv.classList.add('d-none');
     suggestionContainer.classList.add('d-none');
+    if (noAttributesNote) noAttributesNote.classList.add('d-none');
     if (simplePriceSection) simplePriceSection.classList.remove('d-none');
     if (stocksInput) stocksInput.readOnly = false;
 
-
-    const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture', 'Watches'];
-    if (showVariantsFor.includes(selectedText)) {
-        attrSection.classList.remove('d-none');
-        if (simplePriceSection) simplePriceSection.classList.add('d-none');
-        if (stocksInput) stocksInput.readOnly = true;
-    }
-
-    if (window.sizePresets && window.sizePresets[selectedText]) {
-        suggestionContainer.classList.remove('d-none');
-        suggestionButtons.innerHTML = '';
-        window.sizePresets[selectedText].forEach(size => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-outline-success btn-sm rounded-pill px-3 suggestion-btn me-2 mb-2';
-            btn.innerText = size;
-            btn.onclick = function () {
-                const variantInput = document.getElementById('variant_name');
-                if (variantInput) {
-                    variantInput.value = size;
-                    variantInput.focus();
-                }
-            };
-            suggestionButtons.appendChild(btn);
-        });
-    }
-
+    // 1. Handle "Other" Selection
     if (selectedValue === 'other') {
         otherDiv.classList.remove('d-none');
+        attrSection.classList.remove('d-none'); // Show variants area so they can type
+        if (noAttributesNote) noAttributesNote.classList.remove('d-none');
+        if (simplePriceSection) simplePriceSection.classList.add('d-none');
+        if (stocksInput) stocksInput.readOnly = true;
+        return; // Stop execution here for "Other"
     }
+
+    // 2. Fetch Attributes from Database
+    fetch(`/api/get-attributes/${selectedValue}/`)
+        .then(response => response.json())
+        .then(data => {
+            // If the database has attributes, treat it as a variant-based product
+            if (data.attributes && data.attributes.length > 0) {
+                attrSection.classList.remove('d-none');
+                suggestionContainer.classList.remove('d-none');
+                if (simplePriceSection) simplePriceSection.classList.add('d-none');
+                if (stocksInput) stocksInput.readOnly = true;
+
+                suggestionButtons.innerHTML = '';
+                data.attributes.forEach(attr => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'btn btn-outline-success btn-sm rounded-pill px-3 suggestion-btn me-2 mb-2';
+                    btn.innerText = attr.value;
+                    btn.onclick = function () {
+                        const variantInput = document.getElementById('variant_name');
+                        if (variantInput) {
+                            variantInput.value = attr.value;
+                            variantInput.focus();
+                        }
+                    };
+                    suggestionButtons.appendChild(btn);
+                });
+            } else {
+                // If no attributes found in DB, it remains a simple product unless it's a known variant category
+                const showVariantsFor = ['Clothes', 'Clothing', 'Shoes', 'Footwear', 'Gadgets', 'Electronics', 'Furniture', 'Watches'];
+                if (showVariantsFor.includes(selectedText)) {
+                    attrSection.classList.remove('d-none');
+                    if (simplePriceSection) simplePriceSection.classList.add('d-none');
+                    if (stocksInput) stocksInput.readOnly = true;
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching attributes:', err);
+        });
 }
 function addVariant() {
+    // Correct IDs based on your specific HTML structure
     const nameInput = document.getElementById('variant_name');
-    const stockInput = document.getElementById('variant_stock');
     const priceInput = document.getElementById('variant_price');
-    const conditionSelect = document.getElementById('variant_condition');
+    const stockInput = document.getElementById('variant_stock');
+    const attrInput = document.getElementById('variant_attribute'); // The strictly separated attribute
     const flawsInput = document.getElementById('variant_flaws');
-    const customConditionInput = document.getElementById('custom_condition_input');
+    const conditionSelect = document.getElementById('variant_condition');
     const listContainer = document.getElementById('variant_list');
-    // Safely handle potentially null elements
-    const conditionValue = conditionSelect ? conditionSelect.value : 'Brand New';
-    const flawsValue = flawsInput ? flawsInput.value.trim() : '';
-    const customConditionValue = customConditionInput ? customConditionInput.value.trim() : '';
-    if (!nameInput.value || !stockInput.value) {
-        Swal.fire('Missing Info', "Please provide a name and stock.", 'warning');
+
+    // 1. Data Capture & Case-Sensitive Logic
+    const variantName = nameInput.value.trim();
+    const variantAttr = attrInput.value.trim();
+    const stockValue = stockInput.value;
+
+    // 2. Strict Validation
+    if (!variantName || !variantAttr || !stockValue) {
+        Swal.fire('Missing Info', "Please provide a Variant Name, Attribute (e.g. XL), and Stock.", 'warning');
         return;
     }
-    let finalCondition = conditionValue;
-    if (finalCondition === 'Other' && customConditionValue) {
-        finalCondition = customConditionValue;
-    }
+
+    // Optional: Case-sensitive check against existing suggestions
+    document.querySelectorAll('#suggestion_buttons .btn').forEach(btn => {
+        if (btn.innerText === variantAttr) {
+            console.log("Matching category attribute found:", btn.innerText);
+        }
+    });
+
+    // 3. Gathering Remaining Data
+    const priceValue = parseFloat(priceInput.value) || 0;
+    const conditionValue = conditionSelect ? conditionSelect.value : 'Brand New';
+    const flawsValue = flawsInput ? flawsInput.value.trim() : '';
+
     const variant = {
-        name: nameInput.value,
-        stock: parseInt(stockInput.value),
-        price: parseFloat(priceInput.value) || 0,
-        condition: finalCondition,
+        name: variantName,
+        price: priceValue,
+        stock: parseInt(stockValue),
+        attribute: variantAttr, // Separated attribute for category linking
+        condition: conditionValue,
         flaws: flawsValue,
         imageIndex: currentSelectedImageIndex
     };
+
+    // 4. UI Rendering (Using the separate name and attribute)
     productVariants.push(variant);
     const div = document.createElement('div');
     div.className = "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white animate__animated animate__fadeInUp";
+    
     let thumbHtml = '';
     if (currentSelectedImageIndex !== null && selectedFiles[currentSelectedImageIndex]) {
         const thumbUrl = URL.createObjectURL(selectedFiles[currentSelectedImageIndex]);
         thumbHtml = `<img src="${thumbUrl}" style="width: 35px; height: 35px; object-fit: cover;" class="rounded me-2 border">`;
     }
+
     div.innerHTML = `
         ${thumbHtml}
         <div class="flex-grow-1">
             <div class="d-flex align-items-center">
                 <span class="small fw-bold text-dark">${variant.name}</span>
-                <span class="badge bg-info-subtle text-info ms-2" style="font-size: 0.6rem;">${variant.condition}</span>
+                <span class="badge bg-secondary-subtle text-secondary ms-2" style="font-size: 0.6rem;">${variant.attribute}</span>
+                <span class="badge bg-info-subtle text-info ms-1" style="font-size: 0.6rem;">${variant.condition}</span>
             </div>
             <div class="text-muted" style="font-size: 0.7rem;">
-                ₱${variant.price} | Stock: ${variant.stock}
+                ₱${variant.price.toFixed(2)} | Stock: ${variant.stock}
                 ${variant.flaws ? ` | <span class="text-danger">Flaw: ${variant.flaws}</span>` : ''}
             </div>
         </div>
         <button type="button" class="btn-close" style="font-size: 0.6rem;" onclick="removeVariant(this, '${variant.name}')"></button>
     `;
     listContainer.appendChild(div);
-    // Reset form fields
+
+    // 5. Reset Fields (Back to Original Structure)
     nameInput.value = '';
-    stockInput.value = '';
+    attrInput.value = '';
     priceInput.value = '';
+    stockInput.value = '';
+    if (flawsInput) flawsInput.value = '';
+    if (conditionSelect) conditionSelect.value = 'Brand New';
 
-    if (flawsInput) {
-        flawsInput.value = '';
-    }
-
-    if (conditionSelect) {
-        conditionSelect.value = 'Brand New';
-    }
-
-    if (customConditionInput) {
-        customConditionInput.value = '';
-        customConditionInput.classList.add('d-none');
-    }
+    // Reset Image Picker UI
     const imgBtn = document.querySelector('[onclick="openVariantImagePicker()"]');
     if (imgBtn) imgBtn.innerHTML = `<i class="bi bi-image me-1"></i> Pick Image`;
+    
     currentSelectedImageIndex = null;
     updateTotalStock();
 }
@@ -670,4 +734,25 @@ function updateMultiLocations() {
     hiddenInput.value = selectedLocations.join(', ');
 
     console.log("Selected Locations:", hiddenInput.value);
+}
+
+function useCustomAttribute() {
+    const input = document.getElementById('custom_attribute_input');
+    const val = input.value.trim();
+    if (!val) return;
+
+    // Case-sensitive check against existing suggestion buttons
+    let exists = false;
+    document.querySelectorAll('#suggestion_buttons .btn').forEach(btn => {
+        if (btn.innerText === val) { // Strict case-sensitive comparison
+            exists = true;
+            btn.click(); // If it exists, just select it
+        }
+    });
+
+    if (!exists) {
+        // If it doesn't exist, set it as the variant name automatically
+        document.getElementById('variant_name').value = val;
+        input.value = ''; // clear input
+    }
 }

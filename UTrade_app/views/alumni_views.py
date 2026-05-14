@@ -49,7 +49,7 @@ def alumni_dashboard_view(request):
         'verified_recent_count': User.objects.filter(user_role='alumni', status='verified').count(), 
     }
 
-    return render(request, 'UTrade_app/alumniassoc/alumni_dashboard.html', context)
+    return render(request, 'UTrade_app/alumniassoc/dashboard.html', context)
 
 @login_required
 def update_alumni_status(request, user_id):
@@ -104,7 +104,7 @@ def generate_alumni_report(request):
     }
 
     # 3. Render Template to HTML String
-    template = get_template('UTrade_app/alumniassoc/alumni_report_pdf.html')
+    template = get_template('UTrade_app/reports/alumni_report_pdf.html')
     html = template.render(context)
 
     # 4. Convert HTML String to PDF

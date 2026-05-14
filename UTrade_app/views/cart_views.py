@@ -13,7 +13,7 @@ def cart_detail(request):
     
     total_price = sum(item.variant.price * item.quantity for item in cart_items)
     
-    return render(request, 'UTrade_app/cart/cart_detail.html', {
+    return render(request, 'UTrade_app/cart/details.html', {
         'cart': cart,
         'cart_items': cart_items,
         'total_price': total_price

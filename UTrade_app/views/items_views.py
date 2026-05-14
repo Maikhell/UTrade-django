@@ -34,7 +34,7 @@ def prohibited_words_api(request):
     
 class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
-    template_name = 'Utrade_app/products/actions/addproduct.html'
+    template_name = 'Utrade_app/products/add_product.html'
     BANNED_KEYWORDS = [
         'alcohol', 'drugs', 'beer', 'wine', 'vodka', 'whiskey', 
         'ecigarette', 'vape', 'smoke', 'tobacco', 'cigarette',
@@ -183,7 +183,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 class ProductDetailView(DetailView):
     model = Product
-    template_name = 'Utrade_app/products/actions/product_details.html'
+    template_name = 'Utrade_app/products/product_details.html'
     context_object_name = 'product'
     def get_queryset(self):
         return super().get_queryset().select_related('seller', 'category')
@@ -200,7 +200,7 @@ def get_attributes(request, category_id):
     return JsonResponse({'attributes': list(attributes)})
 class ProductListView(ListView):
     model = Product
-    template_name = 'UTrade_app/marketplace.html'
+    template_name = 'UTrade_app/products/marketplace.html'
     context_object_name = 'products'
     paginate_by = 12
 
@@ -254,7 +254,7 @@ class ProductListView(ListView):
     
 class WishlistListView(LoginRequiredMixin, ListView):
     model = Wishlist
-    template_name = 'Utrade_app/products/actions/wishlist.html'
+    template_name = 'Utrade_app/products/wishlist.html'
     context_object_name = 'wishlists'
     
     def get_queryset(self):

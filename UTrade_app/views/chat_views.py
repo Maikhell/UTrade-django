@@ -60,7 +60,7 @@ def chat_view(request, conversation_id):
         
     chat_messages = conversation.messages.all().order_by('timestamp')
 
-    return render(request, 'UTrade_app/chat/chat.html', {
+    return render(request, 'UTrade_app/chat/conversation.html', {
         'conversation': conversation,
         'messages': chat_messages, 
         'other_user': other_user  

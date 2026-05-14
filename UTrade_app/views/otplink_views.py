@@ -44,4 +44,4 @@ def verify_otp(request):
         except User.DoesNotExist:
             return redirect('user.register')
 
-    return render(request, 'UTrade_app/users/account/verify_otp.html')
+    return render(request, 'UTrade_app/accounts/verify.html')

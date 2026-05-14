@@ -1,4 +1,4 @@
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 from django.contrib.auth.views import LoginView, LogoutView
 from django.urls import reverse_lazy
 from django.contrib import messages
@@ -9,7 +9,7 @@ from ..models import User
 
 class Login(LoginView):
     authentication_form = UserLoginForm
-    template_name = 'UTrade_app/users/account/login.html'
+    template_name = 'UTrade_app/accounts/login.html'
     redirect_authenticated_user = True
     
     def get_success_url(self):

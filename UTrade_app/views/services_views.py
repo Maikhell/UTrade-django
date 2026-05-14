@@ -9,7 +9,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 
 class ServiceCreateView(LoginRequiredMixin,CreateView):
     form_class = ServiceForm
-    template_name = 'Utrade_app/services/actions/addservices.html'
+    template_name = 'Utrade_app/services/add_services.html'
     success_url = reverse_lazy('service.list')
 
     def get_context_data(self, **kwargs):
@@ -69,7 +69,7 @@ class ServiceCreateView(LoginRequiredMixin,CreateView):
     
 class ServiceListView(ListView):
     model = Services
-    template_name = 'UTrade_app/services.html'
+    template_name = 'UTrade_app/list_services.html'
     context_object_name = 'services'
 
     def get_queryset(self):

@@ -15,7 +15,7 @@ from ..utils import send_otp_email
 class UserCreateView(CreateView):
     model = User 
     form_class = UserRegistrationForm
-    template_name = 'UTrade_app/users/account/register.html'
+    template_name = 'UTrade_app/accounts/register.html'
     success_url = reverse_lazy('verify_otp') 
     
     def form_valid(self, form):
@@ -46,7 +46,7 @@ class UserCreateView(CreateView):
         return super().form_invalid(form)
     
 class UserAccountView(TemplateView):
-    template_name = 'UTrade_app/users/account/accounts.html'
+    template_name = 'UTrade_app/accounts/accounts.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -63,7 +63,7 @@ class UserAccountView(TemplateView):
 class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = User
     form_class = UserProfileForm
-    template_name = 'UTrade_app/users/account/profile.html'
+    template_name = 'UTrade_app/accounts/profile.html'
     success_url = reverse_lazy('user.profile')
     success_message = "Your profile has been updated successfully!" 
 
@@ -138,7 +138,7 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
 
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product
-    template_name = 'UTrade_app/users/account/seller_inventory.html'
+    template_name = 'UTrade_app/seller/inventory.html'
     context_object_name = 'products'
 
     def get_queryset(self):

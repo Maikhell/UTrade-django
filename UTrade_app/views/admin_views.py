@@ -19,7 +19,7 @@ from xhtml2pdf import pisa
 from ..models import Product, Services, User, ProhibitedWord
 User = get_user_model()
 class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
-    template_name = 'UTrade_app/admin/admin_dashboard.html'
+    template_name = 'UTrade_app/admin/dashboard.html'
     
     def test_func(self):
         return self.request.user.is_staff
@@ -407,4 +407,4 @@ def admin_create_account(request):
             messages.success(request, f"Success! {role.replace('_', ' ').title()} account created.")
             return redirect('admin.dashboard')
 
-    return render(request, 'UTrade_app/admin/admin_create_account.html')
+    return render(request, 'UTrade_app/admin/create_account.html')

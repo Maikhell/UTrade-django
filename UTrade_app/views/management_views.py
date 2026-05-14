@@ -104,7 +104,7 @@ class ManagementPanelView(LoginRequiredMixin, View):
             'completed_orders': all_orders.filter(status='Completed'),
         }
 
-        return render(request, 'UTrade_app/management/management.html', context)
+        return render(request, 'UTrade_app/management/dashboard.html', context)
     
 
 
@@ -141,7 +141,7 @@ def service_details(request, service_id):
     return render(request, 'UTrade_app/management/service_detail.html', context)
 def product_details(request, product_id):
     product = get_object_or_404(Product, id=product_id)
-    return render(request, 'UTrade_app/management/product_detail_view.html', {'product': product})
+    return render(request, 'UTrade_app/management/product_view.html', {'product': product})
 
 def generate_report_pdf(request):
     report_type = request.GET.get('report_type')
@@ -209,7 +209,7 @@ def security_admin(request):
         'meetups': MeetupLocation.objects.all().order_by('name'),  
     }
     # Move the template to a management folder if preferred
-    return render(request, 'UTrade_app/management/management_security.html', context)
+    return render(request, 'UTrade_app/management/security.html', context)
 
 @require_POST
 @user_passes_test(is_management)

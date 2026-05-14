@@ -1,7 +1,101 @@
 {% extends 'UTrade_app/base.html' %}
+{% load static %}
+
 {% block title %}
-  Sellers Page
+  Services
 {% endblock %}
 {% block content %}
-
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/services.css' %}" />
 {% endblock %}
+  <div class="container py-5">
+    <div class="mb-5">
+      <h1 class="fw-bolder text-dark mb-0">Categories</h1>
+      <div class="category-line mb-3"></div>
+      <div class="container my-4">
+        <div class="row">
+          <div class="col-12">
+            <h6 class="text-muted small fw-bold text-uppercase mb-3">Filter by Category</h6>
+            <div class="d-flex flex-wrap gap-2">
+              <a href="{% url 'services.list' %}" class="category-pill">
+                <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold {% if not request.GET.category %}                                 
+                    bg-dark
+                  {% else %}
+                    bg-secondary
+                  {% endif %}"
+                  style="font-size: 0.65rem; letter-spacing: 1px;">
+                  All Services
+                </span>
+              </a>
+
+              {% for category in categories %}
+                <a href="?category={{ category.id }}" class="category-pill">
+                  <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold 
+      {% if request.GET.category == category.id|stringformat:'i' %}
+                      
+                      
+        bg-success
+
+                    {% else %}
+                      
+                      
+        bg-secondary opacity-50
+
+                    {% endif %}">
+                    {{ category.name }}
+                  </span>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-5">
+      <h1 class="fw-bolder text-dark mb-0">Services</h1>
+      <div class="category-line"></div>
+    </div>
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+  {% for service in services %}
+    <div class="col">
+      <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden service-card">
+        <div class="img-container position-relative" style="height: 250px;">
+  {% if service.images.first %}
+    <img src="{{ service.images.first.image.url }}" class="w-100 h-100 object-fit-cover" alt="{{ service.name }}">
+  {% else %}
+    <div class="d-flex align-items-center justify-content-center h-100 bg-light text-muted">
+      <i class="bi bi-brush h1"></i>
+    </div>
+  {% endif %}
+  
+  <div class="position-absolute bottom-0 start-0 m-3">
+     <span class="badge bg-dark px-3 py-2 rounded-pill shadow">Starts at ₱{{ service.base_price }}</span>
+  </div>
+</div>
+
+        <div class="card-body p-4">
+          <div class="d-flex align-items-center mb-3">
+            <img src="{% if service.seller.profile_picture %}{{ service.seller.profile_picture.url }}{% else %}{% static 'img/default.png' %}{% endif %}" 
+                 class="rounded-circle me-2" style="width: 30px; height: 30px; object-fit: cover;">
+            <span class="small fw-bold text-muted">{{ service.seller.display_name|default:service.seller.username }}</span>
+          </div>
+
+          <h5 class="fw-bold mb-2">{{ service.name }}</h5>
+          <p class="text-muted small mb-3 text-truncate-3">{{ service.description }}</p>
+
+          <div class="bg-light p-3 rounded-3 mb-3">
+            <div class="d-flex justify-content-between small">
+              <span class="text-secondary"><i class="bi bi-clock-history me-1"></i> Delivery</span>
+              <span class="fw-bold text-dark">{{ service.turnaround_time }}</span>
+            </div>
+          </div>
+        
+          <a href="#" class="btn btn-outline-success w-100 fw-bold py-2 rounded-3">Request Commission</a>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}
+

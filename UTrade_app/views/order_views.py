@@ -142,7 +142,7 @@ def order_success(request, order_id):
         
     CartItem.objects.filter(cart__user=request.user, variant__orderitem__order=order).delete()
     
-    return render(request, 'UTrade_app/orders/order_success.html', {
+    return render(request, 'UTrade_app/orders/success.html', {
         'order': order
     })
     
@@ -184,7 +184,7 @@ def order_history(request):
         'preorder_ready_count': preorder_ready.count(),
     }
     
-    return render(request, 'UTrade_app/orders/orders.html', context)
+    return render(request, 'UTrade_app/orders/history.html', context)
 
 @login_required
 @transaction.atomic 
@@ -351,7 +351,7 @@ def generate_receipt(request, order_id):
         'seller': order.seller,
     }
 
-    html_string = render_to_string('UTrade_app/orders/receipt_pdf.html', context)
+    html_string = render_to_string('UTrade_app/reports/receipt_pdf.html', context)
 
     # Create PDF
     response = HttpResponse(content_type='application/pdf')
@@ -370,7 +370,7 @@ def generate_preorder_receipt(request, preorder_id):
         'date': preorder.updated_at, 
     }
     
-    html_string = render_to_string('UTrade_app/orders/receipt_pdf.html', context)
+    html_string = render_to_string('UTrade_app/reports/receipt_pdf.html', context)
     html = HTML(string=html_string, base_url=request.build_absolute_uri())
     result = html.write_pdf()
 

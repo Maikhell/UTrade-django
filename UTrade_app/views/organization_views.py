@@ -82,7 +82,7 @@ def organization_panel(request):
         'verified_count': verified_count,
     }
     
-    return render(request, 'UTrade_app/organization/organization_panel.html', context)
+    return render(request, 'UTrade_app/organization/dashboard.html', context)
 
 def update_status_org(request, item_type, item_id):
     requested_status = request.GET.get('status')    
@@ -132,7 +132,7 @@ def generate_pdf_orgs(request):
 
     users = users.order_by('last_name')
 
-    template_path = 'UTrade_app/organization/user_report_pdf.html'
+    template_path = 'UTrade_app/reports/user_report_pdf.html'
     context = {
         'users': users,
         'report_type': report_filter.replace('_', ' ').title(),

@@ -73,8 +73,6 @@ class ServiceListView(ListView):
     context_object_name = 'services'
 
     def get_queryset(self):
-        # We want to show 'Approved' services to buyers, but 'Pending' for the admin
-        # I'll stick to 'Pending' as per your code, but usually, this is 'Approved'
         queryset = Services.objects.filter(status='Approved').select_related('category', 'seller')        
         category_id = self.request.GET.get('category')
         if category_id:

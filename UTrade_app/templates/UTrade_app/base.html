@@ -120,7 +120,13 @@
                   <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.5rem; {% if not request.user.cart.count %}display: none;{% endif %}">{{ request.user.cart.count }}</span>
                 </a>
               {% endif %}
-
+                <a href="{% url 'inbox' %}" class="d-flex align-items-center text-decoration-none">
+                {% if user.image %}
+                  <img src="{{ user.image.url }}" alt="Profile" class="rounded-circle nav-profile-img" />
+                {% else %}
+                  <i class="bi bi-chat-dots-fill text-white fs-4"></i>
+                {% endif %}
+              </a>
               <a href="{% url 'user.account' %}" class="d-flex align-items-center text-decoration-none">
                 {% if user.image %}
                   <img src="{{ user.image.url }}" alt="Profile" class="rounded-circle nav-profile-img" />
@@ -128,6 +134,7 @@
                   <i class="bi bi-person-circle text-white fs-4"></i>
                 {% endif %}
               </a>
+
             {% else %}
               <a class="nav-link-custom text-white" href="{% url 'user.login' %}">Login</a>
             {% endif %}

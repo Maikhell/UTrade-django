@@ -9,9 +9,7 @@ def verify_otp(request):
     print("--- DEBUG SESSION ---")
     print(f"All Session Keys: {request.session.keys()}")
     print(f"User ID found: {request.session.get('pending_user_id')}")
-    """
-    Validates the 6-digit OTP entered by the user.
-    """
+
     user_id = request.session.get('pending_user_id')
 
     if not user_id:

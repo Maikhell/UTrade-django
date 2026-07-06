@@ -84,13 +84,14 @@
                     <span class="small text-muted ms-1">{{ pending_user.section }}</span>
                   </td>
                   <td>
-                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="showUserDetails('{{ pending_user.first_name|escapejs }}', '{{ pending_user.last_name|escapejs }}', '{{ pending_user.student_no|escapejs }}', '{{ pending_user.course|escapejs }}', '{{ pending_user.section|escapejs }}', '{% if pending_user.cor_file %}{{ pending_user.cor_file.url }}{% endif %}')">
+                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3" 
+                            onclick="window.viewVerificationImage('{% if pending_user.cor_file %}{{ pending_user.cor_file.url }}{% endif %}', 'No COR uploaded')">
                       <i class="bi bi-file-earmark-text me-1"></i>View COR
                     </button>
                   </td>
                   <td class="text-end">
-                    <button onclick="updateStatus('{{ pending_user.id }}', 'Approved', 'user')" class="btn btn-sm btn-success rounded-3 me-1">Approve</button>
-                    <button onclick="updateStatus('{{ pending_user.id }}', 'Rejected', 'user')" class="btn btn-sm btn-danger rounded-3">Reject</button>
+                    <button onclick="window.submitStatusUpdate('{{ pending_user.id }}', 'Approved', 'user')" class="btn btn-sm btn-success rounded-3 me-1">Approve</button>
+                    <button onclick="window.submitStatusUpdate('{{ pending_user.id }}', 'Rejected', 'user')" class="btn btn-sm btn-danger rounded-3">Reject</button>
                   </td>
                 </tr>
                 {% endfor %}
@@ -114,7 +115,7 @@
               </thead>
               <tbody>
                 {% for off in pending_officers %}
-                <tr id="review-row-off-{{ off.id }}">
+                <tr id="review-row-officer-{{ off.id }}">
                   <td>
                     <div class="fw-bold">{{ off.first_name }} {{ off.last_name }}</div>
                     <div class="small text-muted">{{ off.student_no }}</div>
@@ -125,13 +126,13 @@
                   </td>
                   <td>
                     <button class="btn btn-sm btn-outline-warning rounded-pill px-3" 
-                            onclick="showOfficerID('{% if off.officer_id_image %}{{ off.officer_id_image.url }}{% endif %}')">
+                            onclick="window.viewVerificationImage('{% if off.officer_id_image %}{{ off.officer_id_image.url }}{% endif %}', 'No Officer ID found')">
                       <i class="bi bi-person-badge me-1"></i>View Officer ID
                     </button>
                   </td>
                   <td class="text-end">
-                    <button onclick="updateStatus('{{ off.id }}', 'Approved', 'officer')" class="btn btn-sm btn-success rounded-3 me-1">Approve</button>
-                    <button onclick="updateStatus('{{ off.id }}', 'Rejected', 'officer')" class="btn btn-sm btn-danger rounded-3">Reject</button>
+                    <button onclick="window.submitStatusUpdate('{{ off.id }}', 'Approved', 'officer')" class="btn btn-sm btn-success rounded-3 me-1">Approve</button>
+                    <button onclick="window.submitStatusUpdate('{{ off.id }}', 'Rejected', 'officer')" class="btn btn-sm btn-danger rounded-3">Reject</button>
                   </td>
                 </tr>
                 {% empty %}
@@ -204,17 +205,11 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'UTrade_app/js/admin_review.js' %}"></script>
-  <script>
-    // Specific function to show Officer ID in the existing modal
-    function showOfficerID(imageUrl) {
-        if (imageUrl && imageUrl !== '') {
-            document.getElementById('cor_image').src = imageUrl;
-            var myModal = new bootstrap.Modal(document.getElementById('corModal'));
-            myModal.show();
-        } else {
-            alert("No ID image found for this officer.");
-        }
-    }
+  <script type="module">
+    import { displayVerificationImage, updateStatus } from "{% static 'UTrade_app/js/product_review.js' %}";
+
+    // Safely attach module functions to the global window object so HTML inline click events can trigger them
+    window.viewVerificationImage = displayVerificationImage;
+    window.submitStatusUpdate = updateStatus;
   </script>
 {% endblock %}

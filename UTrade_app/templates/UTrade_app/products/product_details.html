@@ -60,7 +60,7 @@
 
           <h1 class="fw-bold text-dark mb-1">{{ product.name }}</h1>
           <p class="text-muted small mb-3">
-            Listed by <span class="fw-bold text-success">@{{ product.seller.username }}</span>
+            Listed by <span class="fw-bold text-success">@{{ product.seller.get_full_name }}</span>
           </p>
 
           <div class="d-flex align-items-center gap-3 mb-4 py-2 border-top border-bottom">
@@ -74,29 +74,9 @@
             <div class="vr text-muted opacity-25"></div>
             <div>
               <span class="fw-bold {% if product.get_total_stock < 5 %}
-                  
-                  
-                  
-                  
-                  
                   text-danger
-
-
-
-
-
                 {% else %}
-                  
-                  
-                  
-                  
-                  
                   text-dark
-
-
-
-
-
                 {% endif %}">
                 {{ product.get_total_stock }}
               </span>
@@ -147,7 +127,7 @@
                 <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3 text-white fw-bold shadow-sm" style="width: 55px; height: 55px;">{{ product.seller.username|slice:':1'|upper }}</div>
               {% endif %}
               <div>
-                <h6 class="mb-0 fw-bold">{{ product.seller.username }}</h6>
+                <h6 class="mb-0 fw-bold">{{ product.seller.get_full_name }}</h6>
                 <p class="small text-muted mb-0">Member since {{ product.seller.date_joined|date:'Y' }}</p>
               </div>
               <a href="#" class="btn btn-sm btn-outline-success ms-auto rounded-pill px-3">View Shop</a>

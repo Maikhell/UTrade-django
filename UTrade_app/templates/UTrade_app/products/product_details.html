@@ -9,7 +9,12 @@
   {% block extra_css %}
     <link rel="stylesheet" href="{% static 'UTrade_app/css/product_details.css' %}" />
   {% endblock %}
-
+  <nav aria-label="breadcrumb" class="mb-4">
+    <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>
+      <span>Back to marketplace</span>
+    </a>
+  </nav>
   {% csrf_token %}
   <div class="container py-5">
     <nav aria-label="breadcrumb" class="mb-4">
@@ -74,9 +79,13 @@
             <div class="vr text-muted opacity-25"></div>
             <div>
               <span class="fw-bold {% if product.get_total_stock < 5 %}
+                  
                   text-danger
+
                 {% else %}
+                  
                   text-dark
+
                 {% endif %}">
                 {{ product.get_total_stock }}
               </span>

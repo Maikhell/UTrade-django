@@ -1,238 +1,448 @@
-{% extends 'UTrade_app/base.html' %}
-{% load static %}
-
-{% block title %}
-  Seller Workshop
+{% extends 'UTrade_app/base.html' %} {% load static %} {% block title %} Seller
+Workshop {% endblock %} {% block content %} {% block extra_css %}
+<link rel="stylesheet" href="{% static 'UTrade_app/css/workshop.css' %}" />
 {% endblock %}
 
-{% block content %}
-  {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'UTrade_app/css/workshop.css' %}" />
-  {% endblock %}
-
-  <div class="container mb-3 d-flex justify-content-between align-items-center">
+<div class="container mb-3 d-flex justify-content-between align-items-center">
   <nav aria-label="breadcrumb" class="mb-4">
-    <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <a
+      href="#"
+      onclick="
+        history.back();
+        return false;
+      "
+      class="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
+    >
       <i class="bi bi-arrow-left" aria-hidden="true"></i>
       <span>Back to Account</span>
     </a>
-  </nav> 
-    <nav aria-label="breadcrumb" class="mb-4">
-    <a href="{% url 'services.create' %}" class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
+  </nav>
+  <nav aria-label="breadcrumb" class="mb-4">
+    <a
+      href="{% url 'services.create' %}"
+      class="btn btn-outline-primary d-inline-flex align-items-center gap-2"
+    >
       <span>Add Services</span>
-            <i class="bi bi-arrow-right" aria-hidden="true"></i>
+      <i class="bi bi-arrow-right" aria-hidden="true"></i>
     </a>
-  </nav> 
-  </div>
+  </nav>
+</div>
 
-  <div class="container-fluid py-4 workshop-container">
-    <div class="row g-4">
-      <!-- 1. PRODUCT GALLERY -->
-      <div class="col-lg-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <h6 class="fw-bold text-uppercase small text-muted mb-3"><i class="bi bi-images me-2"></i>1. Product Gallery</h6>
-          <div class="mb-3">
-            <label class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill"><i class="bi bi-plus-lg me-1"></i> Select Photos<input type="file" id="image_input" class="d-none" accept="image/*" multiple onchange="previewMultipleImages(event)" /></label>
-          </div>
-          <div id="image_preview_container" class="image-preview-grid column-scroll">
-            <div class="text-center py-5 text-muted small w-100" style="grid-column: span 2;">
-              <i class="bi bi-cloud-upload display-6 d-block mb-2"></i>
-              Select images
-            </div>
-          </div>
+<div class="container-fluid py-4 workshop-container">
+  <div class="row g-4">
+    <!-- 1. PRODUCT GALLERY -->
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+        <h6 class="fw-bold text-uppercase small text-muted mb-3">
+          <i class="bi bi-images me-2"></i>1. Product Gallery
+        </h6>
+        <div class="mb-3">
+          <label
+            class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill"
+            ><i class="bi bi-plus-lg me-1"></i> Select Photos<input
+              type="file"
+              id="image_input"
+              class="d-none"
+              accept="image/*"
+              multiple
+              onchange="previewMultipleImages(event)"
+          /></label>
         </div>
-      </div>
-
-      <!-- 2. PRODUCT DETAILS -->
-      <div class="col-lg-5">
-        <div class="card border-0 shadow-lg rounded-4 p-4 h-100">
-          <h5 class="fw-bold mb-4">2. Product Details</h5>
-
-          <form id="product_form">
-            {% csrf_token %}
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-secondary">Product Name</label>
-              <input type="text" id="name" class="form-control bg-light border-0 py-2" placeholder="e.g. Mechanical Keyboard" />
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-secondary">Description</label>
-              <textarea id="description" rows="3" class="form-control bg-light border-0" placeholder="Details, flaws, inclusions..."></textarea>
-            </div>
-
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <label class="form-label small fw-bold text-secondary">Category</label>
-                <select id="category" class="form-select bg-light border-0" onchange="handleCategoryChange(this)">
-                  <option selected disabled>Choose Category...</option>
-                  {% for category in categories %}
-                    <option value="{{ category.id }}">{{ category.name }}</option>
-                  {% endfor %}
-                  <option value="other">-- Other (Type New) --</option>
-                </select>
-              </div>
-              <div class="col-6">
-                <label class="form-label small fw-bold text-secondary">Total Stocks</label>
-                <input type="number" id="stocks" class="form-control bg-light border-0" readonly placeholder="Calculated from variants" />
-              </div>
-            </div>
-
-            <!-- Custom Category Input -->
-            <div id="other_category_div" class="mb-3 d-none">
-              <label class="form-label small fw-bold text-success">New Category Name</label>
-              <input type="text" id="custom_category" class="form-control border-success py-2" placeholder="Enter new category name..." />
-            </div>
-
-            <!-- Attributes Section (FIXED DIV NESTING HERE) -->
-            <div id="attributes_section" class="mt-4 p-3 rounded bg-light border">
-              <h6 class="fw-bold mb-3"><i class="bi bi-layers-half me-2"></i>Product Variations</h6>
-
-              <div id="size_suggestions_container" class="mb-3">
-                <label id="quick_select_label" class="form-label small fw-bold text-success">Quick Select:</label>
-                <div id="suggestion_buttons" class="d-flex flex-wrap gap-2">
-                  <span class="text-muted small">Select a category to see available variations.</span>
-                </div>
-                <div id="no_attributes_note" class="alert alert-info py-2 small d-none">
-                  <i class="bi bi-info-circle me-2"></i>No quick select yet. Please input your own attributes.
-                </div>
-              </div>
-
-              <div id="attribute_pills" class="mb-2"></div>
-
-              <div class="row g-2 mb-2">
-                <div class="col-md-4">
-                  <input type="text" id="variant_name" class="form-control form-control-sm" placeholder="Variant Name" />
-                </div>
-                <div class="col-md-4">
-                  <input type="number" id="variant_price" class="form-control form-control-sm" placeholder="Price" />
-                </div>
-                <div class="col-md-4">
-                  <input type="number" id="variant_stock" class="form-control form-control-sm" placeholder="Stock" />
-                </div>
-                <div class="col-md-4">
-                  <input type="text" id="variant_attribute" class="form-control form-control-sm" placeholder="e.g. XL, 32oz, Blue" />
-                </div>
-                <div class="col-md-4">
-                  <input type="text" id="variant_flaws" class="form-control form-control-sm" placeholder="Flaws " />
-                </div>
-                <div class="col-md-4">
-                  <select id="variant_condition" class="form-select form-select-sm" onchange="toggleCustomCondition(this)">
-                    <option value="Brand New">Brand New</option>
-                    <option value="Like New">Like New</option>
-                    <option value="Used - Good">Used - Good</option>
-                    <option value="Used - Fair">Used - Fair</option>
-                    <option value="Other">Other (Custom)</option>
-                  </select>
-                </div>
-              </div>
-              <div class="d-flex gap-2 mb-3">
-                <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="openVariantImagePicker()"><i class="bi bi-image me-1"></i> Pick Image</button>
-                <button type="button" class="btn btn-success btn-sm w-100" onclick="addVariant()"><i class="bi bi-plus-circle me-1"></i> Add Variant</button>
-              </div>
-              <div id="variant_list" class="mt-3"></div>
-            </div>
-
-            <!-- Hidden simple price for JS compatibility -->
-            <div id="simple_price_section" class="d-none">
-              <input type="number" id="price" value="0" />
-            </div>
-
-            <div class="my-3">
-              <label class="form-label small fw-bold text-secondary">Campus Meetup Spots</label>
-              <div class="p-3 bg-light rounded-3 border" style="max-height: 150px; overflow-y: auto;">
-                {% for location in meetup_locations %}
-                  <div class="form-check mb-2">
-                    <input class="form-check-input location-checkbox" type="checkbox" value="{{ location.id }}" id="loc_{{ forloop.index }}" onchange="updateMultiLocations()" />
-                    <label class="form-check-label small" for="loc_{{ forloop.index }}">{{ location.name }}</label>
-                  </div>
-                {% endfor %}
-              </div>
-              <input type="hidden" name="location_options" id="final_locations" />
-            </div>
-
-            <!-- Selling As / Listing Type Logic -->
-            <div class="row g-2 mb-3">
-              <div class="col-12">
-                {% if request.user.user_role == 'management' %}
-                  <label class="form-label small fw-bold text-primary">Selling As</label>
-                  <select id="owner_type" name="owner_type" class="form-select bg-white border py-2 shadow-sm">
-                    <option value="MANAGEMENT" selected>Management Listing</option>
-                  </select>
-                {% elif request.user.is_officer %}
-                  <label class="form-label small fw-bold text-primary">Selling As</label>
-                  <select id="owner_type" name="owner_type" class="form-select bg-white border py-2 shadow-sm">
-                    <option value="PERSONAL">Personal Listing</option>
-                    <option value="ORGANIZATION">Organization Listing</option>
-                  </select>
-                {% else %}
-                  <input type="hidden" id="owner_type" name="owner_type" value="PERSONAL" />
-                {% endif %}
-              </div>
-            </div>
-
-            <div class="mb-4">
-              <label class="form-label small fw-bold text-secondary d-block">Accepted Payment</label>
-              <div class="btn-group w-100">
-                <input type="radio" class="btn-check" name="payment" id="p_cash" value="COP" checked />
-                <label class="btn btn-outline-success" for="p_cash">Cash</label>
-                <input type="radio" class="btn-check" name="payment" id="p_gcash" value="GCASH" />
-                <label class="btn btn-outline-primary" for="p_gcash">GCash</label>
-                <input type="radio" class="btn-check" name="payment" id="p_both" value="BOTH" />
-                <label class="btn btn-outline-secondary" for="p_both">Both</label>
-              </div>
-            </div>
-
-            <button type="button" onclick="addToStaging()" class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow">Add to List</button>
-          </form>
-        </div>
-      </div>
-
-      <!-- 3. STAGING LIST -->
-      <div class="col-lg-4">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 d-flex flex-column">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="fw-bold text-uppercase small text-muted mb-0">3. Staging List</h6>
-            <span id="item_count" class="badge bg-dark rounded-pill">{{ staged_items|length }}</span>
-          </div>
-
-          <div id="staging_area" class="column-scroll flex-grow-1 mb-3" style="overflow-y: auto;">
-            {% if not staged_items %}
-              <div class="text-center py-5 text-muted empty-msg">List is empty.</div>
-            {% endif %}
-
-            {% for item in staged_items %}
-              <div class="card staged-item mb-3 p-3 bg-white border shadow-sm" data-id="{{ item.id }}">
-                <div class="d-flex align-items-start">
-                  {% with img=item.images.first %}
-                    {% if img %}
-                      <img src="{{ img.image.url }}" class="rounded shadow-sm me-3" style="width: 50px; height: 50px; object-fit: cover;" />
-                    {% endif %}
-                  {% endwith %}
-
-                  <div class="flex-grow-1">
-                    <div class="d-flex justify-content-between align-items-start">
-                      <h6 class="mb-0 fw-bold text-dark">{{ item.name }}</h6>
-                      <div class="d-flex gap-2">
-                        <button class="btn btn-sm text-primary p-0" onclick="editItem({{ item.id }})"><i class="bi bi-pencil-square"></i></button>
-                        <button class="btn btn-sm text-danger p-0" onclick="removeItem(this, {{ item.id }})"><i class="bi bi-trash-fill"></i></button>
-                      </div>
-                    </div>
-                    <div class="small text-muted">₱{{ item.variants.first.price|default:'0' }}</div>
-                  </div>
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-
-          <div class="mt-auto pt-3 border-top">
-            <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">Send for Authentication</button>
+        <div
+          id="image_preview_container"
+          class="image-preview-grid column-scroll"
+        >
+          <div
+            class="text-center py-5 text-muted small w-100"
+            style="grid-column: span 2"
+          >
+            <i class="bi bi-cloud-upload display-6 d-block mb-2"></i>
+            Select images
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  {% block extra_js %}
-    <script src="{% static 'UTrade_app/js/workshop.js' %}"></script>
-  {% endblock %}
-{% endblock %}
+    <!-- 2. PRODUCT DETAILS -->
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-lg rounded-4 p-4 h-100">
+        <h5 class="fw-bold mb-4">2. Product Details</h5>
+
+        <form id="product_form">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-secondary"
+              >Product Name</label
+            >
+            <input
+              type="text"
+              id="name"
+              class="form-control bg-light border-0 py-2"
+              placeholder="e.g. Mechanical Keyboard"
+              oninput="validateProhibitedInput(this)"
+            />
+            <div id="name_prohibited_error" class="invalid-feedback small">
+              Contains restricted/prohibited words.
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-secondary"
+              >Description</label
+            >
+            <textarea
+              id="description"
+              rows="3"
+              class="form-control bg-light border-0"
+              placeholder="Details, flaws, inclusions..."
+              oninput="validateProhibitedInput(this)"
+            ></textarea>
+            <div
+              id="description_prohibited_error"
+              class="invalid-feedback small"
+            >
+              Contains restricted/prohibited words.
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-secondary"
+                >Category</label
+              >
+              <select
+                id="category"
+                class="form-select bg-light border-0"
+                onchange="handleCategoryChange(this)"
+              >
+                <option selected disabled>Choose Category...</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+                {% endfor %}
+                <option value="other">-- Other (Type New) --</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-secondary"
+                >Total Stocks</label
+              >
+              <input
+                type="number"
+                id="stocks"
+                class="form-control bg-light border-0"
+                readonly
+                placeholder="Calculated from variants"
+              />
+            </div>
+          </div>
+
+          <!-- Custom Category Input -->
+          <div id="other_category_div" class="mb-3 d-none">
+            <label class="form-label small fw-bold text-success"
+              >New Category Name</label
+            >
+            <input
+              type="text"
+              id="custom_category"
+              class="form-control border-success py-2"
+              placeholder="Enter new category name..."
+            />
+          </div>
+
+          <!-- Attributes Section (FIXED DIV NESTING HERE) -->
+          <div id="attributes_section" class="mt-4 p-3 rounded bg-light border">
+            <h6 class="fw-bold mb-3">
+              <i class="bi bi-layers-half me-2"></i>Product Variations
+            </h6>
+
+            <div id="size_suggestions_container" class="mb-3">
+              <label
+                id="quick_select_label"
+                class="form-label small fw-bold text-success"
+                >Quick Select:</label
+              >
+              <div id="suggestion_buttons" class="d-flex flex-wrap gap-2">
+                <span class="text-muted small"
+                  >Select a category to see available variations.</span
+                >
+              </div>
+              <div
+                id="no_attributes_note"
+                class="alert alert-info py-2 small d-none"
+              >
+                <i class="bi bi-info-circle me-2"></i>No quick select yet.
+                Please input your own attributes.
+              </div>
+            </div>
+
+            <div id="attribute_pills" class="mb-2"></div>
+
+            <div class="row g-2 mb-2">
+              <div class="col-md-4">
+                <input
+                  type="text"
+                  id="variant_name"
+                  class="form-control form-control-sm"
+                  placeholder="Variant Name"
+                />
+              </div>
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="variant_price"
+                  class="form-control form-control-sm"
+                  placeholder="Price"
+                />
+              </div>
+              <div class="col-md-4">
+                <input
+                  type="number"
+                  id="variant_stock"
+                  class="form-control form-control-sm"
+                  placeholder="Stock"
+                />
+              </div>
+              <div class="col-md-4">
+                <input
+                  type="text"
+                  id="variant_attribute"
+                  class="form-control form-control-sm"
+                  placeholder="e.g. XL, 32oz, Blue"
+                />
+              </div>
+              <div class="col-md-4">
+                <input
+                  type="text"
+                  id="variant_flaws"
+                  class="form-control form-control-sm"
+                  placeholder="Flaws "
+                />
+              </div>
+              <div class="col-md-4">
+                <select
+                  id="variant_condition"
+                  class="form-select form-select-sm"
+                  onchange="toggleCustomCondition(this)"
+                >
+                  <option value="Brand New">Brand New</option>
+                  <option value="Like New">Like New</option>
+                  <option value="Used - Good">Used - Good</option>
+                  <option value="Used - Fair">Used - Fair</option>
+                  <option value="Other">Other (Custom)</option>
+                </select>
+              </div>
+            </div>
+            <div class="d-flex gap-2 mb-3">
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm w-100"
+                onclick="openVariantImagePicker()"
+              >
+                <i class="bi bi-image me-1"></i> Pick Image
+              </button>
+              <button
+                type="button"
+                class="btn btn-success btn-sm w-100"
+                onclick="addVariant()"
+              >
+                <i class="bi bi-plus-circle me-1"></i> Add Variant
+              </button>
+            </div>
+            <div id="variant_list" class="mt-3"></div>
+          </div>
+
+          <!-- Hidden simple price for JS compatibility -->
+          <div id="simple_price_section" class="d-none">
+            <input type="number" id="price" value="0" />
+          </div>
+
+          <div class="my-3">
+            <label class="form-label small fw-bold text-secondary"
+              >Campus Meetup Spots</label
+            >
+            <div
+              class="p-3 bg-light rounded-3 border"
+              style="max-height: 150px; overflow-y: auto"
+            >
+              {% for location in meetup_locations %}
+              <div class="form-check mb-2">
+                <input
+                  class="form-check-input location-checkbox"
+                  type="checkbox"
+                  value="{{ location.id }}"
+                  id="loc_{{ forloop.index }}"
+                  onchange="updateMultiLocations()"
+                />
+                <label
+                  class="form-check-label small"
+                  for="loc_{{ forloop.index }}"
+                  >{{ location.name }}</label
+                >
+              </div>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="location_options" id="final_locations" />
+          </div>
+
+          <!-- Selling As / Listing Type Logic -->
+          <div class="row g-2 mb-3">
+            <div class="col-12">
+              {% if request.user.user_role == 'management' %}
+              <label class="form-label small fw-bold text-primary"
+                >Selling As</label
+              >
+              <select
+                id="owner_type"
+                name="owner_type"
+                class="form-select bg-white border py-2 shadow-sm"
+              >
+                <option value="MANAGEMENT" selected>Management Listing</option>
+              </select>
+              {% elif request.user.is_officer %}
+              <label class="form-label small fw-bold text-primary"
+                >Selling As</label
+              >
+              <select
+                id="owner_type"
+                name="owner_type"
+                class="form-select bg-white border py-2 shadow-sm"
+              >
+                <option value="PERSONAL">Personal Listing</option>
+                <option value="ORGANIZATION">Organization Listing</option>
+              </select>
+              {% else %}
+              <input
+                type="hidden"
+                id="owner_type"
+                name="owner_type"
+                value="PERSONAL"
+              />
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-secondary d-block"
+              >Accepted Payment</label
+            >
+            <div class="btn-group w-100">
+              <input
+                type="radio"
+                class="btn-check"
+                name="payment"
+                id="p_cash"
+                value="COP"
+                checked
+              />
+              <label class="btn btn-outline-success" for="p_cash">Cash</label>
+              <input
+                type="radio"
+                class="btn-check"
+                name="payment"
+                id="p_gcash"
+                value="GCASH"
+              />
+              <label class="btn btn-outline-primary" for="p_gcash">GCash</label>
+              <input
+                type="radio"
+                class="btn-check"
+                name="payment"
+                id="p_both"
+                value="BOTH"
+              />
+              <label class="btn btn-outline-secondary" for="p_both">Both</label>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onclick="addToStaging()"
+            class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow"
+          >
+            Add to List
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 3. STAGING LIST -->
+    <div class="col-lg-4">
+      <div
+        class="card border-0 shadow-sm rounded-4 p-3 h-100 d-flex flex-column"
+      >
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-bold text-uppercase small text-muted mb-0">
+            3. Staging List
+          </h6>
+          <span id="item_count" class="badge bg-dark rounded-pill"
+            >{{ staged_items|length }}</span
+          >
+        </div>
+
+        <div
+          id="staging_area"
+          class="column-scroll flex-grow-1 mb-3"
+          style="overflow-y: auto"
+        >
+          {% if not staged_items %}
+          <div class="text-center py-5 text-muted empty-msg">
+            List is empty.
+          </div>
+          {% endif %} {% for item in staged_items %}
+          <div
+            class="card staged-item mb-3 p-3 bg-white border shadow-sm"
+            data-id="{{ item.id }}"
+          >
+            <div class="d-flex align-items-start">
+              {% with img=item.images.first %} {% if img %}
+              <img
+                src="{{ img.image.url }}"
+                class="rounded shadow-sm me-3"
+                style="width: 50px; height: 50px; object-fit: cover"
+              />
+              {% endif %} {% endwith %}
+
+              <div class="flex-grow-1">
+                <div class="d-flex justify-content-between align-items-start">
+                  <h6 class="mb-0 fw-bold text-dark">{{ item.name }}</h6>
+                  <div class="d-flex gap-2">
+                    <button
+                      class="btn btn-sm text-primary p-0"
+                      onclick="editItem({{ item.id }})"
+                    >
+                      <i class="bi bi-pencil-square"></i>
+                    </button>
+                    <button
+                      class="btn btn-sm text-danger p-0"
+                      onclick="removeItem(this, {{ item.id }})"
+                    >
+                      <i class="bi bi-trash-fill"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="small text-muted">
+                  ₱{{ item.variants.first.price|default:'0' }}
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="mt-auto pt-3 border-top">
+          <button
+            class="btn btn-dark btn-lg w-100 fw-bold"
+            onclick="submitToAdmin()"
+          >
+            Send for Authentication
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block extra_js %}
+<script src="{% static 'UTrade_app/js/workshop.js' %}"></script>
+{% endblock %} {% endblock %}

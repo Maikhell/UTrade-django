@@ -120,24 +120,24 @@ function onVariantChange(variantId) {
 // ================= VARIANT SELECTOR =================
 function openVariantSelector(productId, productName, isPreOrder = false) {
     if (!variantData || variantData.length === 0) {
-        isPreOrder ? performPreOrderRequest(productId) : performAddToCart(productId);
+        isPreOrder ? performPreOrderRequest([{ id: productId, quantity: 1 }]) : performAddToCart([{ id: productId, quantity: 1 }]);
         return;
     }
 
     let variantHtml = `
         <div class="text-start mb-2 mt-3 px-1">
-            <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Available Options</small>
+            <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Select Variants & Quantities</small>
         </div>
-        <div class="list-group text-start">`;
+        <div class="list-group text-start gap-2" id="variantListContainer">`;
 
     variantData.forEach(v => {
         const isOut = v.stock <= 0;
 
         variantHtml += `
-            <label class="list-group-item list-group-item-action d-flex justify-content-between align-items-center rounded-3 mb-2 border ${isOut ? 'opacity-50 bg-light' : ''}" style="cursor: pointer;">
-                <div class="d-flex align-items-center">
-                    <input class="form-check-input me-3 border-success" type="radio" name="swal-variant" value="${v.id}" ${isOut ? 'disabled' : ''}>
-                    <div class="variant-img-wrapper rounded me-3 border" style="width:45px;height:45px;overflow:hidden;flex-shrink:0;">
+            <div class="list-group-item d-flex align-items-center justify-content-between rounded-3 border p-3 ${isOut ? 'opacity-50 bg-light' : ''}">
+                <div class="d-flex align-items-center gap-3">
+                    <input class="form-check-input variant-checkbox border-success mt-0" type="checkbox" data-variant-id="${v.id}" id="check_var_${v.id}" ${isOut ? 'disabled' : ''} onchange="toggleQtyInput('${v.id}')">
+                    <div class="variant-img-wrapper rounded border" style="width:45px;height:45px;overflow:hidden;flex-shrink:0;">
                         <img src="${v.image_url}" style="width:100%;height:100%;object-fit:cover;">
                     </div>
                     <div>
@@ -148,83 +148,98 @@ function openVariantSelector(productId, productName, isPreOrder = false) {
                         </div>
                     </div>
                 </div>
-                ${isOut ? '<span class="badge bg-danger">Sold Out</span>' : `<span class="badge bg-success-subtle text-success">Stock: ${v.stock}</span>`}
-            </label>`;
+
+                <div>
+                    ${isOut ? '<span class="badge bg-danger">Sold Out</span>' : `
+                        <div class="input-group input-group-sm" style="width: 110px;">
+                            <button class="btn btn-outline-secondary" type="button" onclick="adjustQty('${v.id}', -1)" id="minus_btn_${v.id}" disabled>-</button>
+                            <input type="number" class="form-control text-center variant-qty" id="qty_var_${v.id}" value="1" min="1" max="${v.stock}" disabled data-max-stock="${v.stock}">
+                            <button class="btn btn-outline-secondary" type="button" onclick="adjustQty('${v.id}', 1)" id="plus_btn_${v.id}" disabled>+</button>
+                        </div>
+                    `}
+                </div>
+            </div>`;
     });
 
     variantHtml += `</div>`;
 
     Swal.fire({
-        title: isPreOrder ? `Pre-order ${productName}` : `Select Variant`,
+        title: isPreOrder ? `Pre-order ${productName}` : `Select Items`,
         html: variantHtml,
         showCancelButton: true,
-        confirmButtonText: isPreOrder ? 'Confirm Pre-order' : 'Add to Cart',
+        confirmButtonText: isPreOrder ? 'Confirm Pre-orders' : 'Add Selected to Cart',
         confirmButtonColor: isPreOrder ? '#0d6efd' : '#198754',
 
-        didRender: () => {
-            const radios = Swal.getHtmlContainer().querySelectorAll('input[name="swal-variant"]');
-            radios.forEach(radio => {
-                radio.addEventListener('change', e => {
-                    const v = variantData.find(x => x.id == e.target.value);
-                    if (v) {
-                        changeImage(v.image_url);
-                        updateProductDisplay(v);
-                    }
-                });
-            });
-        },
-
         preConfirm: () => {
-            const selected = document.querySelector('input[name="swal-variant"]:checked');
-            if (!selected) {
-                Swal.showValidationMessage('Please select a variation');
+            const selectedItems = [];
+            const checkboxes = document.querySelectorAll('.variant-checkbox:checked');
+
+            if (checkboxes.length === 0) {
+                Swal.showValidationMessage('Please select at least one variant.');
                 return false;
             }
-            return selected.value;
+
+            checkboxes.forEach(cb => {
+                const varId = cb.getAttribute('data-variant-id');
+                const qtyInput = document.getElementById(`qty_var_${varId}`);
+                const qty = parseInt(qtyInput.value) || 1;
+
+                selectedItems.push({
+                    variant_id: varId,
+                    quantity: qty
+                });
+            });
+
+            return selectedItems;
         }
     }).then(result => {
-        if (result.isConfirmed) {
+        if (result.isConfirmed && result.value) {
             isPreOrder ? performPreOrderRequest(result.value) : performAddToCart(result.value);
         }
     });
 }
+function toggleQtyInput(varId) {
+    const cb = document.getElementById(`check_var_${varId}`);
+    const qtyInput = document.getElementById(`qty_var_${varId}`);
+    const minusBtn = document.getElementById(`minus_btn_${varId}`);
+    const plusBtn = document.getElementById(`plus_btn_${varId}`);
 
-// ================= PREORDER =================
-function performPreOrderRequest(variantId) {
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const isEnabled = cb.checked;
+    if (qtyInput) qtyInput.disabled = !isEnabled;
+    if (minusBtn) minusBtn.disabled = !isEnabled;
+    if (plusBtn) plusBtn.disabled = !isEnabled;
 
-    fetch(`/preorder/request/${variantId}/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrftoken,
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify({ status: 'Pending' })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            Swal.fire({ icon: 'success', title: 'Request Sent!', text: 'Pending seller approval.' });
-        } else {
-            Swal.fire({ icon: 'error', title: 'Error', text: data.message });
-        }
-    })
-    .catch(() => Swal.fire('Connection Error', 'Try again later', 'error'));
+    // Optional: Auto update preview on main image
+    if (isEnabled) {
+        onVariantChange(varId);
+    }
 }
 
-// ================= ADD TO CART (VARIANT) =================
-function performAddToCart(variantId) {
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+function adjustQty(varId, delta) {
+    const input = document.getElementById(`qty_var_${varId}`);
+    if (!input || input.disabled) return;
 
-    fetch(`/cart/add/${variantId}/`, {
+    let currentVal = parseInt(input.value) || 1;
+    const maxStock = parseInt(input.getAttribute('data-max-stock')) || 99;
+    
+    currentVal += delta;
+    if (currentVal < 1) currentVal = 1;
+    if (currentVal > maxStock) currentVal = maxStock;
+
+    input.value = currentVal;
+}
+// ================= PREORDER =================
+function performAddToCart(items) {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+    fetch(`/cart/add-batch/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': csrftoken,
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify({ quantity: 1 })
+        body: JSON.stringify({ items: items })
     })
     .then(r => r.json())
     .then(data => {
@@ -232,16 +247,39 @@ function performAddToCart(variantId) {
             const badge = document.getElementById('cart-count');
             if (badge) {
                 badge.innerText = data.cart_count;
-                badge.style.display = 'block';
+                badge.style.display = 'inline-block';
             }
             Swal.fire({ icon: 'success', title: 'Added to Cart!', timer: 1500, showConfirmButton: false });
         } else {
             Swal.fire({ icon: 'error', title: 'Error', text: data.message });
         }
     })
-    .catch(() => Swal.fire('Error', 'Login required', 'error'));
+    .catch(() => Swal.fire('Error', 'Login required or network failure.', 'error'));
 }
 
+// ================= BATCH PREORDER =================
+function performPreOrderRequest(items) {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+    fetch(`/preorder/request-batch/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ items: items, status: 'Pending' })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({ icon: 'success', title: 'Pre-order Sent!', text: 'Pending seller approval.' });
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: data.message });
+        }
+    })
+    .catch(() => Swal.fire('Connection Error', 'Try again later', 'error'));
+}
 // ================= SIMPLE ADD TO CART =================
 function addToCart(productId, buttonElement) {
     const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;

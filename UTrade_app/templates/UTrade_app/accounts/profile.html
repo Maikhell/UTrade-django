@@ -121,7 +121,6 @@
                     {% if user.is_staff %}
                       <span class="badge bg-info rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Admin</span>
                     {% endif %}
-
                     {% if user.course %}
                       <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold badge-{{ user.course|lower }}" style="font-size: 0.65rem; letter-spacing: 1px;">
                         {{ user.course }}

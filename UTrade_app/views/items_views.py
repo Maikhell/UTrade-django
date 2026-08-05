@@ -5,10 +5,11 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import  CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
-from ..models import Product, Category, ProductImage, Wishlist, CartItem, ProductVariant, MeetupLocation, ProhibitedWord, StagedProduct, StagedVariant, StagedImage, CategoryAttribute 
+from ..models import Product, Category, ProductImage, Wishlist,Cart, CartItem, ProductVariant, MeetupLocation, ProhibitedWord, StagedProduct, StagedVariant, StagedImage, CategoryAttribute, PreOrderRequest
 from django.http import JsonResponse
 import re
 import json
@@ -185,19 +186,79 @@ class ProductDetailView(DetailView):
     model = Product
     template_name = 'Utrade_app/products/product_details.html'
     context_object_name = 'product'
+
     def get_queryset(self):
-        return super().get_queryset().select_related('seller', 'category')
+        return super().get_queryset().select_related('seller', 'category').prefetch_related('variants', 'images')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['related_products'] = Product.objects.filter(
             category=self.object.category,
             status='Approved'
-        ).exclude(id=self.object.id).select_related('seller')[:4] 
+        ).exclude(id=self.object.id).select_related('seller')[:4]
         return context
-def get_attributes(request, category_id):
-    attributes = CategoryAttribute.objects.filter(category_id=category_id).values('value', 'attribute_type')
-    return JsonResponse({'attributes': list(attributes)})
+
+
+class BatchAddToCartView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            items = data.get('items', [])
+
+            if not items:
+                return JsonResponse({'success': False, 'message': 'No items selected.'}, status=400)
+
+            cart, _ = Cart.objects.get_or_create(user=request.user)
+
+            for item in items:
+                variant_id = item.get('variant_id')
+                quantity = int(item.get('quantity', 1))
+
+                variant = ProductVariant.objects.filter(id=variant_id).first()
+                if not variant or variant.stocks < quantity:
+                    continue
+
+                cart_item, created = CartItem.objects.get_or_create(cart=cart, variant=variant)
+                if not created:
+                    cart_item.quantity += quantity
+                else:
+                    cart_item.quantity = quantity
+                cart_item.save()
+
+            total_cart_count = cart.items.count()
+            return JsonResponse({'success': True, 'cart_count': total_cart_count})
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+
+class BatchPreOrderView(LoginRequiredMixin, View):
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            items = data.get('items', [])
+            status = data.get('status', 'Pending')
+
+            if not items:
+                return JsonResponse({'success': False, 'message': 'No items selected.'}, status=400)
+
+            for item in items:
+                variant_id = item.get('variant_id')
+                quantity = int(item.get('quantity', 1))
+
+                variant = ProductVariant.objects.filter(id=variant_id).first()
+                if variant:
+                    PreOrderRequest.objects.create(
+                        user=request.user,
+                        variant=variant,
+                        quantity=quantity,
+                        status=status
+                    )
+
+            return JsonResponse({'success': True, 'message': 'Pre-orders created successfully.'})
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=500)
 class ProductListView(ListView):
     model = Product
     template_name = 'UTrade_app/products/marketplace.html'
@@ -355,3 +416,6 @@ def delete_staged_product(request, staged_id):
             return JsonResponse({'status': 'success'})
         except StagedProduct.DoesNotExist:
             return JsonResponse({'error': 'Item not found'}, status=404)
+def get_attributes(request, category_id):
+    attributes = CategoryAttribute.objects.filter(category_id=category_id).values('value', 'attribute_type')
+    return JsonResponse({'attributes': list(attributes)})

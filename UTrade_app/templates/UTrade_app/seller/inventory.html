@@ -5,215 +5,730 @@
 {% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb" class="mb-4">
-    <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
-      <i class="bi bi-arrow-left" aria-hidden="true"></i>
-      <span>Back to Account</span>
-    </a>
-  </nav>
-  <div class="container py-5">
-    <div class="row mb-4">
-      <div class="col">
-        <h2 class="fw-bold">My Shop Manager</h2>
-        <p class="text-muted">
-          You have <strong>{{ products.count }}</strong> total listings.
-        </p>
+<style>
+  @media (min-width: 768px) {
+    .seller-sidebar {
+      position: sticky;
+      top: 1rem;
+      height: calc(100vh - 2rem);
+      overflow-y: auto;
+    }
+  }
+
+  .stat-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,.08) !important;
+  }
+
+  .variant-row:hover {
+    background-color: #f8f9fa;
+  }
+
+  .nav-tabs .nav-link {
+    border-radius: 0.75rem 0.75rem 0 0;
+    font-weight: 500;
+  }
+  .nav-tabs .nav-link.active {
+    background-color: #fff;
+    border-bottom-color: #fff;
+  }
+
+  /* Sidebar active state */
+  .sidebar-link.active {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+    color: #0d6efd !important;
+    font-weight: 600;
+  }
+
+  /* Loading button state */
+  .btn-loading {
+    pointer-events: none;
+    opacity: 0.85;
+  }
+  .btn-loading .spinner-border {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.15em;
+  }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
+  <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back to Account</span>
+  </a>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+
+    <!-- Mobile Toggle -->
+    <div class="col-12 d-md-none mb-3">
+      <button class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2"
+              type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#sellerSidebar"
+              aria-controls="sellerSidebar">
+        <i class="bi bi-list"></i>
+        Seller Menu
+      </button>
+    </div>
+
+    <!-- ==================== SIDEBAR ==================== -->
+    <div class="col-md-3 col-lg-2">
+      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm"
+           tabindex="-1"
+           id="sellerSidebar"
+           aria-labelledby="sellerSidebarLabel">
+
+        <div class="offcanvas-header d-md-none">
+          <h5 class="offcanvas-title fw-bold" id="sellerSidebarLabel">Seller Dashboard</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sellerSidebar"></button>
+        </div>
+
+        <div class="offcanvas-body p-0">
+          <div class="seller-sidebar p-3">
+
+            <!-- Quick Stats -->
+            <div class="mb-4">
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div class="d-flex justify-content-between">
+                  <span>Products</span>
+                  <strong>{{ products.count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Total Stocks</span>
+                  <strong>{{ total_stocks|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Orders</span>
+                  <strong>{{ total_orders|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Income</span>
+                  <strong class="text-success">₱{{ total_income|default:0 }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-3 opacity-25">
+
+            <!-- Navigation -->
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
+            <ul class="nav flex-column gap-1">
+              <li class="nav-item">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark"
+                   href="#dashboard-stats">
+                  <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+              </li>
+
+              <li class="nav-item">
+                <a class="nav-link sidebar-link sidebar-tab-link d-flex align-items-center gap-2 rounded-3 text-dark"
+                   href="#incoming-pane"
+                   data-bs-target="#incoming-pane">
+                  <i class="bi bi-inbox text-primary"></i> Incoming
+                  {% if incoming_orders.count %}
+                    <span class="badge bg-primary rounded-pill ms-auto">{{ incoming_orders.count }}</span>
+                  {% endif %}
+                </a>
+              </li>
+
+              <li class="nav-item">
+                <a class="nav-link sidebar-link sidebar-tab-link d-flex align-items-center gap-2 rounded-3 text-dark"
+                   href="#accepted-pane"
+                   data-bs-target="#accepted-pane">
+                  <i class="bi bi-check2-all text-success"></i> Ready for Meetup
+                  {% if accepted_orders.count %}
+                    <span class="badge bg-success rounded-pill ms-auto">{{ accepted_orders.count }}</span>
+                  {% endif %}
+                </a>
+              </li>
+
+              <li class="nav-item">
+                <a class="nav-link sidebar-link sidebar-tab-link d-flex align-items-center gap-2 rounded-3 text-dark"
+                   href="#completed-pane"
+                   data-bs-target="#completed-pane">
+                  <i class="bi bi-clipboard-check text-secondary"></i> Completed
+                  {% if completed_orders.count %}
+                    <span class="badge bg-secondary rounded-pill ms-auto">{{ completed_orders.count }}</span>
+                  {% endif %}
+                </a>
+              </li>
+
+              <li class="nav-item">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark"
+                   href="#my-products">
+                  <i class="bi bi-box-seam"></i> My Products
+                  <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count }}</span>
+                </a>
+              </li>
+            </ul>
+
+            <hr class="my-3 opacity-25">
+
+            <div class="d-grid gap-2">
+              <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
+                <i class="bi bi-plus-lg me-1"></i> Add New Product
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="row mb-5">
-      <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4 class="fw-bold mb-0"><i class="bi bi-cart-fill text-primary me-2"></i>Incoming Orders</h4>
-          <span class="badge bg-primary rounded-pill">{{ incoming_orders.count }} New</span>
-        </div>
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
 
-        {% if incoming_orders %}
-          <div class="table-responsive bg-white shadow-sm rounded-4 p-3">
-            <table class="table align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Buyer</th>
-                  <th>Amount</th>
-                  <th>Payment</th>
-                  <th>Ordered</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for order in incoming_orders %}
-                  <tr>
-                    <td>#{{ order.id }}</td>
-                    <td>{{ order.user.first_name|default:order.user.username }}</td>
-                    <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
-                    <td>
-                      {% if order.payment_method == 'GCASH' %}
-                        <span class="badge bg-success rounded-pill">Paid (GCash)</span>
-                      {% else %}
-                        <span class="badge bg-info text-dark rounded-pill">{{ order.payment_method }}</span>
-                      {% endif %}
-                    </td>
-                    <td class="small text-muted">{{ order.created_at|timesince }} ago</td>
-                    <td>
-                      <button class="btn btn-sm btn-success rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#acceptOrderModal{{ order.id }}">Review & Accept</button>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+      <!-- Header -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+          <h2 class="fw-bold mb-1">My Shop Manager</h2>
+          <p class="text-muted mb-0">Manage your products, orders and earnings</p>
+        </div>
+        <a href="{% url 'product.create' %}" class="btn btn-success rounded-pill">
+          <i class="bi bi-plus-lg me-1"></i> Add Product
+        </a>
+      </div>
+
+      <!-- ========== DASHBOARD STATS ========== -->
+      <div id="dashboard-stats" class="row g-3 mb-5">
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
+            <div class="d-flex align-items-center gap-3">
+              <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3">
+                <i class="bi bi-box-seam fs-4"></i>
+              </div>
+              <div>
+                <small class="text-muted d-block">Total Products</small>
+                <span class="h4 fw-bold mb-0">{{ products.count }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
+            <div class="d-flex align-items-center gap-3">
+              <div class="bg-info bg-opacity-10 text-info rounded-3 p-3">
+                <i class="bi bi-stack fs-4"></i>
+              </div>
+              <div>
+                <small class="text-muted d-block">Total Stocks</small>
+                <span class="h4 fw-bold mb-0">{{ total_stocks|default:0 }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
+            <div class="d-flex align-items-center gap-3">
+              <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-3">
+                <i class="bi bi-cart-check fs-4"></i>
+              </div>
+              <div>
+                <small class="text-muted d-block">Total Orders</small>
+                <span class="h4 fw-bold mb-0">{{ total_orders|default:0 }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
+            <div class="d-flex align-items-center gap-3">
+              <div class="bg-success bg-opacity-10 text-success rounded-3 p-3">
+                <i class="bi bi-currency-dollar fs-4"></i>
+              </div>
+              <div>
+                <small class="text-muted d-block">Total Income</small>
+                <span class="h4 fw-bold mb-0 text-success">₱{{ total_income|default:0 }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== ORDERS SECTION (TABS) ========== -->
+      <div id="orders-section" class="mb-5">
+        <h4 class="fw-bold mb-3">
+          <i class="bi bi-cart-fill text-primary me-2"></i>Orders
+        </h4>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-0" id="ordersTab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active d-flex align-items-center gap-2"
+                    id="incoming-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#incoming-pane"
+                    type="button"
+                    role="tab">
+              <i class="bi bi-inbox"></i>
+              Incoming
+              {% if incoming_orders.count %}
+                <span class="badge bg-primary rounded-pill">{{ incoming_orders.count }}</span>
+              {% endif %}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link d-flex align-items-center gap-2"
+                    id="accepted-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#accepted-pane"
+                    type="button"
+                    role="tab">
+              <i class="bi bi-check2-all text-success"></i>
+              Ready for Meetup
+              {% if accepted_orders.count %}
+                <span class="badge bg-success rounded-pill">{{ accepted_orders.count }}</span>
+              {% endif %}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link d-flex align-items-center gap-2"
+                    id="completed-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#completed-pane"
+                    type="button"
+                    role="tab">
+              <i class="bi bi-clipboard-check text-secondary"></i>
+              Completed
+              {% if completed_orders.count %}
+                <span class="badge bg-secondary rounded-pill">{{ completed_orders.count }}</span>
+              {% endif %}
+            </button>
+          </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content bg-white shadow-sm rounded-bottom-4 border border-top-0 p-3 p-md-4" id="ordersTabContent">
+
+          <!-- Incoming Tab -->
+          <div class="tab-pane fade show active" id="incoming-pane" role="tabpanel">
+            {% if incoming_orders %}
+              <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Buyer</th>
+                      <th>Amount</th>
+                      <th>Payment</th>
+                      <th>Ordered</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for order in incoming_orders %}
+                      <tr>
+                        <td>#{{ order.id }}</td>
+                        <td>{{ order.user.first_name|default:order.user.username }}</td>
+                        <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
+                        <td>
+                          {% if order.payment_method == 'GCASH' %}
+                            <span class="badge bg-success rounded-pill">Paid (GCash)</span>
+                          {% else %}
+                            <span class="badge bg-info text-dark rounded-pill">{{ order.payment_method }}</span>
+                          {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ order.created_at|timesince }} ago</td>
+                        <td>
+                          <button class="btn btn-sm btn-success rounded-pill px-3 fw-bold"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#acceptOrderModal{{ order.id }}">
+                            Review & Accept
+                          </button>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-center py-5">
+                <i class="bi bi-inbox text-muted display-5 d-block mb-3"></i>
+                <p class="text-muted mb-0">No incoming orders at the moment.</p>
+              </div>
+            {% endif %}
           </div>
 
-          {% for order in incoming_orders %}
-            <div class="modal fade" id="acceptOrderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+          <!-- Accepted Tab -->
+          <div class="tab-pane fade" id="accepted-pane" role="tabpanel">
+            {% if accepted_orders %}
+              <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Buyer</th>
+                      <th>Meetup Details</th>
+                      <th>Scheduled Time</th>
+                      <th>Status</th>
+                      <th class="text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for order in accepted_orders %}
+                      <tr>
+                        <td>#{{ order.id }}</td>
+                        <td>{{ order.user.first_name|default:order.user.username }}</td>
+                        <td>
+                          <strong>Location:</strong> {{ order.meetup_location }}<br>
+                          <small class="text-muted">Note: {{ order.seller_note|default:'None' }}</small>
+                        </td>
+                        <td>
+                          <span class="text-primary fw-bold">{{ order.pickup_time|default:'Not set' }}</span>
+                        </td>
+                        <td><span class="badge bg-success">Accepted</span></td>
+                        <td class="text-center">
+                          <button class="btn btn-sm btn-outline-success rounded-pill fw-bold"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#deliverConfirmModal{{ order.id }}">
+                            Mark Delivered
+                          </button>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-center py-5">
+                <i class="bi bi-check2-all text-muted display-5 d-block mb-3"></i>
+                <p class="text-muted mb-0">No orders ready for meetup yet.</p>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Completed Tab -->
+          <div class="tab-pane fade" id="completed-pane" role="tabpanel">
+            {% if completed_orders %}
+              <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Buyer</th>
+                      <th>Total Amount</th>
+                      <th>Completed Date</th>
+                      <th>Rating</th>
+                      <th class="text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for order in completed_orders %}
+                      <tr>
+                        <td>#{{ order.id }}</td>
+                        <td>{{ order.user.first_name|default:order.user.username }}</td>
+                        <td class="fw-bold">₱{{ order.total_amount }}</td>
+                        <td class="small text-muted">{{ order.updated_at|date:'M d, Y' }}</td>
+                        <td>
+                          {% if order.is_rated %}
+                            <span class="text-warning">
+                              <i class="bi bi-star-fill"></i> {{ order.order_reviews.first.rating }}
+                            </span>
+                          {% else %}
+                            <span class="text-muted small">No rating</span>
+                          {% endif %}
+                        </td>
+                        <td class="text-center">
+                          <button class="btn btn-sm btn-light border rounded-pill px-3 fw-bold"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#viewOrderModal{{ order.id }}">
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="text-center py-5">
+                <i class="bi bi-clipboard-check text-muted display-5 d-block mb-3"></i>
+                <p class="text-muted mb-0">No completed transactions yet.</p>
+              </div>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+
+      <hr class="my-5 opacity-25">
+
+      <!-- ========== MY PRODUCTS ========== -->
+      <div id="my-products">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+          <h2 class="fw-bold mb-0">My Products</h2>
+          <a href="{% url 'product.create' %}" class="btn btn-success rounded-pill">
+            <i class="bi bi-plus-lg me-1"></i> Add Product
+          </a>
+        </div>
+
+        <!-- Status cards -->
+        <div class="row mb-4 g-3">
+          <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 rounded-4">
+              <small class="text-muted d-block">Live Products</small>
+              <span class="h4 fw-bold text-success">{{ approved_count }}</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 rounded-4">
+              <small class="text-muted d-block">Pending Approval</small>
+              <span class="h4 fw-bold text-warning">{{ pending_count }}</span>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-3 rounded-4">
+              <small class="text-muted d-block">Rejected Products</small>
+              <span class="h4 fw-bold text-danger">{{ rejected_count }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Product list -->
+        <div class="row g-4">
+          {% for item in products %}
+            <div class="col-12">
+              <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+
+                <!-- Product Header -->
+                <div class="card-body p-3 p-md-4">
+                  <div class="row align-items-center g-3">
+                    <div class="col-auto">
+                      {% if item.images.first %}
+                        <img src="{{ item.images.first.image.url }}"
+                             class="rounded-3"
+                             style="width: 80px; height: 80px; object-fit: cover;"
+                             alt="{{ item.name }}">
+                      {% else %}
+                        <div class="bg-light rounded-3 d-flex align-items-center justify-content-center"
+                             style="width: 80px; height: 80px;">
+                          <i class="bi bi-image text-muted"></i>
+                        </div>
+                      {% endif %}
+                    </div>
+
+                    <div class="col">
+                      <h5 class="mb-1 fw-bold">{{ item.name }}</h5>
+                      <div class="d-flex flex-wrap align-items-center gap-3 small">
+                        <span class="badge bg-light text-dark border rounded-pill">
+                          <i class="bi bi-cart-check text-primary"></i> {{ item.sold }} sold
+                        </span>
+                        <span class="text-warning">
+                          <i class="bi bi-star-fill"></i> {{ item.average_rating }}
+                        </span>
+
+                        {% if item.status == 'Approved' %}
+                          <span class="badge bg-success-subtle text-success border border-success-subtle">
+                            <i class="bi bi-check-circle-fill"></i> Live
+                          </span>
+                        {% elif item.status == 'Rejected' %}
+                          <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                            <i class="bi bi-x-circle-fill"></i> Rejected
+                          </span>
+                        {% elif item.status == 'Pending' %}
+                          <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                            <i class="bi bi-clock-history"></i> Pending
+                          </span>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    <div class="col-12 col-md-auto">
+                      <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editConfirmModal{{ item.id }}">
+                          <i class="bi bi-pencil me-1"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteConfirmModal{{ item.id }}">
+                          <i class="bi bi-trash me-1"></i> Remove
+                        </button>
+                        <button class="btn btn-sm btn-success rounded-pill px-3"
+                                data-bs-toggle="modal"
+                                data-bs-target="#addVariantModal{{ item.id }}">
+                          <i class="bi bi-plus-lg me-1"></i> Add Variant
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Variants -->
+                <div class="border-top bg-light-subtle">
+                  <div class="px-3 px-md-4 py-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                      <h6 class="fw-bold mb-0 text-muted">
+                        <i class="bi bi-layers me-1"></i> Variants
+                        <span class="badge bg-secondary rounded-pill ms-1">{{ item.variants.count }}</span>
+                      </h6>
+                    </div>
+
+                    {% if item.variants.exists %}
+                      <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                          <thead class="table-light">
+                            <tr>
+                              <th>Variant Name</th>
+                              <th>Price</th>
+                              <th>Stock</th>
+                              <th class="text-end">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {% for variant in item.variants.all %}
+                              <tr class="variant-row">
+                                <td>
+                                  <span class="fw-semibold">{{ variant.name|default:"Default" }}</span>
+                                </td>
+                                <td class="text-success fw-bold">₱{{ variant.price }}</td>
+                                <td>
+                                  {% if variant.stocks > 10 %}
+                                    <span class="badge bg-success-subtle text-success">{{ variant.stocks }}</span>
+                                  {% elif variant.stocks > 0 %}
+                                    <span class="badge bg-warning-subtle text-warning">{{ variant.stocks }}</span>
+                                  {% else %}
+                                    <span class="badge bg-danger-subtle text-danger">Out of stock</span>
+                                  {% endif %}
+                                </td>
+                                <td class="text-end">
+                                  <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary rounded-start-pill px-3"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#editVariantModal{{ variant.id }}">
+                                      Edit
+                                    </button>
+                                    <button class="btn btn-outline-danger rounded-end-pill px-3"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#deleteVariantModal{{ variant.id }}">
+                                      Remove
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            {% endfor %}
+                          </tbody>
+                        </table>
+                      </div>
+                    {% else %}
+                      <div class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                        <p class="mb-2 small">No variants yet.</p>
+                        <button class="btn btn-sm btn-success rounded-pill"
+                                data-bs-toggle="modal"
+                                data-bs-target="#addVariantModal{{ item.id }}">
+                          <i class="bi bi-plus-lg me-1"></i> Add First Variant
+                        </button>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Add Variant Modal -->
+            <div class="modal fade" id="addVariantModal{{ item.id }}" tabindex="-1" aria-hidden="true">
               <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 rounded-4 shadow">
-                  <form action="{% url 'order.accept' order.id %}" method="POST">
+                  {% comment %} <form action="{% url 'variant.create' item.id %}" method="POST"> {% endcomment %}
                     {% csrf_token %}
                     <div class="modal-header border-0 pb-0">
-                      <h5 class="fw-bold">Review Order #{{ order.id }}</h5>
+                      <h5 class="fw-bold">Add Variant – {{ item.name }}</h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                      <p class="small text-muted mb-3">
-                        Order from: <strong>@{{ order.user.username }}</strong>
-                      </p>
-
-                      <label class="form-label small fw-bold text-primary text-uppercase mb-2">Items Ordered</label>
-                      <div class="list-group list-group-flush border rounded-3 overflow-hidden mb-4">
-                        {% for item in order.items.all %}
-                          <div class="list-group-item bg-light-subtle d-flex align-items-center gap-3 py-2">
-                            {% if item.product_variant.product.images.first %}
-                              <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-2 shadow-sm" style="width: 55px; height: 55px; object-fit: cover;" />
-                            {% else %}
-                              <div class="bg-secondary-subtle rounded-2 d-flex align-items-center justify-content-center" style="width: 55px; height: 55px;">
-                                <i class="bi bi-image text-muted"></i>
-                              </div>
-                            {% endif %}
-
-                            <div class="flex-grow-1">
-                              <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
-                              <small class="text-muted">
-                                Qty: {{ item.quantity }} × ₱{{ item.price }}
-                                {% if item.product_variant.name %}
-                                  ({{ item.product_variant.name }})
-                                {% endif %}
-                              </small>
-                            </div>
-                          </div>
-                        {% endfor %}
+                      <div class="mb-3">
+                        <label class="form-label small fw-bold">Variant Name</label>
+                        <input type="text" name="name" class="form-control rounded-3"
+                               placeholder="e.g. Red / Large / 500g">
+                        <div class="form-text">Leave blank for a default variant.</div>
                       </div>
-
-                      {% if order.buyer_note %}
-                        <div class="mb-4">
-                          <label class="form-label small fw-bold text-danger text-uppercase">Buyer's Note</label>
-                          <div class="p-3 bg-warning-subtle border-start border-warning border-3 rounded-2">
-                            <p class="mb-0 small italic">"{{ order.buyer_note }}"</p>
-                          </div>
+                      <div class="row g-3">
+                        <div class="col-6">
+                          <label class="form-label small fw-bold">Price (₱)</label>
+                          <input type="number" name="price" class="form-control rounded-3"
+                                 step="0.01" min="0" required>
                         </div>
-                      {% endif %}
-
-                      <hr class="my-4 opacity-25" />
-
-                      <div class="mb-3">
-                        <label class="form-label small fw-bold">Pickup Date & Time</label>
-                        <input type="datetime-local" name="pickup_time" class="form-control rounded-3" required />
-                      </div>
-
-                      <div class="mb-3">
-                        <label class="form-label small fw-bold">Meetup Location</label>
-                        <select name="pickup_location" class="form-select rounded-3" required>
-                          <option value="" selected disabled>Select a spot...</option>
-
-                          {% for loc in locations %}
-                            <option value="{{ loc.name }}">{{ loc.name }}</option>
-                          {% endfor %}
-                        </select>
-                        {% if not locations %}
-                          <small class="text-danger">No meetup locations available. Please contact admin.</small>
-                        {% endif %}
-                      </div>
-
-                      <div class="mb-0">
-                        <label class="form-label small fw-bold">Note to Buyer (Optional)</label>
-                        <textarea name="seller_note" class="form-control rounded-3" rows="2" placeholder="e.g. I'll be wearing a red hoodie."></textarea>
+                        <div class="col-6">
+                          <label class="form-label small fw-bold">Stock</label>
+                          <input type="number" name="stocks" class="form-control rounded-3"
+                                 min="0" value="0" required>
+                        </div>
                       </div>
                     </div>
                     <div class="modal-footer border-0">
                       <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                      <button type="submit" class="btn btn-primary rounded-pill px-4">Confirm Order</button>
+                      <button type="submit" class="btn btn-success rounded-pill px-4">
+                        <i class="bi bi-plus-lg me-1"></i> Add Variant
+                      </button>
                     </div>
                   </form>
                 </div>
               </div>
             </div>
-          {% endfor %}
-        {% else %}
-          <div class="text-center py-4 bg-white shadow-sm rounded-4">
-            <p class="text-muted mb-0 small">No incoming orders at the moment.</p>
-          </div>
-        {% endif %}
-      </div>
-    </div>
 
-    <div class="row mb-5">
-      <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4 class="fw-bold mb-0 text-success"><i class="bi bi-check2-all me-2"></i>Accepted & Ready for Meetup</h4>
-          <span class="badge bg-success rounded-pill">{{ completed_orders.count }} Accepted</span>
-        </div>
+            <!-- Edit / Delete Variant Modals -->
+            {% for variant in item.variants.all %}
+              <div class="modal fade" id="editVariantModal{{ variant.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content border-0 rounded-4 shadow">
+                    {% comment %} <form action="{% url 'variant.update' variant.id %}" method="POST"> {% endcomment %}
+                      {% csrf_token %}
+                      <div class="modal-header border-0 pb-0">
+                        <h5 class="fw-bold">Edit Variant</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body">
+                        <div class="mb-3">
+                          <label class="form-label small fw-bold">Variant Name</label>
+                          <input type="text" name="name" class="form-control rounded-3"
+                                 value="{{ variant.name }}" placeholder="e.g. Red / Large">
+                        </div>
+                        <div class="row g-3">
+                          <div class="col-6">
+                            <label class="form-label small fw-bold">Price (₱)</label>
+                            <input type="number" name="price" class="form-control rounded-3"
+                                   step="0.01" min="0" value="{{ variant.price }}" required>
+                          </div>
+                          <div class="col-6">
+                            <label class="form-label small fw-bold">Stock</label>
+                            <input type="number" name="stocks" class="form-control rounded-3"
+                                   min="0" value="{{ variant.stocks }}" required>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
 
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Order ID</th>
-              <th>Buyer</th>
-              <th>Meetup Details</th>
-              <th>Scheduled Time</th>
-              <th>Status</th>
-              <th class="text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for order in accepted_orders %}
-              <tr>
-                <td>#{{ order.id }}</td>
-                <td>{{ order.user.first_name|default:order.user.username }}</td>
-                <td>
-                  <strong>Location:</strong> {{ order.meetup_location }}<br />
-                  <small class="text-muted">Note: {{ order.seller_note|default:'None' }}</small>
-                </td>
-                <td>
-                  <span class="text-primary fw-bold">{{ order.pickup_time|default:'Not set' }}</span>
-                </td>
-                <td>
-                  <span class="badge bg-success">Accepted</span>
-                </td>
-                <td class="text-center">
-                  <button class="btn btn-sm btn-outline-success rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#deliverConfirmModal{{ order.id }}">Mark Delivered</button>
-                </td>
-              </tr>
-              <div class="modal fade" id="deliverConfirmModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal fade" id="deleteVariantModal{{ variant.id }}" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                   <div class="modal-content border-0 rounded-4 shadow">
                     <div class="modal-body text-center p-4">
-                      <div class="mb-3">
-                        <i class="bi bi-box-seam-fill text-success display-4"></i>
-                      </div>
-                      <h5 class="fw-bold">Confirm Delivery?</h5>
-                      <p class="text-muted small">
-                        Are you sure you have handed over the items for <strong>Order #{{ order.id }}</strong> to <strong>{{ order.user.username }}</strong>?
+                      <i class="bi bi-exclamation-triangle text-danger display-4 mb-3"></i>
+                      <h5 class="fw-bold">Delete this variant?</h5>
+                      <p class="text-muted">
+                        Are you sure you want to remove
+                        <strong>{{ variant.name|default:"Default" }}</strong>
+                        (₱{{ variant.price }})?
                       </p>
-
-                      <div class="alert alert-info border-0 rounded-3 small text-start">
-                        <i class="bi bi-info-circle-fill me-2"></i> This will notify the buyer and enable their <strong>"Order Received"</strong> button.
-                      </div>
-
                       <div class="d-flex gap-2 justify-content-center mt-4">
-                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Not yet</button>
-                        <form action="{% url 'order.delivered' order.id %}" method="POST">
+                        <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                        {% comment %} <form action="{% url 'variant.delete' variant.id %}" method="POST"> {% endcomment %}
                           {% csrf_token %}
-                          <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Confirm Delivered</button>
+                          <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete</button>
                         </form>
                       </div>
                     </div>
@@ -221,250 +736,501 @@
                 </div>
               </div>
             {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
 
-    <hr class="my-5 opacity-25" />
-    <div class="row mb-5">
-      <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h4 class="fw-bold mb-0 text-secondary"><i class="bi bi-check2-all me-2"></i>Completed Transactions</h4>
-          <span class="badge bg-secondary rounded-pill">{{ completed_orders.count }} Finished</span>
-        </div>
-
-        {% if completed_orders %}
-          <div class="table-responsive bg-white shadow-sm rounded-4 p-3">
-            <table class="table align-middle mb-0">
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Buyer</th>
-                  <th>Total Amount</th>
-                  <th>Completed Date</th>
-                  <th>Rating</th>
-                  <th class="text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for order in completed_orders %}
-                  <tr>
-                    <td>#{{ order.id }}</td>
-                    <td>{{ order.user.first_name|default:order.user.username }}</td>
-                    <td class="fw-bold">₱{{ order.total_amount }}</td>
-                    <td class="small text-muted">{{ order.updated_at|date:'M d, Y' }}</td>
-                    <td>
-                      {% if order.is_rated %}
-                        <span class="text-warning"><i class="bi bi-star-fill"></i> {{ order.order_reviews.first.rating }}</span>
-                      {% else %}
-                        <span class="text-muted small">No rating</span>
-                      {% endif %}
-                    </td>
-                    <td class="text-center">
-                      <button class="btn btn-sm btn-light border rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#viewOrderModal{{ order.id }}">View Details</button>
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-
-          {% for order in completed_orders %}
-            <div class="modal fade" id="viewOrderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+            <!-- Product Edit / Delete Modals -->
+            <div class="modal fade" id="deleteConfirmModal{{ item.id }}" tabindex="-1" aria-hidden="true">
               <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 rounded-4 shadow">
-                  <div class="modal-header border-0 pb-0">
-                    <h5 class="fw-bold">Transaction Details #{{ order.id }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                  </div>
-                  <div class="modal-body">
-                    <div class="mb-4">
-                      <label class="form-label small fw-bold text-uppercase text-muted">Items Sold</label>
-                      <div class="list-group list-group-flush border rounded-3">
-                        {% for item in order.items.all %}
-                          <div class="list-group-item d-flex justify-content-between align-items-center small">
-                            <span>{{ item.quantity }}x {{ item.product_variant.product.name }}</span>
-                            <span class="fw-bold">₱{{ item.price }}</span>
-                          </div>
-                        {% endfor %}
-                        <div class="list-group-item bg-light d-flex justify-content-between align-items-center">
-                          <span class="fw-bold">Total Revenue</span>
-                          <span class="fw-bold text-success">₱{{ order.total_amount }}</span>
-                        </div>
-                      </div>
+                  <div class="modal-body text-center p-4">
+                    <i class="bi bi-exclamation-triangle text-danger display-4 mb-3"></i>
+                    <h5 class="fw-bold">Delete this listing?</h5>
+                    <p class="text-muted">
+                      Are you sure you want to remove <strong>{{ item.name }}</strong>? This cannot be undone.
+                    </p>
+                    <div class="d-flex gap-2 justify-content-center mt-4">
+                      <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                      <form action="{% url 'product.delete' item.id %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete</button>
+                      </form>
                     </div>
-
-                    {% if order.is_rated %}
-                      <div class="mb-0">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Buyer's Review</label>
-                        <div class="p-3 bg-light rounded-3">
-                          <div class="text-warning mb-1">
-                            {% for i in "12345" %}
-                              {% if forloop.counter <= order.order_reviews.first.rating %}
-                                <i class="bi bi-star-fill"></i>
-                              {% else %}
-                                <i class="bi bi-star"></i>
-                              {% endif %}
-                            {% endfor %}
-                          </div>
-                          <p class="mb-0 small italic">"{{ order.order_reviews.first.comment|default:'No comment provided.' }}"</p>
-                        </div>
-                      </div>
-                    {% endif %}
-                  </div>
-                  <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div class="modal fade" id="editConfirmModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 rounded-4 shadow">
+                  <div class="modal-body p-4 text-center">
+                    <i class="bi bi-info-circle text-primary display-4 mb-3"></i>
+                    <h5 class="fw-bold">Important Notice</h5>
+                    <p class="text-muted">
+                      Editing will temporarily remove <strong>{{ item.name }}</strong> from the shop for admin re-review.
+                    </p>
+                    <div class="d-flex gap-2 justify-content-center mt-4">
+                      <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Go Back</button>
+                      <a href="{% url 'product.edit' item.id %}" class="btn btn-primary rounded-pill px-4">I Understand</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          {% empty %}
+            <div class="col-12 text-center py-5">
+              <div class="mb-3">
+                <i class="bi bi-box-seam display-4 text-muted"></i>
+              </div>
+              <h4 class="text-muted">You haven't listed any products yet.</h4>
+              <p class="text-muted mb-4">Start selling by adding your first product.</p>
+              <a href="{% url 'product.create' %}" class="btn btn-success rounded-pill px-4">
+                <i class="bi bi-plus-lg me-1"></i> Start Selling
+              </a>
             </div>
           {% endfor %}
-        {% else %}
-          <div class="text-center py-4 bg-white shadow-sm rounded-4">
-            <p class="text-muted mb-0 small">No completed transactions yet.</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ==================== ALL ORDER MODALS (outside the loops for cleaner structure) ==================== -->
+
+{% for order in incoming_orders %}
+  <div class="modal fade" id="acceptOrderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+        <form action="{% url 'order.accept' order.id %}" method="POST">
+          {% csrf_token %}
+          <div class="modal-header border-0 pb-0">
+            <h5 class="fw-bold">Review Order #{{ order.id }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
-        {% endif %}
-      </div>
-    </div>
-    <h2 class="fw-bold">My Products</h2>
-    <div class="row mb-4 g-3">
-      <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 rounded-4">
-          <small class="text-muted d-block">Live Products</small>
-          <span class="h4 fw-bold text-success">{{ approved_count }}</span>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 rounded-4">
-          <small class="text-muted d-block">Pending Approval</small>
-          <span class="h4 fw-bold text-warning">{{ pending_count }}</span>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card border-0 shadow-sm p-3 rounded-4">
-          <small class="text-muted d-block">Rejected Products</small>
-          <span class="h4 fw-bold text-danger">{{ rejected_count }}</span>
-        </div>
-      </div>
-    </div>
+          <div class="modal-body">
+            <p class="small text-muted mb-3">
+              Order from: <strong>@{{ order.user.username }}</strong>
+            </p>
 
-    <div class="row g-4">
-      {% for item in products %}
-        <div class="col-12">
-          <div class="card border-0 shadow-sm rounded-4 p-3">
-            <div class="row align-items-center">
-              <div class="col-auto">
-                {% if item.images.first %}
-                  <img src="{{ item.images.first.image.url }}" class="rounded-3" style="width: 80px; height: 80px; object-fit: cover;" />
-                {% else %}
-                  <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="width: 80px; height: 80px;">
-                    <i class="bi bi-image text-muted"></i>
-                  </div>
-                {% endif %}
-              </div>
-
-              <div class="col">
-                <h5 class="mb-1 fw-bold">{{ item.name }}</h5>
-                <div class="d-flex flex-wrap align-items-center gap-3">
-                  {% with first_variant=item.variants.first %}
-                    {% if first_variant %}
-                      <span class="text-success fw-bold">₱{{ first_variant.price }}</span>
-                      <span class="text-muted small"><i class="bi bi-box-seam"></i> Stock: {{ first_variant.stocks }}</span>
-                    {% else %}
-                      <span class="text-muted small">No variants set</span>
-                    {% endif %}
-                  {% endwith %}
-                  <span class="badge bg-light text-dark border rounded-pill fw-normal"><i class="bi bi-cart-check text-primary"></i> {{ item.sold }} sold</span>
-                  <div class="small text-warning">
-                    <i class="bi bi-star-fill"></i>
-                    <span class="text-warning ms-1">{{ item.average_rating }}</span>
+            <label class="form-label small fw-bold text-primary text-uppercase mb-2">Items Ordered</label>
+            <div class="list-group list-group-flush border rounded-3 overflow-hidden mb-4">
+              {% for item in order.items.all %}
+                <div class="list-group-item bg-light-subtle d-flex align-items-center gap-3 py-2">
+                  {% if item.product_variant.product.images.first %}
+                    <img src="{{ item.product_variant.product.images.first.image.url }}"
+                         class="rounded-2 shadow-sm"
+                         style="width: 55px; height: 55px; object-fit: cover;">
+                  {% else %}
+                    <div class="bg-secondary-subtle rounded-2 d-flex align-items-center justify-content-center"
+                         style="width: 55px; height: 55px;">
+                      <i class="bi bi-image text-muted"></i>
+                    </div>
+                  {% endif %}
+                  <div class="flex-grow-1">
+                    <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
+                    <small class="text-muted">
+                      Qty: {{ item.quantity }} × ₱{{ item.price }}
+                      {% if item.product_variant.name %}
+                        ({{ item.product_variant.name }})
+                      {% endif %}
+                    </small>
                   </div>
                 </div>
-              </div>
+              {% endfor %}
+            </div>
 
-              <div class="col-auto text-center px-4 d-none d-md-block">
-                {% if item.status == 'Approved' %}
-                  <div class="text-success small fw-bold">
-                    <i class="bi bi-check-circle-fill"></i> Live
-                  </div>
-                {% elif item.status == 'Rejected' %}
-                  <div class="text-danger small fw-bold">
-                    <i class="bi bi-x-circle-fill"></i> Rejected
-                  </div>
-                {% elif item.status == 'Pending' %}
-                  <div class="text-warning small fw-bold">
-                    <i class="bi bi-clock-history"></i> Pending
-                  </div>
-                {% else %}
-
-                {% endif %}
-              </div>
-
-              <div class="col-auto">
-                <div class="dropdown">
-                  <button class="btn btn-light rounded-circle" type="button" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
-                  <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
-                    <li>
-                      <button class="dropdown-item" data-bs-toggle="modal" data-bs-target="#editConfirmModal{{ item.id }}"><i class="bi bi-pencil me-2"></i> Edit Details</button>
-                    </li>
-                    <li>
-                      <hr class="dropdown-divider" />
-                    </li>
-                    <li>
-                      <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteConfirmModal{{ item.id }}"><i class="bi bi-trash me-2"></i> Delete Listing</button>
-                    </li>
-                  </ul>
+            {% if order.buyer_note %}
+              <div class="mb-4">
+                <label class="form-label small fw-bold text-danger text-uppercase">Buyer's Note</label>
+                <div class="p-3 bg-warning-subtle border-start border-warning border-3 rounded-2">
+                  <p class="mb-0 small italic">"{{ order.buyer_note }}"</p>
                 </div>
               </div>
+            {% endif %}
+
+            <hr class="my-4 opacity-25">
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Pickup Date & Time</label>
+              <input type="datetime-local" name="pickup_time" class="form-control rounded-3" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label small fw-bold">Meetup Location</label>
+              <select name="pickup_location" class="form-select rounded-3" required>
+                <option value="" selected disabled>Select a spot...</option>
+                {% for loc in locations %}
+                  <option value="{{ loc.name }}">{{ loc.name }}</option>
+                {% endfor %}
+              </select>
+              {% if not locations %}
+                <small class="text-danger">No meetup locations available. Please contact admin.</small>
+              {% endif %}
+            </div>
+
+            <div class="mb-0">
+              <label class="form-label small fw-bold">Note to Buyer (Optional)</label>
+              <textarea name="seller_note" class="form-control rounded-3" rows="2"
+                        placeholder="e.g. I'll be wearing a red hoodie."></textarea>
             </div>
           </div>
-        </div>
-
-        <div class="modal fade" id="deleteConfirmModal{{ item.id }}" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 rounded-4 shadow">
-              <div class="modal-body text-center p-4">
-                <i class="bi bi-exclamation-triangle text-danger display-4 mb-3"></i>
-                <h5 class="fw-bold">Delete this listing?</h5>
-                <p class="text-muted">
-                  Are you sure you want to remove <strong>{{ item.name }}</strong>? This cannot be undone.
-                </p>
-                <div class="d-flex gap-2 justify-content-center mt-4">
-                  <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                  <form action="{% url 'product.delete' item.id %}" method="POST">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete</button>
-                  </form>
-                </div>
-              </div>
-            </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary rounded-pill px-4">Confirm Order</button>
           </div>
-        </div>
-
-        <div class="modal fade" id="editConfirmModal{{ item.id }}" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 rounded-4 shadow">
-              <div class="modal-body p-4 text-center">
-                <i class="bi bi-info-circle text-primary display-4 mb-3"></i>
-                <h5 class="fw-bold">Important Notice</h5>
-                <p class="text-muted">
-                  Editing will temporarily remove <strong>{{ item.name }}</strong> from the shop for admin re-review.
-                </p>
-                <div class="d-flex gap-2 justify-content-center mt-4">
-                  <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Go Back</button>
-                  <a href="{% url 'product.edit' item.id %}" class="btn btn-primary rounded-pill px-4">I Understand</a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      {% empty %}
-        <div class="col-12 text-center py-5">
-          <h4 class="text-muted">You haven't listed any products yet.</h4>
-          <a href="{% url 'product.create' %}" class="btn btn-success rounded-pill mt-3">Start Selling</a>
-        </div>
-      {% endfor %}
+        </form>
+      </div>
     </div>
   </div>
+{% endfor %}
+
+{% for order in accepted_orders %}
+  <div class="modal fade" id="deliverConfirmModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+        <div class="modal-body text-center p-4">
+          <div class="mb-3">
+            <i class="bi bi-box-seam-fill text-success display-4"></i>
+          </div>
+          <h5 class="fw-bold">Confirm Delivery?</h5>
+          <p class="text-muted small">
+            Are you sure you have handed over the items for
+            <strong>Order #{{ order.id }}</strong> to
+            <strong>{{ order.user.username }}</strong>?
+          </p>
+          <div class="alert alert-info border-0 rounded-3 small text-start">
+            <i class="bi bi-info-circle-fill me-2"></i>
+            This will notify the buyer and enable their <strong>"Order Received"</strong> button.
+          </div>
+          <div class="d-flex gap-2 justify-content-center mt-4">
+            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Not yet</button>
+            <form action="{% url 'order.delivered' order.id %}" method="POST">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Confirm Delivered</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+{% for order in completed_orders %}
+  <div class="modal fade" id="viewOrderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 rounded-4 shadow">
+        <div class="modal-header border-0 pb-0">
+          <h5 class="fw-bold">Transaction Details #{{ order.id }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-4">
+            <label class="form-label small fw-bold text-uppercase text-muted">Items Sold</label>
+            <div class="list-group list-group-flush border rounded-3">
+              {% for item in order.items.all %}
+                <div class="list-group-item d-flex justify-content-between align-items-center small">
+                  <span>{{ item.quantity }}x {{ item.product_variant.product.name }}</span>
+                  <span class="fw-bold">₱{{ item.price }}</span>
+                </div>
+              {% endfor %}
+              <div class="list-group-item bg-light d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Total Revenue</span>
+                <span class="fw-bold text-success">₱{{ order.total_amount }}</span>
+              </div>
+            </div>
+          </div>
+
+          {% if order.is_rated %}
+            <div class="mb-0">
+              <label class="form-label small fw-bold text-uppercase text-muted">Buyer's Review</label>
+              <div class="p-3 bg-light rounded-3">
+                <div class="text-warning mb-1">
+                  {% for i in "12345" %}
+                    {% if forloop.counter <= order.order_reviews.first.rating %}
+                      <i class="bi bi-star-fill"></i>
+                    {% else %}
+                      <i class="bi bi-star"></i>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+                <p class="mb-0 small italic">
+                  "{{ order.order_reviews.first.comment|default:'No comment provided.' }}"
+                </p>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+<!-- ==================== JAVASCRIPT ==================== -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  // 1. Sidebar tab links → activate correct Bootstrap tab + scroll
+  document.querySelectorAll('.sidebar-tab-link').forEach(function (link) {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+
+      const targetId = this.getAttribute('data-bs-target');
+      const tabTrigger = document.querySelector(`#ordersTab button[data-bs-target="${targetId}"]`);
+
+      if (tabTrigger) {
+        const tab = new bootstrap.Tab(tabTrigger);
+        tab.show();
+      }
+
+      // Highlight active sidebar link
+      document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+      this.classList.add('active');
+
+      // Smooth scroll to orders section
+      setTimeout(() => {
+        document.getElementById('orders-section')?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 50);
+    });
+  });
+
+  // 2. Handle direct URL hash (e.g. #accepted-pane)
+  const hash = window.location.hash;
+  if (hash === '#incoming-pane' || hash === '#accepted-pane' || hash === '#completed-pane') {
+    const tabTrigger = document.querySelector(`#ordersTab button[data-bs-target="${hash}"]`);
+    if (tabTrigger) {
+      const tab = new bootstrap.Tab(tabTrigger);
+      tab.show();
+    }
+  }
+
+  // 3. Loading spinners for all modal forms
+  document.querySelectorAll('.modal form').forEach(function (form) {
+    form.addEventListener('submit', function () {
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (!submitBtn || submitBtn.classList.contains('btn-loading')) return;
+
+      const originalHTML = submitBtn.innerHTML;
+
+      submitBtn.classList.add('btn-loading');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+        Processing...
+      `;
+
+      // Disable close buttons while processing
+      const modal = form.closest('.modal');
+      if (modal) {
+        modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close').forEach(btn => {
+          btn.disabled = true;
+        });
+      }
+
+      // Safety fallback – restore after 12 seconds if still loading
+      setTimeout(() => {
+        if (submitBtn.classList.contains('btn-loading')) {
+          submitBtn.classList.remove('btn-loading');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalHTML;
+          if (modal) {
+            modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close').forEach(btn => {
+              btn.disabled = false;
+            });
+          }
+        }
+      }, 12000);
+    });
+  });
+
+});
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  // ========== CHART DATA (Replace with real data from your view) ==========
+  // Example structure you should pass from Django view:
+
+  const revenueLabels = {{ revenue_labels|safe|default:'["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]' }};
+  const revenueData   = {{ revenue_data|safe|default:'[1200, 1900, 800, 1500, 2200, 1800, 2400]' }};
+
+  const ordersStatusData = {
+    incoming: {{ incoming_orders.count|default:0 }},
+    accepted: {{ accepted_orders.count|default:0 }},
+    completed: {{ completed_orders.count|default:0 }}
+  };
+
+  const topProductsLabels = {{ top_products_labels|safe|default:'["Product A","Product B","Product C","Product D","Product E"]' }};
+  const topProductsData   = {{ top_products_data|safe|default:'[45, 32, 28, 19, 14]' }};
+
+  const ordersOverTimeLabels = {{ orders_over_time_labels|safe|default:'["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]' }};
+  const ordersOverTimeData   = {{ orders_over_time_data|safe|default:'[4, 7, 3, 8, 12, 9, 6]' }};
+
+  // ========== 1. Revenue Line Chart ==========
+  const revenueCtx = document.getElementById('revenueChart');
+  if (revenueCtx) {
+    new Chart(revenueCtx, {
+      type: 'line',
+      data: {
+        labels: revenueLabels,
+        datasets: [{
+          label: 'Revenue (₱)',
+          data: revenueData,
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13, 110, 253, 0.1)',
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#0d6efd',
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return '₱' + context.parsed.y.toLocaleString();
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return '₱' + value.toLocaleString();
+              }
+            },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // ========== 2. Orders by Status (Doughnut) ==========
+  const statusCtx = document.getElementById('ordersStatusChart');
+  if (statusCtx) {
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Incoming', 'Ready for Meetup', 'Completed'],
+        datasets: [{
+          data: [
+            ordersStatusData.incoming,
+            ordersStatusData.accepted,
+            ordersStatusData.completed
+          ],
+          backgroundColor: [
+            '#0d6efd',
+            '#198754',
+            '#6c757d'
+          ],
+          borderWidth: 0,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              usePointStyle: true,
+              padding: 16
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ========== 3. Top Products (Horizontal Bar) ==========
+  const topProductsCtx = document.getElementById('topProductsChart');
+  if (topProductsCtx) {
+    new Chart(topProductsCtx, {
+      type: 'bar',
+      data: {
+        labels: topProductsLabels,
+        datasets: [{
+          label: 'Units Sold',
+          data: topProductsData,
+          backgroundColor: 'rgba(13, 110, 253, 0.8)',
+          borderRadius: 6,
+          barThickness: 18
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          y: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+
+  // ========== 4. Orders Over Time (Bar) ==========
+  const ordersTimeCtx = document.getElementById('ordersOverTimeChart');
+  if (ordersTimeCtx) {
+    new Chart(ordersTimeCtx, {
+      type: 'bar',
+      data: {
+        labels: ordersOverTimeLabels,
+        datasets: [{
+          label: 'Orders',
+          data: ordersOverTimeData,
+          backgroundColor: 'rgba(25, 135, 84, 0.8)',
+          borderRadius: 6,
+          barThickness: 28
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

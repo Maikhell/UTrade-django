@@ -20,7 +20,7 @@
   }
   .stat-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0,0,0,.08) !important;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
   }
 
   .variant-row:hover {
@@ -36,14 +36,12 @@
     border-bottom-color: #fff;
   }
 
-  /* Sidebar active state */
   .sidebar-link.active {
     background-color: rgba(13, 110, 253, 0.1) !important;
     color: #0d6efd !important;
     font-weight: 600;
   }
 
-  /* Loading button state */
   .btn-loading {
     pointer-events: none;
     opacity: 0.85;
@@ -54,6 +52,9 @@
     border-width: 0.15em;
   }
 </style>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 <nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
   <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
@@ -121,48 +122,39 @@
             <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
             <ul class="nav flex-column gap-1">
               <li class="nav-item">
-                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark"
-                   href="#dashboard-stats">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark" href="#dashboard-stats">
                   <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
               </li>
-
               <li class="nav-item">
                 <a class="nav-link sidebar-link sidebar-tab-link d-flex align-items-center gap-2 rounded-3 text-dark"
-                   href="#incoming-pane"
-                   data-bs-target="#incoming-pane">
+                   href="#incoming-pane" data-bs-target="#incoming-pane">
                   <i class="bi bi-inbox text-primary"></i> Incoming
                   {% if incoming_orders.count %}
                     <span class="badge bg-primary rounded-pill ms-auto">{{ incoming_orders.count }}</span>
                   {% endif %}
                 </a>
               </li>
-
               <li class="nav-item">
                 <a class="nav-link sidebar-link sidebar-tab-link d-flex align-items-center gap-2 rounded-3 text-dark"
-                   href="#accepted-pane"
-                   data-bs-target="#accepted-pane">
+                   href="#accepted-pane" data-bs-target="#accepted-pane">
                   <i class="bi bi-check2-all text-success"></i> Ready for Meetup
                   {% if accepted_orders.count %}
                     <span class="badge bg-success rounded-pill ms-auto">{{ accepted_orders.count }}</span>
                   {% endif %}
                 </a>
               </li>
-
               <li class="nav-item">
                 <a class="nav-link sidebar-link sidebar-tab-link d-flex align-items-center gap-2 rounded-3 text-dark"
-                   href="#completed-pane"
-                   data-bs-target="#completed-pane">
+                   href="#completed-pane" data-bs-target="#completed-pane">
                   <i class="bi bi-clipboard-check text-secondary"></i> Completed
                   {% if completed_orders.count %}
                     <span class="badge bg-secondary rounded-pill ms-auto">{{ completed_orders.count }}</span>
                   {% endif %}
                 </a>
               </li>
-
               <li class="nav-item">
-                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark"
-                   href="#my-products">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark" href="#my-products">
                   <i class="bi bi-box-seam"></i> My Products
                   <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count }}</span>
                 </a>
@@ -251,13 +243,65 @@
         </div>
       </div>
 
+      <!-- ========== ANALYTICS ========== -->
+      <div id="analytics-section" class="mb-5">
+        <h4 class="fw-bold mb-4">
+          <i class="bi bi-graph-up-arrow text-primary me-2"></i>Analytics
+        </h4>
+
+        <div class="row g-4">
+          <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+              <div class="card-body p-4">
+                <h6 class="fw-bold mb-3">Revenue Overview</h6>
+                <div style="height: 280px;">
+                  <canvas id="revenueChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+              <div class="card-body p-4">
+                <h6 class="fw-bold mb-3">Orders by Status</h6>
+                <div style="height: 280px;">
+                  <canvas id="ordersStatusChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+              <div class="card-body p-4">
+                <h6 class="fw-bold mb-3">Top Selling Products</h6>
+                <div style="height: 260px;">
+                  <canvas id="topProductsChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4 h-100">
+              <div class="card-body p-4">
+                <h6 class="fw-bold mb-3">Orders Over Time</h6>
+                <div style="height: 260px;">
+                  <canvas id="ordersOverTimeChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ========== ORDERS SECTION (TABS) ========== -->
       <div id="orders-section" class="mb-5">
         <h4 class="fw-bold mb-3">
           <i class="bi bi-cart-fill text-primary me-2"></i>Orders
         </h4>
 
-        <!-- Tabs -->
         <ul class="nav nav-tabs mb-0" id="ordersTab" role="tablist">
           <li class="nav-item" role="presentation">
             <button class="nav-link active d-flex align-items-center gap-2"
@@ -303,7 +347,6 @@
           </li>
         </ul>
 
-        <!-- Tab Content -->
         <div class="tab-content bg-white shadow-sm rounded-bottom-4 border border-top-0 p-3 p-md-4" id="ordersTabContent">
 
           <!-- Incoming Tab -->
@@ -355,7 +398,7 @@
             {% endif %}
           </div>
 
-          <!-- Accepted Tab -->
+          <!-- Accepted Tab (simplified – no meetup location / pickup time) -->
           <div class="tab-pane fade" id="accepted-pane" role="tabpanel">
             {% if accepted_orders %}
               <div class="table-responsive">
@@ -364,8 +407,7 @@
                     <tr>
                       <th>Order ID</th>
                       <th>Buyer</th>
-                      <th>Meetup Details</th>
-                      <th>Scheduled Time</th>
+                      <th>Note to Buyer</th>
                       <th>Status</th>
                       <th class="text-center">Action</th>
                     </tr>
@@ -376,11 +418,7 @@
                         <td>#{{ order.id }}</td>
                         <td>{{ order.user.first_name|default:order.user.username }}</td>
                         <td>
-                          <strong>Location:</strong> {{ order.meetup_location }}<br>
-                          <small class="text-muted">Note: {{ order.seller_note|default:'None' }}</small>
-                        </td>
-                        <td>
-                          <span class="text-primary fw-bold">{{ order.pickup_time|default:'Not set' }}</span>
+                          <small class="text-muted">{{ order.seller_note|default:'—' }}</small>
                         </td>
                         <td><span class="badge bg-success">Accepted</span></td>
                         <td class="text-center">
@@ -468,7 +506,6 @@
           </a>
         </div>
 
-        <!-- Status cards -->
         <div class="row mb-4 g-3">
           <div class="col-md-4">
             <div class="card border-0 shadow-sm p-3 rounded-4">
@@ -490,7 +527,6 @@
           </div>
         </div>
 
-        <!-- Product list -->
         <div class="row g-4">
           {% for item in products %}
             <div class="col-12">
@@ -796,7 +832,7 @@
   </div>
 </div>
 
-<!-- ==================== ALL ORDER MODALS (outside the loops for cleaner structure) ==================== -->
+<!-- ==================== ORDER MODALS ==================== -->
 
 {% for order in incoming_orders %}
   <div class="modal fade" id="acceptOrderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
@@ -848,26 +884,6 @@
                 </div>
               </div>
             {% endif %}
-
-            <hr class="my-4 opacity-25">
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Pickup Date & Time</label>
-              <input type="datetime-local" name="pickup_time" class="form-control rounded-3" required>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold">Meetup Location</label>
-              <select name="pickup_location" class="form-select rounded-3" required>
-                <option value="" selected disabled>Select a spot...</option>
-                {% for loc in locations %}
-                  <option value="{{ loc.name }}">{{ loc.name }}</option>
-                {% endfor %}
-              </select>
-              {% if not locations %}
-                <small class="text-danger">No meetup locations available. Please contact admin.</small>
-              {% endif %}
-            </div>
 
             <div class="mb-0">
               <label class="form-label small fw-bold">Note to Buyer (Optional)</label>
@@ -973,36 +989,27 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-  // 1. Sidebar tab links → activate correct Bootstrap tab + scroll
+  // Sidebar tab links
   document.querySelectorAll('.sidebar-tab-link').forEach(function (link) {
     link.addEventListener('click', function (e) {
       e.preventDefault();
-
       const targetId = this.getAttribute('data-bs-target');
       const tabTrigger = document.querySelector(`#ordersTab button[data-bs-target="${targetId}"]`);
-
       if (tabTrigger) {
         const tab = new bootstrap.Tab(tabTrigger);
         tab.show();
       }
-
-      // Highlight active sidebar link
       document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
       this.classList.add('active');
-
-      // Smooth scroll to orders section
       setTimeout(() => {
-        document.getElementById('orders-section')?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
+        document.getElementById('orders-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 50);
     });
   });
 
-  // 2. Handle direct URL hash (e.g. #accepted-pane)
+  // Direct hash support
   const hash = window.location.hash;
-  if (hash === '#incoming-pane' || hash === '#accepted-pane' || hash === '#completed-pane') {
+  if (['#incoming-pane', '#accepted-pane', '#completed-pane'].includes(hash)) {
     const tabTrigger = document.querySelector(`#ordersTab button[data-bs-target="${hash}"]`);
     if (tabTrigger) {
       const tab = new bootstrap.Tab(tabTrigger);
@@ -1010,14 +1017,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // 3. Loading spinners for all modal forms
+  // Loading spinners
   document.querySelectorAll('.modal form').forEach(function (form) {
     form.addEventListener('submit', function () {
       const submitBtn = form.querySelector('button[type="submit"]');
       if (!submitBtn || submitBtn.classList.contains('btn-loading')) return;
 
       const originalHTML = submitBtn.innerHTML;
-
       submitBtn.classList.add('btn-loading');
       submitBtn.disabled = true;
       submitBtn.innerHTML = `
@@ -1025,40 +1031,27 @@ document.addEventListener('DOMContentLoaded', function () {
         Processing...
       `;
 
-      // Disable close buttons while processing
       const modal = form.closest('.modal');
       if (modal) {
-        modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close').forEach(btn => {
-          btn.disabled = true;
-        });
+        modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close').forEach(btn => btn.disabled = true);
       }
 
-      // Safety fallback – restore after 12 seconds if still loading
       setTimeout(() => {
         if (submitBtn.classList.contains('btn-loading')) {
           submitBtn.classList.remove('btn-loading');
           submitBtn.disabled = false;
           submitBtn.innerHTML = originalHTML;
           if (modal) {
-            modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close').forEach(btn => {
-              btn.disabled = false;
-            });
+            modal.querySelectorAll('[data-bs-dismiss="modal"], .btn-close').forEach(btn => btn.disabled = false);
           }
         }
       }, 12000);
     });
   });
 
-});
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-
-  // ========== CHART DATA (Replace with real data from your view) ==========
-  // Example structure you should pass from Django view:
-
+  // ========== CHARTS ==========
   const revenueLabels = {{ revenue_labels|safe|default:'["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]' }};
-  const revenueData   = {{ revenue_data|safe|default:'[1200, 1900, 800, 1500, 2200, 1800, 2400]' }};
+  const revenueData   = {{ revenue_data|safe|default:'[0,0,0,0,0,0,0]' }};
 
   const ordersStatusData = {
     incoming: {{ incoming_orders.count|default:0 }},
@@ -1066,13 +1059,13 @@ document.addEventListener('DOMContentLoaded', function () {
     completed: {{ completed_orders.count|default:0 }}
   };
 
-  const topProductsLabels = {{ top_products_labels|safe|default:'["Product A","Product B","Product C","Product D","Product E"]' }};
-  const topProductsData   = {{ top_products_data|safe|default:'[45, 32, 28, 19, 14]' }};
+  const topProductsLabels = {{ top_products_labels|safe|default:'[]' }};
+  const topProductsData   = {{ top_products_data|safe|default:'[]' }};
 
   const ordersOverTimeLabels = {{ orders_over_time_labels|safe|default:'["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]' }};
-  const ordersOverTimeData   = {{ orders_over_time_data|safe|default:'[4, 7, 3, 8, 12, 9, 6]' }};
+  const ordersOverTimeData   = {{ orders_over_time_data|safe|default:'[0,0,0,0,0,0,0]' }};
 
-  // ========== 1. Revenue Line Chart ==========
+  // Revenue Chart
   const revenueCtx = document.getElementById('revenueChart');
   if (revenueCtx) {
     new Chart(revenueCtx, {
@@ -1088,8 +1081,7 @@ document.addEventListener('DOMContentLoaded', function () {
           fill: true,
           tension: 0.4,
           pointBackgroundColor: '#0d6efd',
-          pointRadius: 4,
-          pointHoverRadius: 6
+          pointRadius: 4
         }]
       },
       options: {
@@ -1099,31 +1091,23 @@ document.addEventListener('DOMContentLoaded', function () {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: function(context) {
-                return '₱' + context.parsed.y.toLocaleString();
-              }
+              label: ctx => '₱' + ctx.parsed.y.toLocaleString()
             }
           }
         },
         scales: {
           y: {
             beginAtZero: true,
-            ticks: {
-              callback: function(value) {
-                return '₱' + value.toLocaleString();
-              }
-            },
+            ticks: { callback: v => '₱' + v.toLocaleString() },
             grid: { color: 'rgba(0,0,0,0.05)' }
           },
-          x: {
-            grid: { display: false }
-          }
+          x: { grid: { display: false } }
         }
       }
     });
   }
 
-  // ========== 2. Orders by Status (Doughnut) ==========
+  // Orders Status Chart
   const statusCtx = document.getElementById('ordersStatusChart');
   if (statusCtx) {
     new Chart(statusCtx, {
@@ -1131,18 +1115,9 @@ document.addEventListener('DOMContentLoaded', function () {
       data: {
         labels: ['Incoming', 'Ready for Meetup', 'Completed'],
         datasets: [{
-          data: [
-            ordersStatusData.incoming,
-            ordersStatusData.accepted,
-            ordersStatusData.completed
-          ],
-          backgroundColor: [
-            '#0d6efd',
-            '#198754',
-            '#6c757d'
-          ],
-          borderWidth: 0,
-          hoverOffset: 8
+          data: [ordersStatusData.incoming, ordersStatusData.accepted, ordersStatusData.completed],
+          backgroundColor: ['#0d6efd', '#198754', '#6c757d'],
+          borderWidth: 0
         }]
       },
       options: {
@@ -1152,26 +1127,23 @@ document.addEventListener('DOMContentLoaded', function () {
         plugins: {
           legend: {
             position: 'bottom',
-            labels: {
-              usePointStyle: true,
-              padding: 16
-            }
+            labels: { usePointStyle: true, padding: 16 }
           }
         }
       }
     });
   }
 
-  // ========== 3. Top Products (Horizontal Bar) ==========
+  // Top Products Chart
   const topProductsCtx = document.getElementById('topProductsChart');
   if (topProductsCtx) {
     new Chart(topProductsCtx, {
       type: 'bar',
       data: {
-        labels: topProductsLabels,
+        labels: topProductsLabels.length ? topProductsLabels : ['No data'],
         datasets: [{
           label: 'Units Sold',
-          data: topProductsData,
+          data: topProductsData.length ? topProductsData : [0],
           backgroundColor: 'rgba(13, 110, 253, 0.8)',
           borderRadius: 6,
           barThickness: 18
@@ -1181,23 +1153,16 @@ document.addEventListener('DOMContentLoaded', function () {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
+        plugins: { legend: { display: false } },
         scales: {
-          x: {
-            beginAtZero: true,
-            grid: { color: 'rgba(0,0,0,0.05)' }
-          },
-          y: {
-            grid: { display: false }
-          }
+          x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+          y: { grid: { display: false } }
         }
       }
     });
   }
 
-  // ========== 4. Orders Over Time (Bar) ==========
+  // Orders Over Time Chart
   const ordersTimeCtx = document.getElementById('ordersOverTimeChart');
   if (ordersTimeCtx) {
     new Chart(ordersTimeCtx, {
@@ -1215,18 +1180,10 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false }
-        },
+        plugins: { legend: { display: false } },
         scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1 },
-            grid: { color: 'rgba(0,0,0,0.05)' }
-          },
-          x: {
-            grid: { display: false }
-          }
+          y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          x: { grid: { display: false } }
         }
       }
     });

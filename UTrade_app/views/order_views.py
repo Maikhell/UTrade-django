@@ -148,44 +148,37 @@ def order_success(request, order_id):
     
 def order_history(request):
     orders = Order.objects.filter(user=request.user)\
-    .select_related('seller')\
-    .prefetch_related('items__product_variant__product')\
-    .order_by('-created_at')
-    
-    pending_orders = orders.filter(status='Pending')
-    
-    pickup_orders = orders.filter(
-        Q(status='Accepted') | 
-        Q(status='Delivered') |
-        (Q(payment_method='GCASH') & Q(status='Paid'))
-    )
+        .select_related('seller')\
+        .prefetch_related('items__product_variant__product')\
+        .order_by('-created_at')
+
+    pending_orders = orders.filter(status__in=['Pending', 'Paid'])
+
+    # Orders waiting for meetup / already accepted
+    pickup_orders = orders.filter(status='Accepted')
+
+    # Fully completed orders
+    completed_orders = orders.filter(status='Completed')
 
     preorders = PreOrderRequest.objects.filter(buyer=request.user).order_by('-created_at')
-
-    # Pre-orders that are still in the 'processing' phase
-    preorder_pending = preorders.filter(
-        status__in=['PENDING', 'APPROVED', 'PREPARING']
-    )
-
-    # Pre-orders that are ready for the buyer to collect
+    preorder_pending = preorders.filter(status__in=['PENDING', 'APPROVED', 'PREPARING'])
     preorder_ready = preorders.filter(status='READY')
 
     context = {
-        # Regular Orders
         'orders': orders,
         'pending_orders': pending_orders,
         'pending_count': pending_orders.count(),
         'pickup_orders': pickup_orders,
         'pickup_count': pickup_orders.count(),
+        'completed_orders': completed_orders,
+        'completed_count': completed_orders.count(),
 
-        # Pre-Orders
         'preorders': preorders,
         'preorder_pending_count': preorder_pending.count(),
         'preorder_ready_count': preorder_ready.count(),
     }
-    
-    return render(request, 'UTrade_app/orders/history.html', context)
 
+    return render(request, 'UTrade_app/orders/history.html', context)
 @login_required
 @transaction.atomic 
 def cancel_order(request, order_id):
@@ -233,56 +226,59 @@ def accept_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, seller=request.user)
 
     if request.method == "POST":
-        order.pickup_time = request.POST.get('pickup_time')
-        order.meetup_location = request.POST.get('pickup_location')
-        order.seller_note = request.POST.get('seller_note')
+        order.seller_note = request.POST.get('seller_note', '')
 
         if order.status in ['Pending', 'Paid']:
-            order.status = 'Accepted' 
-        
-        order.save()
-        
-        messages.success(request, f"Order #{order.id} has been accepted!")
-        return redirect('seller_inventory')
+            order.status = 'Accepted'
+            order.save(update_fields=['status', 'seller_note'])
+            messages.success(request, f"Order #{order.id} has been accepted!")
+        else:
+            messages.warning(request, "This order cannot be accepted.")
 
     return redirect('seller_inventory')
 
 def mark_order_delivered(request, order_id):
     if request.method == 'POST':
         order = get_object_or_404(Order, id=order_id, seller=request.user)
-        
-        order.status = 'Delivered'
-        order.save()
-        
-        messages.success(request, f"Order #{order.id} marked as delivered! Waiting for buyer to confirm.")
-        
-    return redirect('seller_inventory') 
+
+        if order.status != 'Accepted':
+            messages.error(request, "Only accepted orders can be marked as completed.")
+            return redirect('seller_inventory')
+
+        # Set directly to Completed
+        order.status = 'Completed'
+        order.save(update_fields=['status', 'updated_at'])
+
+        # Update sold count (stock was already deducted when order was placed)
+        for item in order.items.all():
+            product = item.product_variant.product
+            product.sold += item.quantity
+            product.save(update_fields=['sold'])
+
+        messages.success(request, f"Order #{order.id} has been marked as Completed.")
+
+    return redirect('seller_inventory')
 
 def confirm_receipt(request, order_id):
     if request.method == 'POST':
-        # 1. Get the order and ensure the current user is the buyer
         order = get_object_or_404(Order, id=order_id, user=request.user)
-        
-        if order.status == 'Delivered':
-            with transaction.atomic():
-                order.status = 'Completed'
-                order.save()
-                
-                for item in order.items.all():
-                    variant = item.product_variant
-                    product = variant.product
-                    
 
-                    variant.stocks -= item.quantity
-                    variant.save()
+        if order.status == 'Completed':
+            messages.info(request, "This order is already completed. You can now rate the product.")
+        elif order.status == 'Accepted':
+            # Optional fallback if seller hasn't marked it yet
+            order.status = 'Completed'
+            order.save(update_fields=['status', 'updated_at'])
 
-                    product.sold += item.quantity 
-                    product.save()
-            
-            messages.success(request, "Order completed! order has been transfered to order history please rate the product to help the community")
+            for item in order.items.all():
+                product = item.product_variant.product
+                product.sold += item.quantity
+                product.save(update_fields=['sold'])
+
+            messages.success(request, "Order completed! Please rate the product.")
         else:
             messages.error(request, "This order cannot be confirmed yet.")
-            
+
     return redirect('order_history')
 
 def submit_review(request, order_id):

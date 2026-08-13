@@ -1,5 +1,5 @@
 from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
-from ..models import User, Product, Order, MeetupLocation,Organization
+from ..models import User, Product, Order, MeetupLocation,Organization,ProductVariant
 from django.urls import reverse_lazy
 from ..forms import UserRegistrationForm, UserProfileForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -11,6 +11,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
 from django.http import JsonResponse
 from ..utils import send_otp_email
+from django.utils import timezone
+from django.shortcuts import get_object_or_404, redirect
+from django.db.models import Count, Sum, Q
 
 class UserCreateView(CreateView):
     model = User 
@@ -136,6 +139,31 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         return super().form_valid(form)
             
 
+
+@login_required
+def order_delivered(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+
+    # Security: make sure this order belongs to the current seller
+    if not order.items.filter(product_variant__product__seller=request.user).exists():
+        messages.error(request, "You are not allowed to update this order.")
+        return redirect('seller.inventory')  # or your dashboard url name
+
+    if request.method == 'POST':
+        # Change status to Completed
+        order.status = 'Completed'
+        order.updated_at = timezone.now()
+        order.save(update_fields=['status', 'updated_at'])
+
+        # Optional: you can also set a delivered_at field if you have one
+        # order.delivered_at = timezone.now()
+        # order.save()
+
+        messages.success(request, f"Order #{order.id} has been marked as Completed.")
+        
+        # TODO: send notification to buyer here if you have one
+
+    return redirect('seller.inventory')  # change to your actual dashboard url name
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product
     template_name = 'UTrade_app/seller/inventory.html'
@@ -148,15 +176,14 @@ class UserProductsView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         user = self.request.user
 
-        # Fix: Use iexact for PostgreSQL case-sensitivity safety
+        # Product status counts
         counts = Product.objects.filter(seller=user).aggregate(
             approved=Count('id', filter=Q(status__iexact='Approved')),
             pending=Count('id', filter=Q(status__iexact='Pending')),
             rejected=Count('id', filter=Q(status__iexact='Rejected'))
         )
-        
-        # FIX: Filter orders by checking if the products inside the order belong to this seller
-        # Adjust 'items__product_variant__product__seller' based on your actual model names
+
+        # All orders that contain products of this seller
         seller_orders = Order.objects.filter(
             items__product_variant__product__seller=user
         ).distinct()
@@ -172,22 +199,32 @@ class UserProductsView(LoginRequiredMixin, ListView):
         completed_orders = seller_orders.filter(
             status__iexact='Completed'
         ).order_by('-updated_at')
-        
-        locations = MeetupLocation.objects.filter(is_active=True).order_by('name')
-        
+
+        # Extra stats for the dashboard cards
+        total_stocks = ProductVariant.objects.filter(
+            product__seller=user
+        ).aggregate(total=Sum('stocks'))['total'] or 0
+
+        total_orders = seller_orders.count()
+
+        total_income = completed_orders.aggregate(
+            total=Sum('total_amount')
+        )['total'] or 0
+
         context.update({
             'approved_count': counts['approved'],
             'pending_count': counts['pending'],
             'rejected_count': counts['rejected'],
-            'incoming_orders': incoming_orders, 
-            'incoming_count': incoming_orders.count(),
+
+            'incoming_orders': incoming_orders,
             'accepted_orders': accepted_orders,
-            'accepted_count': accepted_orders.count(),
             'completed_orders': completed_orders,
-            'completed_count': completed_orders.count(),
-            'locations': locations, 
+
+            'total_stocks': total_stocks,
+            'total_orders': total_orders,
+            'total_income': total_income,
         })
-        
+
         return context
 
 class ProductUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):

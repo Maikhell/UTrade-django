@@ -131,33 +131,7 @@
               <small class="text-muted italic" style="font-size: 0.75rem;"><i class="bi bi-info-circle me-1"></i> This information will be shared with the seller to help identify you during the meetup.</small>
             </div>
           </div>
-          <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-            <div class="d-flex align-items-center mb-4">
-              <div class="bg-success-subtle p-2 rounded-3 me-3">
-                <i class="bi bi-geo-alt-fill text-success fs-4"></i>
-              </div>
-              <h5 class="fw-bold mb-0">Meetup Selection</h5>
-            </div>
-
-            <div class="row g-3">
-              <div class="col-12">
-                <label class="form-label small fw-bold text-muted">Preferred Campus Location</label>
-                <select name="pickup_location" class="form-select border-light bg-light rounded-3 py-2" required>
-                  <option value="" selected disabled>Choose where to meet the seller...</option>
-                  {% for location in available_locations %}
-                    <option value="{{ location }}">{{ location }}</option>
-                  {% empty %}
-                    <option value="Campus Main Gate">Campus Main Gate (Default)</option>
-                  {% endfor %}
-                </select>
-              </div>
-
-              <div class="col-12">
-                <label class="form-label small fw-bold text-muted">Additional Note for Seller</label>
-                <textarea name="buyer_note" class="form-control border-light bg-light rounded-3" rows="2" placeholder="e.g. I'll be at the benches near the entrance."></textarea>
-              </div>
-            </div>
-          </div>
+        
           <div class="card border-0 shadow-sm rounded-4 p-4">
             
             <h5 class="fw-bold mb-4">Payment Method <br>                     <small class="text-muted italic" style="font-size: 0.75rem;"><i class="bi bi-info-circle me-1"></i>The payment method depends on the seller's choices.</small></h5>

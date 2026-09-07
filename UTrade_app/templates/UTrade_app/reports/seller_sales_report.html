@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page {
+      size: A4;
+      margin: 1.2cm;
+    }
+    body {
+      font-family: sans-serif;
+      color: #333;
+      font-size: 12px;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #198754;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      color: #198754;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #666;
+    }
+    .summary {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 22px;
+    }
+    .summary td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      width: 25%;
+      text-align: center;
+    }
+    .summary .label {
+      font-size: 10px;
+      color: #777;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .summary .value {
+      font-size: 16px;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+    .value.green { color: #198754; }
+    h3 {
+      font-size: 14px;
+      margin: 18px 0 8px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 4px;
+    }
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    table.data th {
+      background-color: #f2f2f2;
+      text-align: left;
+      padding: 8px;
+      border: 1px solid #ddd;
+      font-size: 11px;
+    }
+    table.data td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      font-size: 11px;
+    }
+    .text-right { text-align: right; }
+    .footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      text-align: right;
+      font-size: 9px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">UTrade Seller Sales Report</div>
+    <div class="subtitle">
+      Seller: {{ seller.get_full_name|default:seller.username }}
+      {% if seller.student_no %} | Student No: {{ seller.student_no }}{% endif %}
+    </div>
+    <div class="subtitle">
+      Period: {{ period_label }} | Generated: {{ generated_at|date:"F d, Y g:i A" }}
+    </div>
+  </div>
+
+  <!-- Summary cards -->
+  <table class="summary">
+    <tr>
+      <td>
+        <div class="label">Total Orders</div>
+        <div class="value">{{ total_orders }}</div>
+      </td>
+      <td>
+        <div class="label">Completed Orders</div>
+        <div class="value">{{ completed_orders_count }}</div>
+      </td>
+      <td>
+        <div class="label">Units Sold</div>
+        <div class="value">{{ total_units_sold }}</div>
+      </td>
+      <td>
+        <div class="label">Gross Revenue</div>
+        <div class="value green">₱{{ total_revenue }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="summary">
+    <tr>
+      <td>
+        <div class="label">Est. Platform Fee</div>
+        <div class="value">₱{{ platform_fee }}</div>
+      </td>
+      <td>
+        <div class="label">Net Profit (est.)</div>
+        <div class="value green">₱{{ net_profit }}</div>
+      </td>
+      <td>
+        <div class="label">Avg. Order Value</div>
+        <div class="value">₱{{ avg_order_value }}</div>
+      </td>
+      <td>
+        <div class="label">Active Products</div>
+        <div class="value">{{ active_products }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <h3>Completed Orders</h3>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>Order ID</th>
+        <th>Buyer</th>
+        <th>Date</th>
+        <th>Payment</th>
+        <th class="text-right">Amount (₱)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in completed_orders %}
+        <tr>
+          <td>#{{ order.id }}</td>
+          <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+          <td>{{ order.updated_at|date:"M d, Y" }}</td>
+          <td>{{ order.payment_method|default:"—" }}</td>
+          <td class="text-right">{{ order.total_amount }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5" style="text-align:center;">No completed orders in this period.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Top Products by Units Sold</h3>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th class="text-right">Units Sold</th>
+        <th class="text-right">Revenue (₱)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in top_products %}
+        <tr>
+          <td>{{ row.name }}</td>
+          <td class="text-right">{{ row.units }}</td>
+          <td class="text-right">{{ row.revenue }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="3" style="text-align:center;">No product sales data.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    UTrade Seller Report · {{ seller.username }} · Generated on {% now "F d, Y" %}
+  </div>
+</body>
+</html>

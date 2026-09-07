@@ -17,7 +17,8 @@ urlpatterns = [
     path('update-terms-agreement/', user_views.update_terms_agreement, name='update_terms_agreement'),
     path('profile/update-cor/', user_views.update_cor, name='update_cor'),
     path('profile/register-officer/', user_views.register_officer, name='register_officer'),
-
+    path('seller/reports/sales/',user_views.seller_sales_report,  name='seller.sales_report'),
+    
     # --- Marketplace: Products & Services ---
     path('browse/', items_views.ProductListView.as_view(), name='product.list'),
     path('addproduct/', items_views.ProductCreateView.as_view(), name='product.create'),

@@ -1,19 +1,37 @@
-from django.views.generic import ListView, CreateView, DeleteView, DetailView, UpdateView, TemplateView
-from ..models import User, Product, Order, MeetupLocation,Organization,ProductVariant
-from django.urls import reverse_lazy
-from ..forms import UserRegistrationForm, UserProfileForm
+from decimal import Decimal
+
+from django.contrib import messages
+from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
-from django.db.models import Count, Q
-from django.contrib import messages
-from django.shortcuts import redirect
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import login
-from django.http import JsonResponse
-from ..utils import send_otp_email
-from django.utils import timezone
+from django.db.models import Count, F, Q, Sum
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
-from django.db.models import Count, Sum, Q
+from django.template.loader import get_template
+from django.urls import reverse_lazy
+from django.utils import timezone
+from django.views.generic import (
+    CreateView,
+    DeleteView,
+    DetailView,
+    ListView,
+    TemplateView,
+    UpdateView,
+)
+from xhtml2pdf import pisa
+
+from ..forms import UserProfileForm, UserRegistrationForm
+from ..models import (
+    MeetupLocation,
+    Order,
+    OrderItem,
+    Organization,
+    Product,
+    ProductVariant,
+    User,
+)
+from ..utils import send_otp_email
 
 class UserCreateView(CreateView):
     model = User 
@@ -317,3 +335,110 @@ def register_officer(request):
         return redirect('user.profile')
     
     return redirect('user.account')
+
+@login_required
+def seller_sales_report(request):
+    """
+    PDF sales report for the logged-in seller.
+    Optional query: ?period=7d|30d|all  (default 30d)
+    """
+    seller = request.user
+    period = request.GET.get('period', '30d')
+    now = timezone.now()
+
+    if period == '7d':
+        since = now - timezone.timedelta(days=7)
+        period_label = 'Last 7 days'
+    elif period == 'all':
+        since = None
+        period_label = 'All time'
+    else:
+        since = now - timezone.timedelta(days=30)
+        period_label = 'Last 30 days'
+        period = '30d'
+
+    # Orders that include this seller's products
+    seller_orders = Order.objects.filter(
+        items__product_variant__product__seller=seller
+    ).distinct()
+
+    if since:
+        seller_orders = seller_orders.filter(created_at__gte=since)
+
+    completed = seller_orders.filter(status__iexact='Completed').order_by('-updated_at')
+
+    total_orders = seller_orders.count()
+    completed_orders_count = completed.count()
+
+    # Revenue from completed orders only
+    total_revenue = completed.aggregate(
+        s=Sum('total_amount')
+    )['s'] or Decimal('0')
+
+    # Units sold (order items belonging to this seller)
+    item_qs = OrderItem.objects.filter(
+        order__in=completed,
+        product_variant__product__seller=seller,
+    )
+    total_units_sold = item_qs.aggregate(s=Sum('quantity'))['s'] or 0
+
+    # Optional: fixed % platform fee — change or set to 0 if you have no fee
+    FEE_RATE = Decimal('0.00')  # e.g. Decimal('0.05') for 5%
+    platform_fee = (total_revenue * FEE_RATE).quantize(Decimal('0.01'))
+    net_profit = (total_revenue - platform_fee).quantize(Decimal('0.01'))
+
+    avg_order_value = (
+        (total_revenue / completed_orders_count).quantize(Decimal('0.01'))
+        if completed_orders_count
+        else Decimal('0')
+    )
+
+    active_products = Product.objects.filter(
+        seller=seller, status__iexact='Approved'
+    ).count()
+
+    # Top products
+    top_raw = (
+        item_qs.values('product_variant__product__name')
+        .annotate(
+            units=Sum('quantity'),
+            revenue=Sum(F('price') * F('quantity')),
+        )
+        .order_by('-units')[:10]
+    )
+    top_products = [
+        {
+            'name': r['product_variant__product__name'] or 'Unknown',
+            'units': r['units'] or 0,
+            'revenue': r['revenue'] or 0,
+        }
+        for r in top_raw
+    ]
+
+    context = {
+        'seller': seller,
+        'period_label': period_label,
+        'generated_at': now,
+        'total_orders': total_orders,
+        'completed_orders_count': completed_orders_count,
+        'total_units_sold': total_units_sold,
+        'total_revenue': total_revenue,
+        'platform_fee': platform_fee,
+        'net_profit': net_profit,
+        'avg_order_value': avg_order_value,
+        'active_products': active_products,
+        'completed_orders': completed[:100],  # cap for PDF size
+        'top_products': top_products,
+    }
+
+    template = get_template('UTrade_app/reports/seller_sales_report.html')
+    html = template.render(context)
+
+    response = HttpResponse(content_type='application/pdf')
+    filename = f"UTrade_Sales_{seller.username}_{period}_{now.strftime('%Y%m%d')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    pisa_status = pisa.CreatePDF(html, dest=response, encoding='utf-8')
+    if pisa_status.err:
+        return HttpResponse('Error generating PDF report.', status=500)
+    return response

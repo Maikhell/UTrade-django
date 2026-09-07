@@ -257,34 +257,139 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
             <input type="number" id="price" value="0" />
           </div>
 
+          <!-- Single Campus Meetup Location -->
           <div class="my-3">
-            <label class="form-label small fw-bold text-secondary"
-              >Campus Meetup Spots</label
-            >
-            <div
-              class="p-3 bg-light rounded-3 border"
-              style="max-height: 150px; overflow-y: auto"
-            >
-              {% for location in meetup_locations %}
-              <div class="form-check mb-2">
-                <input
-                  class="form-check-input location-checkbox"
-                  type="checkbox"
-                  value="{{ location.id }}"
-                  id="loc_{{ forloop.index }}"
-                  onchange="updateMultiLocations()"
-                />
-                <label
-                  class="form-check-label small"
-                  for="loc_{{ forloop.index }}"
-                  >{{ location.name }}</label
-                >
-              </div>
-              {% endfor %}
+            <label class="form-label small fw-bold text-secondary">
+              Campus Meetup Spot <span class="text-danger">*</span>
+            </label>
+
+            <input
+              type="text"
+              id="location_input"
+              name="location_options"
+              class="form-control rounded-3"
+              placeholder="e.g. Library Lobby, Gate 2, Main Canteen..."
+              required
+            />
+
+            <div class="form-text small">
+              Enter only <strong>one</strong> preferred meetup location.
             </div>
-            <input type="hidden" name="location_options" id="final_locations" />
           </div>
 
+          <!-- Available Days (Mon–Sat, multiple) -->
+          <div class="my-3">
+            <label class="form-label small fw-bold text-secondary">
+              Available Days <span class="text-danger">*</span>
+            </label>
+
+            <div class="d-flex flex-wrap gap-2">
+              <div class="form-check">
+                <input
+                  class="form-check-input meetup-day"
+                  type="checkbox"
+                  value="Monday"
+                  id="day_mon"
+                />
+                <label class="form-check-label small" for="day_mon">Mon</label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input meetup-day"
+                  type="checkbox"
+                  value="Tuesday"
+                  id="day_tue"
+                />
+                <label class="form-check-label small" for="day_tue">Tue</label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input meetup-day"
+                  type="checkbox"
+                  value="Wednesday"
+                  id="day_wed"
+                />
+                <label class="form-check-label small" for="day_wed">Wed</label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input meetup-day"
+                  type="checkbox"
+                  value="Thursday"
+                  id="day_thu"
+                />
+                <label class="form-check-label small" for="day_thu">Thu</label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input meetup-day"
+                  type="checkbox"
+                  value="Friday"
+                  id="day_fri"
+                />
+                <label class="form-check-label small" for="day_fri">Fri</label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input meetup-day"
+                  type="checkbox"
+                  value="Saturday"
+                  id="day_sat"
+                />
+                <label class="form-check-label small" for="day_sat">Sat</label>
+              </div>
+            </div>
+
+            <div class="form-text small">
+              Select one or more days when you are available for meetup.
+            </div>
+          </div>
+
+          <!-- Time Range (From – To) -->
+          <div class="my-3">
+            <label class="form-label small fw-bold text-secondary">
+              Available Time <span class="text-danger">*</span>
+            </label>
+            <div id="days_error" class="text-danger small mt-1 d-none"></div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small text-muted mb-1">From</label>
+                <input
+                  type="time"
+                  id="meetup_time_from"
+                  name="meetup_time_from"
+                  class="form-control rounded-3"
+                  min="07:00"
+                  max="21:00"
+                  step="60"
+                  required
+                />
+                <div id="from_time_error" class="invalid-feedback d-none"></div>
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted mb-1">To</label>
+                <input
+                  type="time"
+                  id="meetup_time_to"
+                  name="meetup_time_to"
+                  class="form-control rounded-3"
+                  min="07:00"
+                  max="21:00"
+                  step="60"
+                  required
+                />
+                <div id="to_time_error" class="invalid-feedback d-none"></div>
+              </div>
+            </div>
+            <div
+              id="time_range_error"
+              class="text-danger small mt-1 d-none"
+            ></div>
+            <div class="form-text small">
+              Allowed: <strong>7:00 AM – 9:00 PM</strong>. From must be earlier
+              than To.
+            </div>
+          </div>
           <!-- Selling As / Listing Type Logic -->
           <div class="row g-2 mb-3">
             <div class="col-12">

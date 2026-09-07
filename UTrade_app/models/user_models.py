@@ -72,7 +72,7 @@ class User(AbstractUser):
         null=True, 
         verbose_name='Profile Picture'
     )
-    
+
     USERNAME_FIELD = 'student_no'
     REQUIRED_FIELDS = ['email', 'username']
     

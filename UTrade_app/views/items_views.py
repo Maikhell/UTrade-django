@@ -104,21 +104,24 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         is_final_submit = request.POST.get('action') == 'submit_staging'
-        
+
         if not is_final_submit:
             return super().post(request, *args, **kwargs)
 
         try:
             staged_items = StagedProduct.objects.filter(
-                seller=request.user, 
+                seller=request.user,
                 is_submitted=False
             ).prefetch_related('variants', 'images')
 
             if not staged_items.exists():
-                return JsonResponse({'status': 'error', 'message': 'No items in staging to submit.'}, status=400)
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'No items in staging to submit.'
+                }, status=400)
 
             for staged_prod in staged_items:
-                # 1. Create the product WITHOUT the locations first
+                # 1. Create the Product
                 new_product = Product.objects.create(
                     name=staged_prod.name,
                     description=staged_prod.description,
@@ -127,75 +130,108 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     pre_order=staged_prod.pre_order,
                     accepted_payments=staged_prod.accepted_payments,
                     owner_type=staged_prod.owner_type,
-                    status='Pending'
+                    status='Pending',
+                    # Add this if you have the field on Product:
+                    # preferred_meetup_time=getattr(staged_prod, 'preferred_meetup_time', None),
                 )
 
-                if staged_prod.meetup_locations_list:
+                # 2. Handle SINGLE free-text location
+                # staged_prod.meetup_locations_list now holds a single string, e.g. "Library Lobby"
+                location_text = (staged_prod.meetup_locations_list or "").strip()
+
+                if location_text:
                     try:
-                        location_ids = [
-                            int(loc_id.strip()) 
-                            for loc_id in staged_prod.meetup_locations_list.split(',') 
-                            if loc_id.strip().isdigit()
-                        ]
-                        
-                        # Use .set() to link multiple locations to the ManyToMany field
-                        if location_ids:
-                            new_product.meetup_locations.set(location_ids)
+                        # Option A: get_or_create a MeetupLocation by name (keeps M2M)
+                        location_obj, _ = MeetupLocation.objects.get_or_create(
+                            name=location_text
+                        )
+                        new_product.meetup_locations.set([location_obj])
+
+                        # Option B (simpler long-term): if you add a CharField on Product:
+                        # new_product.meetup_location_text = location_text
+                        # new_product.save(update_fields=['meetup_location_text'])
                     except Exception as e:
-                        print(f"Error linking locations: {e}")
+                        print(f"Error linking location: {e}")
+
+                # 3. Images
                 for staged_img in staged_prod.images.all():
                     ProductImage.objects.create(
                         product=new_product,
-                        image=staged_img.image
+                        image=staged_img.image,
+                        # is_main=staged_img.is_main  # if your model has this
                     )
-                    if staged_img.is_main:
-                        new_product.image = staged_img.image
-                        new_product.save()
+                    if getattr(staged_img, 'is_main', False):
+                        # only if Product still has a single image field
+                        if hasattr(new_product, 'image'):
+                            new_product.image = staged_img.image
+                            new_product.save(update_fields=['image'])
 
-                # 5. Handle Variants & Potential Custom Attributes
-                    for v in staged_prod.variants.all():
-                        # 5.1 Create the Product Variant using your separated fields
-                        ProductVariant.objects.create(
-                            product=new_product,
-                            variant_name=v.variant_name,        # "Combo A", "Set 1"
-                            price=v.price,
-                            stocks=v.stocks,
-                            condition=v.condition,
-                            flaws_description=v.flaws,
-                            attribute_value=v.variant_attribute  # Link to the 'XL', 'Blue', etc.
+                # 4. Variants (correct indentation – NOT inside the image loop)
+                for v in staged_prod.variants.all():
+                    ProductVariant.objects.create(
+                        product=new_product,
+                        variant_name=v.variant_name,
+                        price=v.price,
+                        stocks=v.stocks,
+                        condition=v.condition,
+                        flaws_description=getattr(v, 'flaws', '') or getattr(v, 'flaws_description', ''),
+                        attribute_value=getattr(v, 'variant_attribute', '') or getattr(v, 'attribute_value', ''),
+                    )
+
+                    # Optional: save custom attribute to category
+                    attr_value = getattr(v, 'variant_attribute', None) or getattr(v, 'attribute_value', None)
+                    if staged_prod.category and attr_value:
+                        CategoryAttribute.objects.get_or_create(
+                            category=staged_prod.category,
+                            value=str(attr_value).strip(),
+                            defaults={
+                                'is_custom': True,
+                                'created_by': request.user
+                            }
                         )
-                    
-                        if staged_prod.category and v.variant_attribute:
-                                CategoryAttribute.objects.get_or_create(
-                                    category=staged_prod.category,
-                                    value=v.variant_attribute.strip(), # Use the spec, not the variant name
-                                    defaults={
-                                        'is_custom': True, 
-                                        'created_by': request.user
-                                    }
-                                )
 
+                # 5. Mark staged item as submitted
                 staged_prod.is_submitted = True
-                staged_prod.save()
+                staged_prod.save(update_fields=['is_submitted'])
 
-            return JsonResponse({'status': 'success', 'redirect_url': reverse('product.create')})
+            return JsonResponse({
+                'status': 'success',
+                'redirect_url': reverse('product.create')
+            })
 
         except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+            return JsonResponse({
+                'status': 'error',
+                'message': str(e)
+            }, status=500)
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'Utrade_app/products/product_details.html'
     context_object_name = 'product'
 
     def get_queryset(self):
-        return super().get_queryset().select_related('seller', 'category').prefetch_related('variants', 'images')
+        return (
+            super()
+            .get_queryset()
+            .select_related('seller', 'category')
+            .prefetch_related('variants', 'images')
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        product = self.object
+
         context['related_products'] = Product.objects.filter(
-            category=self.object.category,
+            category=product.category,
             status='Approved'
-        ).exclude(id=self.object.id).select_related('seller')[:4]
+        ).exclude(id=product.id).select_related('seller')[:4]
+
+        # Split "Monday,Thursday,Saturday" for the template
+        context['available_days_list'] = [
+            d.strip()
+            for d in (product.available_days or '').split(',')
+            if d.strip()
+        ]
         return context
 
 
@@ -340,53 +376,157 @@ def toggle_wishlist(request, product_id):
 @login_required
 @require_POST
 def add_to_staging_ajax(request):
+    from datetime import datetime
+
     def check_text(text):
-        if not text: return None
-        banned = ['alcohol', 'drugs', 'beer', 'wine', 'vape', 'tobacco', 'weed'] # and so on...
+        if not text:
+            return None
+        banned = ['alcohol', 'drugs', 'beer', 'wine', 'vape', 'tobacco', 'weed']
         clean = re.sub(r'[^a-z]', '', text.lower())
         for word in banned:
-            if word in clean: return word
+            if word in clean:
+                return word
         return None
 
+    # ---------- Prohibited content ----------
     if check_text(request.POST.get('name')) or check_text(request.POST.get('description')):
-        return JsonResponse({'status': 'error', 'message': 'Prohibited content detected.'}, status=400)
+        return JsonResponse(
+            {'status': 'error', 'message': 'Prohibited content detected.'},
+            status=400
+        )
 
+    # ---------- Incoming fields ----------
+    location = (request.POST.get('location_options') or '').strip()
+    available_days_raw = (request.POST.get('available_days') or '').strip()
+    meetup_from = request.POST.get('meetup_time_from')  # "07:30"
+    meetup_to = request.POST.get('meetup_time_to')      # "09:00"
 
+    ALLOWED_DAYS = {
+        'Monday', 'Tuesday', 'Wednesday',
+        'Thursday', 'Friday', 'Saturday'
+    }
+
+    # ---------- Location ----------
+    if not location:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Campus meetup spot is required.'},
+            status=400
+        )
+
+    # ---------- Days ----------
+    day_list = [d.strip() for d in available_days_raw.split(',') if d.strip()]
+    if not day_list:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Please select at least one available day (Mon–Sat).'},
+            status=400
+        )
+    if any(d not in ALLOWED_DAYS for d in day_list):
+        return JsonResponse(
+            {'status': 'error', 'message': 'Invalid day selected. Allowed: Monday–Saturday.'},
+            status=400
+        )
+
+    # ---------- Time range helpers ----------
+    def parse_time(value):
+        if not value:
+            return None
+        return datetime.strptime(value, "%H:%M").time()
+
+    def is_within_allowed(t):
+        """7:00 AM – 9:00 PM inclusive"""
+        if t is None:
+            return False
+        minutes = t.hour * 60 + t.minute
+        return 7 * 60 <= minutes <= 21 * 60
+
+    try:
+        t_from = parse_time(meetup_from)
+        t_to = parse_time(meetup_to)
+    except ValueError:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Invalid time format. Use HH:MM.'},
+            status=400
+        )
+
+    if not t_from or not t_to:
+        return JsonResponse(
+            {'status': 'error', 'message': 'Meetup time range is required.'},
+            status=400
+        )
+
+    if not is_within_allowed(t_from):
+        return JsonResponse(
+            {'status': 'error', 'message': 'From time must be between 7:00 AM and 9:00 PM.'},
+            status=400
+        )
+
+    if not is_within_allowed(t_to):
+        return JsonResponse(
+            {'status': 'error', 'message': 'To time must be between 7:00 AM and 9:00 PM.'},
+            status=400
+        )
+
+    if t_from >= t_to:
+        return JsonResponse(
+            {'status': 'error', 'message': 'From time must be earlier than To time.'},
+            status=400
+        )
+
+    # ---------- Category (including "other") ----------
+    category_id = request.POST.get('category')
+    category = None
+    if category_id and str(category_id).isdigit():
+        category = Category.objects.filter(id=category_id).first()
+    elif category_id == 'other':
+        custom_name = (request.POST.get('custom_category_name') or '').strip()
+        if custom_name:
+            category, _ = Category.objects.get_or_create(name=custom_name.title())
+
+    # ---------- Create staged product ----------
     staged_prod = StagedProduct.objects.create(
         seller=request.user,
         name=request.POST.get('name'),
         description=request.POST.get('description'),
-        category_id=request.POST.get('category') if request.POST.get('category').isdigit() else None,
-        meetup_locations_list=request.POST.get('location_options'),
+        category=category,
+        meetup_locations_list=location,                 # single string
+        available_days=','.join(day_list),              # "Monday,Thursday"
+        preferred_meetup_time_from=t_from,
+        preferred_meetup_time_to=t_to,
         owner_type=request.POST.get('owner_type', 'PERSONAL'),
-        accepted_payments=request.POST.get('payment'),
-        pre_order=request.POST.get('pre_order') == 'True'
+        accepted_payments=request.POST.get('payment') or 'BOTH',
+        pre_order=request.POST.get('pre_order') == 'True',
     )
 
+    # ---------- Variants ----------
+    try:
+        variants_data = json.loads(request.POST.get('variants', '[]'))
+    except json.JSONDecodeError:
+        variants_data = []
 
-    variants_data = json.loads(request.POST.get('variants', '[]'))
     for v in variants_data:
         StagedVariant.objects.create(
             staged_product=staged_prod,
-            variant_name=v['name'],
-            # ADD THIS LINE: This captures the 'XL', 'Red', etc., from JS
-            variant_attribute=v.get('attribute', ''), 
-            price=v['price'],
-            stocks=v['stock'],
-            condition=v['condition'],
-            flaws=v.get('flaws', '')
+            variant_name=v.get('name', ''),
+            variant_attribute=v.get('attribute', ''),
+            price=v.get('price', 0) or 0,
+            stocks=v.get('stock', 0) or 0,
+            condition=v.get('condition', 'Brand New'),
+            flaws=v.get('flaws', ''),
         )
 
-
+    # ---------- Images ----------
     images = request.FILES.getlist('images')
     for i, img in enumerate(images):
         StagedImage.objects.create(
             staged_product=staged_prod,
             image=img,
-            is_main=(i == 0)
+            is_main=(i == 0),
         )
 
-    return JsonResponse({'status': 'success', 'staged_id': staged_prod.id})
+    return JsonResponse({
+        'status': 'success',
+        'staged_id': staged_prod.id
+    })
 def get_staged_product_details(request, staged_id):
     try:
         product = StagedProduct.objects.get(id=staged_id, seller=request.user)
@@ -400,7 +540,10 @@ def get_staged_product_details(request, staged_id):
             'name': product.name,
             'description': product.description,
             'category': product.category.id if product.category else '',
-            'locations': product.meetup_locations_list,
+            'locations': product.meetup_locations_list or '',
+            'available_days': product.available_days or '',
+            'meetup_time_from': product.preferred_meetup_time_from.strftime('%H:%M') if product.preferred_meetup_time_from else '',
+            'meetup_time_to': product.preferred_meetup_time_to.strftime('%H:%M') if product.preferred_meetup_time_to else '',
             'variants': variants,
             'images': images,
             'payment': product.accepted_payments,

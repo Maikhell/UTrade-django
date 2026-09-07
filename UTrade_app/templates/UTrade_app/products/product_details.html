@@ -104,7 +104,60 @@
               <p id="variantFlaws" class="text-danger small mb-0" style="font-style: italic;"></p>
             </div>
           </div>
+          <!-- ===================== MEETUP / PICKUP AVAILABILITY ===================== -->
+          <div class="card border-0 shadow-sm rounded-4 mb-4">
+            <div class="card-body p-3">
+              <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">
+                <i class="bi bi-calendar2-check me-1 text-success"></i>
+                Pickup availability
+              </h6>
 
+              <!-- Location -->
+              <div class="mb-3">
+                <div class="small text-muted fw-semibold mb-1">Meetup location</div>
+                {% if product.meetup_location_text %}
+                  <span class="badge bg-light text-dark border rounded-pill px-3 py-2">
+                    <i class="bi bi-geo-alt me-1 text-danger"></i>
+                    {{ product.meetup_location_text }}
+                  </span>
+                {% else %}
+                  <span class="text-muted small">Not specified</span>
+                {% endif %}
+              </div>
+
+              <!-- Available days -->
+              <div class="mb-3">
+                <div class="small text-muted fw-semibold mb-1">Available days</div>
+                {% if available_days_list %}
+                  <div class="d-flex flex-wrap gap-1">
+                    {% for day in available_days_list %}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2">
+                        {{ day }}
+                      </span>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <span class="text-muted small">Not specified</span>
+                {% endif %}
+              </div>
+
+              <!-- Time range -->
+              <div>
+                <div class="small text-muted fw-semibold mb-1">Available time</div>
+                {% if product.preferred_meetup_time_from and product.preferred_meetup_time_to %}
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2">
+                    <i class="bi bi-clock me-1"></i>
+                    {{ product.preferred_meetup_time_from|time:"g:i A" }}
+                    –
+                    {{ product.preferred_meetup_time_to|time:"g:i A" }}
+                  </span>
+                {% else %}
+                  <span class="text-muted small">Not specified</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          
           <div class="d-grid gap-3">
             {% if product.get_total_stock > 0 %}
               {% if user.is_staff or user.is_superuser or user.user_role == 'management' or user.user_role == 'alumni_assoc' %}

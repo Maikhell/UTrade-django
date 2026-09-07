@@ -69,7 +69,7 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     template_name = 'UTrade_app/accounts/profile.html'
     success_url = reverse_lazy('user.profile')
     success_message = "Your profile has been updated successfully!" 
-
+    
     def get_object(self):
         return self.request.user
 

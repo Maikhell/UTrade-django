@@ -140,9 +140,22 @@ def service_details(request, service_id):
     }
     return render(request, 'UTrade_app/management/service_detail.html', context)
 def product_details(request, product_id):
-    product = get_object_or_404(Product, id=product_id)
-    return render(request, 'UTrade_app/management/product_view.html', {'product': product})
+    product = get_object_or_404(
+        Product.objects.select_related('seller', 'category')
+        .prefetch_related('variants', 'images'),
+        id=product_id
+    )
 
+    available_days_list = [
+        d.strip()
+        for d in (product.available_days or '').split(',')
+        if d.strip()
+    ]
+
+    return render(request, 'UTrade_app/management/product_view.html', {
+        'product': product,
+        'available_days_list': available_days_list,
+    })
 def generate_report_pdf(request):
     report_type = request.GET.get('report_type')
     today = timezone.now()

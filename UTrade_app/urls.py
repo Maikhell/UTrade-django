@@ -106,5 +106,6 @@ urlpatterns = [
     
     #otp
     path('verify-email/', otplink_views.verify_otp, name='verify_otp'),
+    
     ]
    

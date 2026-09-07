@@ -64,11 +64,16 @@ class Product(BaseItem):
         help_text="Select the organization if this is not a personal listing"
     )
 
-    meetup_locations = models.ManyToManyField(
-        MeetupLocation, 
-        related_name="products",
-        blank=True
+    meetup_location_text = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Preferred campus meetup spot"
     )
+
+    available_days = models.CharField(max_length=100, blank=True)
+
+    preferred_meetup_time_from = models.TimeField(null=True, blank=True)
+    preferred_meetup_time_to = models.TimeField(null=True, blank=True)
 
     PAYMENT_METHODS = [
         ('GCASH', 'GCash Only'),
@@ -120,8 +125,16 @@ class StagedProduct(models.Model):
     owner_type = models.CharField(max_length=15, choices=Product.OWNER_TYPE_CHOICES, default='PERSONAL')
     related_org = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True)
     
-    meetup_locations_list = models.TextField(help_text="Comma-separated list of locations")
+    meetup_locations_list = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Single campus meetup location"
+    )
+
+    available_days = models.CharField(max_length=100, blank=True)
     
+    preferred_meetup_time_from = models.TimeField(null=True, blank=True)
+    preferred_meetup_time_to = models.TimeField(null=True, blank=True)    
     accepted_payments = models.CharField(max_length=10, choices=Product.PAYMENT_METHODS, default='BOTH')
     
     created_at = models.DateTimeField(auto_now_add=True)

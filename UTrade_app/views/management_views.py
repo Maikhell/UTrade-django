@@ -139,6 +139,7 @@ def service_details(request, service_id):
         'service': service,
     }
     return render(request, 'UTrade_app/management/service_detail.html', context)
+
 def product_details(request, product_id):
     product = get_object_or_404(
         Product.objects.select_related('seller', 'category')
@@ -146,16 +147,44 @@ def product_details(request, product_id):
         id=product_id
     )
 
-    available_days_list = [
-        d.strip()
-        for d in (product.available_days or '').split(',')
-        if d.strip()
-    ]
+    # ---------------------------------------
+    # MEETUP AVAILABILITY
+    # ---------------------------------------
 
-    return render(request, 'UTrade_app/management/product_view.html', {
-        'product': product,
-        'available_days_list': available_days_list,
-    })
+    # Location
+    meetup_location = (product.meetup_location_text or '').strip()
+
+    # Available days
+    raw_days = (product.available_days or '').strip()
+
+    available_days_list = []
+
+    if raw_days:
+        available_days_list = [
+            day.strip()
+            for day in raw_days.split(',')
+            if day.strip()
+        ]
+
+    # Time
+    meetup_time_from = product.preferred_meetup_time_from
+    meetup_time_to = product.preferred_meetup_time_to
+
+    return render(
+        request,
+        'UTrade_app/management/product_view.html',
+        {
+            'product': product,
+
+            # Meetup information
+            'meetup_location': meetup_location,
+            'available_days_list': available_days_list,
+            'meetup_time_from': meetup_time_from,
+            'meetup_time_to': meetup_time_to,
+        }
+    )
+
+
 def generate_report_pdf(request):
     report_type = request.GET.get('report_type')
     today = timezone.now()

@@ -43,7 +43,13 @@ class Product(BaseItem):
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_listings')
     sold = models.IntegerField(default=0)
     pre_order = models.BooleanField(default=False)
-    
+    product_code = models.CharField(
+    max_length=32,
+    unique=True,
+    blank=True,
+    null=True,
+    help_text='Auto code e.g. UTR-2026-0042'
+)
     OWNER_TYPE_CHOICES = [
         ('PERSONAL', 'Personal'),
         ('ORGANIZATION', 'Organization'),
@@ -124,7 +130,13 @@ class StagedProduct(models.Model):
     
     owner_type = models.CharField(max_length=15, choices=Product.OWNER_TYPE_CHOICES, default='PERSONAL')
     related_org = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True)
-    
+    product_code = models.CharField(
+    max_length=32,
+    unique=True,
+    blank=True,
+    null=True,
+    help_text='Auto code e.g. UTR-2026-0042'
+)
     meetup_locations_list = models.CharField(
         max_length=255,
         blank=True,

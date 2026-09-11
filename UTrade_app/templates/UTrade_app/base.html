@@ -71,19 +71,15 @@
             {% if user.is_authenticated %}
               <div class="d-flex border-start border-white border-opacity-25 ps-2 gap-2">
                 <a class="nav-link-custom {% if url_name == 'product.list' %}
-                    
                     text-white
-
-                  {% else %}
-                    
+                  {% else %}    
                     text-white-50
-
                   {% endif %}"
                   href="{% url 'product.list' %}">
                   Marketplace
                 </a>
                 <a class="nav-link-custom {% if url_name == 'services.list' %}
-                    
+                 
                     text-white
 
                   {% else %}

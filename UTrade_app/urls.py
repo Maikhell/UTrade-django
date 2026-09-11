@@ -104,6 +104,7 @@ urlpatterns = [
     path('api/staged-product/add/', items_views.add_to_staging_ajax, name='add_to_staging_ajax'),
     path('api/staged-product/<int:staged_id>/', items_views.get_staged_product_details, name='get_staged_details'),
     path('api/staged-product/delete/<int:staged_id>/', items_views.delete_staged_product, name='delete_staged'),
+    path('api/next-product-code/', items_views.delete_staged_product, name='api.next_product_code'),
     
     #otp
     path('verify-email/', otplink_views.verify_otp, name='verify_otp'),

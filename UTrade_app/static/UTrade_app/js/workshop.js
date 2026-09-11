@@ -102,14 +102,13 @@ function toggleCustomCondition(select) {
 /* ===================== MEETUP DAYS + TIME RANGE ===================== */
 function getSelectedMeetupDays() {
   return Array.from(document.querySelectorAll(".meetup-day:checked")).map(
-    (cb) => cb.value,
+    (cb) => cb.value
   );
 }
 
 function timeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== "string") return null;
 
-  // Supports "07:30" and "07:30:00"
   const parts = timeStr.trim().split(":");
   if (parts.length < 2) return null;
 
@@ -121,6 +120,7 @@ function timeToMinutes(timeStr) {
 
   return h * 60 + m;
 }
+
 function setFieldError(inputEl, errorId, message) {
   const errorEl = document.getElementById(errorId);
   if (inputEl) inputEl.classList.add("is-invalid");
@@ -161,19 +161,20 @@ function validateMeetupDays(showErrors = true) {
   }
   return true;
 }
+
 function validateMeetupTimeRange(showErrors = true) {
   const fromInput = document.getElementById("meetup_time_from");
   const toInput = document.getElementById("meetup_time_to");
 
   if (!fromInput || !toInput) {
     console.error(
-      "Missing time inputs. Need #meetup_time_from and #meetup_time_to in HTML.",
+      "Missing time inputs. Need #meetup_time_from and #meetup_time_to in HTML."
     );
     if (showErrors) {
       Swal.fire(
         "Form Error",
         "Time inputs are missing in the page HTML.",
-        "error",
+        "error"
       );
     }
     return false;
@@ -193,10 +194,9 @@ function validateMeetupTimeRange(showErrors = true) {
   }
 
   let valid = true;
-  const minAllowed = 7 * 60; // 07:00
-  const maxAllowed = 21 * 60; // 21:00
+  const minAllowed = 7 * 60;
+  const maxAllowed = 21 * 60;
 
-  // Empty
   if (!fromVal) {
     if (showErrors)
       setFieldError(fromInput, "from_time_error", "From time is required.");
@@ -222,13 +222,12 @@ function validateMeetupTimeRange(showErrors = true) {
     return false;
   }
 
-  // 7:00 AM – 9:00 PM
   if (fromMins < minAllowed || fromMins > maxAllowed) {
     if (showErrors) {
       setFieldError(
         fromInput,
         "from_time_error",
-        "Must be between 7:00 AM and 9:00 PM.",
+        "Must be between 7:00 AM and 9:00 PM."
       );
     }
     valid = false;
@@ -238,13 +237,12 @@ function validateMeetupTimeRange(showErrors = true) {
       setFieldError(
         toInput,
         "to_time_error",
-        "Must be between 7:00 AM and 9:00 PM.",
+        "Must be between 7:00 AM and 9:00 PM."
       );
     }
     valid = false;
   }
 
-  // From < To
   if (valid && fromMins >= toMins) {
     if (showErrors) {
       setFieldError(fromInput, "from_time_error", "Must be earlier than To.");
@@ -261,6 +259,27 @@ function validateMeetupTimeRange(showErrors = true) {
   return valid;
 }
 
+/* ===================== PRODUCT CODE HELPERS ===================== */
+function getProductCodeValue() {
+  const el = document.getElementById("product_code");
+  return el ? (el.value || "").trim() : "";
+}
+
+function setProductCodeValue(code) {
+  const el = document.getElementById("product_code");
+  if (el && code) el.value = code;
+}
+
+async function refreshNextProductCode() {
+  try {
+    const response = await fetch("/api/next-product-code/");
+    const data = await response.json();
+    if (data.product_code) setProductCodeValue(data.product_code);
+  } catch (e) {
+    console.warn("Could not refresh product code:", e);
+  }
+}
+
 /* ===================== ADD TO STAGING ===================== */
 async function addToStaging() {
   const nameEl = document.getElementById("name");
@@ -273,64 +292,50 @@ async function addToStaging() {
   const fromInput = document.getElementById("meetup_time_from");
   const toInput = document.getElementById("meetup_time_to");
   const ownerTypeEl = document.getElementById("owner_type");
+  const productCodeEl = document.getElementById("product_code");
   const attributesSection = document.getElementById("attributes_section");
 
   const isVariantMode =
     attributesSection && !attributesSection.classList.contains("d-none");
 
-  // Clear previous invalid states
   [nameEl, priceEl, stocksEl, locationInput, fromInput, toInput].forEach(
-    (el) => el && el.classList.remove("is-invalid"),
+    (el) => el && el.classList.remove("is-invalid")
   );
 
   let hasError = false;
 
-  // 1. Location (single)
   if (!locationInput || !locationInput.value.trim()) {
     if (locationInput) locationInput.classList.add("is-invalid");
     return Swal.fire(
       "Location Required",
       "Please enter a campus meetup spot.",
-      "warning",
+      "warning"
     );
   }
 
-  // 2. Available days (multiple)
   if (typeof validateMeetupDays === "function") {
     if (!validateMeetupDays(true)) {
       return Swal.fire(
         "Days Required",
         "Please select at least one available day (Mon–Sat).",
-        "warning",
+        "warning"
       );
     }
-  } else {
-    const selectedDaysCheck = getSelectedMeetupDays();
-    if (!selectedDaysCheck.length) {
-      return Swal.fire(
-        "Days Required",
-        "Please select at least one available day (Mon–Sat).",
-        "warning",
-      );
-    }
+  } else if (!getSelectedMeetupDays().length) {
+    return Swal.fire(
+      "Days Required",
+      "Please select at least one available day (Mon–Sat).",
+      "warning"
+    );
   }
 
   const selectedDays = getSelectedMeetupDays();
-
-  // 3. Time range
-  // Debug (remove later if you want)
-  console.log("Time values =>", {
-    fromExists: !!fromInput,
-    toExists: !!toInput,
-    from: fromInput?.value,
-    to: toInput?.value,
-  });
 
   if (!fromInput || !toInput) {
     return Swal.fire(
       "Form Error",
       "Time inputs are missing. Expected #meetup_time_from and #meetup_time_to.",
-      "error",
+      "error"
     );
   }
 
@@ -340,11 +345,10 @@ async function addToStaging() {
     return Swal.fire(
       "Time Required",
       "Please set both From and To meetup times.",
-      "warning",
+      "warning"
     );
   }
 
-  // Use improved validator if available
   const timeValid =
     typeof validateMeetupTimeRange === "function"
       ? validateMeetupTimeRange(true)
@@ -354,24 +358,20 @@ async function addToStaging() {
     return Swal.fire(
       "Invalid Time Range",
       "Time must be between 7:00 AM and 9:00 PM, and From must be earlier than To.",
-      "error",
+      "error"
     );
   }
 
-  // 4. Name & Description
   if (!nameEl || !nameEl.value.trim()) {
     if (nameEl) nameEl.classList.add("is-invalid");
     hasError = true;
   }
 
-  const isNameInvalid = validateProhibitedInput(nameEl);
-  const isDescInvalid = validateProhibitedInput(descEl);
-
-  if (isNameInvalid || isDescInvalid) {
+  if (validateProhibitedInput(nameEl) || validateProhibitedInput(descEl)) {
     return Swal.fire(
       "Prohibited Content",
       "Please remove restricted words before proceeding.",
-      "error",
+      "error"
     );
   }
 
@@ -382,11 +382,10 @@ async function addToStaging() {
     return Swal.fire(
       "Prohibited Content",
       "Your text contains restricted words.",
-      "error",
+      "error"
     );
   }
 
-  // 5. Price / Stock / Variants
   let finalPrice, finalStocks;
 
   if (isVariantMode) {
@@ -394,13 +393,13 @@ async function addToStaging() {
       return Swal.fire(
         "Variations Required",
         "Please add at least one variety.",
-        "warning",
+        "warning"
       );
     }
     finalPrice = window.productVariants[0].price;
     finalStocks = window.productVariants.reduce(
       (sum, v) => sum + (v.stock || 0),
-      0,
+      0
     );
   } else {
     if (!priceEl || !priceEl.value.trim()) {
@@ -419,7 +418,7 @@ async function addToStaging() {
     return Swal.fire(
       "Photos Required",
       "Please select at least one photo.",
-      "warning",
+      "warning"
     );
   }
 
@@ -427,11 +426,10 @@ async function addToStaging() {
     return Swal.fire(
       "Required Fields",
       "Please fill in the highlighted fields.",
-      "error",
+      "error"
     );
   }
 
-  // 6. Category
   let categoryId = categoryEl ? categoryEl.value : "";
   let categoryName = "Uncategorized";
   let customCategoryName = "";
@@ -446,12 +444,14 @@ async function addToStaging() {
     categoryName = customCategoryName || "New Category";
   }
 
-  // 7. FormData
+  const productCode = getProductCodeValue();
+
   const formData = new FormData();
   formData.append("name", nameEl.value.trim());
   formData.append("description", descEl?.value.trim() || "");
   formData.append("category", categoryId);
   formData.append("custom_category_name", customCategoryName);
+  formData.append("product_code", productCode);
   formData.append("location_options", locationInput.value.trim());
   formData.append("available_days", selectedDays.join(","));
   formData.append("meetup_time_from", fromInput.value);
@@ -462,7 +462,7 @@ async function addToStaging() {
   formData.append("payment", paymentEl ? paymentEl.value : "BOTH");
   formData.append(
     "pre_order",
-    preOrderElement ? preOrderElement.value : "False",
+    preOrderElement ? preOrderElement.value : "False"
   );
   formData.append("variants", JSON.stringify(window.productVariants || []));
 
@@ -470,7 +470,6 @@ async function addToStaging() {
     formData.append("images", file);
   });
 
-  // 8. AJAX
   Swal.fire({
     title: "Saving to Staging...",
     allowOutsideClick: false,
@@ -494,8 +493,8 @@ async function addToStaging() {
     }
 
     const dbId = result.staged_id;
+    const savedCode = result.product_code || productCode;
 
-    // 9. UI card
     const firstImg = document.querySelector("#image_preview_container img");
     const imageHtml = firstImg
       ? `<img src="${firstImg.src}" class="rounded shadow-sm me-3" style="width:70px;height:70px;object-fit:cover;border:1px solid #dee2e6;">`
@@ -528,6 +527,13 @@ async function addToStaging() {
         </div>
         <div class="small text-muted mb-2 text-truncate-2" style="font-size:0.85rem;">${descEl?.value || ""}</div>
         <div class="d-flex flex-wrap gap-1 mb-2">
+          ${
+            savedCode
+              ? `<span class="badge bg-dark text-white fw-normal">
+                   <i class="bi bi-upc me-1"></i>${savedCode}
+                 </span>`
+              : ""
+          }
           <span class="badge bg-light text-dark border fw-normal">
             <i class="bi bi-tag me-1"></i>${categoryName}
           </span>
@@ -554,16 +560,24 @@ async function addToStaging() {
       countEl.innerText = document.querySelectorAll(".staged-item").length;
     }
 
-    // 10. Cleanup
+    // Cleanup form — but keep / refresh product code
+    const codeBeforeReset = result.next_product_code || null;
+
     document.getElementById("product_form")?.reset();
     window.selectedFiles = [];
     window.productVariants = [];
     window.currentSelectedImageIndex = null;
 
-    // Uncheck all day checkboxes after reset
     document.querySelectorAll(".meetup-day").forEach((cb) => {
       cb.checked = false;
     });
+
+    // Restore next product code after reset (reset clears readonly inputs too)
+    if (codeBeforeReset) {
+      setProductCodeValue(codeBeforeReset);
+    } else {
+      await refreshNextProductCode();
+    }
 
     const previewContainer = document.getElementById("image_preview_container");
     if (previewContainer) {
@@ -594,12 +608,12 @@ async function addToStaging() {
     Swal.fire(
       "Error",
       error.message || "Failed to connect to server.",
-      "error",
+      "error"
     );
   }
 }
 
-                                  /* ===================== EDIT STAGED ITEM ===================== */
+/* ===================== EDIT STAGED ITEM ===================== */
 async function editItem(stagedId) {
   try {
     const response = await fetch(`/api/staged-product/${stagedId}/`);
@@ -607,20 +621,23 @@ async function editItem(stagedId) {
 
     if (data.error) throw new Error(data.error);
 
-    // 1. Basic fields
     const nameEl = document.getElementById("name");
     const descEl = document.getElementById("description");
     if (nameEl) nameEl.value = data.name || "";
     if (descEl) descEl.value = data.description || "";
 
-    // 2. Category
+    // Product code
+    if (data.product_code) {
+      setProductCodeValue(data.product_code);
+    }
+
     const categorySelect = document.getElementById("category");
     const customCategoryDiv = document.getElementById("other_category_div");
     const customCategoryInput = document.getElementById("custom_category");
 
     if (categorySelect) {
       const optionExists = Array.from(categorySelect.options).some(
-        (opt) => opt.value == data.category,
+        (opt) => opt.value == data.category
       );
 
       if (optionExists) {
@@ -641,13 +658,11 @@ async function editItem(stagedId) {
       }
     }
 
-    // 3. Single Location
     const locationInput = document.getElementById("location_input");
     if (locationInput) {
       locationInput.value = data.locations || data.location_options || "";
     }
 
-    // 4. Available Days
     const days = (data.available_days || "")
       .split(",")
       .map((d) => d.trim())
@@ -657,7 +672,6 @@ async function editItem(stagedId) {
       cb.checked = days.includes(cb.value);
     });
 
-    // 5. Time Range
     const fromInput = document.getElementById("meetup_time_from");
     const toInput = document.getElementById("meetup_time_to");
     if (fromInput && data.meetup_time_from) {
@@ -667,7 +681,6 @@ async function editItem(stagedId) {
       toInput.value = String(data.meetup_time_to).slice(0, 5);
     }
 
-    // 6. Images
     const container = document.getElementById("image_preview_container");
     if (container) {
       container.innerHTML = "";
@@ -677,12 +690,11 @@ async function editItem(stagedId) {
           `
           <div class="preview-wrapper">
             <img src="${img.url}" class="preview-box ${img.is_main ? "is-main-image" : ""}">
-          </div>`,
+          </div>`
         );
       });
     }
 
-    // 7. Variants
     window.productVariants = (data.variants || []).map((v) => ({
       name: v.variant_name || v.name,
       price: v.price,
@@ -696,7 +708,6 @@ async function editItem(stagedId) {
       renderVariantList();
     }
 
-    // 8. Remove from staging after loading into form
     await fetch(`/api/staged-product/delete/${stagedId}/`, {
       method: "POST",
       headers: {
@@ -769,7 +780,7 @@ function addVariant() {
     Swal.fire(
       "Missing Info",
       "Please provide a Variant Name and Stock.",
-      "warning",
+      "warning"
     );
     return;
   }
@@ -801,7 +812,7 @@ function addVariant() {
     window.selectedFiles[window.currentSelectedImageIndex]
   ) {
     const thumbUrl = URL.createObjectURL(
-      window.selectedFiles[window.currentSelectedImageIndex],
+      window.selectedFiles[window.currentSelectedImageIndex]
     );
     thumbHtml = `<img src="${thumbUrl}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
   }
@@ -847,7 +858,7 @@ function openVariantImagePicker() {
     return Swal.fire(
       "No Photos",
       "Please upload product photos first!",
-      "info",
+      "info"
     );
   }
 
@@ -889,7 +900,7 @@ function selectVariantImage(index) {
 
 function removeVariant(btn, name) {
   window.productVariants = (window.productVariants || []).filter(
-    (v) => v.name !== name,
+    (v) => v.name !== name
   );
   if (btn && btn.parentElement) btn.parentElement.remove();
   updateTotalStock();
@@ -900,7 +911,7 @@ function updateTotalStock() {
   if (!stocksEl) return;
   const total = (window.productVariants || []).reduce(
     (sum, v) => sum + (v.stock || 0),
-    0,
+    0
   );
   stocksEl.value = total;
 }
@@ -938,7 +949,7 @@ function getFoundProhibitedWord(text) {
   const lowerText = text.toLowerCase();
   return (
     window.PROHIBITED_WORDS.find((word) =>
-      lowerText.includes(String(word).toLowerCase()),
+      lowerText.includes(String(word).toLowerCase())
     ) || null
   );
 }
@@ -953,7 +964,7 @@ function checkProhibitedContent(text) {
   }
   const lowerText = text.toLowerCase();
   return window.PROHIBITED_WORDS.some((word) =>
-    lowerText.includes(String(word).toLowerCase()),
+    lowerText.includes(String(word).toLowerCase())
   );
 }
 
@@ -975,7 +986,7 @@ async function submitToAdmin() {
     return Swal.fire(
       "Error",
       "CSRF Token missing. Check your HTML template!",
-      "error",
+      "error"
     );
   }
 
@@ -1043,7 +1054,7 @@ function removeItem(btn, productId) {
   if (card) card.remove();
 
   window.allStagedProducts = (window.allStagedProducts || []).filter(
-    (item) => item.id !== productId,
+    (item) => item.id !== productId
   );
   window.itemCount = document.querySelectorAll(".staged-item").length;
 
@@ -1077,7 +1088,7 @@ function handleCategoryChange(selectElement) {
   const otherDiv = document.getElementById("other_category_div");
   const simplePriceSection = document.getElementById("simple_price_section");
   const suggestionContainer = document.getElementById(
-    "size_suggestions_container",
+    "size_suggestions_container"
   );
   const suggestionButtons = document.getElementById("suggestion_buttons");
   const stocksInput = document.getElementById("stocks");
@@ -1182,11 +1193,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const toInput = document.getElementById("meetup_time_to");
 
   if (fromInput) {
-    fromInput.addEventListener("change", validateMeetupTimeRange);
-    fromInput.addEventListener("blur", validateMeetupTimeRange);
+    fromInput.addEventListener("change", () => validateMeetupTimeRange(true));
+    fromInput.addEventListener("blur", () => validateMeetupTimeRange(true));
   }
   if (toInput) {
-    toInput.addEventListener("change", validateMeetupTimeRange);
-    toInput.addEventListener("blur", validateMeetupTimeRange);
+    toInput.addEventListener("change", () => validateMeetupTimeRange(true));
+    toInput.addEventListener("blur", () => validateMeetupTimeRange(true));
   }
+
+  document.querySelectorAll(".meetup-day").forEach((cb) => {
+    cb.addEventListener("change", () => validateMeetupDays(true));
+  });
 });

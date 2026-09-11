@@ -67,7 +67,46 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
     <div class="col-lg-5">
       <div class="card border-0 shadow-lg rounded-4 p-4 h-100">
         <h5 class="fw-bold mb-4">2. Product Details</h5>
+                <div class="row g-2 mb-3">
+          <div class="col-6">
+            <label class="form-label small fw-bold text-secondary">Category</label>
+            <select
+              id="category"
+              class="form-select bg-light border-0"
+              onchange="handleCategoryChange(this)"
+            >
+              <option selected disabled>Choose Category...</option>
+              {% for category in categories %}
+              <option value="{{ category.id }}">{{ category.name }}</option>
+              {% endfor %}
+              <option value="other">-- Other (Type New) --</option>
+            </select>
+          </div>
 
+          <div class="col-6">
+            <label class="form-label small fw-bold text-secondary">
+              Product Code
+            </label>
+            <input
+              type="text"
+              id="product_code"
+              name="product_code"
+              class="form-control bg-light border-0"
+              value="{{ next_product_code }}"
+              readonly
+              disabled
+            />
+            <!-- hidden so value is still submitted with FormData -->
+            <input
+              type="hidden"
+              id="product_code_hidden"
+              name="product_code"
+              value="{{ next_product_code }}"
+            />
+            <div class="form-text small">Auto-generated · cannot be edited</div>
+          </div>
+        </div>
+        
         <form id="product_form">
           {% csrf_token %}
           <div class="mb-3">
@@ -107,22 +146,6 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
           </div>
 
           <div class="row g-2 mb-3">
-            <div class="col-6">
-              <label class="form-label small fw-bold text-secondary"
-                >Category</label
-              >
-              <select
-                id="category"
-                class="form-select bg-light border-0"
-                onchange="handleCategoryChange(this)"
-              >
-                <option selected disabled>Choose Category...</option>
-                {% for category in categories %}
-                <option value="{{ category.id }}">{{ category.name }}</option>
-                {% endfor %}
-                <option value="other">-- Other (Type New) --</option>
-              </select>
-            </div>
             <div class="col-6">
               <label class="form-label small fw-bold text-secondary"
                 >Total Stocks</label

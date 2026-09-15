@@ -145,6 +145,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         product.status = 'Pending'
         product.pre_order = form.cleaned_data.get('pre_order', False)
         product.owner_type = self.request.POST.get('owner_type', 'PERSONAL')
+        
+        # Capture the selected location from the dropdown
+        selected_location = self.request.POST.get('location_options', '').strip()
+        if selected_location:
+            product.meetup_location_text = selected_location
 
         # Assign product code if empty
         if not getattr(product, 'product_code', None):
@@ -181,7 +186,8 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 ):
                     product_code = generate_next_product_code()
 
-                location_text = (staged_prod.meetup_locations_list or '').strip()
+               # Grab selected location from dropdown submission
+                location_text = (request.POST.get('location_options') or getattr(staged_prod, 'meetup_locations_list', '')).strip()
 
                 new_product = Product.objects.create(
                     name=staged_prod.name,
@@ -193,7 +199,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     owner_type=staged_prod.owner_type,
                     status='Pending',
                     product_code=product_code,
-                    meetup_location_text=location_text,
+                    meetup_location_text=location_text, # Assigned from admin-managed dropdown
                     available_days=getattr(staged_prod, 'available_days', '') or '',
                     preferred_meetup_time_from=getattr(staged_prod, 'preferred_meetup_time_from', None),
                     preferred_meetup_time_to=getattr(staged_prod, 'preferred_meetup_time_to', None),
@@ -335,17 +341,17 @@ class BatchPreOrderView(LoginRequiredMixin, View):
                 variant = ProductVariant.objects.filter(id=variant_id).first()
                 if variant:
                     PreOrderRequest.objects.create(
-                        user=request.user,
-                        variant=variant,
+                        buyer=request.user,               
+                        product_variant=variant,               
+                        seller=variant.product.seller,   
                         quantity=quantity,
                         status=status,
-                    )
+                    ) 
 
             return JsonResponse({'success': True, 'message': 'Pre-orders created successfully.'})
 
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
-
 
 class ProductListView(ListView):
     model = Product

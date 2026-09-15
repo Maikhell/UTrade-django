@@ -41,15 +41,24 @@
     </ul>
 
     <div class="tab-content bg-white p-4 rounded shadow-sm border">
+      <!-- Prohibited Content Filter Tab -->
       <div class="tab-pane fade show active" id="bad-words">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <h5 class="fw-bold mb-0">Prohibited Content Filter</h5>
-          <div class="d-flex gap-2">
-            <input type="text" id="new_bad_word" class="form-control" placeholder="Add restricted word..." />
-            <button class="btn btn-success px-3" id="btn-add-word" data-url="{% url 'add_bad_word' %}" onclick="submitBadWord()"><i class="bi bi-plus-lg"></i></button>
+        <div class="mb-4 p-4 border rounded bg-light">
+          <h5 class="fw-bold mb-3">Add Prohibited Word</h5>
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label class="form-label small fw-bold">Restricted Word / Phrase</label>
+              <input type="text" id="new_bad_word" class="form-control" placeholder="Enter word to restrict..." />
+            </div>
+            <div class="col-md-12 text-end mt-3">
+              <button class="btn btn-success px-4" id="btn-add-word" data-url="{% url 'add_bad_word' %}" onclick="submitBadWord()">
+                <i class="bi bi-plus-circle me-2"></i>Add Prohibited Word
+              </button>
+            </div>
           </div>
         </div>
 
+        <h5 class="fw-bold mb-3">Current Prohibited Words</h5>
         <div id="bad_words_container" class="d-flex flex-wrap gap-2">
           {% for word in prohibited_words %}
             <div class="badge-wrapper animate__animated animate__fadeIn" id="word-{{ word.id }}">
@@ -62,7 +71,10 @@
             <p class="text-muted w-100" id="no-words-msg">No prohibited words added yet.</p>
           {% endfor %}
         </div>
-      </div><div class="tab-pane fade" id="categories">
+      </div>
+
+      <!-- Categories Tab -->
+      <div class="tab-pane fade" id="categories">
         <div class="mb-4 p-4 border rounded bg-light">
           <h5 class="fw-bold mb-3">Add New Category</h5>
           <div class="row g-3">
@@ -123,15 +135,24 @@
         </div>
       </div>
 
+      <!-- Meetup Spots Tab -->
       <div class="tab-pane fade" id="meetups">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-          <h5 class="fw-bold mb-0">Campus Meetup Zones</h5>
-          <div class="d-flex gap-2">
-            <input type="text" id="new_meetup_input" class="form-control" placeholder="e.g. Library Lobby" />
-            <button class="btn btn-success px-3" id="btn-add-meetup" data-url="{% url 'add_meetup' %}" onclick="submitMeetup()"><i class="bi bi-plus-lg"></i></button>
+        <div class="mb-4 p-4 border rounded bg-light">
+          <h5 class="fw-bold mb-3">Add Campus Meetup Spots</h5>
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label class="form-label small fw-bold">Location Name</label>
+              <input type="text" id="new_meetup_input" class="form-control" placeholder="e.g. Library, Canteen" />
+            </div>
+            <div class="col-md-12 text-end mt-3">
+              <button class="btn btn-success px-4" id="btn-add-meetup" data-url="{% url 'add_meetup' %}" onclick="submitMeetup()">
+                <i class="bi bi-plus-circle me-2"></i>Add Meetup Zone
+              </button>
+            </div>
           </div>
         </div>
 
+        <h5 class="fw-bold mb-3">Defined Meetup Zones</h5>
         <div id="meetups_container" class="row">
           {% for loc in meetups %}
             <div class="col-md-4 mb-3 animate__animated animate__fadeIn" id="meetup-{{ loc.id }}">

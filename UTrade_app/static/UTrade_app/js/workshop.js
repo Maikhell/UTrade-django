@@ -102,7 +102,7 @@ function toggleCustomCondition(select) {
 /* ===================== MEETUP DAYS + TIME RANGE ===================== */
 function getSelectedMeetupDays() {
   return Array.from(document.querySelectorAll(".meetup-day:checked")).map(
-    (cb) => cb.value
+    (cb) => cb.value,
   );
 }
 
@@ -168,13 +168,13 @@ function validateMeetupTimeRange(showErrors = true) {
 
   if (!fromInput || !toInput) {
     console.error(
-      "Missing time inputs. Need #meetup_time_from and #meetup_time_to in HTML."
+      "Missing time inputs. Need #meetup_time_from and #meetup_time_to in HTML.",
     );
     if (showErrors) {
       Swal.fire(
         "Form Error",
         "Time inputs are missing in the page HTML.",
-        "error"
+        "error",
       );
     }
     return false;
@@ -227,7 +227,7 @@ function validateMeetupTimeRange(showErrors = true) {
       setFieldError(
         fromInput,
         "from_time_error",
-        "Must be between 7:00 AM and 9:00 PM."
+        "Must be between 7:00 AM and 9:00 PM.",
       );
     }
     valid = false;
@@ -237,7 +237,7 @@ function validateMeetupTimeRange(showErrors = true) {
       setFieldError(
         toInput,
         "to_time_error",
-        "Must be between 7:00 AM and 9:00 PM."
+        "Must be between 7:00 AM and 9:00 PM.",
       );
     }
     valid = false;
@@ -299,7 +299,7 @@ async function addToStaging() {
     attributesSection && !attributesSection.classList.contains("d-none");
 
   [nameEl, priceEl, stocksEl, locationInput, fromInput, toInput].forEach(
-    (el) => el && el.classList.remove("is-invalid")
+    (el) => el && el.classList.remove("is-invalid"),
   );
 
   let hasError = false;
@@ -309,7 +309,7 @@ async function addToStaging() {
     return Swal.fire(
       "Location Required",
       "Please enter a campus meetup spot.",
-      "warning"
+      "warning",
     );
   }
 
@@ -318,14 +318,14 @@ async function addToStaging() {
       return Swal.fire(
         "Days Required",
         "Please select at least one available day (Mon–Sat).",
-        "warning"
+        "warning",
       );
     }
   } else if (!getSelectedMeetupDays().length) {
     return Swal.fire(
       "Days Required",
       "Please select at least one available day (Mon–Sat).",
-      "warning"
+      "warning",
     );
   }
 
@@ -335,7 +335,7 @@ async function addToStaging() {
     return Swal.fire(
       "Form Error",
       "Time inputs are missing. Expected #meetup_time_from and #meetup_time_to.",
-      "error"
+      "error",
     );
   }
 
@@ -345,7 +345,7 @@ async function addToStaging() {
     return Swal.fire(
       "Time Required",
       "Please set both From and To meetup times.",
-      "warning"
+      "warning",
     );
   }
 
@@ -358,7 +358,7 @@ async function addToStaging() {
     return Swal.fire(
       "Invalid Time Range",
       "Time must be between 7:00 AM and 9:00 PM, and From must be earlier than To.",
-      "error"
+      "error",
     );
   }
 
@@ -371,7 +371,7 @@ async function addToStaging() {
     return Swal.fire(
       "Prohibited Content",
       "Please remove restricted words before proceeding.",
-      "error"
+      "error",
     );
   }
 
@@ -382,7 +382,7 @@ async function addToStaging() {
     return Swal.fire(
       "Prohibited Content",
       "Your text contains restricted words.",
-      "error"
+      "error",
     );
   }
 
@@ -393,13 +393,13 @@ async function addToStaging() {
       return Swal.fire(
         "Variations Required",
         "Please add at least one variety.",
-        "warning"
+        "warning",
       );
     }
     finalPrice = window.productVariants[0].price;
     finalStocks = window.productVariants.reduce(
       (sum, v) => sum + (v.stock || 0),
-      0
+      0,
     );
   } else {
     if (!priceEl || !priceEl.value.trim()) {
@@ -418,7 +418,7 @@ async function addToStaging() {
     return Swal.fire(
       "Photos Required",
       "Please select at least one photo.",
-      "warning"
+      "warning",
     );
   }
 
@@ -426,7 +426,7 @@ async function addToStaging() {
     return Swal.fire(
       "Required Fields",
       "Please fill in the highlighted fields.",
-      "error"
+      "error",
     );
   }
 
@@ -457,12 +457,13 @@ async function addToStaging() {
   formData.append("meetup_time_from", fromInput.value);
   formData.append("meetup_time_to", toInput.value);
   formData.append("owner_type", ownerTypeEl?.value || "PERSONAL");
+  formData.append("pre_order",preOrderElement ? preOrderElement.checked : false,);
 
   const paymentEl = document.querySelector('input[name="payment"]:checked');
   formData.append("payment", paymentEl ? paymentEl.value : "BOTH");
   formData.append(
     "pre_order",
-    preOrderElement ? preOrderElement.value : "False"
+    preOrderElement ? preOrderElement.value : "False",
   );
   formData.append("variants", JSON.stringify(window.productVariants || []));
 
@@ -608,7 +609,7 @@ async function addToStaging() {
     Swal.fire(
       "Error",
       error.message || "Failed to connect to server.",
-      "error"
+      "error",
     );
   }
 }
@@ -637,7 +638,7 @@ async function editItem(stagedId) {
 
     if (categorySelect) {
       const optionExists = Array.from(categorySelect.options).some(
-        (opt) => opt.value == data.category
+        (opt) => opt.value == data.category,
       );
 
       if (optionExists) {
@@ -690,7 +691,7 @@ async function editItem(stagedId) {
           `
           <div class="preview-wrapper">
             <img src="${img.url}" class="preview-box ${img.is_main ? "is-main-image" : ""}">
-          </div>`
+          </div>`,
         );
       });
     }
@@ -780,7 +781,7 @@ function addVariant() {
     Swal.fire(
       "Missing Info",
       "Please provide a Variant Name and Stock.",
-      "warning"
+      "warning",
     );
     return;
   }
@@ -812,7 +813,7 @@ function addVariant() {
     window.selectedFiles[window.currentSelectedImageIndex]
   ) {
     const thumbUrl = URL.createObjectURL(
-      window.selectedFiles[window.currentSelectedImageIndex]
+      window.selectedFiles[window.currentSelectedImageIndex],
     );
     thumbHtml = `<img src="${thumbUrl}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
   }
@@ -858,7 +859,7 @@ function openVariantImagePicker() {
     return Swal.fire(
       "No Photos",
       "Please upload product photos first!",
-      "info"
+      "info",
     );
   }
 
@@ -900,7 +901,7 @@ function selectVariantImage(index) {
 
 function removeVariant(btn, name) {
   window.productVariants = (window.productVariants || []).filter(
-    (v) => v.name !== name
+    (v) => v.name !== name,
   );
   if (btn && btn.parentElement) btn.parentElement.remove();
   updateTotalStock();
@@ -911,7 +912,7 @@ function updateTotalStock() {
   if (!stocksEl) return;
   const total = (window.productVariants || []).reduce(
     (sum, v) => sum + (v.stock || 0),
-    0
+    0,
   );
   stocksEl.value = total;
 }
@@ -949,7 +950,7 @@ function getFoundProhibitedWord(text) {
   const lowerText = text.toLowerCase();
   return (
     window.PROHIBITED_WORDS.find((word) =>
-      lowerText.includes(String(word).toLowerCase())
+      lowerText.includes(String(word).toLowerCase()),
     ) || null
   );
 }
@@ -964,7 +965,7 @@ function checkProhibitedContent(text) {
   }
   const lowerText = text.toLowerCase();
   return window.PROHIBITED_WORDS.some((word) =>
-    lowerText.includes(String(word).toLowerCase())
+    lowerText.includes(String(word).toLowerCase()),
   );
 }
 
@@ -986,7 +987,7 @@ async function submitToAdmin() {
     return Swal.fire(
       "Error",
       "CSRF Token missing. Check your HTML template!",
-      "error"
+      "error",
     );
   }
 
@@ -1054,7 +1055,7 @@ function removeItem(btn, productId) {
   if (card) card.remove();
 
   window.allStagedProducts = (window.allStagedProducts || []).filter(
-    (item) => item.id !== productId
+    (item) => item.id !== productId,
   );
   window.itemCount = document.querySelectorAll(".staged-item").length;
 
@@ -1088,7 +1089,7 @@ function handleCategoryChange(selectElement) {
   const otherDiv = document.getElementById("other_category_div");
   const simplePriceSection = document.getElementById("simple_price_section");
   const suggestionContainer = document.getElementById(
-    "size_suggestions_container"
+    "size_suggestions_container",
   );
   const suggestionButtons = document.getElementById("suggestion_buttons");
   const stocksInput = document.getElementById("stocks");

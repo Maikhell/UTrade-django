@@ -68,7 +68,9 @@ function deleteCategory(catId) {
 function submitBadWord() {
     const input = document.getElementById('new_bad_word');
     const word = input.value.trim();
-    if (!word) return;
+    if (!word) {
+        return Swal.fire('Error', 'Prohibited word cannot be empty', 'error');
+    }
 
     const btn = document.getElementById('btn-add-word');
     const url = btn.getAttribute('data-url');
@@ -82,6 +84,7 @@ function submitBadWord() {
         .then(response => response.json())
         .then(data => {
             if (data.status === 'success') {
+                Swal.fire('Added!', 'Prohibited word has been added.', 'success');
                 const container = document.getElementById('bad_words_container');
                 const newBadge = `
                 <div class="badge-wrapper animate__animated animate__zoomIn" id="word-${data.id}">
@@ -95,13 +98,18 @@ function submitBadWord() {
             } else {
                 Swal.fire('Error', data.message, 'error');
             }
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Server connection failed', 'error');
         });
 }
 
 function submitMeetup() {
     const input = document.getElementById('new_meetup_input');
     const locationValue = input.value.trim();
-    if (!locationValue) return;
+    if (!locationValue) {
+        return Swal.fire('Error', 'Meetup location cannot be empty', 'error');
+    }
 
     const url = document.getElementById('btn-add-meetup').getAttribute('data-url');
     const csrf = document.getElementById('csrf_token')?.value || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
@@ -114,6 +122,7 @@ function submitMeetup() {
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
+                Swal.fire('Added!', 'Meetup spot has been added.', 'success');
                 const container = document.getElementById('meetups_container');
                 const html = `
                 <div class="col-md-4 mb-2 animate__animated animate__fadeInUp" id="meetup-${data.id}">
@@ -129,13 +138,18 @@ function submitMeetup() {
             } else {
                 Swal.fire('Error', data.message, 'error');
             }
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Server connection failed', 'error');
         });
 }
 
 function submitCategory() {
     const input = document.getElementById('new_category_input');
     const name = input.value.trim();
-    if (!name) return;
+    if (!name) {
+        return Swal.fire('Error', 'Category name cannot be empty', 'error');
+    }
 
     const url = document.getElementById('btn-add-category').getAttribute('data-url');
     const csrf = document.getElementById('csrf_token')?.value || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
@@ -148,6 +162,7 @@ function submitCategory() {
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
+                Swal.fire('Added!', 'Category has been added.', 'success');
                 const container = document.getElementById('categories_table_body');
                 const html = `
                 <tr class="animate__animated animate__fadeInDown" id="category-${data.id}">
@@ -164,8 +179,12 @@ function submitCategory() {
             } else {
                 Swal.fire('Error', data.message, 'error');
             }
+        })
+        .catch(err => {
+            Swal.fire('Error', 'Server connection failed', 'error');
         });
 }
+
 function addAttributeRow() {
     const container = document.getElementById('attribute_fields_container');
     const newRow = document.createElement('div');

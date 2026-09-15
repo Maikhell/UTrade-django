@@ -67,9 +67,11 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
     <div class="col-lg-5">
       <div class="card border-0 shadow-lg rounded-4 p-4 h-100">
         <h5 class="fw-bold mb-4">2. Product Details</h5>
-                <div class="row g-2 mb-3">
+        <div class="row g-2 mb-3">
           <div class="col-6">
-            <label class="form-label small fw-bold text-secondary">Category</label>
+            <label class="form-label small fw-bold text-secondary"
+              >Category</label
+            >
             <select
               id="category"
               class="form-select bg-light border-0"
@@ -106,7 +108,7 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
             <div class="form-text small">Auto-generated · cannot be edited</div>
           </div>
         </div>
-        
+
         <form id="product_form">
           {% csrf_token %}
           <div class="mb-3">
@@ -173,7 +175,7 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
             />
           </div>
 
-          <!-- Attributes Section (FIXED DIV NESTING HERE) -->
+          <!-- Attributes Section -->
           <div id="attributes_section" class="mt-4 p-3 rounded bg-light border">
             <h6 class="fw-bold mb-3">
               <i class="bi bi-layers-half me-2"></i>Product Variations
@@ -286,17 +288,23 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
               Campus Meetup Spot <span class="text-danger">*</span>
             </label>
 
-            <input
-              type="text"
+            <select
               id="location_input"
               name="location_options"
-              class="form-control rounded-3"
-              placeholder="e.g. Library Lobby, Gate 2, Main Canteen..."
+              class="form-select rounded-3"
               required
-            />
+            >
+              <option value="" disabled selected>
+                Select a meetup location...
+              </option>
+              {% for location in meetup_locations %}
+              <option value="{{ location.name }}">{{ location.name }}</option>
+              {% endfor %}
+            </select>
 
             <div class="form-text small">
-              Enter only <strong>one</strong> preferred meetup location.
+              Choose <strong>one</strong> preferred meetup location added by the
+              administration.
             </div>
           </div>
 
@@ -436,7 +444,9 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
                 name="owner_type"
                 class="form-select bg-white border py-2 shadow-sm"
               >
+                {% comment %}
                 <option value="PERSONAL">Personal Listing</option>
+                {% endcomment %}
                 <option value="ORGANIZATION">Organization Listing</option>
               </select>
               {% else %}
@@ -449,7 +459,26 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
               {% endif %}
             </div>
           </div>
-
+          <!-- Pre-order Checkbox Option -->
+          <div class="mb-3 form-check bg-light p-3 rounded border">
+            <input
+              type="checkbox"
+              class="form-check-input"
+              id="is_pre_order"
+              name="is_pre_order"
+            />
+            <label
+              class="form-check-label small fw-bold text-dark"
+              for="is_pre_order"
+            >
+              <i class="bi bi-clock-history me-1 text-primary"></i> Mark as
+              Pre-order Item
+            </label>
+            <div class="form-text small text-muted mt-1">
+              Check this if items are made-to-order or fulfillment takes longer
+              than usual.
+            </div>
+          </div>
           <div class="mb-4">
             <label class="form-label small fw-bold text-secondary d-block"
               >Accepted Payment</label

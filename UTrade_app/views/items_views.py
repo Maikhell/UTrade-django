@@ -562,7 +562,7 @@ def add_to_staging_ajax(request):
         preferred_meetup_time_to=t_to,
         owner_type=request.POST.get('owner_type', 'PERSONAL'),
         accepted_payments=request.POST.get('payment') or 'BOTH',
-        pre_order=request.POST.get('pre_order') == 'True',
+        pre_order=str(request.POST.get('pre_order')).lower() in ['true', 'on', '1', 'yes'],
     )
 
     try:

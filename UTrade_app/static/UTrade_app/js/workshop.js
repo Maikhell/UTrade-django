@@ -287,7 +287,7 @@ async function addToStaging() {
   const stocksEl = document.getElementById("stocks");
   const descEl = document.getElementById("description");
   const categoryEl = document.getElementById("category");
-  const preOrderElement = document.getElementById("is_pre_order");
+  const preOrderElement = document.getElementById("is_pre_order"); // matches HTML id
   const locationInput = document.getElementById("location_input");
   const fromInput = document.getElementById("meetup_time_from");
   const toInput = document.getElementById("meetup_time_to");
@@ -297,6 +297,8 @@ async function addToStaging() {
 
   const isVariantMode =
     attributesSection && !attributesSection.classList.contains("d-none");
+
+  const isPreOrder = !!(preOrderElement && preOrderElement.checked);
 
   [nameEl, priceEl, stocksEl, locationInput, fromInput, toInput].forEach(
     (el) => el && el.classList.remove("is-invalid"),
@@ -457,14 +459,12 @@ async function addToStaging() {
   formData.append("meetup_time_from", fromInput.value);
   formData.append("meetup_time_to", toInput.value);
   formData.append("owner_type", ownerTypeEl?.value || "PERSONAL");
-  formData.append("pre_order",preOrderElement ? preOrderElement.checked : false,);
+
+  // Pre-order: send once only as "True" / "False"
+  formData.append("pre_order", isPreOrder ? "True" : "False");
 
   const paymentEl = document.querySelector('input[name="payment"]:checked');
   formData.append("payment", paymentEl ? paymentEl.value : "BOTH");
-  formData.append(
-    "pre_order",
-    preOrderElement ? preOrderElement.value : "False",
-  );
   formData.append("variants", JSON.stringify(window.productVariants || []));
 
   window.selectedFiles.forEach((file) => {
@@ -523,6 +523,11 @@ async function addToStaging() {
             <div class="mt-1">
               <span class="badge bg-success-subtle text-success small">₱${finalPrice}</span>
               <span class="text-muted small ms-1">Stock: ${finalStocks}</span>
+              ${
+                isPreOrder
+                  ? `<span class="badge bg-primary-subtle text-primary small ms-1">Pre-order</span>`
+                  : ""
+              }
             </div>
           </div>
         </div>
@@ -561,7 +566,6 @@ async function addToStaging() {
       countEl.innerText = document.querySelectorAll(".staged-item").length;
     }
 
-    // Cleanup form — but keep / refresh product code
     const codeBeforeReset = result.next_product_code || null;
 
     document.getElementById("product_form")?.reset();
@@ -573,7 +577,7 @@ async function addToStaging() {
       cb.checked = false;
     });
 
-    // Restore next product code after reset (reset clears readonly inputs too)
+    // form reset also unchecks pre-order; that's expected
     if (codeBeforeReset) {
       setProductCodeValue(codeBeforeReset);
     } else {

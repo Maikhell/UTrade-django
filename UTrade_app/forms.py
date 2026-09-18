@@ -4,14 +4,13 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ['name', 'description', 'category', 'pre_order', 'accepted_payments','owner_type']
+        fields = ['name', 'description', 'category', 'pre_order', 'accepted_payments', 'owner_type']
         widgets = {
             'description': forms.Textarea(attrs={'cols': 80, 'rows': 5, 'class': 'form-control'}),
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'category': forms.Select(attrs={'class': 'form-select'}),
-            'pre_order': forms.Select(
-                choices=[(False, 'Live (On-hand Stock)'), (True, 'Pre-order (Advance Order)')],
-                attrs={'class': 'form-select'}
+            'pre_order': forms.CheckboxInput(
+                attrs={'class': 'form-check-input'}
             ),
             'accepted_payments': forms.Select(attrs={'class': 'form-select'}),
         }

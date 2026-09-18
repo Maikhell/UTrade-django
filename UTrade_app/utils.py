@@ -55,3 +55,20 @@ def generate_next_product_code(model_cls=None):
     last = max(max_seq(Product.objects.all()), max_seq(StagedProduct.objects.all()))
     next_num = last + 1
     return f'{prefix}{next_num:04d}'
+
+def get_seller_owner_type_filter(user):
+    """
+    Map role → product owner_type that this user may manage.
+    Returns None for normal student sellers (no extra owner_type filter).
+    """
+    role = (getattr(user, 'user_role', '') or '').lower()
+
+    if role in ('management', 'admin', 'campus_admin'):
+        return 'MANAGEMENT'
+    if role in ('alumni_assoc',) or getattr(user, 'is_officer', False):
+        # Organization officers / org accounts
+        return 'ORGANIZATION'
+    # Optional: explicit org role string
+    if role in ('organization', 'org'):
+        return 'ORGANIZATION'
+    return None  

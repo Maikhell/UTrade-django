@@ -109,5 +109,8 @@ urlpatterns = [
     #otp
     path('verify-email/', otplink_views.verify_otp, name='verify_otp'),
     
+    path('seller/preorder/<int:preorder_id>/ready/', user_views.preorder_mark_ready, name='preorder.mark_ready'),
+    path('seller/preorder/<int:preorder_id>/complete/', user_views.preorder_mark_completed, name='preorder.mark_completed'),
+    path('seller/reports/preorders/', user_views.seller_preorder_report, name='seller.preorder_report'),
     ]
    

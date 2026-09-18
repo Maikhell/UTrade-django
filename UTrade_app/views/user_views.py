@@ -30,8 +30,9 @@ from ..models import (
     Product,
     ProductVariant,
     User,
+    PreOrderRequest,
 )
-from ..utils import send_otp_email
+from ..utils import send_otp_email, get_seller_owner_type_filter
 
 class UserCreateView(CreateView):
     model = User 
@@ -193,7 +194,48 @@ class UserProductsView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
+        seller_preorders = PreOrderRequest.objects.filter(
+            seller=user
+        ).select_related(
+            'buyer',
+            'product_variant',
+            'product_variant__product',
+        ).order_by('-id')
 
+        owner_type = get_seller_owner_type_filter(user)
+        if owner_type:
+            seller_preorders = seller_preorders.filter(
+                product_variant__product__owner_type=owner_type
+            )
+        incoming_preorders = seller_preorders.filter(
+            Q(status__iexact='Pending') | Q(status__iexact='Paid')
+        )
+        ready_preorders = seller_preorders.filter(
+            Q(status__iexact='Accepted')
+            | Q(status__iexact='Ready')
+            | Q(status__iexact='Ready for Pickup')
+        )
+        completed_preorders = seller_preorders.filter(
+            status__iexact='Completed'
+        )
+
+        # Distinct course/section from buyers (for report filters)
+        course_options = (
+            seller_preorders
+            .exclude(buyer__course__isnull=True)
+            .exclude(buyer__course='')
+            .values_list('buyer__course', flat=True)
+            .distinct()
+            .order_by('buyer__course')
+        )
+        section_options = (
+            seller_preorders
+            .exclude(buyer__section__isnull=True)
+            .exclude(buyer__section='')
+            .values_list('buyer__section', flat=True)
+            .distinct()
+            .order_by('buyer__section')
+        )
         # Product status counts
         counts = Product.objects.filter(seller=user).aggregate(
             approved=Count('id', filter=Q(status__iexact='Approved')),
@@ -241,6 +283,16 @@ class UserProductsView(LoginRequiredMixin, ListView):
             'total_stocks': total_stocks,
             'total_orders': total_orders,
             'total_income': total_income,
+            
+            'incoming_preorders': incoming_preorders,
+            'ready_preorders': ready_preorders,
+            'completed_preorders': completed_preorders,
+            'incoming_preorder_count': incoming_preorders.count(),
+            'ready_preorder_count': ready_preorders.count(),
+            'completed_preorder_count': completed_preorders.count(),
+            'course_options': list(course_options),
+            'section_options': list(section_options),
+            'owner_type_filter': owner_type, 
         })
 
         return context
@@ -436,6 +488,84 @@ def seller_sales_report(request):
 
     response = HttpResponse(content_type='application/pdf')
     filename = f"UTrade_Sales_{seller.username}_{period}_{now.strftime('%Y%m%d')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    pisa_status = pisa.CreatePDF(html, dest=response, encoding='utf-8')
+    if pisa_status.err:
+        return HttpResponse('Error generating PDF report.', status=500)
+    return response
+
+def _get_managed_preorder(request, preorder_id):
+    """Fetch pre-order only if seller owns it AND owner_type matches role."""
+    qs = PreOrderRequest.objects.filter(
+        id=preorder_id,
+        seller=request.user,
+    ).select_related('product_variant__product')
+
+    owner_type = get_seller_owner_type_filter(request.user)
+    if owner_type:
+        qs = qs.filter(product_variant__product__owner_type=owner_type)
+
+    return get_object_or_404(qs)
+def preorder_mark_ready(request, preorder_id):
+    po = _get_managed_preorder(request, preorder_id)
+    po.status = 'Ready'
+    po.save(update_fields=['status'])
+    messages.success(request, f'Pre-order #{po.id} marked ready for pickup.')
+    return redirect('seller_inventory')
+
+def preorder_mark_completed(request, preorder_id):
+    po = _get_managed_preorder(request, preorder_id)
+    po.status = 'Completed'
+    po.save(update_fields=['status'])
+    messages.success(request, f'Pre-order #{po.id} completed.')
+    return redirect('seller_inventory')
+
+def seller_preorder_report(request):
+    seller = request.user
+    scope = request.GET.get('scope', 'all')
+    course = (request.GET.get('course') or '').strip()
+    section = (request.GET.get('section') or '').strip()
+    now = timezone.now()
+
+    qs = PreOrderRequest.objects.filter(seller=seller).select_related(
+        'buyer', 'product_variant', 'product_variant__product'
+    )
+
+    owner_type = get_seller_owner_type_filter(seller)
+    if owner_type:
+        qs = qs.filter(product_variant__product__owner_type=owner_type)
+
+    if scope == 'completed':
+        qs = qs.filter(status__iexact='Completed')
+        scope_label = 'Completed Pre-Orders'
+    else:
+        scope_label = 'All Pre-Orders'
+
+    if course:
+        qs = qs.filter(buyer__course__iexact=course)
+    if section:
+        qs = qs.filter(buyer__section__iexact=section)
+
+    qs = qs.order_by('-id')
+
+    context = {
+        'seller': seller,
+        'scope_label': scope_label,
+        'course': course or 'All',
+        'section': section or 'All',
+        'owner_type': owner_type or 'ALL',
+        'generated_at': now,
+        'preorders': qs[:200],
+        'total_count': qs.count(),
+        'total_qty': qs.aggregate(s=Sum('quantity'))['s'] or 0,
+    }
+
+    template = get_template('UTrade_app/reports/seller_preorder_report.html')
+    html = template.render(context)
+
+    response = HttpResponse(content_type='application/pdf')
+    filename = f"UTrade_PreOrders_{seller.username}_{now.strftime('%Y%m%d')}.pdf"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
     pisa_status = pisa.CreatePDF(html, dest=response, encoding='utf-8')

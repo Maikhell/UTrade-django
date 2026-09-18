@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    @page { size: A4; margin: 1.2cm; }
+    body { font-family: sans-serif; color: #333; font-size: 12px; }
+    .header { text-align: center; border-bottom: 2px solid #0dcaf0; padding-bottom: 10px; margin-bottom: 16px; }
+    .title { font-size: 18px; font-weight: bold; color: #0aa2c0; }
+    .meta { font-size: 11px; color: #666; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th { background: #f2f2f2; text-align: left; padding: 8px; border: 1px solid #ddd; font-size: 11px; }
+    td { padding: 8px; border: 1px solid #ddd; font-size: 11px; }
+    .footer { position: fixed; bottom: 0; width: 100%; text-align: right; font-size: 9px; color: #777; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">UTrade Pre-Order Report</div>
+    <div class="meta">
+      Seller: {{ seller.get_full_name|default:seller.username }}<br>
+      Scope: {{ scope_label }} |
+      Course: {{ course }} |
+      Section: {{ section }} |
+      Total: {{ total_count }} (Qty {{ total_qty }})
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Buyer</th>
+        <th>Course</th>
+        <th>Section</th>
+        <th>Product</th>
+        <th>Qty</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for po in preorders %}
+      <tr>
+        <td>#{{ po.id }}</td>
+        <td>{{ po.buyer.get_full_name|default:po.buyer.username }}</td>
+        <td>{{ po.buyer.course|default:"—" }}</td>
+        <td>{{ po.buyer.section|default:"—" }}</td>
+        <td>
+          {{ po.product_variant.product.name }}
+          {% if po.product_variant.variant_name %} ({{ po.product_variant.variant_name }}){% endif %}
+        </td>
+        <td>{{ po.quantity }}</td>
+        <td>{{ po.status }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" style="text-align:center;">No pre-orders for this filter.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    Generated {{ generated_at|date:"F d, Y g:i A" }} · UTrade
+  </div>
+</body>
+</html>

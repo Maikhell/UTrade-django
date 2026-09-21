@@ -38,30 +38,62 @@
     </ul>
 
     <div class="tab-content" id="orderTabsContent">
+
+      {# ===================== PENDING ===================== #}
       <div class="tab-pane fade show active" id="pending" role="tabpanel">
-        <!-- NEW: PRE-ORDER SECTION IN PENDING TAB -->
+
         {% for po in preorders %}
-          {% if po.status.upper == 'PENDING' or po.status.upper == 'APPROVED' or po.status.upper == 'PREPARING' %}
+          {% if po.status|upper == 'PENDING' or po.status|upper == 'APPROVED' or po.status|upper == 'PREPARING' %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden border-start border-4 border-info">
               <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-info-subtle">
-                <span class="small fw-bold text-uppercase text-info-emphasis"><i class="bi bi-clock-history"></i> PRE-ORDER: {{ po.status }}</span>
+                <span class="small fw-bold text-uppercase text-info-emphasis">
+                  <i class="bi bi-clock-history"></i> PRE-ORDER: {{ po.status }}
+                </span>
                 <span class="small text-muted">Req #{{ po.id }} | {{ po.created_at|date:'M d' }}</span>
               </div>
               <div class="card-body p-3">
                 <div class="d-flex align-items-center mb-3">
-                  <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" />
+                  {% if po.product_variant.product.image %}
+                    <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                  {% elif po.product_variant.product.images.first %}
+                    <img src="{{ po.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                  {% endif %}
                   <div class="flex-grow-1">
                     <h6 class="mb-0 small fw-bold">{{ po.product_variant.product.name }}</h6>
-                    <small class="text-muted">{{ po.quantity }}x - {{ po.product_variant.variant_name }}</small>
+                    <small class="text-muted">
+                      {{ po.quantity }}x – {{ po.product_variant.variant_name }}
+                      (₱{{ po.product_variant.price }})
+                    </small>
                   </div>
                 </div>
+
+                <div class="mb-2">
+                  <small class="text-muted">Seller:</small>
+                  <span class="fw-bold small">{{ po.seller.first_name|default:po.seller.username }}</span>
+                  {% with role=po.seller.user_role|default:''|lower %}
+                    {% if role == 'management' or role == 'admin' %}
+                      <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
+                    {% elif po.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
+                      <span class="badge bg-info-subtle text-info ms-1">Organization</span>
+                    {% else %}
+                      <span class="badge bg-success-subtle text-success ms-1">Student</span>
+                    {% endif %}
+                  {% endwith %}
+                </div>
+
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
                     <small class="text-muted d-block">Estimated Total</small>
-                    <span class="fw-bold text-info">₱{{ po.total_price }}</span>
+                    <span class="fw-bold text-info">
+                      ₱{% if po.total_price %}{{ po.total_price }}{% else %}{{ po.product_variant.price }}{% endif %}
+                    </span>
                   </div>
-                  {% if po.status == 'PENDING' %}
-                    <button onclick="handlePreOrder('{{ po.id }}', 'DECLINED')" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Request</button>
+                  {% if po.status|upper == 'PENDING' %}
+                    <button type="button"
+                            onclick="handleCancelPreOrder('{{ po.id }}')"
+                            class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">
+                      Cancel Pre-Order
+                    </button>
                   {% else %}
                     <span class="badge bg-light text-dark border">Order is being processed</span>
                   {% endif %}
@@ -71,32 +103,43 @@
           {% endif %}
         {% endfor %}
 
-        <!-- EXISTING REGULAR ORDERS -->
-        <!-- EXISTING REGULAR ORDERS -->
         {% for order in pending_orders %}
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
             <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-warning-subtle">
-              <span class="small fw-bold text-uppercase text-warning-emphasis"><i class="bi bi-hourglass-split"></i> {{ order.status }}</span>
+              <span class="small fw-bold text-uppercase text-warning-emphasis">
+                <i class="bi bi-hourglass-split"></i> {{ order.status }}
+              </span>
               <span class="small text-muted">Order #{{ order.id }} | {{ order.created_at|date:'M d' }}</span>
             </div>
 
             <div class="card-body p-3">
               <div class="mb-3">
                 <small class="text-muted">Seller:</small>
-                <!-- Using the 'seller' ForeignKey from your Order model -->
                 <span class="fw-bold small">{{ order.seller.first_name|default:order.seller.username }}</span>
+                {% with role=order.seller.user_role|default:''|lower %}
+                  {% if role == 'management' or role == 'admin' %}
+                    <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
+                  {% elif order.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
+                    <span class="badge bg-info-subtle text-info ms-1">Organization</span>
+                  {% else %}
+                    <span class="badge bg-success-subtle text-success ms-1">Student</span>
+                  {% endif %}
+                {% endwith %}
               </div>
 
               <div class="d-flex flex-column gap-3">
-                <!-- CRITICAL FIX: Loop through the related items -->
                 {% for item in order.items.all %}
                   <div class="d-flex align-items-center">
                     {% if item.product_variant.product.image %}
-                      <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" />
+                      <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                    {% elif item.product_variant.product.images.first %}
+                      <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
                     {% endif %}
                     <div class="flex-grow-1">
                       <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
-                      <small class="text-muted">{{ item.quantity }}x - {{ item.product_variant.variant_name }} (₱{{ item.price }})</small>
+                      <small class="text-muted">
+                        {{ item.quantity }}x – {{ item.product_variant.variant_name }} (₱{{ item.price }})
+                      </small>
                     </div>
                     <div class="text-end">
                       <span class="small fw-bold">₱{{ item.get_cost }}</span>
@@ -109,17 +152,16 @@
 
               <hr class="my-3 opacity-25" />
 
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                   <small class="text-muted d-block">Order Total ({{ order.payment_method }})</small>
                   <span class="fw-bold text-primary" style="font-size: 1.2rem;">₱{{ order.total_amount }}</span>
                 </div>
-
                 <div class="d-flex gap-2">
                   {% if order.status == 'Pending' %}
-                    <button onclick="handleCancelOrder('{{ order.id }}')" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Order</button>
+                    <button type="button" onclick="handleCancelOrder('{{ order.id }}')" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Order</button>
                   {% endif %}
-                  <button class="btn btn-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#orderDetails{{ order.id }}">View Full Details</button>
+                  <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#orderDetails{{ order.id }}">View Full Details</button>
                 </div>
               </div>
             </div>
@@ -129,33 +171,56 @@
         {% endfor %}
       </div>
 
+      {# ===================== TO PICKUP ===================== #}
       <div class="tab-pane fade" id="pickup" role="tabpanel">
-        <!-- NEW: PRE-ORDERS READY FOR PICKUP -->
+
         {% for po in preorders %}
-          {% if po.status == 'READY' %}
+          {% if po.status|upper == 'READY' %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden border-start border-4 border-warning">
               <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-warning-subtle">
-                <span class="small fw-bold text-uppercase text-warning-emphasis"><i class="bi bi-geo-alt-fill"></i> PRE-ORDER: Ready for Pickup</span>
-                <span class="small text-muted">Order #{{ po.id }}</span>
+                <span class="small fw-bold text-uppercase text-warning-emphasis">
+                  <i class="bi bi-geo-alt-fill"></i> PRE-ORDER: Ready for Pickup
+                </span>
+                <span class="small text-muted">Req #{{ po.id }}</span>
               </div>
               <div class="card-body p-3">
                 <div class="d-flex align-items-center mb-3">
-                  <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" />
+                  {% if po.product_variant.product.image %}
+                    <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                  {% elif po.product_variant.product.images.first %}
+                    <img src="{{ po.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                  {% endif %}
                   <div class="flex-grow-1">
                     <h6 class="mb-0 small fw-bold">{{ po.product_variant.product.name }}</h6>
-                    <small class="text-muted">{{ po.quantity }}x - ₱{{ po.total_price }}</small>
+                    <small class="text-muted">
+                      {{ po.quantity }}x – ₱{{ po.product_variant.price }}
+                    </small>
                   </div>
+                </div>
+                <div class="mb-2">
+                  <small class="text-muted">Seller:</small>
+                  <span class="fw-bold small">{{ po.seller.first_name|default:po.seller.username }}</span>
+                  {% with role=po.seller.user_role|default:''|lower %}
+                    {% if role == 'management' or role == 'admin' %}
+                      <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
+                    {% elif po.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
+                      <span class="badge bg-info-subtle text-info ms-1">Organization</span>
+                    {% else %}
+                      <span class="badge bg-success-subtle text-success ms-1">Student</span>
+                    {% endif %}
+                  {% endwith %}
                 </div>
                 <div class="d-flex justify-content-between align-items-center">
                   <span class="badge bg-success-subtle text-success p-2 px-3 rounded-pill">Pay at Pickup</span>
-                  <button onclick="handlePreOrder('{{ po.id }}', 'COMPLETED')" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">Complete Delivery</button>
+                  <button type="button" onclick="handlePreOrder('{{ po.id }}', 'COMPLETED')" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">
+                    Complete Delivery
+                  </button>
                 </div>
               </div>
             </div>
           {% endif %}
         {% endfor %}
 
-        <!-- EXISTING REGULAR PICKUP ORDERS -->
         {% for order in pickup_orders %}
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
             <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-primary-subtle">
@@ -167,31 +232,49 @@
               <div class="mb-3">
                 <small class="text-muted">Seller:</small>
                 <span class="fw-bold small">{{ order.seller.first_name|default:order.seller.username }}</span>
+                {% with role=order.seller.user_role|default:''|lower %}
+                  {% if role == 'management' or role == 'admin' %}
+                    <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
+                  {% elif order.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
+                    <span class="badge bg-info-subtle text-info ms-1">Organization</span>
+                  {% else %}
+                    <span class="badge bg-success-subtle text-success ms-1">Student</span>
+                  {% endif %}
+                {% endwith %}
               </div>
 
               {% for item in order.items.all %}
                 <div class="d-flex align-items-center mb-2">
-                  <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" />
+                  {% if item.product_variant.product.image %}
+                    <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                  {% elif item.product_variant.product.images.first %}
+                    <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                  {% endif %}
                   <div class="flex-grow-1">
                     <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
-                    <small class="text-muted">{{ item.quantity }}x - ₱{{ item.price }}</small>
+                    <small class="text-muted">{{ item.quantity }}x – ₱{{ item.price }}</small>
                   </div>
+                  <span class="small fw-bold">₱{{ item.get_cost }}</span>
                 </div>
               {% endfor %}
 
               <hr class="my-3 opacity-25" />
 
-              <div class="d-flex justify-content-between align-items-center">
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div class="d-flex gap-2">
-                  <button class="btn btn-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#pickupDetails{{ order.id }}">View Details</button>
+                  <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#pickupDetails{{ order.id }}">View Details</button>
                   {% with first_item=order.items.all.0 %}
-                    <a href="{% url 'start_chat' product_id=first_item.product_variant.product.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold"><i class="bi bi-chat-dots"></i> Message Seller</a>
+                    {% if first_item %}
+                      <a href="{% url 'start_chat' product_id=first_item.product_variant.product.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                        <i class="bi bi-chat-dots"></i> Message Seller
+                      </a>
+                    {% endif %}
                   {% endwith %}
                 </div>
 
                 {% if order.status == 'Delivered' %}
                   <form action="{% url 'confirm_receipt' order.id %}" method="POST">
-                    {% csrf_token %} <!-- ADD THIS LINE -->
+                    {% csrf_token %}
                     <button type="submit" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">Confirm Received</button>
                   </form>
                 {% else %}
@@ -201,14 +284,13 @@
             </div>
           </div>
         {% empty %}
-          {% if not preorders %}
-            <div class="text-center py-5 text-muted">No orders to pickup right now.</div>
-          {% endif %}
+          <div class="text-center py-5 text-muted">No orders to pickup right now.</div>
         {% endfor %}
       </div>
 
+      {# ===================== HISTORY ===================== #}
       <div class="tab-pane fade" id="all" role="tabpanel">
-        <!-- Combined History for Regular Orders and Pre-Orders -->
+
         {% for order in orders %}
           {% if order.status == 'Completed' or order.status == 'Cancelled' %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
@@ -227,34 +309,59 @@
                 <div class="mb-3">
                   <small class="text-muted">Seller:</small>
                   <span class="fw-bold small">{{ order.seller.first_name|default:order.seller.username }}</span>
+                  {% with role=order.seller.user_role|default:''|lower %}
+                    {% if role == 'management' or role == 'admin' %}
+                      <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
+                    {% elif order.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
+                      <span class="badge bg-info-subtle text-info ms-1">Organization</span>
+                    {% else %}
+                      <span class="badge bg-success-subtle text-success ms-1">Student</span>
+                    {% endif %}
+                  {% endwith %}
                 </div>
 
                 <div class="d-flex flex-column gap-3">
                   {% for item in order.items.all %}
                     <div class="d-flex align-items-center">
-                      <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" />
+                      {% if item.product_variant.product.image %}
+                        <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                      {% elif item.product_variant.product.images.first %}
+                        <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                      {% endif %}
                       <div class="flex-grow-1">
                         <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
-                        <small class="text-muted">{{ item.quantity }}x - ₱{{ item.price }}</small>
+                        <small class="text-muted">{{ item.quantity }}x – ₱{{ item.price }}</small>
                       </div>
+                      <span class="small fw-bold">₱{{ item.get_cost }}</span>
                     </div>
                   {% endfor %}
                 </div>
 
                 <hr class="my-3 opacity-25" />
 
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div>
                     <small class="text-muted d-block">Total Paid</small>
                     <span class="fw-bold">₱{{ order.total_amount }}</span>
                   </div>
-                  <div class="d-flex gap-2">
+                  <div class="d-flex gap-2 flex-wrap">
                     {% if order.status == 'Completed' %}
-                      <!-- E-Receipt Button -->
-                      <a href="{% url 'generate_receipt' order.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold"><i class="bi bi-file-earmark-pdf me-1"></i> Receipt</a>
-                      <button class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}"><i class="bi bi-star-fill me-1"></i> Rate</button>
+                      <a href="{% url 'generate_receipt' order.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold">
+                        <i class="bi bi-download me-1"></i> Receipt
+                      </a>
+                      {% if not order.is_rated %}
+                        <button type="button" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}">
+                          <i class="bi bi-star-fill me-1"></i> Rate
+                        </button>
+                      {% else %}
+                        <span class="badge bg-success-subtle text-success d-flex align-items-center px-3">
+                          <i class="bi bi-check2-circle me-1"></i> Rated
+                        </span>
+                      {% endif %}
                     {% endif %}
-                    <button class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#historyDetails{{ order.id }}"><i class="bi bi-eye me-1"></i> Details</button>
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#historyDetails{{ order.id }}">
+                      <i class="bi bi-eye me-1"></i> Details
+                    </button>
                   </div>
                 </div>
               </div>
@@ -264,27 +371,33 @@
           <div class="text-center py-5 text-muted">No order history found.</div>
         {% endfor %}
 
-        <!-- NEW: Completed Pre-Orders in History -->
-        <!-- Completed Pre-Orders in History -->
         {% for po in preorders %}
-          {% if po.status == 'COMPLETED' or po.status == 'DECLINED' %}
+          {% if po.status|upper == 'COMPLETED' or po.status|upper == 'DECLINED' %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden opacity-75">
               <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-light">
-                <span class="small fw-bold text-uppercase"><i class="bi bi-clock-history"></i> PRE-ORDER: {{ po.status }}</span>
+                <span class="small fw-bold text-uppercase">
+                  <i class="bi bi-clock-history"></i> PRE-ORDER: {{ po.status }}
+                </span>
                 <span class="small text-muted">Req #{{ po.id }}</span>
               </div>
               <div class="card-body p-3">
-                <div class="d-flex align-items-center">
-                  <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 40px; height: 40px; object-fit: cover;" />
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                  {% if po.product_variant.product.image %}
+                    <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 40px; height: 40px; object-fit: cover;" alt="" />
+                  {% elif po.product_variant.product.images.first %}
+                    <img src="{{ po.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 40px; height: 40px; object-fit: cover;" alt="" />
+                  {% endif %}
                   <div class="flex-grow-1">
                     <h6 class="mb-0 small fw-bold">{{ po.product_variant.product.name }}</h6>
-                    <small class="text-muted">₱{{ po.total_price }}</small>
+                    <small class="text-muted">
+                      {{ po.quantity }}x × ₱{{ po.product_variant.price }}
+                    </small>
                   </div>
-
                   <div class="d-flex gap-2">
-                    {% if po.status == 'COMPLETED' %}
-                      <!-- E-Receipt Button for Pre-Orders -->
-                      <a href="{% url 'generate_preorder_receipt' po.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold"><i class="bi bi-file-earmark-pdf me-1"></i> Receipt</a>
+                    {% if po.status|upper == 'COMPLETED' %}
+                      <a href="{% url 'generate_preorder_receipt' po.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold">
+                        <i class="bi bi-download me-1"></i> Receipt
+                      </a>
                       <span class="badge bg-success-subtle text-success d-flex align-items-center">Finished</span>
                     {% endif %}
                   </div>
@@ -297,24 +410,32 @@
     </div>
   </div>
 
-
-  <!-- ==================== ORDER DETAIL MODALS ==================== -->
+  {# ==================== PENDING MODALS ==================== #}
   {% for order in pending_orders %}
-    <div class="modal fade" id="orderDetails{{ order.id }}" tabindex="-1" aria-labelledby="orderDetailsLabel{{ order.id }}" aria-hidden="true">
+    <div class="modal fade" id="orderDetails{{ order.id }}" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 rounded-4 shadow">
           <div class="modal-header">
             <div>
-              <h5 class="modal-title fw-bold" id="orderDetailsLabel{{ order.id }}">Order #{{ order.id }}</h5>
+              <h5 class="modal-title fw-bold">Order #{{ order.id }}</h5>
               <small class="text-muted">{{ order.created_at|date:"M d, Y h:i A" }}</small>
             </div>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
             <div class="row g-3 mb-4">
               <div class="col-md-6">
                 <small class="text-muted d-block">Seller</small>
                 <span class="fw-semibold">{{ order.seller.first_name|default:order.seller.username }}</span>
+                {% with role=order.seller.user_role|default:''|lower %}
+                  {% if role == 'management' or role == 'admin' %}
+                    <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
+                  {% elif order.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
+                    <span class="badge bg-info-subtle text-info ms-1">Organization</span>
+                  {% else %}
+                    <span class="badge bg-success-subtle text-success ms-1">Student</span>
+                  {% endif %}
+                {% endwith %}
               </div>
               <div class="col-md-6">
                 <small class="text-muted d-block">Status</small>
@@ -326,14 +447,18 @@
               </div>
               <div class="col-md-6">
                 <small class="text-muted d-block">Pickup Location</small>
-                <span class="fw-semibold">{{ order.pickup_location|default:"Not specified" }}</span>
+                <span class="fw-semibold">
+                  {{ order.pickup_location|default:order.meetup_location|default:"Not specified" }}
+                </span>
               </div>
             </div>
             <h6 class="fw-bold mb-3">Products</h6>
             {% for item in order.items.all %}
               <div class="d-flex align-items-center gap-3 border rounded-3 p-3 mb-2">
                 {% if item.product_variant.product.image %}
-                  <img src="{{ item.product_variant.product.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="{{ item.product_variant.product.name }}">
+                  <img src="{{ item.product_variant.product.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
+                {% elif item.product_variant.product.images.first %}
+                  <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
                 {% endif %}
                 <div class="flex-grow-1">
                   <div class="fw-bold">{{ item.product_variant.product.name }}</div>
@@ -361,16 +486,17 @@
     </div>
   {% endfor %}
 
+  {# ==================== PICKUP MODALS ==================== #}
   {% for order in pickup_orders %}
-    <div class="modal fade" id="pickupDetails{{ order.id }}" tabindex="-1" aria-labelledby="pickupDetailsLabel{{ order.id }}" aria-hidden="true">
+    <div class="modal fade" id="pickupDetails{{ order.id }}" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 rounded-4 shadow">
           <div class="modal-header">
             <div>
-              <h5 class="modal-title fw-bold" id="pickupDetailsLabel{{ order.id }}">Order #{{ order.id }}</h5>
+              <h5 class="modal-title fw-bold">Order #{{ order.id }}</h5>
               <small class="text-muted">{{ order.created_at|date:"M d, Y h:i A" }}</small>
             </div>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
             <div class="row g-3 mb-4">
@@ -384,14 +510,18 @@
               </div>
               <div class="col-md-4">
                 <small class="text-muted d-block">Pickup Location</small>
-                <span class="fw-semibold">{{ order.pickup_location|default:"Not specified" }}</span>
+                <span class="fw-semibold">
+                  {{ order.pickup_location|default:order.meetup_location|default:"Not specified" }}
+                </span>
               </div>
             </div>
             <h6 class="fw-bold mb-3">Products</h6>
             {% for item in order.items.all %}
               <div class="d-flex align-items-center gap-3 border rounded-3 p-3 mb-2">
                 {% if item.product_variant.product.image %}
-                  <img src="{{ item.product_variant.product.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="{{ item.product_variant.product.name }}">
+                  <img src="{{ item.product_variant.product.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
+                {% elif item.product_variant.product.images.first %}
+                  <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
                 {% endif %}
                 <div class="flex-grow-1">
                   <div class="fw-bold">{{ item.product_variant.product.name }}</div>
@@ -413,17 +543,18 @@
     </div>
   {% endfor %}
 
+  {# ==================== HISTORY + RATE MODALS ==================== #}
   {% for order in orders %}
     {% if order.status == 'Completed' or order.status == 'Cancelled' %}
-      <div class="modal fade" id="historyDetails{{ order.id }}" tabindex="-1" aria-labelledby="historyDetailsLabel{{ order.id }}" aria-hidden="true">
+      <div class="modal fade" id="historyDetails{{ order.id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
           <div class="modal-content border-0 rounded-4 shadow">
             <div class="modal-header">
               <div>
-                <h5 class="modal-title fw-bold" id="historyDetailsLabel{{ order.id }}">Order #{{ order.id }}</h5>
+                <h5 class="modal-title fw-bold">Order #{{ order.id }}</h5>
                 <small class="text-muted">{{ order.created_at|date:"M d, Y h:i A" }}</small>
               </div>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
               <div class="row g-3 mb-4">
@@ -439,12 +570,20 @@
                   <small class="text-muted d-block">Payment</small>
                   <span class="fw-semibold">{{ order.payment_method }}</span>
                 </div>
+                <div class="col-md-12">
+                  <small class="text-muted d-block">Pickup Location</small>
+                  <span class="fw-semibold">
+                    {{ order.pickup_location|default:order.meetup_location|default:"Not specified" }}
+                  </span>
+                </div>
               </div>
               <h6 class="fw-bold mb-3">Products</h6>
               {% for item in order.items.all %}
                 <div class="d-flex align-items-center gap-3 border rounded-3 p-3 mb-2">
                   {% if item.product_variant.product.image %}
-                    <img src="{{ item.product_variant.product.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="{{ item.product_variant.product.name }}">
+                    <img src="{{ item.product_variant.product.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
+                  {% elif item.product_variant.product.images.first %}
+                    <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
                   {% endif %}
                   <div class="flex-grow-1">
                     <div class="fw-bold">{{ item.product_variant.product.name }}</div>
@@ -471,21 +610,22 @@
         </div>
       </div>
 
-      {% if order.status == 'Completed' %}
-        <div class="modal fade" id="rateModal{{ order.id }}" tabindex="-1" aria-labelledby="rateModalLabel{{ order.id }}" aria-hidden="true">
+      {% if order.status == 'Completed' and not order.is_rated %}
+        <div class="modal fade" id="rateModal{{ order.id }}" tabindex="-1" aria-hidden="true">
           <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 rounded-4 shadow">
               <form method="POST" action="{% url 'submit_rating' order.id %}" class="rating-form">
                 {% csrf_token %}
                 <div class="modal-header">
-                  <h5 class="modal-title fw-bold" id="rateModalLabel{{ order.id }}">Rate your order</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  <h5 class="modal-title fw-bold">Rate your order</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                   <p class="text-muted mb-3">Your rating will be applied to the products in this order.</p>
-                  <div class="rating-stars text-center mb-3" role="radiogroup" aria-label="Rating">
-                    {% for value in "54321" %}
-                      <button type="button" class="rating-star btn btn-link p-1 fs-1 text-decoration-none"
+                  {# Stars left → right: 1..5 #}
+                  <div class="rating-stars text-center mb-3 d-flex justify-content-center gap-1" role="radiogroup" aria-label="Rating">
+                    {% for value in "12345" %}
+                      <button type="button" class="rating-star btn btn-link p-1 fs-1 text-decoration-none text-warning"
                               data-rating="{{ value }}" aria-label="{{ value }} star{{ value|pluralize }}">
                         <i class="bi bi-star"></i>
                       </button>
@@ -511,128 +651,134 @@
   {% endfor %}
 
   <style>
-    /* Same styles as original */
-    .bg-info-subtle {
-      background-color: #cff4fc !important;
-      color: #055160 !important;
-    }
-    .border-info {
-      border-color: #0dcaf0 !important;
-    }
-    /* ... rest of your styles ... */
+    .bg-info-subtle { background-color: #cff4fc !important; }
+    .border-info { border-color: #0dcaf0 !important; }
+    .rating-star { color: #ffc107; }
+    .rating-star:hover { opacity: 0.85; }
   </style>
 
   <script>
-    // Add this to your existing scripts to handle the Pre-Order status changes
     async function handlePreOrder(orderId, newStatus) {
-      const confirmText = newStatus === 'DECLINED' ? 'Cancel this pre-order?' : 'Confirm delivery completion?'
-      const confirmBtn = newStatus === 'DECLINED' ? '#dc3545' : '#198754'
-    
+      const confirmText = newStatus === 'DECLINED' ? 'Cancel this pre-order?' : 'Confirm delivery completion?';
+      const confirmBtn = newStatus === 'DECLINED' ? '#dc3545' : '#198754';
+
       const { isConfirmed } = await Swal.fire({
         title: confirmText,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: confirmBtn,
         confirmButtonText: 'Yes, proceed'
-      })
-    
-      if (isConfirmed) {
-        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value
-        try {
-          const response = await fetch(`/preorder/update-status/${orderId}/`, {
-            method: 'POST',
-            headers: {
-              'X-CSRFToken': csrftoken,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ status: newStatus })
-          })
-          const data = await response.json()
-          if (data.success) {
-            location.reload()
-          } else {
-            Swal.fire('Error', data.message, 'error')
-          }
-        } catch (error) {
-          Swal.fire('Error', 'Communication failed.', 'error')
+      });
+
+      if (!isConfirmed) return;
+
+      const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      try {
+        const response = await fetch(`/preorder/update-status/${orderId}/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status: newStatus })
+        });
+        const data = await response.json();
+        if (data.success) {
+          location.reload();
+        } else {
+          Swal.fire('Error', data.message || 'Update failed', 'error');
         }
-      }
-    }
-    
-    async function handleCancelOrder(orderId) {
-      const { value: reason } = await Swal.fire({
-        title: 'Cancel Order?',
-    
-        text: 'Please tell us why you are cancelling:',
-    
-        input: 'select',
-    
-        inputOptions: {
-          'Changed mind': 'Changed my mind',
-    
-          'Found better price': 'Found a better price',
-    
-          'Accidental order': 'Accidental order',
-    
-          'Seller not responding': 'Seller is not responding',
-    
-          Other: 'Other'
-        },
-    
-        inputPlaceholder: 'Select a reason',
-    
-        showCancelButton: true,
-    
-        confirmButtonColor: '#dc3545',
-    
-        cancelButtonColor: '#6c757d',
-    
-        confirmButtonText: 'Yes, cancel it!',
-    
-        inputValidator: (value) => {
-          return new Promise((resolve) => {
-            if (value) {
-              resolve()
-            } else {
-              resolve('You need to select a reason.')
-            }
-          })
-        }
-      })
-    
-      if (reason) {
-        const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value
-    
-        try {
-          const response = await fetch(`/orders/cancel/${orderId}/`, {
-            method: 'POST',
-    
-            headers: {
-              'X-CSRFToken': csrftoken,
-    
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-    
-            body: `reason=${reason}`
-          })
-    
-          const result = await response.json()
-    
-          if (result.status === 'success') {
-            Swal.fire('Cancelled!', result.message, 'success').then(() => {
-              location.reload() // Refresh to update status
-            })
-          } else {
-            Swal.fire('Error', result.message, 'error')
-          }
-        } catch (error) {
-          Swal.fire('Error', 'Something went wrong.', 'error')
-        }
+      } catch (error) {
+        Swal.fire('Error', 'Communication failed.', 'error');
       }
     }
 
-    // Rating stars: click a star, store the value in the hidden input,
-    // and visually highlight the selected rating.
+    async function handleCancelPreOrder(preorderId) {
+      const { value: reason } = await Swal.fire({
+        title: 'Cancel Pre-Order?',
+        text: 'Please select a reason:',
+        input: 'select',
+        inputOptions: {
+          'Changed mind': 'Changed my mind',
+          'Found better price': 'Found a better price',
+          'Accidental order': 'Accidental order',
+          'Seller not responding': 'Seller is not responding',
+          Other: 'Other'
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        confirmButtonText: 'Yes, cancel it',
+        inputValidator: (value) => (!value ? 'You need to select a reason.' : undefined)
+      });
+
+      if (!reason) return;
+
+      const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      try {
+        const response = await fetch(`/preorder/update-status/${preorderId}/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ status: 'DECLINED', reason })
+        });
+        const data = await response.json();
+        if (data.success) {
+          await Swal.fire('Cancelled', data.message || 'Pre-order cancelled.', 'success');
+          location.reload();
+        } else {
+          Swal.fire('Error', data.message || 'Could not cancel.', 'error');
+        }
+      } catch (e) {
+        Swal.fire('Error', 'Communication failed.', 'error');
+      }
+    }
+
+    async function handleCancelOrder(orderId) {
+      const { value: reason } = await Swal.fire({
+        title: 'Cancel Order?',
+        text: 'Please tell us why you are cancelling:',
+        input: 'select',
+        inputOptions: {
+          'Changed mind': 'Changed my mind',
+          'Found better price': 'Found a better price',
+          'Accidental order': 'Accidental order',
+          'Seller not responding': 'Seller is not responding',
+          Other: 'Other'
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, cancel it!',
+        inputValidator: (value) => (!value ? 'You need to select a reason.' : undefined)
+      });
+
+      if (!reason) return;
+
+      const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+      try {
+        const response = await fetch(`/orders/cancel/${orderId}/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: `reason=${encodeURIComponent(reason)}`
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+          Swal.fire('Cancelled!', result.message, 'success').then(() => location.reload());
+        } else {
+          Swal.fire('Error', result.message, 'error');
+        }
+      } catch (error) {
+        Swal.fire('Error', 'Something went wrong.', 'error');
+      }
+    }
+
     document.querySelectorAll('.rating-form').forEach(function (form) {
       const stars = form.querySelectorAll('.rating-star');
       const valueInput = form.querySelector('.rating-value');
@@ -671,7 +817,6 @@
           valueInput.value = rating;
           paintRating(rating);
         });
-
         star.addEventListener('mouseenter', function () {
           paintRating(Number(this.dataset.rating));
         });

@@ -1,4 +1,5 @@
 from decimal import Decimal
+import json
 
 from django.contrib import messages
 from django.contrib.auth import login
@@ -10,6 +11,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.loader import get_template
 from django.urls import reverse_lazy
+from django.http import JsonResponse
 from django.utils import timezone
 from django.views.generic import (
     CreateView,
@@ -572,3 +574,43 @@ def seller_preorder_report(request):
     if pisa_status.err:
         return HttpResponse('Error generating PDF report.', status=500)
     return response
+
+def update_preorder_status(request, order_id):
+    try:
+        data = json.loads(request.body)
+        new_status = (data.get('status') or '').upper()
+        reason = (data.get('reason') or '').strip()
+
+        po = get_object_or_404(PreOrderRequest, id=order_id, buyer=request.user)
+
+        valid = {'PENDING', 'APPROVED', 'PREPARING', 'READY', 'COMPLETED', 'DECLINED'}
+        if new_status not in valid:
+            return JsonResponse({'success': False, 'message': 'Invalid status.'}, status=400)
+
+        # Buyer may only cancel while pending
+        if new_status == 'DECLINED':
+            if po.status.upper() not in ('PENDING',):
+                return JsonResponse({'success': False, 'message': 'Only pending pre-orders can be cancelled.'}, status=400)
+            if not reason:
+                return JsonResponse({'success': False, 'message': 'Cancellation reason is required.'}, status=400)
+            po.status = 'DECLINED'
+            if hasattr(po, 'cancellation_reason'):
+                po.cancellation_reason = reason
+                po.save(update_fields=['status', 'cancellation_reason'])
+            else:
+                po.save(update_fields=['status'])
+            return JsonResponse({'success': True, 'message': 'Pre-order cancelled.'})
+
+        if new_status == 'COMPLETED':
+            if po.status.upper() != 'READY':
+                return JsonResponse({'success': False, 'message': 'Pre-order is not ready yet.'}, status=400)
+            po.status = 'COMPLETED'
+            po.save(update_fields=['status'])
+            return JsonResponse({'success': True, 'message': 'Pre-order completed.'})
+
+        return JsonResponse({'success': False, 'message': 'Action not allowed.'}, status=400)
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)

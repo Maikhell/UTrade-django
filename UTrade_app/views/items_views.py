@@ -650,3 +650,4 @@ def get_attributes(request, category_id):
         'value', 'attribute_type'
     )
     return JsonResponse({'attributes': list(attributes)})
+

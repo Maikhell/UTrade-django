@@ -2,126 +2,171 @@
 <html>
   <head>
     <style>
+      /* ~80mm thermal / phone-width receipt */
+      @page {
+        size: 80mm 200mm;   /* width x height; height can grow with content */
+        margin: 8mm 6mm;
+      }
+
       body {
         font-family: 'Helvetica', 'Arial', sans-serif;
         color: #333;
         margin: 0;
-        padding: 20px;
+        padding: 0;
+        font-size: 10px;
+        line-height: 1.35;
       }
+
       .receipt-header {
         text-align: center;
-        border-bottom: 2px solid #007bff;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
+        border-bottom: 1.5px solid #007bff;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
       }
       .receipt-header h1 {
         margin: 0;
         color: #007bff;
+        font-size: 14px;
         text-transform: uppercase;
       }
+      .receipt-header p {
+        margin: 4px 0 0;
+        font-size: 9px;
+        color: #555;
+      }
+
       .info-section {
-        display: table;
-        width: 100%;
-        margin-bottom: 30px;
+        margin-bottom: 12px;
+        font-size: 9px;
       }
-      .info-column {
-        display: table-cell;
-        width: 50%;
-        vertical-align: top;
+      .info-block {
+        margin-bottom: 8px;
       }
+      .info-block strong {
+        display: block;
+        margin-bottom: 2px;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 20px;
+        margin-bottom: 12px;
+        font-size: 9px;
       }
       th {
         background-color: #f8f9fa;
-        border-bottom: 2px solid #dee2e6;
-        padding: 10px;
+        border-bottom: 1px solid #dee2e6;
+        padding: 5px 3px;
         text-align: left;
-        font-size: 14px;
+        font-size: 8px;
       }
       td {
-        padding: 10px;
+        padding: 5px 3px;
         border-bottom: 1px solid #eee;
-        font-size: 13px;
+        font-size: 9px;
+        vertical-align: top;
       }
+      td.num, th.num {
+        text-align: right;
+        white-space: nowrap;
+      }
+
       .total-section {
         text-align: right;
-        margin-top: 20px;
+        margin-top: 10px;
+        font-size: 9px;
       }
       .total-amount {
-        font-size: 18px;
+        font-size: 13px;
         font-weight: bold;
         color: #007bff;
+        margin-top: 6px;
       }
+
       .footer {
-        margin-top: 50px;
+        margin-top: 20px;
         text-align: center;
-        font-size: 10px;
+        font-size: 8px;
         color: #777;
+        border-top: 1px dashed #ccc;
+        padding-top: 8px;
       }
     </style>
   </head>
   <body>
     <div class="receipt-header">
       <h1>UTrade E-Receipt</h1>
-      <p>Order #{{ order.id }} | Date: {{ order.created_at|date:'F d, Y' }}</p>
+      <p>
+        {% if is_preorder %}
+          Pre-Order #{{ order.id }} · {{ order.created_at|date:'M d, Y' }}
+        {% else %}
+          Order #{{ order.id }} · {{ order.created_at|date:'M d, Y' }}
+        {% endif %}
+      </p>
     </div>
 
     <div class="info-section">
-      <div class="info-column">
-        <strong>Seller:</strong><br />
+      <div class="info-block">
+        <strong>Seller</strong>
         {{ order.seller.get_full_name|default:order.seller.username }}<br />
         {{ order.seller.email }}
       </div>
-      <div class="info-column">
-        <strong>Buyer:</strong><br />
+      <div class="info-block">
+        <strong>Buyer</strong>
         {{ buyer.get_full_name|default:buyer.username }}<br />
-        Student No: {{ buyer.student_no }}
+        Student No: {{ buyer.student_no|default:"N/A" }}
       </div>
     </div>
 
     <table>
       <thead>
         <tr>
-          <th>Item Description</th>
-          <th>Qty</th>
-          <th>Unit Price</th>
-          <th>Total</th>
+          <th>Item</th>
+          <th class="num">Qty</th>
+          <th class="num">Price</th>
+          <th class="num">Total</th>
         </tr>
       </thead>
       <tbody>
         {% if is_preorder %}
           <tr>
-            <td>{{ order.product_variant.product.name }} ({{ order.product_variant.variant_name }})</td>
-            <td>{{ order.quantity }}</td>
-            <td>₱{{ order.product_variant.price }}</td>
-            <td>₱{{ order.get_total_price }}</td>
+            <td>
+              {{ order.product_variant.product.name }}
+              {% if order.product_variant.variant_name %}
+                <br /><span style="color:#666">({{ order.product_variant.variant_name }})</span>
+              {% endif %}
+            </td>
+            <td class="num">{{ order.quantity }}</td>
+            <td class="num">₱{{ order.product_variant.price }}</td>
+            <td class="num">₱{% widthratio order.product_variant.price 1 order.quantity %}</td>
           </tr>
         {% else %}
           {% for item in items %}
             <tr>
-              <td>{{ item.product_variant.product.name }} ({{ item.product_variant.variant_name }})</td>
-              <td>{{ item.quantity }}</td>
-              <td>₱{{ item.price }}</td>
-              <td>₱{{ item.get_total_item_price }}</td>
+              <td>
+                {{ item.product_variant.product.name }}
+                {% if item.product_variant.variant_name %}
+                  <br /><span style="color:#666">({{ item.product_variant.variant_name }})</span>
+                {% endif %}
+              </td>
+              <td class="num">{{ item.quantity }}</td>
+              <td class="num">₱{{ item.price }}</td>
+              <td class="num">₱{{ item.get_cost }}</td>
             </tr>
+          {% empty %}
+            <tr><td colspan="4">No items</td></tr>
           {% endfor %}
         {% endif %}
       </tbody>
     </table>
 
     <div class="total-section">
-      <p>
-        Payment Method: <strong>{{ order.payment_method|default:'Cash on Pickup' }}</strong>
-      </p>
-      <p>
-        Status: <strong>{{ order.status }}</strong>
-      </p>
+      <div>Payment: <strong>{{ order.payment_method|default:'Cash on Pickup' }}</strong></div>
+      <div>Status: <strong>{{ order.status }}</strong></div>
       <div class="total-amount">
-        Total Paid: ₱{% if is_preorder %}
-          {{ order.get_total_price }}
+        Total:
+        ₱{% if is_preorder %}
+          {% widthratio order.product_variant.price 1 order.quantity %}
         {% else %}
           {{ order.total_amount }}
         {% endif %}
@@ -129,10 +174,8 @@
     </div>
 
     <div class="footer">
-      <p>Thank you for using UTrade! This is a system-generated receipt.</p>
-      <p>
-        Generated on{% now 'Y-m-d H:i:s' %}
-      </p>
+      <p>Thank you for using UTrade</p>
+      <p>Generated {% now 'Y-m-d H:i' %}</p>
     </div>
   </body>
 </html>

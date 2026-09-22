@@ -657,7 +657,6 @@
                         <td>{{ po.quantity }}</td>
                         <td><span class="badge bg-warning text-dark">{{ po.status }}</span></td>
                         <td class="text-center">
-                          {# Wire to your accept/ready URL when ready #}
                           <form action="{% url 'preorder.mark_ready' po.id %}" method="POST" class="d-inline">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-success rounded-pill px-3">
@@ -678,7 +677,7 @@
             {% endif %}
           </div>
 
-          <!-- Ready for pickup -->
+          {# Ready — seller marks completed (buyer no longer does this) #}
           <div class="tab-pane fade" id="pre-ready-pane" role="tabpanel">
             {% if ready_preorders %}
               <div class="table-responsive">
@@ -730,7 +729,7 @@
             {% endif %}
           </div>
 
-          <!-- Completed -->
+          {# Completed — read only #}
           <div class="tab-pane fade" id="pre-completed-pane" role="tabpanel">
             {% if completed_preorders %}
               <div class="table-responsive">
@@ -774,9 +773,6 @@
               </div>
             {% endif %}
           </div>
-
-        </div>
-      </div>
       
       <hr class="my-5 opacity-25">
 

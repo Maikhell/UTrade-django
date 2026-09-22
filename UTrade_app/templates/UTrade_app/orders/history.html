@@ -44,32 +44,19 @@
 
         {% for po in preorders %}
           {% if po.status|upper == 'PENDING' or po.status|upper == 'APPROVED' or po.status|upper == 'PREPARING' %}
+            {% with p=po.product_variant.product %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden border-start border-4 border-info">
               <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-info-subtle">
                 <span class="small fw-bold text-uppercase text-info-emphasis">
-                  <i class="bi bi-clock-history"></i> PRE-ORDER: {{ po.status }}
+                  <span class="badge bg-info text-dark me-1">Pre-Order</span>
+                  {{ po.status }}
                 </span>
                 <span class="small text-muted">Req #{{ po.id }} | {{ po.created_at|date:'M d' }}</span>
               </div>
               <div class="card-body p-3">
-                <div class="d-flex align-items-center mb-3">
-                  {% if po.product_variant.product.image %}
-                    <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
-                  {% elif po.product_variant.product.images.first %}
-                    <img src="{{ po.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
-                  {% endif %}
-                  <div class="flex-grow-1">
-                    <h6 class="mb-0 small fw-bold">{{ po.product_variant.product.name }}</h6>
-                    <small class="text-muted">
-                      {{ po.quantity }}x – {{ po.product_variant.variant_name }}
-                      (₱{{ po.product_variant.price }})
-                    </small>
-                  </div>
-                </div>
-
                 <div class="mb-2">
                   <small class="text-muted">Seller:</small>
-                  <span class="fw-bold small">{{ po.seller.first_name|default:po.seller.username }}</span>
+                  <span class="fw-bold small">{{ po.seller.get_full_name|default:po.seller.username }}</span>
                   {% with role=po.seller.user_role|default:''|lower %}
                     {% if role == 'management' or role == 'admin' %}
                       <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
@@ -81,25 +68,44 @@
                   {% endwith %}
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center">
-                  <div>
-                    <small class="text-muted d-block">Estimated Total</small>
-                    <span class="fw-bold text-info">
-                      ₱{% if po.total_price %}{{ po.total_price }}{% else %}{{ po.product_variant.price }}{% endif %}
-                    </span>
-                  </div>
-                  {% if po.status|upper == 'PENDING' %}
-                    <button type="button"
-                            onclick="handleCancelPreOrder('{{ po.id }}')"
-                            class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">
-                      Cancel Pre-Order
-                    </button>
-                  {% else %}
-                    <span class="badge bg-light text-dark border">Order is being processed</span>
+                <div class="d-flex align-items-center mb-2">
+                  {% if p.image %}
+                    <img src="{{ p.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
+                  {% elif p.images.first %}
+                    <img src="{{ p.images.first.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
                   {% endif %}
+                  <div class="flex-grow-1">
+                    <h6 class="mb-0 small fw-bold">{{ p.name }}</h6>
+                    <small class="text-muted">{{ po.quantity }}x – {{ po.product_variant.variant_name }} (₱{{ po.product_variant.price }})</small>
+                    <div class="small text-muted mt-1">
+                      <i class="bi bi-geo-alt"></i> {{ p.meetup_location_text|default:"Location TBD" }}
+                      {% if p.available_days %} · <i class="bi bi-calendar-week"></i> {{ p.available_days }}{% endif %}
+                      {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                        · <i class="bi bi-clock"></i>
+                        {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-end align-items-center flex-wrap gap-2">
+                  <div class="me-auto">
+                    <small class="text-muted d-block">Estimated Total</small>
+                    <span class="fw-bold text-info">₱{% widthratio po.product_variant.price 1 po.quantity %}</span>
+                  </div>
+                  <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Pay at Pickup</span>
+                  {% if po.status|upper == 'PENDING' %}
+                    <button type="button" onclick="handleCancelPreOrder('{{ po.id }}')" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Pre-Order</button>
+                  {% else %}
+                    <span class="badge bg-light text-dark border fw-medium">Processing</span>
+                  {% endif %}
+                  <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                    <i class="bi bi-chat-dots"></i> Message Seller
+                  </a>
                 </div>
               </div>
             </div>
+            {% endwith %}
           {% endif %}
         {% endfor %}
 
@@ -107,61 +113,73 @@
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
             <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-warning-subtle">
               <span class="small fw-bold text-uppercase text-warning-emphasis">
-                <i class="bi bi-hourglass-split"></i> {{ order.status }}
+                <span class="badge bg-secondary me-1">Order</span>
+                {{ order.status }}
               </span>
               <span class="small text-muted">Order #{{ order.id }} | {{ order.created_at|date:'M d' }}</span>
             </div>
 
             <div class="card-body p-3">
-              <div class="mb-3">
-                <small class="text-muted">Seller:</small>
-                <span class="fw-bold small">{{ order.seller.first_name|default:order.seller.username }}</span>
-                {% with role=order.seller.user_role|default:''|lower %}
-                  {% if role == 'management' or role == 'admin' %}
-                    <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
-                  {% elif order.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
-                    <span class="badge bg-info-subtle text-info ms-1">Organization</span>
-                  {% else %}
-                    <span class="badge bg-success-subtle text-success ms-1">Student</span>
-                  {% endif %}
-                {% endwith %}
-              </div>
-
-              <div class="d-flex flex-column gap-3">
-                {% for item in order.items.all %}
-                  <div class="d-flex align-items-center">
-                    {% if item.product_variant.product.image %}
-                      <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
-                    {% elif item.product_variant.product.images.first %}
-                      <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
-                    {% endif %}
-                    <div class="flex-grow-1">
-                      <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
-                      <small class="text-muted">
-                        {{ item.quantity }}x – {{ item.product_variant.variant_name }} (₱{{ item.price }})
-                      </small>
-                    </div>
-                    <div class="text-end">
+              {% regroup order.items.all by product_variant.product.seller as seller_groups %}
+              {% for group in seller_groups %}
+                <div class="mb-3 {% if not forloop.last %}border-bottom pb-3{% endif %}">
+                  <div class="mb-2">
+                    <small class="text-muted">Seller:</small>
+                    <span class="fw-bold small">{{ group.grouper.get_full_name|default:group.grouper.username }}</span>
+                    {% with role=group.grouper.user_role|default:''|lower %}
+                      {% if role == 'management' or role == 'admin' %}
+                        <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
+                      {% elif group.grouper.organization or role == 'organization' or role == 'alumni_assoc' %}
+                        <span class="badge bg-info-subtle text-info ms-1">Organization</span>
+                      {% else %}
+                        <span class="badge bg-success-subtle text-success ms-1">Student</span>
+                      {% endif %}
+                    {% endwith %}
+                  </div>
+                  {% for item in group.list %}
+                    {% with p=item.product_variant.product %}
+                    <div class="d-flex align-items-center mb-2">
+                      {% if p.image %}
+                        <img src="{{ p.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
+                      {% elif p.images.first %}
+                        <img src="{{ p.images.first.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
+                      {% endif %}
+                      <div class="flex-grow-1">
+                        <h6 class="mb-0 small fw-bold">{{ p.name }}</h6>
+                        <small class="text-muted">{{ item.quantity }}x – {{ item.product_variant.variant_name }} (₱{{ item.price }})</small>
+                        <div class="small text-muted mt-1">
+                          <i class="bi bi-geo-alt"></i>
+                          {{ p.meetup_location_text|default:order.pickup_location|default:order.meetup_location|default:"Location TBD" }}
+                          {% if p.available_days %} · <i class="bi bi-calendar-week"></i> {{ p.available_days }}{% endif %}
+                          {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                            · <i class="bi bi-clock"></i>
+                            {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                          {% endif %}
+                        </div>
+                      </div>
                       <span class="small fw-bold">₱{{ item.get_cost }}</span>
                     </div>
-                  </div>
-                {% empty %}
-                  <p class="small text-muted">No items found in this order.</p>
-                {% endfor %}
-              </div>
+                    {% endwith %}
+                  {% endfor %}
+                </div>
+              {% empty %}
+                <p class="small text-muted">No items found in this order.</p>
+              {% endfor %}
 
               <hr class="my-3 opacity-25" />
-
               <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                   <small class="text-muted d-block">Order Total ({{ order.payment_method }})</small>
-                  <span class="fw-bold text-primary" style="font-size: 1.2rem;">₱{{ order.total_amount }}</span>
+                  <span class="fw-bold text-primary" style="font-size:1.2rem;">₱{{ order.total_amount }}</span>
                 </div>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap justify-content-end">
+                  {% if order.payment_method == 'COP' %}
+                    <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Pay at Pickup</span>
+                  {% endif %}
                   {% if order.status == 'Pending' %}
                     <button type="button" onclick="handleCancelOrder('{{ order.id }}')" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Order</button>
                   {% endif %}
-                  <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#orderDetails{{ order.id }}">View Full Details</button>
+                  <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#orderDetails{{ order.id }}">View Details</button>
                 </div>
               </div>
             </div>
@@ -176,30 +194,20 @@
 
         {% for po in preorders %}
           {% if po.status|upper == 'READY' %}
+            {% with p=po.product_variant.product %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden border-start border-4 border-warning">
               <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-warning-subtle">
                 <span class="small fw-bold text-uppercase text-warning-emphasis">
-                  <i class="bi bi-geo-alt-fill"></i> PRE-ORDER: Ready for Pickup
+                  <i class="bi bi-bag-check"></i>
+                  <span class="badge bg-info text-dark me-1">Pre-Order</span>
+                  Ready for Pickup
                 </span>
                 <span class="small text-muted">Req #{{ po.id }}</span>
               </div>
               <div class="card-body p-3">
-                <div class="d-flex align-items-center mb-3">
-                  {% if po.product_variant.product.image %}
-                    <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
-                  {% elif po.product_variant.product.images.first %}
-                    <img src="{{ po.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
-                  {% endif %}
-                  <div class="flex-grow-1">
-                    <h6 class="mb-0 small fw-bold">{{ po.product_variant.product.name }}</h6>
-                    <small class="text-muted">
-                      {{ po.quantity }}x – ₱{{ po.product_variant.price }}
-                    </small>
-                  </div>
-                </div>
                 <div class="mb-2">
                   <small class="text-muted">Seller:</small>
-                  <span class="fw-bold small">{{ po.seller.first_name|default:po.seller.username }}</span>
+                  <span class="fw-bold small">{{ po.seller.get_full_name|default:po.seller.username }}</span>
                   {% with role=po.seller.user_role|default:''|lower %}
                     {% if role == 'management' or role == 'admin' %}
                       <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
@@ -210,76 +218,201 @@
                     {% endif %}
                   {% endwith %}
                 </div>
-                <div class="d-flex justify-content-between align-items-center">
-                  <span class="badge bg-success-subtle text-success p-2 px-3 rounded-pill">Pay at Pickup</span>
-                  <button type="button" onclick="handlePreOrder('{{ po.id }}', 'COMPLETED')" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">
-                    Complete Delivery
+
+                <div class="d-flex align-items-center mb-3">
+                  {% if p.image %}
+                    <img src="{{ p.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
+                  {% elif p.images.first %}
+                    <img src="{{ p.images.first.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
+                  {% endif %}
+                  <div class="flex-grow-1">
+                    <h6 class="mb-0 small fw-bold">{{ p.name }}</h6>
+                    <small class="text-muted">{{ po.quantity }}x – ₱{{ po.product_variant.price }}</small>
+                    <div class="small text-muted mt-1">
+                      <i class="bi bi-geo-alt"></i> {{ p.meetup_location_text|default:"Location TBD" }}
+                      {% if p.available_days %} · {{ p.available_days }}{% endif %}
+                      {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                        · {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-end align-items-center flex-wrap gap-2">
+                  <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Pay at Pickup</span>
+                  <span class="badge bg-light text-dark border fw-medium">Processing</span>
+                  <button type="button"
+                          class="btn btn-primary btn-sm rounded-pill px-3 fw-bold"
+                          data-bs-toggle="modal"
+                          data-bs-target="#preorderDetails{{ po.id }}">
+                    View Details
                   </button>
+                  <a href="{% url 'start_chat' product_id=p.id %}"
+                     class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                    <i class="bi bi-chat-dots"></i> Message Seller
+                  </a>
                 </div>
               </div>
             </div>
+
+            <div class="modal fade" id="preorderDetails{{ po.id }}" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content border-0 rounded-4 shadow">
+                  <div class="modal-header">
+                    <div>
+                      <h5 class="modal-title fw-bold">
+                        <span class="badge bg-info text-dark me-2">Pre-Order</span>
+                        Req #{{ po.id }}
+                      </h5>
+                      <small class="text-muted">{{ po.created_at|date:"M d, Y h:i A" }}</small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="row g-3 mb-4">
+                      <div class="col-md-6">
+                        <small class="text-muted d-block">Seller</small>
+                        <span class="fw-semibold">{{ po.seller.get_full_name|default:po.seller.username }}</span>
+                      </div>
+                      <div class="col-md-6">
+                        <small class="text-muted d-block">Status</small>
+                        <span class="badge bg-warning text-dark">{{ po.status }}</span>
+                      </div>
+                      <div class="col-md-6">
+                        <small class="text-muted d-block">Payment</small>
+                        <span class="fw-semibold">Cash on Pickup (COP)</span>
+                        <span class="badge bg-success-subtle text-success ms-1">Pay at Pickup</span>
+                      </div>
+                      <div class="col-md-6">
+                        <small class="text-muted d-block">Pickup Location</small>
+                        <span class="fw-semibold">{{ p.meetup_location_text|default:"Not specified" }}</span>
+                      </div>
+                      <div class="col-md-6">
+                        <small class="text-muted d-block">Available Days</small>
+                        <span class="fw-semibold">{{ p.available_days|default:"—" }}</span>
+                      </div>
+                      <div class="col-md-6">
+                        <small class="text-muted d-block">Time Range</small>
+                        <span class="fw-semibold">
+                          {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                            {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                          {% else %}—{% endif %}
+                        </span>
+                      </div>
+                    </div>
+
+                    <h6 class="fw-bold mb-3">Products</h6>
+                    <div class="d-flex align-items-center gap-3 border rounded-3 p-3 mb-2">
+                      {% if p.image %}
+                        <img src="{{ p.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
+                      {% elif p.images.first %}
+                        <img src="{{ p.images.first.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
+                      {% endif %}
+                      <div class="flex-grow-1">
+                        <div class="fw-bold">{{ p.name }}</div>
+                        <small class="text-muted">
+                          {{ po.product_variant.variant_name }} · {{ po.quantity }} × ₱{{ po.product_variant.price }}
+                        </small>
+                      </div>
+                      <span class="fw-bold">₱{% widthratio po.product_variant.price 1 po.quantity %}</span>
+                    </div>
+
+                    <div class="d-flex justify-content-between border-top pt-3 mt-3">
+                      <span class="fw-bold">Estimated Total</span>
+                      <span class="fw-bold text-primary fs-5">₱{% widthratio po.product_variant.price 1 po.quantity %}</span>
+                    </div>
+                  </div>
+                  <div class="modal-footer justify-content-between">
+                    <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary rounded-pill px-4">
+                      <i class="bi bi-chat-dots me-1"></i> Message Seller
+                    </a>
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endwith %}
           {% endif %}
         {% endfor %}
 
         {% for order in pickup_orders %}
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
             <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-primary-subtle">
-              <span class="small fw-bold text-uppercase"><i class="bi bi-clock-history"></i> {{ order.status }}</span>
+              <span class="small fw-bold text-uppercase">
+                <span class="badge bg-secondary me-1">Order</span>
+                {{ order.status }}
+              </span>
               <span class="small text-muted">Order #{{ order.id }}</span>
             </div>
-
             <div class="card-body p-3">
-              <div class="mb-3">
-                <small class="text-muted">Seller:</small>
-                <span class="fw-bold small">{{ order.seller.first_name|default:order.seller.username }}</span>
-                {% with role=order.seller.user_role|default:''|lower %}
-                  {% if role == 'management' or role == 'admin' %}
-                    <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
-                  {% elif order.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
-                    <span class="badge bg-info-subtle text-info ms-1">Organization</span>
-                  {% else %}
-                    <span class="badge bg-success-subtle text-success ms-1">Student</span>
-                  {% endif %}
-                {% endwith %}
-              </div>
-
-              {% for item in order.items.all %}
-                <div class="d-flex align-items-center mb-2">
-                  {% if item.product_variant.product.image %}
-                    <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
-                  {% elif item.product_variant.product.images.first %}
-                    <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
-                  {% endif %}
-                  <div class="flex-grow-1">
-                    <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
-                    <small class="text-muted">{{ item.quantity }}x – ₱{{ item.price }}</small>
+              {% regroup order.items.all by product_variant.product.seller as seller_groups %}
+              {% for group in seller_groups %}
+                <div class="mb-3">
+                  <div class="mb-2">
+                    <small class="text-muted">Seller:</small>
+                    <span class="fw-bold small">{{ group.grouper.get_full_name|default:group.grouper.username }}</span>
+                    {% with role=group.grouper.user_role|default:''|lower %}
+                      {% if role == 'management' or role == 'admin' %}
+                        <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
+                      {% elif group.grouper.organization or role == 'organization' or role == 'alumni_assoc' %}
+                        <span class="badge bg-info-subtle text-info ms-1">Organization</span>
+                      {% else %}
+                        <span class="badge bg-success-subtle text-success ms-1">Student</span>
+                      {% endif %}
+                    {% endwith %}
                   </div>
-                  <span class="small fw-bold">₱{{ item.get_cost }}</span>
+                  {% for item in group.list %}
+                    {% with p=item.product_variant.product %}
+                    <div class="d-flex align-items-center mb-2">
+                      {% if p.image %}
+                        <img src="{{ p.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
+                      {% elif p.images.first %}
+                        <img src="{{ p.images.first.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
+                      {% endif %}
+                      <div class="flex-grow-1">
+                        <h6 class="mb-0 small fw-bold">{{ p.name }}</h6>
+                        <small class="text-muted">{{ item.quantity }}x – ₱{{ item.price }}</small>
+                        <div class="small text-muted mt-1">
+                          <i class="bi bi-geo-alt"></i>
+                          {{ p.meetup_location_text|default:order.pickup_location|default:order.meetup_location|default:"Location TBD" }}
+                          {% if p.available_days %} · {{ p.available_days }}{% endif %}
+                          {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                            · {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                          {% endif %}
+                        </div>
+                      </div>
+                      <span class="small fw-bold">₱{{ item.get_cost }}</span>
+                    </div>
+                    {% endwith %}
+                  {% endfor %}
                 </div>
               {% endfor %}
 
               <hr class="my-3 opacity-25" />
-
-              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div class="d-flex gap-2">
-                  <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#pickupDetails{{ order.id }}">View Details</button>
-                  {% with first_item=order.items.all.0 %}
-                    {% if first_item %}
-                      <a href="{% url 'start_chat' product_id=first_item.product_variant.product.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
-                        <i class="bi bi-chat-dots"></i> Message Seller
-                      </a>
-                    {% endif %}
-                  {% endwith %}
-                </div>
-
+              <div class="d-flex justify-content-end align-items-center flex-wrap gap-2">
+                {% if order.payment_method == 'COP' %}
+                  <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Pay at Pickup</span>
+                {% endif %}
                 {% if order.status == 'Delivered' %}
-                  <form action="{% url 'confirm_receipt' order.id %}" method="POST">
+                  <form action="{% url 'confirm_receipt' order.id %}" method="POST" class="d-inline">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">Confirm Received</button>
                   </form>
                 {% else %}
                   <span class="badge bg-light text-dark border fw-medium">Processing</span>
                 {% endif %}
+                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold"
+                        data-bs-toggle="modal" data-bs-target="#pickupDetails{{ order.id }}">
+                  View Details
+                </button>
+                {% with first_item=order.items.all.0 %}
+                  {% if first_item %}
+                    <a href="{% url 'start_chat' product_id=first_item.product_variant.product.id %}"
+                       class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                      <i class="bi bi-chat-dots"></i> Message Seller
+                    </a>
+                  {% endif %}
+                {% endwith %}
               </div>
             </div>
           </div>
@@ -291,119 +424,133 @@
       {# ===================== HISTORY ===================== #}
       <div class="tab-pane fade" id="all" role="tabpanel">
 
-        {% for order in orders %}
-          {% if order.status == 'Completed' or order.status == 'Cancelled' %}
-            <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
-              <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-light">
-                <span class="small fw-bold text-uppercase">
-                  {% if order.status == 'Completed' %}
-                    <i class="bi bi-check-circle-fill text-success"></i> Completed
-                  {% else %}
-                    <i class="bi bi-x-circle-fill text-danger"></i> {{ order.status }}
+        {% for order in history_orders %}
+          <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
+            <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-light">
+              <span class="small fw-bold text-uppercase">
+                <span class="badge bg-secondary me-1">Order</span>
+                {% if order.status == 'Completed' %}
+                  <i class="bi bi-check-circle-fill text-success"></i> Completed
+                  {% if not order.is_rated %}
+                    <span class="badge bg-warning text-dark ms-1">Needs rating</span>
                   {% endif %}
-                </span>
-                <span class="small text-muted">Order #{{ order.id }} | {{ order.created_at|date:'M d' }}</span>
-              </div>
-
-              <div class="card-body p-3">
+                {% else %}
+                  <i class="bi bi-x-circle-fill text-danger"></i> {{ order.status }}
+                {% endif %}
+              </span>
+              <span class="small text-muted">Order #{{ order.id }} | {{ order.created_at|date:'M d' }}</span>
+            </div>
+            <div class="card-body p-3">
+              {% regroup order.items.all by product_variant.product.seller as seller_groups %}
+              {% for group in seller_groups %}
                 <div class="mb-3">
-                  <small class="text-muted">Seller:</small>
-                  <span class="fw-bold small">{{ order.seller.first_name|default:order.seller.username }}</span>
-                  {% with role=order.seller.user_role|default:''|lower %}
-                    {% if role == 'management' or role == 'admin' %}
-                      <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
-                    {% elif order.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
-                      <span class="badge bg-info-subtle text-info ms-1">Organization</span>
-                    {% else %}
-                      <span class="badge bg-success-subtle text-success ms-1">Student</span>
-                    {% endif %}
-                  {% endwith %}
-                </div>
-
-                <div class="d-flex flex-column gap-3">
-                  {% for item in order.items.all %}
-                    <div class="d-flex align-items-center">
-                      {% if item.product_variant.product.image %}
-                        <img src="{{ item.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
-                      {% elif item.product_variant.product.images.first %}
-                        <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 50px; height: 50px; object-fit: cover; border: 1px solid #eee;" alt="" />
+                  <div class="mb-2">
+                    <small class="text-muted">Seller:</small>
+                    <span class="fw-bold small">{{ group.grouper.get_full_name|default:group.grouper.username }}</span>
+                    {% with role=group.grouper.user_role|default:''|lower %}
+                      {% if role == 'management' or role == 'admin' %}
+                        <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
+                      {% elif group.grouper.organization or role == 'organization' or role == 'alumni_assoc' %}
+                        <span class="badge bg-info-subtle text-info ms-1">Organization</span>
+                      {% else %}
+                        <span class="badge bg-success-subtle text-success ms-1">Student</span>
+                      {% endif %}
+                    {% endwith %}
+                  </div>
+                  {% for item in group.list %}
+                    {% with p=item.product_variant.product %}
+                    <div class="d-flex align-items-center mb-2">
+                      {% if p.image %}
+                        <img src="{{ p.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
+                      {% elif p.images.first %}
+                        <img src="{{ p.images.first.image.url }}" class="rounded-3 me-3" style="width:50px;height:50px;object-fit:cover;border:1px solid #eee;" alt="">
                       {% endif %}
                       <div class="flex-grow-1">
-                        <h6 class="mb-0 small fw-bold">{{ item.product_variant.product.name }}</h6>
+                        <h6 class="mb-0 small fw-bold">{{ p.name }}</h6>
                         <small class="text-muted">{{ item.quantity }}x – ₱{{ item.price }}</small>
+                        <div class="small text-muted mt-1">
+                          <i class="bi bi-geo-alt"></i>
+                          {{ p.meetup_location_text|default:order.pickup_location|default:order.meetup_location|default:"—" }}
+                          {% if p.available_days %} · {{ p.available_days }}{% endif %}
+                          {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                            · {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                          {% endif %}
+                        </div>
                       </div>
                       <span class="small fw-bold">₱{{ item.get_cost }}</span>
                     </div>
+                    {% endwith %}
                   {% endfor %}
                 </div>
+              {% endfor %}
 
-                <hr class="my-3 opacity-25" />
-
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                  <div>
-                    <small class="text-muted d-block">Total Paid</small>
-                    <span class="fw-bold">₱{{ order.total_amount }}</span>
-                  </div>
-                  <div class="d-flex gap-2 flex-wrap">
-                    {% if order.status == 'Completed' %}
-                      <a href="{% url 'generate_receipt' order.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold">
-                        <i class="bi bi-download me-1"></i> Receipt
-                      </a>
-                      {% if not order.is_rated %}
-                        <button type="button" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}">
-                          <i class="bi bi-star-fill me-1"></i> Rate
-                        </button>
-                      {% else %}
-                        <span class="badge bg-success-subtle text-success d-flex align-items-center px-3">
-                          <i class="bi bi-check2-circle me-1"></i> Rated
-                        </span>
-                      {% endif %}
+              <hr class="my-3 opacity-25" />
+              <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                  <small class="text-muted d-block">Total Paid</small>
+                  <span class="fw-bold">₱{{ order.total_amount }}</span>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                  {% if order.status == 'Completed' %}
+                    <a href="{% url 'generate_receipt' order.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold">
+                      <i class="bi bi-download me-1"></i> Receipt
+                    </a>
+                    {% if not order.is_rated %}
+                      <button type="button" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}">
+                        <i class="bi bi-star-fill me-1"></i> Rate
+                      </button>
+                    {% else %}
+                      <span class="badge bg-success-subtle text-success d-flex align-items-center px-3">
+                        <i class="bi bi-check2-circle me-1"></i> Rated
+                      </span>
                     {% endif %}
-                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#historyDetails{{ order.id }}">
-                      <i class="bi bi-eye me-1"></i> Details
-                    </button>
-                  </div>
+                  {% endif %}
+                  <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#historyDetails{{ order.id }}">
+                    <i class="bi bi-eye me-1"></i> Details
+                  </button>
                 </div>
               </div>
             </div>
-          {% endif %}
+          </div>
         {% empty %}
           <div class="text-center py-5 text-muted">No order history found.</div>
         {% endfor %}
 
         {% for po in preorders %}
           {% if po.status|upper == 'COMPLETED' or po.status|upper == 'DECLINED' %}
+            {% with p=po.product_variant.product %}
             <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden opacity-75">
               <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-light">
                 <span class="small fw-bold text-uppercase">
-                  <i class="bi bi-clock-history"></i> PRE-ORDER: {{ po.status }}
+                  <span class="badge bg-info text-dark me-1">Pre-Order</span>
+                  {{ po.status }}
                 </span>
                 <span class="small text-muted">Req #{{ po.id }}</span>
               </div>
               <div class="card-body p-3">
+                <div class="mb-1">
+                  <small class="text-muted">Seller:</small>
+                  <span class="fw-bold small">{{ po.seller.get_full_name|default:po.seller.username }}</span>
+                </div>
                 <div class="d-flex align-items-center flex-wrap gap-2">
-                  {% if po.product_variant.product.image %}
-                    <img src="{{ po.product_variant.product.image.url }}" class="rounded-3 me-3" style="width: 40px; height: 40px; object-fit: cover;" alt="" />
-                  {% elif po.product_variant.product.images.first %}
-                    <img src="{{ po.product_variant.product.images.first.image.url }}" class="rounded-3 me-3" style="width: 40px; height: 40px; object-fit: cover;" alt="" />
+                  {% if p.image %}
+                    <img src="{{ p.image.url }}" class="rounded-3 me-2" style="width:40px;height:40px;object-fit:cover;" alt="">
+                  {% elif p.images.first %}
+                    <img src="{{ p.images.first.image.url }}" class="rounded-3 me-2" style="width:40px;height:40px;object-fit:cover;" alt="">
                   {% endif %}
                   <div class="flex-grow-1">
-                    <h6 class="mb-0 small fw-bold">{{ po.product_variant.product.name }}</h6>
-                    <small class="text-muted">
-                      {{ po.quantity }}x × ₱{{ po.product_variant.price }}
-                    </small>
+                    <h6 class="mb-0 small fw-bold">{{ p.name }}</h6>
+                    <small class="text-muted">{{ po.quantity }}x × ₱{{ po.product_variant.price }}</small>
                   </div>
-                  <div class="d-flex gap-2">
-                    {% if po.status|upper == 'COMPLETED' %}
-                      <a href="{% url 'generate_preorder_receipt' po.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold">
-                        <i class="bi bi-download me-1"></i> Receipt
-                      </a>
-                      <span class="badge bg-success-subtle text-success d-flex align-items-center">Finished</span>
-                    {% endif %}
-                  </div>
+                  {% if po.status|upper == 'COMPLETED' %}
+                    <a href="{% url 'generate_preorder_receipt' po.id %}" class="btn btn-outline-dark btn-sm rounded-pill px-3 fw-bold">
+                      <i class="bi bi-download me-1"></i> Receipt
+                    </a>
+                  {% endif %}
                 </div>
               </div>
             </div>
+            {% endwith %}
           {% endif %}
         {% endfor %}
       </div>
@@ -417,66 +564,60 @@
         <div class="modal-content border-0 rounded-4 shadow">
           <div class="modal-header">
             <div>
-              <h5 class="modal-title fw-bold">Order #{{ order.id }}</h5>
+              <h5 class="modal-title fw-bold">
+                <span class="badge bg-secondary me-2">Order</span>
+                Order #{{ order.id }}
+              </h5>
               <small class="text-muted">{{ order.created_at|date:"M d, Y h:i A" }}</small>
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <div class="row g-3 mb-4">
+            <div class="row g-3 mb-3">
               <div class="col-md-6">
-                <small class="text-muted d-block">Seller</small>
-                <span class="fw-semibold">{{ order.seller.first_name|default:order.seller.username }}</span>
-                {% with role=order.seller.user_role|default:''|lower %}
-                  {% if role == 'management' or role == 'admin' %}
-                    <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
-                  {% elif order.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
-                    <span class="badge bg-info-subtle text-info ms-1">Organization</span>
-                  {% else %}
-                    <span class="badge bg-success-subtle text-success ms-1">Student</span>
-                  {% endif %}
-                {% endwith %}
+                <small class="text-muted d-block">Payment</small>
+                <span class="fw-semibold">{{ order.payment_method }}</span>
+                {% if order.payment_method == 'COP' %}
+                  <span class="badge bg-success-subtle text-success ms-1">Pay at Pickup</span>
+                {% endif %}
               </div>
               <div class="col-md-6">
                 <small class="text-muted d-block">Status</small>
                 <span class="badge bg-primary-subtle text-primary">{{ order.status }}</span>
               </div>
-              <div class="col-md-6">
-                <small class="text-muted d-block">Payment</small>
-                <span class="fw-semibold">{{ order.payment_method }}</span>
-              </div>
-              <div class="col-md-6">
-                <small class="text-muted d-block">Pickup Location</small>
-                <span class="fw-semibold">
-                  {{ order.pickup_location|default:order.meetup_location|default:"Not specified" }}
-                </span>
-              </div>
             </div>
-            <h6 class="fw-bold mb-3">Products</h6>
-            {% for item in order.items.all %}
-              <div class="d-flex align-items-center gap-3 border rounded-3 p-3 mb-2">
-                {% if item.product_variant.product.image %}
-                  <img src="{{ item.product_variant.product.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
-                {% elif item.product_variant.product.images.first %}
-                  <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
-                {% endif %}
-                <div class="flex-grow-1">
-                  <div class="fw-bold">{{ item.product_variant.product.name }}</div>
-                  <small class="text-muted">{{ item.product_variant.variant_name }} · {{ item.quantity }} × ₱{{ item.price }}</small>
+            <h6 class="fw-bold mb-3">Products by seller</h6>
+            {% regroup order.items.all by product_variant.product.seller as seller_groups %}
+            {% for group in seller_groups %}
+              <div class="mb-3 p-3 border rounded-3">
+                <div class="fw-semibold mb-2">
+                  {{ group.grouper.get_full_name|default:group.grouper.username }}
                 </div>
-                <span class="fw-bold">₱{{ item.get_cost }}</span>
+                {% for item in group.list %}
+                  {% with p=item.product_variant.product %}
+                  <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="flex-grow-1">
+                      <div class="fw-bold">{{ p.name }}</div>
+                      <small class="text-muted">{{ item.product_variant.variant_name }} · {{ item.quantity }} × ₱{{ item.price }}</small>
+                      <div class="small text-muted">
+                        <i class="bi bi-geo-alt"></i>
+                        {{ p.meetup_location_text|default:order.pickup_location|default:order.meetup_location|default:"TBD" }}
+                        {% if p.available_days %} · {{ p.available_days }}{% endif %}
+                        {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                          · {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                        {% endif %}
+                      </div>
+                    </div>
+                    <span class="fw-bold">₱{{ item.get_cost }}</span>
+                  </div>
+                  {% endwith %}
+                {% endfor %}
               </div>
             {% endfor %}
-            <div class="d-flex justify-content-between border-top pt-3 mt-3">
+            <div class="d-flex justify-content-between border-top pt-3 mt-2">
               <span class="fw-bold">Order Total</span>
               <span class="fw-bold text-primary fs-5">₱{{ order.total_amount }}</span>
             </div>
-            {% if order.buyer_note %}
-              <div class="mt-3 p-3 bg-light rounded-3">
-                <small class="text-muted d-block">Buyer Note</small>
-                {{ order.buyer_note }}
-              </div>
-            {% endif %}
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
@@ -493,49 +634,66 @@
         <div class="modal-content border-0 rounded-4 shadow">
           <div class="modal-header">
             <div>
-              <h5 class="modal-title fw-bold">Order #{{ order.id }}</h5>
+              <h5 class="modal-title fw-bold">
+                <span class="badge bg-secondary me-2">Order</span>
+                Order #{{ order.id }}
+              </h5>
               <small class="text-muted">{{ order.created_at|date:"M d, Y h:i A" }}</small>
             </div>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
           <div class="modal-body">
-            <div class="row g-3 mb-4">
-              <div class="col-md-4">
-                <small class="text-muted d-block">Seller</small>
-                <span class="fw-semibold">{{ order.seller.first_name|default:order.seller.username }}</span>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <small class="text-muted d-block">Payment</small>
+                <span class="fw-semibold">{{ order.payment_method }}</span>
+                {% if order.payment_method == 'COP' %}
+                  <span class="badge bg-success-subtle text-success ms-1">Pay at Pickup</span>
+                {% endif %}
               </div>
-              <div class="col-md-4">
+              <div class="col-md-6">
                 <small class="text-muted d-block">Status</small>
                 <span class="badge bg-primary-subtle text-primary">{{ order.status }}</span>
               </div>
-              <div class="col-md-4">
-                <small class="text-muted d-block">Pickup Location</small>
-                <span class="fw-semibold">
-                  {{ order.pickup_location|default:order.meetup_location|default:"Not specified" }}
-                </span>
-              </div>
             </div>
-            <h6 class="fw-bold mb-3">Products</h6>
-            {% for item in order.items.all %}
-              <div class="d-flex align-items-center gap-3 border rounded-3 p-3 mb-2">
-                {% if item.product_variant.product.image %}
-                  <img src="{{ item.product_variant.product.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
-                {% elif item.product_variant.product.images.first %}
-                  <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
-                {% endif %}
-                <div class="flex-grow-1">
-                  <div class="fw-bold">{{ item.product_variant.product.name }}</div>
-                  <small class="text-muted">{{ item.product_variant.variant_name }} · {{ item.quantity }} × ₱{{ item.price }}</small>
-                </div>
-                <span class="fw-bold">₱{{ item.get_cost }}</span>
+            <h6 class="fw-bold mb-3">Products by seller</h6>
+            {% regroup order.items.all by product_variant.product.seller as seller_groups %}
+            {% for group in seller_groups %}
+              <div class="mb-3 p-3 border rounded-3">
+                <div class="fw-semibold mb-2">{{ group.grouper.get_full_name|default:group.grouper.username }}</div>
+                {% for item in group.list %}
+                  {% with p=item.product_variant.product %}
+                  <div class="d-flex justify-content-between mb-2">
+                    <div>
+                      <div class="fw-bold">{{ p.name }}</div>
+                      <small class="text-muted">{{ item.quantity }} × ₱{{ item.price }}</small>
+                      <div class="small text-muted">
+                        {{ p.meetup_location_text|default:order.pickup_location|default:"TBD" }}
+                        {% if p.available_days %} · {{ p.available_days }}{% endif %}
+                        {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                          · {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                        {% endif %}
+                      </div>
+                    </div>
+                    <span class="fw-bold">₱{{ item.get_cost }}</span>
+                  </div>
+                  {% endwith %}
+                {% endfor %}
               </div>
             {% endfor %}
-            <div class="d-flex justify-content-between border-top pt-3 mt-3">
+            <div class="d-flex justify-content-between border-top pt-3">
               <span class="fw-bold">Total</span>
               <span class="fw-bold text-primary fs-5">₱{{ order.total_amount }}</span>
             </div>
           </div>
-          <div class="modal-footer">
+          <div class="modal-footer justify-content-between">
+            {% with first_item=order.items.all.0 %}
+              {% if first_item %}
+                <a href="{% url 'start_chat' product_id=first_item.product_variant.product.id %}" class="btn btn-outline-secondary rounded-pill px-4">
+                  <i class="bi bi-chat-dots me-1"></i> Message Seller
+                </a>
+              {% endif %}
+            {% endwith %}
             <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
           </div>
         </div>
@@ -544,109 +702,102 @@
   {% endfor %}
 
   {# ==================== HISTORY + RATE MODALS ==================== #}
-  {% for order in orders %}
-    {% if order.status == 'Completed' or order.status == 'Cancelled' %}
-      <div class="modal fade" id="historyDetails{{ order.id }}" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-          <div class="modal-content border-0 rounded-4 shadow">
-            <div class="modal-header">
-              <div>
-                <h5 class="modal-title fw-bold">Order #{{ order.id }}</h5>
-                <small class="text-muted">{{ order.created_at|date:"M d, Y h:i A" }}</small>
-              </div>
-              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  {% for order in history_orders %}
+    <div class="modal fade" id="historyDetails{{ order.id }}" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 rounded-4 shadow">
+          <div class="modal-header">
+            <div>
+              <h5 class="modal-title fw-bold">
+                <span class="badge bg-secondary me-2">Order</span>
+                Order #{{ order.id }}
+              </h5>
+              <small class="text-muted">{{ order.created_at|date:"M d, Y h:i A" }}</small>
             </div>
-            <div class="modal-body">
-              <div class="row g-3 mb-4">
-                <div class="col-md-4">
-                  <small class="text-muted d-block">Seller</small>
-                  <span class="fw-semibold">{{ order.seller.first_name|default:order.seller.username }}</span>
-                </div>
-                <div class="col-md-4">
-                  <small class="text-muted d-block">Status</small>
-                  <span class="badge {% if order.status == 'Completed' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">{{ order.status }}</span>
-                </div>
-                <div class="col-md-4">
-                  <small class="text-muted d-block">Payment</small>
-                  <span class="fw-semibold">{{ order.payment_method }}</span>
-                </div>
-                <div class="col-md-12">
-                  <small class="text-muted d-block">Pickup Location</small>
-                  <span class="fw-semibold">
-                    {{ order.pickup_location|default:order.meetup_location|default:"Not specified" }}
-                  </span>
-                </div>
-              </div>
-              <h6 class="fw-bold mb-3">Products</h6>
-              {% for item in order.items.all %}
-                <div class="d-flex align-items-center gap-3 border rounded-3 p-3 mb-2">
-                  {% if item.product_variant.product.image %}
-                    <img src="{{ item.product_variant.product.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
-                  {% elif item.product_variant.product.images.first %}
-                    <img src="{{ item.product_variant.product.images.first.image.url }}" class="rounded-3" style="width:64px;height:64px;object-fit:cover;" alt="">
-                  {% endif %}
-                  <div class="flex-grow-1">
-                    <div class="fw-bold">{{ item.product_variant.product.name }}</div>
-                    <small class="text-muted">{{ item.product_variant.variant_name }} · {{ item.quantity }} × ₱{{ item.price }}</small>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-3">
+              Status:
+              <span class="badge {% if order.status == 'Completed' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">{{ order.status }}</span>
+            </p>
+            {% regroup order.items.all by product_variant.product.seller as seller_groups %}
+            {% for group in seller_groups %}
+              <div class="mb-3 p-3 border rounded-3">
+                <div class="fw-semibold mb-2">{{ group.grouper.get_full_name|default:group.grouper.username }}</div>
+                {% for item in group.list %}
+                  {% with p=item.product_variant.product %}
+                  <div class="d-flex justify-content-between mb-2">
+                    <div>
+                      <div class="fw-bold">{{ p.name }}</div>
+                      <small class="text-muted">{{ item.quantity }} × ₱{{ item.price }}</small>
+                      <div class="small text-muted">
+                        {{ p.meetup_location_text|default:order.pickup_location|default:"—" }}
+                        {% if p.available_days %} · {{ p.available_days }}{% endif %}
+                        {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                          · {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                        {% endif %}
+                      </div>
+                    </div>
+                    <span class="fw-bold">₱{{ item.get_cost }}</span>
                   </div>
-                  <span class="fw-bold">₱{{ item.get_cost }}</span>
-                </div>
-              {% endfor %}
-              <div class="d-flex justify-content-between border-top pt-3 mt-3">
-                <span class="fw-bold">Total Paid</span>
-                <span class="fw-bold text-primary fs-5">₱{{ order.total_amount }}</span>
+                  {% endwith %}
+                {% endfor %}
               </div>
-              {% if order.cancellation_reason %}
-                <div class="mt-3 p-3 bg-danger-subtle rounded-3">
-                  <small class="text-muted d-block">Cancellation Reason</small>
-                  {{ order.cancellation_reason }}
-                </div>
-              {% endif %}
+            {% endfor %}
+            <div class="d-flex justify-content-between border-top pt-3">
+              <span class="fw-bold">Total Paid</span>
+              <span class="fw-bold text-primary fs-5">₱{{ order.total_amount }}</span>
             </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
-            </div>
+            {% if order.cancellation_reason %}
+              <div class="mt-3 p-3 bg-danger-subtle rounded-3">
+                <small class="text-muted d-block">Cancellation Reason</small>
+                {{ order.cancellation_reason }}
+              </div>
+            {% endif %}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
           </div>
         </div>
       </div>
+    </div>
 
-      {% if order.status == 'Completed' and not order.is_rated %}
-        <div class="modal fade" id="rateModal{{ order.id }}" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 rounded-4 shadow">
-              <form method="POST" action="{% url 'submit_rating' order.id %}" class="rating-form">
-                {% csrf_token %}
-                <div class="modal-header">
-                  <h5 class="modal-title fw-bold">Rate your order</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    {% if order.status == 'Completed' and not order.is_rated %}
+      <div class="modal fade" id="rateModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content border-0 rounded-4 shadow">
+            <form method="POST" action="{% url 'submit_rating' order.id %}" class="rating-form">
+              {% csrf_token %}
+              <div class="modal-header">
+                <h5 class="modal-title fw-bold">Rate your order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <p class="text-muted mb-3">Your rating will be applied to the products in this order.</p>
+                <div class="rating-stars text-center mb-3 d-flex justify-content-center gap-1" role="radiogroup">
+                  {% for value in "12345" %}
+                    <button type="button" class="rating-star btn btn-link p-1 fs-1 text-decoration-none text-warning"
+                            data-rating="{{ value }}" aria-label="{{ value }} stars">
+                      <i class="bi bi-star"></i>
+                    </button>
+                  {% endfor %}
                 </div>
-                <div class="modal-body">
-                  <p class="text-muted mb-3">Your rating will be applied to the products in this order.</p>
-                  {# Stars left → right: 1..5 #}
-                  <div class="rating-stars text-center mb-3 d-flex justify-content-center gap-1" role="radiogroup" aria-label="Rating">
-                    {% for value in "12345" %}
-                      <button type="button" class="rating-star btn btn-link p-1 fs-1 text-decoration-none text-warning"
-                              data-rating="{{ value }}" aria-label="{{ value }} star{{ value|pluralize }}">
-                        <i class="bi bi-star"></i>
-                      </button>
-                    {% endfor %}
-                  </div>
-                  <input type="hidden" name="rating" class="rating-value" value="">
-                  <div class="text-center mb-3">
-                    <small class="selected-rating text-muted">Select a rating</small>
-                  </div>
-                  <label class="form-label fw-semibold" for="comment{{ order.id }}">Comment</label>
-                  <textarea id="comment{{ order.id }}" name="comment" class="form-control rounded-3" rows="4" maxlength="1000" placeholder="Share your experience (optional)"></textarea>
+                <input type="hidden" name="rating" class="rating-value" value="">
+                <div class="text-center mb-3">
+                  <small class="selected-rating text-muted">Select a rating</small>
                 </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                  <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold submit-rating" disabled>Submit Rating</button>
-                </div>
-              </form>
-            </div>
+                <label class="form-label fw-semibold" for="comment{{ order.id }}">Comment</label>
+                <textarea id="comment{{ order.id }}" name="comment" class="form-control rounded-3" rows="4" maxlength="1000" placeholder="Share your experience (optional)"></textarea>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold submit-rating" disabled>Submit Rating</button>
+              </div>
+            </form>
           </div>
         </div>
-      {% endif %}
+      </div>
     {% endif %}
   {% endfor %}
 
@@ -654,45 +805,9 @@
     .bg-info-subtle { background-color: #cff4fc !important; }
     .border-info { border-color: #0dcaf0 !important; }
     .rating-star { color: #ffc107; }
-    .rating-star:hover { opacity: 0.85; }
   </style>
 
   <script>
-    async function handlePreOrder(orderId, newStatus) {
-      const confirmText = newStatus === 'DECLINED' ? 'Cancel this pre-order?' : 'Confirm delivery completion?';
-      const confirmBtn = newStatus === 'DECLINED' ? '#dc3545' : '#198754';
-
-      const { isConfirmed } = await Swal.fire({
-        title: confirmText,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: confirmBtn,
-        confirmButtonText: 'Yes, proceed'
-      });
-
-      if (!isConfirmed) return;
-
-      const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-      try {
-        const response = await fetch(`/preorder/update-status/${orderId}/`, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrftoken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ status: newStatus })
-        });
-        const data = await response.json();
-        if (data.success) {
-          location.reload();
-        } else {
-          Swal.fire('Error', data.message || 'Update failed', 'error');
-        }
-      } catch (error) {
-        Swal.fire('Error', 'Communication failed.', 'error');
-      }
-    }
-
     async function handleCancelPreOrder(preorderId) {
       const { value: reason } = await Swal.fire({
         title: 'Cancel Pre-Order?',
@@ -709,28 +824,21 @@
         showCancelButton: true,
         confirmButtonColor: '#dc3545',
         confirmButtonText: 'Yes, cancel it',
-        inputValidator: (value) => (!value ? 'You need to select a reason.' : undefined)
+        inputValidator: (v) => (!v ? 'You need to select a reason.' : undefined)
       });
-
       if (!reason) return;
-
       const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
       try {
         const response = await fetch(`/preorder/update-status/${preorderId}/`, {
           method: 'POST',
-          headers: {
-            'X-CSRFToken': csrftoken,
-            'Content-Type': 'application/json'
-          },
+          headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ status: 'DECLINED', reason })
         });
         const data = await response.json();
         if (data.success) {
           await Swal.fire('Cancelled', data.message || 'Pre-order cancelled.', 'success');
           location.reload();
-        } else {
-          Swal.fire('Error', data.message || 'Could not cancel.', 'error');
-        }
+        } else Swal.fire('Error', data.message || 'Could not cancel.', 'error');
       } catch (e) {
         Swal.fire('Error', 'Communication failed.', 'error');
       }
@@ -751,13 +859,10 @@
         inputPlaceholder: 'Select a reason',
         showCancelButton: true,
         confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
         confirmButtonText: 'Yes, cancel it!',
-        inputValidator: (value) => (!value ? 'You need to select a reason.' : undefined)
+        inputValidator: (v) => (!v ? 'You need to select a reason.' : undefined)
       });
-
       if (!reason) return;
-
       const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
       try {
         const response = await fetch(`/orders/cancel/${orderId}/`, {
@@ -771,10 +876,8 @@
         const result = await response.json();
         if (result.status === 'success') {
           Swal.fire('Cancelled!', result.message, 'success').then(() => location.reload());
-        } else {
-          Swal.fire('Error', result.message, 'error');
-        }
-      } catch (error) {
+        } else Swal.fire('Error', result.message, 'error');
+      } catch (e) {
         Swal.fire('Error', 'Something went wrong.', 'error');
       }
     }
@@ -784,20 +887,15 @@
       const valueInput = form.querySelector('.rating-value');
       const label = form.querySelector('.selected-rating');
       const submitButton = form.querySelector('.submit-rating');
-
       function paintRating(rating) {
         stars.forEach(function (star) {
-          const starValue = Number(star.dataset.rating);
           const icon = star.querySelector('i');
-          if (starValue <= rating) {
-            icon.classList.remove('bi-star');
-            icon.classList.add('bi-star-fill');
+          if (Number(star.dataset.rating) <= rating) {
+            icon.classList.replace('bi-star', 'bi-star-fill');
           } else {
-            icon.classList.remove('bi-star-fill');
-            icon.classList.add('bi-star');
+            icon.classList.replace('bi-star-fill', 'bi-star');
           }
         });
-
         if (rating) {
           label.textContent = rating + ' / 5';
           label.classList.remove('text-muted');
@@ -806,29 +904,24 @@
         } else {
           label.textContent = 'Select a rating';
           label.classList.add('text-muted');
-          label.classList.remove('text-warning', 'fw-bold');
           submitButton.disabled = true;
         }
       }
-
       stars.forEach(function (star) {
         star.addEventListener('click', function () {
-          const rating = Number(this.dataset.rating);
-          valueInput.value = rating;
-          paintRating(rating);
+          valueInput.value = this.dataset.rating;
+          paintRating(Number(this.dataset.rating));
         });
         star.addEventListener('mouseenter', function () {
           paintRating(Number(this.dataset.rating));
         });
       });
-
       form.querySelector('.rating-stars').addEventListener('mouseleave', function () {
         paintRating(Number(valueInput.value) || 0);
       });
-
-      form.addEventListener('submit', function (event) {
+      form.addEventListener('submit', function (e) {
         if (!valueInput.value) {
-          event.preventDefault();
+          e.preventDefault();
           Swal.fire('Rating required', 'Please select a star rating first.', 'warning');
         }
       });

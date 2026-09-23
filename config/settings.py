@@ -29,17 +29,14 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'django.contrib.staticfiles',   # before cloudinary_storage
     'cloudinary_storage',
-    'django.contrib.staticfiles',
     'cloudinary',
-    'django.contrib.sites',  # required by allauth
-
-    # allauth
+    'django.contrib.sites',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
-
     'UTrade_app',
 ]
 
@@ -173,23 +170,27 @@ USE_TZ = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# Project-level static folder only if it exists
+STATICFILES_DIRS = []
+_project_static = BASE_DIR / "static"
+if _project_static.exists():
+    STATICFILES_DIRS.append(_project_static)
 
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',   
-]
-
-# WhiteNoise: compress + cache-bust in production
+# Media: Cloudinary
+# Static: WhiteNoise (after collectstatic)
 STORAGES = {
     "default": {
         "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
     },
 }
 
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedStaticFilesStorage"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

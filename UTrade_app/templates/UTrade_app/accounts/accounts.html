@@ -200,7 +200,7 @@ Account {% endblock %} {% block content %} {% block extra_css %}
           </div>
         </a>
       </div>
-      <div class="col-md-6">
+      {% comment %} <div class="col-md-6">
         <a
           href="{% url 'seller_inventory' %}"
           class="card h-100 p-4 rounded-4 bg-light action-card text-decoration-none text-dark border-success-hover"
@@ -215,8 +215,8 @@ Account {% endblock %} {% block content %} {% block extra_css %}
             </div>
           </div>
         </a>
-      </div>
-      <div class="col-md-6">
+      </div> {% endcomment %}
+      {% comment %} <div class="col-md-6">
         <a
           href="{% url 'security_admin' %}"
           class="card h-100 p-4 rounded-4 bg-light action-card text-decoration-none text-dark border-danger-hover border-success-hover"
@@ -231,7 +231,7 @@ Account {% endblock %} {% block content %} {% block extra_css %}
             </div>
           </div>
         </a>
-      </div>
+      </div> {% endcomment %}
       <div class="col-md-6">
         <a
           href="#"

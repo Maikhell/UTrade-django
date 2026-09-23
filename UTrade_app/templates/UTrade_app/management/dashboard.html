@@ -6,7 +6,8 @@
 {% endblock %}
 
 {% block content %}
-  <div class="container py-4">
+{% csrf_token %}
+<div class="container py-4">
   <nav aria-label="breadcrumb" class="mb-4">
     <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
       <i class="bi bi-arrow-left" aria-hidden="true"></i>
@@ -14,498 +15,613 @@
     </a>
   </nav>
 
-    <div class="row mb-4">
-      <div class="col-12">
-        <div class="d-flex align-items-center">
-          <div class="bg-primary text-white rounded-4 p-3 me-3">
-            <i class="bi bi-building-gear fs-3"></i>
-          </div>
-          <div>
-            <h2 class="fw-bold mb-0">{{ org_name }} Dashboard</h2>
-            <p class="text-muted mb-0">
-              Departmental oversight for all {{ target_course }} students and listings.
-            </p>
-          </div>
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex align-items-center">
+        <div class="bg-primary text-white rounded-4 p-3 me-3">
+          <i class="bi bi-building-gear fs-3"></i>
+        </div>
+        <div>
+          <h2 class="fw-bold mb-0">{{ org_name }} Dashboard</h2>
+          <p class="text-muted mb-0">
+            Departmental oversight for all {{ target_course|default:"campus" }} students and listings.
+          </p>
         </div>
       </div>
     </div>
+  </div>
 
-<div class="row g-3 mb-5">
-  <div class="col-md-3">
-    <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-      <small class="text-uppercase text-muted fw-bold small">Total Listings</small>
-      <h3 class="fw-bold text-primary mb-0">{{ approved_count|default:'0' }}</h3>
+  <div class="row g-3 mb-5">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+        <small class="text-uppercase text-muted fw-bold small">Total Listings</small>
+        <h3 class="fw-bold text-primary mb-0">{{ approved_count|default:'0' }}</h3>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
+        <small class="text-uppercase text-muted fw-bold small">Pending Items</small>
+        <h3 class="fw-bold text-warning mb-0">{{ pending_products_count|default:'0' }}</h3>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
+        <small class="text-uppercase text-muted fw-bold small">Active Products</small>
+        <h3 class="fw-bold text-success mb-0">{{ active_products_count|default:'0' }}</h3>
+      </div>
     </div>
   </div>
 
-  <div class="col-md-3">
-    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
-      <small class="text-uppercase text-muted fw-bold small">Pending Items</small>
-      <h3 class="fw-bold text-warning mb-0">
-        {{ pending_products_count|add:pending_services_count|default:'0' }}
-      </h3>
-    </div>
-  </div>
-
-  <div class="col-md-3">
-    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
-      <small class="text-uppercase text-muted fw-bold small">Active Products</small>
-      <h3 class="fw-bold text-success mb-0">{{ active_products_count|default:'0' }}</h3>
-    </div>
-  </div>
-
-  <div class="col-md-3">
-    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-info border-4">
-      <small class="text-uppercase text-muted fw-bold small">Active Services</small>
-      <h3 class="fw-bold text-info mb-0">{{ active_services_count|default:'0' }}</h3>
-    </div>
-  </div>
-</div>
-
-    <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">
-      <li class="nav-item">
-      <button class="nav-link fw-bold border-0 bg-transparent px-4" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane">
+  <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">
+    <li class="nav-item">
+      <button class="nav-link active fw-bold border-0 bg-transparent px-4" id="inventory-tab" data-bs-toggle="tab" data-bs-target="#inventory-pane" type="button">
         Live Inventory
         <span class="badge bg-secondary-subtle text-dark ms-1">{{ approved_count }}</span>
       </button>
     </li>
-      <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="services-tab" data-bs-toggle="tab" data-bs-target="#services-pane">
-          Services
-          {% if pending_services.count > 0 %}
-            <span class="badge bg-danger ms-1 text-white">{{ pending_services.count }}</span>
-          {% endif %}
-        </button>
-      </li>
- 
-      <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-pane">
-          Products
-          {% if pending_products_count > 0 %}
-            <span class="badge bg-danger ms-1 text-white">{{ pending_products_count }}</span>
-          {% endif %}
-        </button>
-      </li>
-
-      <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-pane">
-          Orders
-        </button>
-      </li>
-
-      <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane">
-          Logs
-        </button>
-      </li>
-          <li class="nav-item">
-        <button class="nav-link fw-bold border-0 bg-transparent px-4" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports-pane">
-          Reports
-        </button>
-      </li>
-    </ul>
-
-    <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-light">
-      <form method="GET" class="row g-3 mb-4">
-    <div class="col-md-5">
-        <div class="input-group">
-            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
-            <input type="text" name="search" class="form-control border-start-0" 
-                   placeholder="Search name, seller, or price..." value="{{ request.GET.search }}">
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <select name="pre_order" class="form-select">
-            <option value="">All Listing Types</option>
-            <option value="False" {% if request.GET.pre_order == 'False' %}selected{% endif %}>On-hand Only</option>
-            <option value="True" {% if request.GET.pre_order == 'True' %}selected{% endif %}>Pre-order Only</option>
-        </select>
-    </div>
-
-    <div class="col-md-2">
-        <button type="submit" class="btn btn-primary w-100">Filter</button>
-    </div>
-    <div class="col-md-2">
-        <a href="{% url 'management.panel' %}" class="btn btn-light w-100">Reset</a>
-    </div>
-</form>
-    </div>
-
-    <div class="tab-content">
-      <div class="tab-pane fade" id="inventory-pane">
-  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="bg-light">
-          <tr>
-            <th class="ps-4">Item Name</th>
-            <th>Type</th>
-            <th>Seller/Provider</th>
-            <th>Stock</th>
-            <th>Price</th>
-            <th class="text-end pe-4">Manage</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in approved_items %}
-          <tr>
-    <td class="ps-4">
-        <div class="fw-bold">{{ item.name }}</div>
-        <span class="badge bg-success-subtle text-success border-0" style="font-size: 0.7rem;">Active</span>
-    </td>
-    <td>
-        {% if item.is_service %}
-            <span class="text-info"><i class="bi bi-tools me-1"></i>Service</span>
-        {% else %}
-            <span class="text-warning"><i class="bi bi-box-seam me-1"></i>Product</span>
+    <li class="nav-item">
+      <button class="nav-link fw-bold border-0 bg-transparent px-4" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-pane" type="button">
+        Products
+        {% if pending_products_count > 0 %}
+          <span class="badge bg-danger ms-1 text-white">{{ pending_products_count }}</span>
         {% endif %}
-    </td>
-    <td>{{ item.owner_name }}</td>
-    <td>{{product.get_total_stock}}</td>
-   <td class="fw-bold text-dark">
-    ₱{% if item.is_service %}
-        {{ item.base_price }}
-    {% else %}
-        {{ item.get_price_range }}
-    {% endif %}
-</td>
-    <td class="text-end pe-4">
-        <a href="{% if item.is_service %}{% url 'service.details' item.id %}{% else %}{% url 'product.detail.view' item.id %}{% endif %}" class="btn btn-sm btn-light rounded-3">
-            <i class="bi bi-pencil-square"></i> Edit
-        </a>
-    </td>
-</tr>
-          {% empty %}
-          <tr><td colspan="5" class="text-center py-5 text-muted">No live listings found in the marketplace.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-<div class="tab-pane fade" id="reports-pane">
-  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="bg-light">
-          <tr>
-            <th class="ps-4">Reported Subject</th>
-            <th>Type</th>
-            <th>Reporter</th>
-            <th>Reason</th>
-            <th>Status</th>
-            <th class="text-end pe-4">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for report in reported_items %}
-            {% empty %}
-          <tr>
-            <td colspan="6" class="text-center py-5">
-              <div class="text-muted">
-                <i class="bi bi-shield-check display-4 d-block mb-3"></i>
-                <span>No active reports to review. The community is looking good!</span>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-      <div class="tab-pane fade" id="services-pane">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="bg-light">
-                <tr>
-                  <th class="ps-4">Service Name</th>
-                  <th>Category</th>
-                  <th>Price Range</th>
-                  <th>Provider</th>
-                  <th class="text-end pe-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for s in pending_services %}
-                  <tr>
-                    <td class="ps-4">
-                      <strong>{{ s.name }}</strong>
-                    </td>
-                    <td>
-                      <span class="badge bg-info-subtle text-info rounded-pill px-3">
-                        {{ s.category.name|default:"General Service" }}
-                      </span>
-                    </td>
-                    <td>
-                      <span class="fw-bold text-dark">₱{{ s.price_min }} - ₱{{ s.price_max }}</span>
-                    </td>
-                    <td>
-                      <div class="small">{{ s.seller.get_full_name }}</div>
-                      <small class="text-muted">{{ s.seller.course }}</small>
-                    </td>
-                    <td class="text-end pe-4">
-                      <div class="d-flex justify-content-end gap-2">
-                        <a href="{% url 'service.details' s.id %}" class="btn btn-sm btn-outline-primary rounded-3">
-                          <i class="bi bi-eye"></i> View
-                        </a>
+      </button>
+    </li>
+    <li class="nav-item">
+      <a href="{% url 'seller_inventory' %}" class="nav-link fw-bold px-4 text-primary text-decoration-none">Dashboard</a>
+    </li>
+    <li class="nav-item">
+      <a href="{% url 'security_admin' %}" class="nav-link fw-bold px-4 text-primary text-decoration-none">Security</a>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link fw-bold border-0 bg-transparent px-4" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-pane" type="button">Logs</button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link fw-bold border-0 bg-transparent px-4" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports-pane" type="button">Reports</button>
+    </li>
+  </ul>
 
-                        <button class="btn btn-sm btn-success rounded-3" onclick="confirmAction('service', '{{ s.id }}', 'Approved', '{{ s.name }}')">
-                          Approve
-                        </button>
-                        <button class="btn btn-sm btn-danger rounded-3" onclick="confirmAction('service', '{{ s.id }}', 'Rejected', '{{ s.name }}')">
-                          Reject
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                {% empty %}
-                  <tr>
-                    <td colspan="5" class="text-center py-5 text-muted">
-                      <i class="bi bi-clipboard-x fs-2 d-block mb-2"></i>
-                      No pending services to review.
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+  <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-light">
+    <form method="GET" class="row g-3">
+      <div class="col-md-5">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+          <input type="text" name="search" class="form-control border-start-0"
+                 placeholder="Search name, seller, or price..." value="{{ request.GET.search }}">
         </div>
       </div>
-
-        <div class="tab-pane fade" id="logs-pane">
-  <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="bg-light">
-          <tr>
-            <th class="ps-4">Timestamp</th>
-            <th>User / Officer</th>
-            <th>Action Performed</th>
-            <th>Target Item</th>
-            <th class="text-end pe-4">Status</th>
-          </tr>
-        </thead>
-       <tbody>
-  {% for log in logs %}
-  <tr>
-    <td class="ps-4">
-        <div class="fw-bold">{{ log.timestamp|date:"M d, Y" }}</div>
-        <small class="text-muted">{{ log.timestamp|time:"h:i A" }}</small>
-    </td>
-    <td>
-        <div class="fw-bold text-dark">{{ log.user.get_full_name|default:log.user.username }}</div>
-        <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">{{ log.user.user_role }}</span>
-    </td>
-    <td>
-        <span class="text-primary fw-semibold">{{ log.action }}</span>
-    </td>
-    <td>
-        <div class="small fw-bold">{{ log.item_name }}</div>
-        <div class="text-muted" style="font-size: 0.75rem;">{{ log.item_type }}</div>
-    </td>
-    <td class="text-end pe-4">
-        <span class="badge bg-success-subtle text-success">Completed</span>
-    </td>
-  </tr>
-  {% empty %}
-  <tr><td colspan="5" class="text-center py-5 text-muted">No activity recorded yet.</td></tr>
-  {% endfor %}
-</tbody>
-      </table>
-    </div>
+      <div class="col-md-3">
+        <select name="pre_order" class="form-select">
+          <option value="">All Listing Types</option>
+          <option value="False" {% if request.GET.pre_order == 'False' %}selected{% endif %}>On-hand Only</option>
+          <option value="True" {% if request.GET.pre_order == 'True' %}selected{% endif %}>Pre-order Only</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Filter</button>
+      </div>
+      <div class="col-md-2">
+        <a href="{% url 'management.panel' %}" class="btn btn-light w-100">Reset</a>
+      </div>
+    </form>
   </div>
-</div>
 
-      <div class="tab-pane fade" id="products-pane">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="bg-light">
-                <tr>
-                  <th class="ps-4">Product</th>
-                  <th>Seller</th>
-                  <th>Type</th>
-                  <th class="text-end pe-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for p in pending_products %}
-                  <tr>
-                    <td class="ps-4">
-                      <div class="fw-bold">{{ p.name }}</div>
-                      <small class="text-muted">₱{{ p.get_price_range }}</small>
-                    </td>
-                    <td>{{ p.seller.get_full_name }}</td>
-                    <td>
-                      {% if p.pre_order %}
-                        <span class="badge bg-info text-dark rounded-pill">Pre-order</span>
-                      {% else %}
-                        <span class="badge bg-light text-dark border rounded-pill">On-hand</span>
-                      {% endif %}
-                    </td>
-                    <td class="text-end pe-4">
-                      <div class="d-flex justify-content-end gap-2">
-                        <a href="{% url 'product.detail.view' p.id %}" class="btn btn-sm btn-outline-primary rounded-3">
-                          <i class="bi bi-eye"></i> View
-                        </a>
+  <div class="tab-content">
 
-                        <button class="btn btn-sm btn-success rounded-3" onclick="confirmAction('product', '{{ p.id }}', 'Approved', '{{ p.name }}')">
-                          Approve
-                        </button>
-                        <button class="btn btn-sm btn-danger rounded-3" onclick="confirmAction('product', '{{ p.id }}', 'Rejected', '{{ p.name }}')">
-                          Reject
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                {% empty %}
-                  <tr>
-                    <td colspan="4" class="text-center py-5 text-muted">No products pending review.</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        </div>
+    {# ========== LIVE INVENTORY ========== #}
+    <div class="tab-pane fade show active" id="inventory-pane" role="tabpanel">
+      <div class="d-flex justify-content-end mb-3">
+        <button class="btn btn-success rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#pdfModal">
+          <i class="bi bi-file-pdf"></i> Generate Report
+        </button>
       </div>
 
-      {% csrf_token %}
-     <div class="tab-pane fade" id="orders-pane">
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-        <div class="card-header bg-white py-3 border-0">
-            <h5 class="fw-bold mb-0 text-primary">Pending Pre-Orders</h5>
-        </div>
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
-                    <tr>
-                        <th class="ps-4">Request ID</th>
-                        <th>Student Info</th>
-                        <th>Product & Variant</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in incoming_orders %}
-                        {% if order.status == 'PENDING' %}
-                        <tr>
-                            <td class="ps-4 fw-bold">#PR-{{ order.id }}</td>
-                            <td>
-                                <div class="fw-bold">{{ order.full_name_at_time }}</div>
-                                <div class="small text-muted">{{ order.student_no_at_time }} | {{ order.course_at_time }}-{{ order.section_at_time }}</div>
-                            </td>
-                            <td>
-                                <div class="small fw-bold">{{ order.product_variant.product.name }}</div>
-                                <div class="badge bg-secondary-subtle text-secondary">{{ order.product_variant.variant_name }}</div>
-                            </td>
-                            <td>
-                                <div class="d-flex gap-2">
-                                    <button onclick="handlePreOrder('{{ order.id }}', 'APPROVED')" class="btn btn-sm btn-success rounded-pill px-3">Accept</button>
-                                    <button onclick="handlePreOrder('{{ order.id }}', 'DECLINED')" class="btn btn-sm btn-outline-danger rounded-pill px-3">Reject</button>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endif %}
-                    {% empty %}
-                        <tr><td colspan="4" class="text-center py-4 text-muted">No pending pre-orders.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- 2. ACCEPTED/APPROVED ORDERS -->
-    <!-- 2. ACCEPTED/APPROVED/PREPARING/READY ORDERS -->
-<div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-    <div class="card-header bg-white py-3 border-0">
-        <h5 class="fw-bold mb-0 text-success">Active Fulfillment</h5>
-    </div>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+          <table class="table table-hover align-middle mb-0">
             <thead class="bg-light">
-                <tr>
-                    <th class="ps-4">Order ID</th>
-                    <th>Buyer</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
+              <tr>
+                <th class="ps-4">Item Name</th>
+                <th>Type</th>
+                <th>Seller/Provider</th>
+                <th>Stock</th>
+                <th>Price</th>
+                <th class="text-end pe-4">Manage</th>
+              </tr>
             </thead>
             <tbody>
-                {% for order in incoming_orders %}
-                    {% if order.status == 'APPROVED' or order.status == 'PREPARING' or order.status == 'READY' %}
-                    <tr>
-                        <td class="ps-4 fw-bold">#{{ order.id }}</td>
-                        <td>{{ order.full_name_at_time }}</td>
-                        <td>
-                            {% if order.status == 'APPROVED' %}
-                                <span class="badge bg-success-subtle text-success">Approved</span>
-                            {% elif order.status == 'PREPARING' %}
-                                <span class="badge bg-info-subtle text-info">Preparing</span>
-                            {% elif order.status == 'READY' %}
-                                <span class="badge bg-warning-subtle text-warning">Ready for Pickup</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if order.status == 'APPROVED' %}
-                                <button onclick="handlePreOrder('{{ order.id }}', 'PREPARING')" class="btn btn-sm btn-info text-white rounded-pill">Start Preparing</button>
-                            {% elif order.status == 'PREPARING' %}
-                                <button onclick="handlePreOrder('{{ order.id }}', 'READY')" class="btn btn-sm btn-warning rounded-pill">Set to Ready</button>
-                            {% elif order.status == 'READY' %}
-                                <button onclick="handlePreOrder('{{ order.id }}', 'COMPLETED')" class="btn btn-sm btn-primary rounded-pill">Mark as Picked Up</button>
-                            {% endif %}
-                        </td>
-                    </tr>
+              {% for item in approved_items %}
+              <tr>
+                <td class="ps-4">
+                  <div class="fw-bold">{{ item.name }}</div>
+                  <span class="badge bg-success-subtle text-success border-0" style="font-size:0.7rem;">Active</span>
+                  {% if item.product_code %}
+                    <div class="small text-muted">{{ item.product_code }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.is_service %}
+                    <span class="text-info"><i class="bi bi-tools me-1"></i>Service</span>
+                  {% else %}
+                    <span class="text-warning"><i class="bi bi-box-seam me-1"></i>Product</span>
+                    {% if item.pre_order %}
+                      <span class="badge bg-info text-dark ms-1">Pre-order</span>
                     {% endif %}
-                {% endfor %}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.seller %}
+                    {{ item.seller.get_full_name|default:item.seller.username }}
+                  {% else %}
+                    {{ item.owner_name|default:"—" }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.is_service %}—{% else %}{{ item.get_total_stock }}{% endif %}
+                </td>
+                <td class="fw-bold text-dark">₱{{ item.get_price_range }}</td>
+                <td class="text-end pe-4">
+                  <div class="d-flex justify-content-end gap-2 flex-wrap">
+                    {% if not item.is_service %}
+                      <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                              data-bs-toggle="modal" data-bs-target="#mgmtProductModal{{ item.id }}">
+                        <i class="bi bi-eye"></i> View Details
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-danger rounded-3"
+                              onclick="unlistProduct('{{ item.id }}', '{{ item.name|escapejs }}')">
+                        <i class="bi bi-eye-slash"></i> Unlist
+                      </button>
+                    {% else %}
+                      <a href="{% url 'service.details' item.id %}" class="btn btn-sm btn-light rounded-3">
+                        <i class="bi bi-eye"></i> View
+                      </a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center py-5 text-muted">No live listings found.</td>
+              </tr>
+              {% endfor %}
             </tbody>
-        </table>
-    </div>
-</div>
-
-    <!-- 3. COMPLETED ORDERS -->
-    <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
-        <div class="card-header bg-white py-3 border-0">
-            <h5 class="fw-bold mb-0 text-muted">Order History (Completed)</h5>
+          </table>
         </div>
+      </div>
+
+      {% for item in approved_items %}
+        {% if not item.is_service and item.id %}
+        <div class="modal fade" id="mgmtProductModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 rounded-4 shadow">
+              <div class="modal-header">
+                <div>
+                  <h5 class="modal-title fw-bold">{{ item.name }}</h5>
+                  <small class="text-muted">
+                    {% if item.product_code %}{{ item.product_code }} · {% endif %}
+                    Created {{ item.created_at|date:"M d, Y h:i A" }}
+                  </small>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <div class="row g-4">
+                  <div class="col-md-4">
+                    {% if item.images.first %}
+                      <img src="{{ item.images.first.image.url }}" class="img-fluid rounded-3 w-100" style="max-height:220px;object-fit:cover;" alt="">
+                    {% elif item.image %}
+                      <img src="{{ item.image.url }}" class="img-fluid rounded-3 w-100" style="max-height:220px;object-fit:cover;" alt="">
+                    {% else %}
+                      <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height:180px;">
+                        <i class="bi bi-image text-muted fs-1"></i>
+                      </div>
+                    {% endif %}
+                  </div>
+                  <div class="col-md-8">
+                    <div class="row g-2 small">
+                      <div class="col-6">
+                        <span class="text-muted d-block">Seller</span>
+                        <strong>{{ item.seller.get_full_name|default:item.seller.username }}</strong>
+                      </div>
+                      <div class="col-6">
+                        <span class="text-muted d-block">Course / Section</span>
+                        <strong>
+                          {{ item.seller.course|default:"—" }}
+                          {% if item.seller.section %} · {{ item.seller.section }}{% endif %}
+                        </strong>
+                      </div>
+                      <div class="col-6">
+                        <span class="text-muted d-block">Product Code</span>
+                        <strong>{{ item.product_code|default:"—" }}</strong>
+                      </div>
+                      <div class="col-6">
+                        <span class="text-muted d-block">Stock</span>
+                        <strong>{{ item.get_total_stock }}</strong>
+                      </div>
+                      <div class="col-6">
+                        <span class="text-muted d-block">Meetup Location</span>
+                        <strong>{{ item.meetup_location_text|default:"—" }}</strong>
+                      </div>
+                      <div class="col-6">
+                        <span class="text-muted d-block">Pickup Days</span>
+                        <strong>{{ item.available_days|default:"—" }}</strong>
+                      </div>
+                      <div class="col-12">
+                        <span class="text-muted d-block">Time Range</span>
+                        <strong>
+                          {% if item.preferred_meetup_time_from and item.preferred_meetup_time_to %}
+                            {{ item.preferred_meetup_time_from|time:"g:i A" }} – {{ item.preferred_meetup_time_to|time:"g:i A" }}
+                          {% else %}—{% endif %}
+                        </strong>
+                      </div>
+                      <div class="col-12">
+                        <span class="text-muted d-block">Description</span>
+                        <p class="mb-0">{{ item.description|default:"No description." }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <h6 class="fw-bold mt-4 mb-2">Variants</h6>
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Name</th>
+                        <th>Attribute</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Condition</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for v in item.variants.all %}
+                      <tr>
+                        <td>{{ v.variant_name }}</td>
+                        <td>{{ v.attribute_value|default:"—" }}</td>
+                        <td>₱{{ v.price }}</td>
+                        <td>{{ v.stocks }}</td>
+                        <td>{{ v.condition|default:"—" }}</td>
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="5" class="text-muted">No variants</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="modal-footer justify-content-between flex-wrap gap-2">
+                <a href="{% url 'start_chat' product_id=item.id %}?from=management&ref=product"
+                   class="btn btn-outline-primary rounded-pill px-4">
+                  <i class="bi bi-chat-dots me-1"></i> Message Seller
+                </a>
+                <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+
+    {# ========== PRODUCTS (PENDING) ========== #}
+    <div class="tab-pane fade" id="products-pane" role="tabpanel">
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-light">
-                    <tr>
-                        <th class="ps-4">Order ID</th>
-                        <th>Buyer</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for order in incoming_orders %}
-                        {% if order.status == 'COMPLETED' or order.status == 'DECLINED' %}
-                        <tr class="opacity-75">
-                            <td class="ps-4">#{{ order.id }}</td>
-                            <td>{{ order.full_name_at_time }}</td>
-                            <td>
-                                <span class="badge {% if order.status == 'COMPLETED' %}bg-success{% else %}bg-danger{% endif %} rounded-pill">
-                                    {{ order.status }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% endif %}
-                    {% endfor %}
-                </tbody>
-            </table>
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-4">Product</th>
+                <th>Seller</th>
+                <th>Type</th>
+                <th class="text-end pe-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pending_products %}
+              <tr>
+                <td class="ps-4">
+                  <div class="fw-bold">{{ p.name }}</div>
+                  <small class="text-muted">₱{{ p.get_price_range }}</small>
+                </td>
+                <td>{{ p.seller.get_full_name|default:p.seller.username }}</td>
+                <td>
+                  {% if p.pre_order %}
+                    <span class="badge bg-info text-dark rounded-pill">Pre-order</span>
+                  {% else %}
+                    <span class="badge bg-light text-dark border rounded-pill">On-hand</span>
+                  {% endif %}
+                </td>
+                <td class="text-end pe-4">
+                  <div class="d-flex justify-content-end gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                            data-bs-toggle="modal" data-bs-target="#pendingProductModal{{ p.id }}">
+                      <i class="bi bi-eye"></i> View Details
+                    </button>
+                    <button class="btn btn-sm btn-success rounded-3"
+                            onclick="confirmAction('product', '{{ p.id }}', 'Approved', '{{ p.name|escapejs }}')">
+                      Approve
+                    </button>
+                    <button class="btn btn-sm btn-danger rounded-3"
+                            onclick="rejectProduct('{{ p.id }}', '{{ p.name|escapejs }}')">
+                      Reject
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center py-5 text-muted">No products pending review.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-    </div>
-</div>
+      </div>
+
+      {% for p in pending_products %}
+      <div class="modal fade" id="pendingProductModal{{ p.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+          <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header">
+              <div>
+                <h5 class="modal-title fw-bold">{{ p.name }}</h5>
+                <small class="text-muted">
+                  {% if p.product_code %}{{ p.product_code }} · {% endif %}
+                  Created {{ p.created_at|date:"M d, Y h:i A" }}
+                </small>
+              </div>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="row g-4">
+                <div class="col-md-4">
+                  {% if p.images.first %}
+                    <img src="{{ p.images.first.image.url }}" class="img-fluid rounded-3 w-100" style="max-height:220px;object-fit:cover;" alt="">
+                  {% elif p.image %}
+                    <img src="{{ p.image.url }}" class="img-fluid rounded-3 w-100" style="max-height:220px;object-fit:cover;" alt="">
+                  {% else %}
+                    <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height:180px;">
+                      <i class="bi bi-image text-muted fs-1"></i>
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="col-md-8">
+                  <div class="row g-2 small">
+                    <div class="col-6">
+                      <span class="text-muted d-block">Seller</span>
+                      <strong>{{ p.seller.get_full_name|default:p.seller.username }}</strong>
+                    </div>
+                    <div class="col-6">
+                      <span class="text-muted d-block">Course / Section</span>
+                      <strong>
+                        {{ p.seller.course|default:"—" }}
+                        {% if p.seller.section %} · {{ p.seller.section }}{% endif %}
+                      </strong>
+                    </div>
+                    <div class="col-6">
+                      <span class="text-muted d-block">Product Code</span>
+                      <strong>{{ p.product_code|default:"—" }}</strong>
+                    </div>
+                    <div class="col-6">
+                      <span class="text-muted d-block">Stock</span>
+                      <strong>{{ p.get_total_stock }}</strong>
+                    </div>
+                    <div class="col-6">
+                      <span class="text-muted d-block">Meetup Location</span>
+                      <strong>{{ p.meetup_location_text|default:"—" }}</strong>
+                    </div>
+                    <div class="col-6">
+                      <span class="text-muted d-block">Pickup Days</span>
+                      <strong>{{ p.available_days|default:"—" }}</strong>
+                    </div>
+                    <div class="col-12">
+                      <span class="text-muted d-block">Time Range</span>
+                      <strong>
+                        {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                          {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                        {% else %}—{% endif %}
+                      </strong>
+                    </div>
+                    <div class="col-12">
+                      <span class="text-muted d-block">Description</span>
+                      <p class="mb-0">{{ p.description|default:"No description." }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <h6 class="fw-bold mt-4 mb-2">Variants</h6>
+              <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Name</th>
+                      <th>Attribute</th>
+                      <th>Price</th>
+                      <th>Stock</th>
+                      <th>Condition</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for v in p.variants.all %}
+                    <tr>
+                      <td>{{ v.variant_name }}</td>
+                      <td>{{ v.attribute_value|default:"—" }}</td>
+                      <td>₱{{ v.price }}</td>
+                      <td>{{ v.stocks }}</td>
+                      <td>{{ v.condition|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-muted">No variants</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="modal-footer justify-content-between flex-wrap gap-2">
+              {% if p.id %}
+              <a href="{% url 'start_chat' product_id=p.id %}?from=management&ref=product"
+                 class="btn btn-outline-primary rounded-pill px-3">
+                <i class="bi bi-chat-dots me-1"></i> Message Seller
+              </a>
+              {% endif %}
+              <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-success rounded-pill px-3"
+                        onclick="confirmAction('product', '{{ p.id }}', 'Approved', '{{ p.name|escapejs }}')">
+                  Approve
+                </button>
+                <button class="btn btn-danger rounded-pill px-3"
+                        onclick="rejectProduct('{{ p.id }}', '{{ p.name|escapejs }}')">
+                  Reject
+                </button>
+                <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
     </div>
 
-<div class="d-flex justify-content-end mt-3">
-  <button class="btn btn-success rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#pdfModal">
-    <i class="bi bi-file-pdf"></i> Generate Report
-  </button>
+    {# ========== REPORTS ========== #}
+    <div class="tab-pane fade" id="reports-pane" role="tabpanel">
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-4">Reported Subject</th>
+                <th>Type</th>
+                <th>Reporter</th>
+                <th>Reason</th>
+                <th>Status</th>
+                <th class="text-end pe-4">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for report in reported_items %}
+              <tr>
+                <td class="ps-4">
+                  <div class="fw-bold">{{ report.reported_user.get_full_name|default:report.reported_user.username }}</div>
+                  <small class="text-muted">Chat re: {{ report.conversation.product.name }}</small>
+                </td>
+                <td>Chat / User</td>
+                <td>{{ report.reporter.get_full_name|default:report.reporter.username }}</td>
+                <td>{{ report.reason }}</td>
+                <td><span class="badge bg-warning text-dark">{{ report.status }}</span></td>
+                <td class="text-end pe-4">
+                  <button class="btn btn-sm btn-outline-primary rounded-3"
+                          data-bs-toggle="modal" data-bs-target="#reportModal{{ report.id }}">
+                    View / Action
+                  </button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center py-5">
+                  <div class="text-muted">
+                    <i class="bi bi-shield-check display-4 d-block mb-3"></i>
+                    <span>No active reports to review.</span>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {% for report in reported_items %}
+      <div class="modal fade" id="reportModal{{ report.id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+          <div class="modal-content border-0 rounded-4">
+            <div class="modal-header">
+              <h5 class="modal-title fw-bold">Report #{{ report.id }}</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <p><strong>Reason:</strong> {{ report.reason }}</p>
+              <p><strong>Details:</strong> {{ report.details|default:"—" }}</p>
+              <p>
+                <strong>Reporter:</strong> {{ report.reporter.get_full_name|default:report.reporter.username }}
+                · <strong>Reported:</strong> {{ report.reported_user.get_full_name|default:report.reported_user.username }}
+              </p>
+              <hr>
+              <h6 class="fw-bold">Conversation</h6>
+              <div class="border rounded-3 p-3" style="max-height:280px;overflow-y:auto;">
+                {% for m in report.conversation.messages.all %}
+                <div class="mb-2 small">
+                  <strong>{{ m.user.get_short_name }}</strong>
+                  <span class="text-muted">{{ m.timestamp|date:"M d H:i" }}</span>
+                  <div>{{ m.content }}</div>
+                </div>
+                {% empty %}
+                <p class="text-muted mb-0">No messages.</p>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="modal-footer flex-wrap gap-2">
+              <button class="btn btn-outline-warning rounded-pill"
+                      onclick="suspendUser({{ report.reported_user.id }}, {{ report.id }}, 'reported')">
+                Suspend Reported User
+              </button>
+              <button class="btn btn-outline-secondary rounded-pill"
+                      onclick="suspendUser({{ report.reporter.id }}, {{ report.id }}, 'reporter')">
+                Suspend Reporter
+              </button>
+              <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# ========== LOGS ========== #}
+    <div class="tab-pane fade" id="logs-pane" role="tabpanel">
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="ps-4">Timestamp</th>
+                <th>User / Officer</th>
+                <th>Action Performed</th>
+                <th>Target Item</th>
+                <th class="text-end pe-4">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in logs %}
+              <tr>
+                <td class="ps-4">
+                  <div class="fw-bold">{{ log.timestamp|date:"M d, Y" }}</div>
+                  <small class="text-muted">{{ log.timestamp|time:"h:i A" }}</small>
+                </td>
+                <td>
+                  <div class="fw-bold text-dark">{{ log.user.get_full_name|default:log.user.username }}</div>
+                  <span class="badge bg-light text-muted border" style="font-size:0.7rem;">{{ log.user.user_role }}</span>
+                </td>
+                <td><span class="text-primary fw-semibold">{{ log.action }}</span></td>
+                <td>
+                  <div class="small fw-bold">{{ log.item_name }}</div>
+                  <div class="text-muted" style="font-size:0.75rem;">{{ log.item_type }}</div>
+                </td>
+                <td class="text-end pe-4">
+                  <span class="badge bg-success-subtle text-success">Completed</span>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="text-center py-5 text-muted">No activity recorded yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
+{# PDF modal #}
 <div class="modal fade" id="pdfModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4 border-0 shadow">
@@ -522,10 +638,7 @@
             <i class="bi bi-clock-history text-primary me-2"></i> All Pre-orders (Management)
           </a>
           <a href="{% url 'generate.report.pdf' %}?report_type=completed_preorders" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
-          <i class="bi bi-cart-check-fill text-success me-2"></i> Completed Pre-Orders Only
-        </a>
-          <a href="{% url 'generate.report.pdf' %}?report_type=all_services" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
-            <i class="bi bi-tools text-info me-2"></i> All Services
+            <i class="bi bi-cart-check-fill text-success me-2"></i> Completed Pre-Orders Only
           </a>
           <a href="{% url 'generate.report.pdf' %}?report_type=all_products" class="list-group-item list-group-item-action py-3 border-0 rounded-3 mb-2 bg-light">
             <i class="bi bi-archive text-warning me-2"></i> All Products Masterlist
@@ -533,104 +646,157 @@
           <a href="{% url 'generate.report.pdf' %}?report_type=user_logs" class="list-group-item list-group-item-action py-3 border-0 rounded-3 bg-light">
             <i class="bi bi-journal-text text-danger me-2"></i> User Activity Logs
           </a>
-          <a href="#" class="list-group-item list-group-item-action py-3 border-0 rounded-3 bg-light">
-            <i class="bi bi-exclamation-octagon text-danger me-2"></i> Reported Users & Chats
-          </a>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-    <div class="modal fade" id="docModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 rounded-4">
-          <div class="modal-body p-0 text-center">
-            <img id="docPreview" src="" class="img-fluid rounded-4" />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <script>
-      function viewDoc(url) {
-        if (url && url !== 'None') {
-          document.getElementById('docPreview').src = url
-          new bootstrap.Modal(document.getElementById('docModal')).show()
+<script>
+  async function suspendUser(userId, reportId, who) {
+    const { value } = await Swal.fire({
+      title: `Suspend ${who}?`,
+      html: `
+        <select id="susp-days" class="form-select mb-2">
+          <option value="7">1 week (7 days)</option>
+          <option value="3">3 days</option>
+          <option value="14">2 weeks</option>
+          <option value="30">30 days</option>
+          <option value="custom">Custom days...</option>
+        </select>
+        <input type="number" id="susp-custom" class="form-control mb-2 d-none" min="1" placeholder="Number of days">
+        <textarea id="susp-reason" class="form-control" rows="2" placeholder="Suspension reason"></textarea>
+      `,
+      didOpen: () => {
+        document.getElementById('susp-days').onchange = (e) => {
+          document.getElementById('susp-custom').classList.toggle('d-none', e.target.value !== 'custom');
+        };
+      },
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Suspend',
+      preConfirm: () => {
+        const days = document.getElementById('susp-days').value;
+        const custom = document.getElementById('susp-custom').value;
+        const reason = document.getElementById('susp-reason').value.trim();
+        if (days === 'custom' && (!custom || Number(custom) < 1)) {
+          Swal.showValidationMessage('Enter valid custom days');
+          return false;
         }
+        return { days, custom_days: custom, reason };
       }
-
-      function confirmAction(type, id, status, name) {
-        const isNegative = ['rejected', 'declined', 'unverified'].includes(status.toLowerCase())
-        Swal.fire({
-          title: `${isNegative ? 'Reject' : 'Approve'} ${type}?`,
-          text: `Proceed with "${name}"?`,
-          icon: 'question',
-          showCancelButton: true,
-          confirmButtonColor: isNegative ? '#d33' : '#198754',
-          confirmButtonText: 'Confirm'
-        }).then((result) => {
-          if (result.isConfirmed) {
-            window.location.href = `/management/update/${type}/${id}/?status=${status}`
-          }
-        })
-      }
-function handlePreOrder(orderId, newStatus) {
-    // 1. Safely get the CSRF element
-    const csrfElement = document.querySelector('[name=csrfmiddlewaretoken]');
-    
-    // 2. Check if it exists BEFORE reading .value
-    if (!csrfElement) {
-        console.error("CSRF token not found!");
-        Swal.fire('Error', 'Security token missing. Please refresh the page.', 'error');
-        return;
-    }
-    
-    const csrftoken = csrfElement.value;
-
-    // 3. Dynamic messages based on status
-    const statusMap = {
-        'APPROVED': { title: 'Accept pre-order?', text: 'This will move the order to the Approved list.', color: '#198754' },
-        'PREPARING': { title: 'Start preparing?', text: 'Notify the student that you are packing the item.', color: '#0dcaf0' },
-        'READY': { title: 'Item ready?', text: 'Notify the student that the item is ready for pickup.', color: '#ffc107' },
-        'COMPLETED': { title: 'Mark as Picked Up?', text: 'This will finalize the transaction.', color: '#0d6efd' },
-        'DECLINED': { title: 'Reject order?', text: 'This will notify the student and cancel the request.', color: '#dc3545' }
-    };
-
-    const config = statusMap[newStatus] || { title: 'Update Status?', text: `Change to ${newStatus}`, color: '#6c757d' };
-
-    Swal.fire({
-        title: config.title,
-        text: config.text,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: config.color,
-        confirmButtonText: 'Yes, proceed'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            fetch(`{% url 'update_preorder_status' 0 %}`.replace('0', orderId), {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrftoken,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 'status': newStatus })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire('Updated!', 'Order status updated successfully.', 'success')
-                    .then(() => location.reload());
-                } else {
-                    Swal.fire('Error', data.message || 'Update failed', 'error');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                Swal.fire('Error', 'Server communication error.', 'error');
-            });
-        }
     });
-}
-    </script>
+    if (!value) return;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const res = await fetch('/management/suspend-user/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        report_id: reportId,
+        days: value.days,
+        custom_days: value.custom_days,
+        reason: value.reason
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await Swal.fire('Suspended', data.message, 'success');
+      location.reload();
+    } else {
+      Swal.fire('Error', data.message || 'Failed', 'error');
+    }
+  }
+
+  function confirmAction(type, id, status, name) {
+    if (['rejected', 'declined', 'unverified'].includes(status.toLowerCase())) {
+      rejectProduct(id, name);
+      return;
+    }
+    Swal.fire({
+      title: `Approve ${type}?`,
+      text: `Proceed with "${name}"?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
+      confirmButtonText: 'Confirm'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        window.location.href = `/management/update/${type}/${id}/?status=${status}`;
+      }
+    });
+  }
+
+  async function rejectProduct(id, name) {
+    const { value: reason } = await Swal.fire({
+      title: 'Reject product?',
+      html: `<p class="mb-2">Product: <strong>${name}</strong></p>`,
+      input: 'select',
+      inputOptions: {
+        'Incomplete details': 'Incomplete details',
+        'Prohibited item': 'Prohibited item',
+        'Poor quality photos': 'Poor quality photos',
+        'Incorrect category': 'Incorrect category',
+        'Duplicate listing': 'Duplicate listing',
+        'Pricing issue': 'Pricing issue',
+        Other: 'Other'
+      },
+      inputPlaceholder: 'Select a reason',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Reject & Notify Seller',
+      inputValidator: (v) => (!v ? 'Please select a reason' : undefined)
+    });
+    if (!reason) return;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const res = await fetch(`/management/product/${id}/reject/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await Swal.fire('Rejected', data.message || 'Seller has been notified.', 'success');
+      location.reload();
+    } else {
+      Swal.fire('Error', data.message || 'Failed', 'error');
+    }
+  }
+
+  async function unlistProduct(id, name) {
+    const { value: reason } = await Swal.fire({
+      title: 'Unlist product?',
+      html: `<p class="mb-2">Product: <strong>${name}</strong></p>
+             <p class="small text-muted">This removes it from the live marketplace.</p>`,
+      input: 'select',
+      inputOptions: {
+        'Policy violation': 'Policy violation',
+        'Reported by users': 'Reported by users',
+        'Misleading information': 'Misleading information',
+        'Prohibited content': 'Prohibited content',
+        'Seller request': 'Seller request',
+        Other: 'Other'
+      },
+      inputPlaceholder: 'Select a reason',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Unlist & Notify',
+      inputValidator: (v) => (!v ? 'Please select a reason' : undefined)
+    });
+    if (!reason) return;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const res = await fetch(`/management/product/${id}/unlist/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await Swal.fire('Unlisted', data.message || 'Seller notified.', 'success');
+      location.reload();
+    } else {
+      Swal.fire('Error', data.message || 'Failed', 'error');
+    }
+  }
+</script>
 {% endblock %}

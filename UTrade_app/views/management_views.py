@@ -3,7 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models import Q
-from ..models import CartItem, Order, OrderItem, Review, User, Product, Services, SystemLog,PreOrderRequest,Category, CategoryAttribute
+from ..models import CartItem, Order, OrderItem, Review, User, Product, Services, SystemLog,PreOrderRequest,Category, CategoryAttribute, Product, Conversation, ChatMessage, SystemLog, UserReport
 from ..utils import log_action
 from itertools import chain
 from django.template.loader import get_template
@@ -42,9 +42,28 @@ class ManagementPanelView(LoginRequiredMixin, View):
         
         users = users.order_by(sort_param)
 
-        approved_products = Product.objects.filter(status='Approved')
+        
         approved_services = Services.objects.filter(status='Approved')
-
+        approved_products = (
+        Product.objects
+        .filter(status='Approved')
+        .select_related('seller', 'category')
+        .prefetch_related('variants', 'images')
+    )
+        reported_items = (
+            UserReport.objects
+            .select_related(
+                'reporter',
+                'reported_user',
+                'conversation',
+                'conversation__product',
+                'conversation__buyer',
+                'conversation__seller',
+            )
+            .prefetch_related('conversation__messages__user')
+            .order_by('-created_at')[:100]
+        )
+        
         if search_query:
             approved_products = approved_products.filter(
                 Q(name__icontains=search_query) | 
@@ -97,7 +116,9 @@ class ManagementPanelView(LoginRequiredMixin, View):
             'pending_products_count': pending_products.count(),
             'pending_services': pending_services,
             'pending_services_count': pending_services.count(),
-            
+            'reported_items': UserReport.objects.select_related(
+            'reporter', 'reported_user', 'conversation', 'conversation__product'
+            ).order_by('-created_at')[:100],
             # Logs and Orders
             'logs': SystemLog.objects.all()[:50],
             'incoming_orders': incoming_preorders,
@@ -342,3 +363,92 @@ def delete_meetup(request, loc_id):
 def get_prohibited_words(request):
     words = list(ProhibitedWord.objects.values_list('word', flat=True))
     return JsonResponse({'prohibited_words': words})
+
+def is_management(user):
+    return user.is_authenticated and user.user_role == 'management'
+
+
+def _notify_seller(admin_user, product, message_text):
+    """Open/reuse conversation as admin (buyer side) with seller, about this product."""
+    conversation, _ = Conversation.objects.get_or_create(
+        product=product,
+        buyer=admin_user,   # management acts as initiator
+        seller=product.seller,
+    )
+    ChatMessage.objects.create(
+        conversation=conversation,
+        user=admin_user,
+        content=message_text,
+        is_read=False,
+    )
+    return conversation
+
+
+@login_required
+@user_passes_test(is_management)
+@require_POST
+def management_reject_product(request, product_id):
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+
+    reason = (data.get('reason') or '').strip()
+    if not reason:
+        return JsonResponse({'success': False, 'message': 'Reason required'}, status=400)
+
+    product = get_object_or_404(Product, id=product_id)
+    product.status = 'Rejected'
+    product.save(update_fields=['status'])
+
+    msg = (
+        f"🚨 SYSTEM (Management): Your product \"{product.name}\" was rejected.\n"
+        f"Reason: {reason}\n"
+        f"You may edit and resubmit it for review."
+    )
+    _notify_seller(request.user, product, msg)
+
+    log_action(
+        user=request.user,
+        action="Product Rejected",
+        item_type="Product",
+        item_name=product.name,
+        details=f"Rejected ID:{product.id}. Reason: {reason}",
+    )
+
+    return JsonResponse({'success': True, 'message': 'Product rejected and seller notified.'})
+
+
+@login_required
+@user_passes_test(is_management)
+@require_POST
+def management_unlist_product(request, product_id):
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+
+    reason = (data.get('reason') or '').strip()
+    if not reason:
+        return JsonResponse({'success': False, 'message': 'Reason required'}, status=400)
+
+    product = get_object_or_404(Product, id=product_id, status='Approved')
+    product.status = 'Unlisted'  # or 'Rejected' / 'Pending' — match your STATUS choices
+    product.save(update_fields=['status'])
+
+    msg = (
+        f"🚨 SYSTEM (Management): Your product \"{product.name}\" was unlisted from the marketplace.\n"
+        f"Reason: {reason}\n"
+        f"Contact management if you have questions."
+    )
+    _notify_seller(request.user, product, msg)
+
+    log_action(
+        user=request.user,
+        action="Product Unlisted",
+        item_type="Product",
+        item_name=product.name,
+        details=f"Unlisted ID:{product.id}. Reason: {reason}",
+    )
+
+    return JsonResponse({'success': True, 'message': 'Product unlisted and seller notified.'})

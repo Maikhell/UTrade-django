@@ -98,7 +98,8 @@ urlpatterns = [
     path('management/security/delete-word/<int:word_id>/', management_views.delete_bad_word, name='delete_bad_word'),
     path('management/security/categories/delete/<int:cat_id>/', management_views.delete_category, name='delete_category'),
     path('management/security/delete-meetup/<int:loc_id>/', management_views.delete_meetup, name='delete_meetup'),
-    
+    path('management/product/<int:product_id>/reject/', management_views.management_reject_product, name='management.product_reject'),
+    path('management/product/<int:product_id>/unlist/', management_views.management_unlist_product, name='management.product_unlist'),
     #
     path('api/prohibited-words/', items_views.prohibited_words_api, name='prohibited_words_api'),
     path('api/staged-product/add/', items_views.add_to_staging_ajax, name='add_to_staging_ajax'),
@@ -113,5 +114,7 @@ urlpatterns = [
     path('seller/preorder/<int:preorder_id>/complete/', user_views.preorder_mark_completed, name='preorder.mark_completed'),
     path('seller/reports/preorders/', user_views.seller_preorder_report, name='seller.preorder_report'),
     path('preorder/update-status/<int:order_id>/',user_views.update_preorder_status,name='preorder.update_status',),
+    path('chat/report/<int:conversation_id>/', chat_views.report_conversation, name='chat.report'),
+path('management/suspend-user/', chat_views.management_suspend_user, name='management.suspend_user'),
     ]
 

@@ -460,25 +460,25 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
             </div>
           </div>
           <!-- Pre-order Checkbox Option -->
-            <div class="mb-3 form-check bg-light p-3 rounded border">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                id="is_pre_order"
-                name="is_pre_order"
-              />
-              <label
-                class="form-check-label small fw-bold text-dark"
-                for="is_pre_order"
-              >
-                <i class="bi bi-clock-history me-1 text-primary"></i> Mark as
-                Pre-order Item
-              </label>
-              <div class="form-text small text-muted mt-1">
-                Check this if items are made-to-order or fulfillment takes longer
-                than usual.
-              </div>
+          <div class="mb-3 form-check bg-light p-3 rounded border">
+            <input
+              type="checkbox"
+              class="form-check-input"
+              id="is_pre_order"
+              name="is_pre_order"
+            />
+            <label
+              class="form-check-label small fw-bold text-dark"
+              for="is_pre_order"
+            >
+              <i class="bi bi-clock-history me-1 text-primary"></i> Mark as
+              Pre-order Item
+            </label>
+            <div class="form-text small text-muted mt-1">
+              Check this if items are made-to-order or fulfillment takes longer
+              than usual.
             </div>
+          </div>
           <div class="mb-4">
             <label class="form-label small fw-bold text-secondary d-block"
               >Accepted Payment</label
@@ -493,22 +493,7 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
                 checked
               />
               <label class="btn btn-outline-success" for="p_cash">Cash</label>
-              <input
-                type="radio"
-                class="btn-check"
-                name="payment"
-                id="p_gcash"
-                value="GCASH"
-              />
-              <label class="btn btn-outline-primary" for="p_gcash">GCash</label>
-              <input
-                type="radio"
-                class="btn-check"
-                name="payment"
-                id="p_both"
-                value="BOTH"
-              />
-              <label class="btn btn-outline-secondary" for="p_both">Both</label>
+              
             </div>
           </div>
 

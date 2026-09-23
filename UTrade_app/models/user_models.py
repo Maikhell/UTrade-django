@@ -44,6 +44,9 @@ class User(AbstractUser):
         null=True, 
         verbose_name='COR_file'
     )
+    is_suspended = models.BooleanField(default=False)
+    suspension_until = models.DateTimeField(null=True, blank=True)
+    suspension_reason = models.TextField(blank=True)
     has_agreed_to_terms = models.BooleanField(default=False)
     course = models.CharField(max_length=100, blank=True, null=True,)
     section = models.CharField(max_length=30, blank=True, null=True,) 
@@ -110,3 +113,42 @@ class ChatMessage(models.Model):
     is_read = models.BooleanField(default=False)
     def __str__(self):
         return f"{self.user.username}: {self.content[:20]}"
+    
+# models.py (or messaging models)
+class UserReport(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('reviewed', 'Reviewed'),
+        ('resolved', 'Resolved'),
+        ('dismissed', 'Dismissed'),
+    ]
+    REASON_CHOICES = [
+        ('Harassment', 'Harassment / Abuse'),
+        ('Spam', 'Spam / Scam'),
+        ('Inappropriate', 'Inappropriate content'),
+        ('Threats', 'Threats / Intimidation'),
+        ('Impersonation', 'Impersonation'),
+        ('Other', 'Other'),
+    ]
+
+    conversation = models.ForeignKey(
+        'Conversation', on_delete=models.CASCADE, related_name='reports'
+    )
+    reporter = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='reports_filed'
+    )
+    reported_user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='reports_against'
+    )
+    reason = models.CharField(max_length=50, choices=REASON_CHOICES)
+    details = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    reviewed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reports_reviewed'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Report #{self.id} on {self.reported_user} by {self.reporter}"

@@ -4,131 +4,145 @@
 {% block title %}Chat with {% if request.user == conversation.buyer %}{{ conversation.seller.get_short_name }}{% else %}{{ conversation.buyer.get_short_name }}{% endif %}{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container py-3">
-    <div class="d-flex align-items-center justify-content-between bg-white p-3 rounded-4 shadow-sm mb-3">
-        <div class="d-flex align-items-center">
-            <a href="{% url 'inbox' %}" class="btn btn-light rounded-circle me-3">
-                <i class="bi bi-arrow-left"></i>
-            </a>
-            <img src="{{ conversation.product.image.url }}" class="rounded-3 me-3" style="width: 45px; height: 45px; object-fit: cover;">
-            <div>
+  <div class="d-flex align-items-center justify-content-between bg-white p-3 rounded-4 shadow-sm mb-3">
+    <div class="d-flex align-items-center">
+      <a href="{% url 'inbox' %}" class="btn btn-light rounded-circle me-3">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+      {% if conversation.product.images.first %}
+        <img src="{{ conversation.product.images.first.image.url }}" class="rounded-3 me-3" style="width:45px;height:45px;object-fit:cover;" alt="">
+      {% elif conversation.product.image %}
+        <img src="{{ conversation.product.image.url }}" class="rounded-3 me-3" style="width:45px;height:45px;object-fit:cover;" alt="">
+      {% endif %}
+      <div>
+        <h6 class="mb-0 fw-bold">{{ conversation.product.name }}</h6>
+        <small class="text-muted">
+          Chatting with
+          {% if request.user == conversation.buyer %}
+            {{ conversation.seller.get_short_name }}
+          {% else %}
+            {{ conversation.buyer.get_short_name }}
+          {% endif %}
+        </small>
+      </div>
+    </div>
+    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="reportUser()">
+      <i class="bi bi-flag-fill me-1"></i> Report User
+    </button>
+  </div>
 
-                <h6 class="mb-0 fw-bold">{{ conversation.product.name }}                 <button class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="reportConversation()">
-    <i class="bi bi-flag-fill me-1"></i> Report
-</button></h6>
-                <small class="text-muted">Chatting with 
-                    {% if request.user == conversation.buyer %}{{ conversation.seller.get_short_name }}{% else %}{{ conversation.buyer.get_short_name }}{% endif %}
-                </small>
-            </div>
+  <div id="chat-log" class="bg-white shadow-sm rounded-4 p-3 mb-3"
+       style="height:60vh;overflow-y:auto;display:flex;flex-direction:column;">
+    {% for message in messages %}
+      <div class="d-flex {% if message.user == request.user %}justify-content-end{% else %}justify-content-start{% endif %} mb-3">
+        <div class="p-3 rounded-4 {% if message.user == request.user %}bg-primary text-white shadow-sm{% else %}bg-light text-dark{% endif %}" style="max-width:75%;">
+          <p class="mb-0 small">{{ message.content }}</p>
+          <small class="opacity-75" style="font-size:0.65rem;">{{ message.timestamp|date:"h:i A" }}</small>
         </div>
-    </div>
+      </div>
+    {% endfor %}
+  </div>
 
-    <div id="chat-log" class="bg-white shadow-sm rounded-4 p-3 mb-3" style="height: 60vh; overflow-y: auto; display: flex; flex-direction: column;">
-{% for message in messages %}
-    <div class="d-flex {% if message.user == request.user %}justify-content-end{% else %}justify-content-start{% endif %} mb-3">
-        <div class="p-3 rounded-4 {% if message.user == request.user %}bg-primary text-white shadow-sm{% else %}bg-light text-dark{% endif %}" style="max-width: 75%;">
-            <p class="mb-0 small">{{ message.content }}</p>
-            <small class="opacity-75" style="font-size: 0.65rem;">{{ message.timestamp|date:"h:i A" }}</small>
-        </div>
-    </div>
-{% endfor %}
-    </div>
-
-    <div class="chat-input-area">
-        <div class="input-group mb-3">
-            <input type="text" id="chat-message-input" class="form-control rounded-pill-start border-0 shadow-sm p-3" placeholder="Type your message here...">
-            <button id="chat-message-submit" class="btn btn-primary rounded-pill-end px-4 shadow-sm">
-                <i class="bi bi-send-fill"></i>
-            </button>
-        </div>
-    </div>
+  <div class="input-group mb-3">
+    <input type="text" id="chat-message-input" class="form-control rounded-pill border-0 shadow-sm p-3" placeholder="Type your message here...">
+    <button id="chat-message-submit" class="btn btn-primary rounded-pill px-4 shadow-sm ms-2">
+      <i class="bi bi-send-fill"></i>
+    </button>
+  </div>
 </div>
 
 <script>
-    const conversationId = "{{ conversation.id }}";
-    const currentUser = "{{ request.user.get_short_name }}";
-    const currentUserId = "{{ request.user.id }}";
+  const conversationId = "{{ conversation.id }}";
+  const currentUserId = "{{ request.user.id }}";
+  const chatSocket = new WebSocket(
+    (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
+    window.location.host + '/ws/chat/' + conversationId + '/'
+  );
+  const chatLog = document.querySelector('#chat-log');
+  chatLog.scrollTop = chatLog.scrollHeight;
 
-    console.log("Connecting to conversation:", conversationId);
-    // Open WebSocket connection
-    const chatSocket = new WebSocket(
-        (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + 
-        window.location.host + 
-        '/ws/chat/' + conversationId + '/'
-    );
-
-    // Auto-scroll to bottom on load
-    const chatLog = document.querySelector('#chat-log');
+  chatSocket.onmessage = function (e) {
+    const data = JSON.parse(e.data);
+    const isMe = String(data.user_id) === String(currentUserId);
+    const alignment = isMe ? 'justify-content-end' : 'justify-content-start';
+    const bgColor = isMe ? 'bg-primary text-white shadow-sm' : 'bg-light text-dark';
+    chatLog.innerHTML += `
+      <div class="d-flex ${alignment} mb-3">
+        <div class="p-3 rounded-4 ${bgColor}" style="max-width:75%;">
+          <p class="mb-0 small">${data.message}</p>
+          <small class="opacity-75" style="font-size:0.65rem;">Just now</small>
+        </div>
+      </div>`;
     chatLog.scrollTop = chatLog.scrollHeight;
+  };
 
-    chatSocket.onmessage = function(e) {
-        const data = JSON.parse(e.data);
-        const isMe = data.user_id == currentUserId;
-        
-        const alignment = isMe ? 'justify-content-end' : 'justify-content-start';
-        const bgColor = isMe ? 'bg-primary text-white shadow-sm' : 'bg-light text-dark';
+  document.querySelector('#chat-message-input').onkeyup = function (e) {
+    if (e.keyCode === 13) document.querySelector('#chat-message-submit').click();
+  };
+  document.querySelector('#chat-message-submit').onclick = function () {
+    const input = document.querySelector('#chat-message-input');
+    const message = input.value.trim();
+    if (!message) return;
+    chatSocket.send(JSON.stringify({ message }));
+    input.value = '';
+  };
 
-        const messageHtml = `
-            <div class="d-flex ${alignment} mb-3" style="animation: fadeIn 0.3s ease;">
-                <div class="p-3 rounded-4 ${bgColor}" style="max-width: 75%;">
-                    <p class="mb-0 small">${data.message}</p>
-                    <small class="opacity-75" style="font-size: 0.65rem;">Just now</small>
-                </div>
-            </div>
-        `;
-        
-        chatLog.innerHTML += messageHtml;
-        chatLog.scrollTop = chatLog.scrollHeight; // Scroll to new message
-    };
-
-    chatSocket.onclose = function(e) {
-        console.error('Chat socket closed unexpectedly');
-    };
-
-    document.querySelector('#chat-message-input').focus();
-    document.querySelector('#chat-message-input').onkeyup = function(e) {
-        if (e.keyCode === 13) {  // Enter key
-            document.querySelector('#chat-message-submit').click();
+  async function reportUser() {
+    const { value: formValues } = await Swal.fire({
+      title: 'Report User',
+      html: `
+        <p class="small text-muted mb-2">Select a reason. Management will review the full chat.</p>
+        <select id="swal-reason" class="form-select mb-2">
+          <option value="">Select reason...</option>
+          <option value="Harassment">Harassment / Abuse</option>
+          <option value="Spam">Spam / Scam</option>
+          <option value="Inappropriate">Inappropriate content</option>
+          <option value="Threats">Threats / Intimidation</option>
+          <option value="Impersonation">Impersonation</option>
+          <option value="Other">Other</option>
+        </select>
+        <textarea id="swal-details" class="form-control" rows="3" placeholder="Optional details"></textarea>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Submit Report',
+      confirmButtonColor: '#dc3545',
+      preConfirm: () => {
+        const reason = document.getElementById('swal-reason').value;
+        if (!reason) {
+          Swal.showValidationMessage('Please select a reason');
+          return false;
         }
-    };
-
-    document.querySelector('#chat-message-submit').onclick = function(e) {
-        const messageInputDom = document.querySelector('#chat-message-input');
-        const message = messageInputDom.value;
-        
-        if (message.trim() !== "") {
-            chatSocket.send(JSON.stringify({
-                'message': message
-            }));
-            messageInputDom.value = '';
-        }
-    };
-</script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const hasAgreed = "{{ request.user.has_agreed_to_terms|yesno:'true,false' }}";
-        const termsModal = new bootstrap.Modal(document.getElementById('termsModal'));
-
-        // Show modal only if they haven't agreed yet
-        if (hasAgreed === "false") {
-            termsModal.show();
-        }
-
-        document.getElementById('agreeBtn').addEventListener('click', function() {
-            // Update the database via AJAX
-            fetch("{% url 'update_terms_agreement' %}", {
-                method: "POST",
-                headers: {
-                    "X-CSRFToken": "{{ csrf_token }}",
-                    "Content-Type": "application/json"
-                }
-            }).then(response => {
-                if (response.ok) {
-                    termsModal.hide();
-                }
-            });
-        });
+        return {
+          reason,
+          details: document.getElementById('swal-details').value.trim()
+        };
+      }
     });
+    if (!formValues) return;
+
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    try {
+      const res = await fetch(`/chat/report/${conversationId}/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrftoken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formValues)
+      });
+      const data = await res.json();
+      if (data.success) {
+        Swal.fire('Reported', data.message || 'Management will review this chat.', 'success');
+      } else {
+        Swal.fire('Error', data.message || 'Could not submit report.', 'error');
+      }
+    } catch (e) {
+      Swal.fire('Error', 'Network error.', 'error');
+    }
+  }
 </script>
 <style>
     @keyframes fadeIn {

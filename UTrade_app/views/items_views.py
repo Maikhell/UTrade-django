@@ -263,7 +263,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
 
 class ProductDetailView(DetailView):
     model = Product
-    template_name = 'Utrade_app/products/product_details.html'
+    template_name = 'UTrade_app/products/product_details.html'
     context_object_name = 'product'
 
     def get_queryset(self):
@@ -415,7 +415,7 @@ class ProductListView(ListView):
 
 class WishlistListView(LoginRequiredMixin, ListView):
     model = Wishlist
-    template_name = 'Utrade_app/products/wishlist.html'
+    template_name = 'UTrade_app/products/wishlist.html'
     context_object_name = 'wishlists'
 
     def get_queryset(self):

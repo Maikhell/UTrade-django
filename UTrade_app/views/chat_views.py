@@ -8,8 +8,9 @@ from django.views.decorators.http import require_POST
 from django.db.models import Q
 from django.contrib import messages 
 from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect
 
-from ..models import Conversation, ChatMessage, UserReport, User
+from ..models import Conversation, ChatMessage, UserReport, User, Product
 from ..utils import log_action
 
 

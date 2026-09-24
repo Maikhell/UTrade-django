@@ -160,22 +160,22 @@
       </tbody>
     </table>
 
-    <div class="total-section">
-      <div>Payment: <strong>{{ order.payment_method|default:'Cash on Pickup' }}</strong></div>
-      <div>Status: <strong>{{ order.status }}</strong></div>
-      <div class="total-amount">
-        Total:
-        ₱{% if is_preorder %}
-          {% widthratio order.product_variant.price 1 order.quantity %}
-        {% else %}
-          {{ order.total_amount }}
-        {% endif %}
-      </div>
-    </div>
+    <div class="total-section" style="text-align: left;">
+  <div class="total-amount">
+    Total:
+    ₱{% if is_preorder %}
+      {% widthratio order.product_variant.price 1 order.quantity %}
+    {% else %}
+      {{ order.total_amount }}
+    {% endif %}
+  </div>
+  <div>Payment: <strong>{{ order.payment_method|default:'Cash on Pickup' }}</strong></div>
+  <div style="text-align: center;">Status: <strong>{{ order.status }}</strong></div>
+</div>
 
-    <div class="footer">
-      <p>Thank you for using UTrade</p>
-      <p>Generated {% now 'Y-m-d H:i' %}</p>
-    </div>
+<div class="footer">
+  <p>Thank you for using UTrade</p>
+  <p>Generated {% now 'Y-m-d H:i' %}</p>
+</div>
   </body>
 </html>

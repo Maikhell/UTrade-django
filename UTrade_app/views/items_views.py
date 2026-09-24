@@ -77,7 +77,7 @@ def next_product_code_api(request):
 
 class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
-    template_name = 'Utrade_app/products/add_product.html'
+    template_name = 'UTrade_app/products/add_product.html'
     BANNED_KEYWORDS = [
         'alcohol', 'drugs', 'beer', 'wine', 'vodka', 'whiskey',
         'ecigarette', 'vape', 'smoke', 'tobacco', 'cigarette',

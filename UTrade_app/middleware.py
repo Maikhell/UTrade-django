@@ -52,6 +52,23 @@ class LoginRequiredMiddleware:
         # Everything else requires login
         if not request.user.is_authenticated:
             return redirect('landingpage')
-
+        if request.user.is_authenticated:
+            u = request.user
+            student_no = getattr(u, 'student_no', '') or ''
+            status = (getattr(u, 'status', '') or '').lower()
+            needs = (
+                not student_no
+                or str(student_no).startswith('TMP-')
+                or status == 'unverified'
+            )
+            complete_paths = (
+                '/profile/', '/userprofile/', '/complete-google-profile/',
+                '/logout/', '/accounts/logout/',
+            )
+            if needs and not any(current_path.startswith(p) for p in complete_paths):
+                try:
+                    return redirect('complete_google_profile')  # or user.profile
+                except Exception:
+                    return redirect('user.profile')
         return self.get_response(request)
     

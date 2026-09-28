@@ -1,3 +1,4 @@
+# UTrade_app/adapters.py
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from allauth.core.exceptions import ImmediateHttpResponse
@@ -5,9 +6,9 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+import uuid
 
 User = get_user_model()
-
 ALLOWED_EMAIL_DOMAIN = 'cvsu.edu.ph'
 
 
@@ -16,34 +17,33 @@ def _is_cvsu_email(email: str) -> bool:
     return email.endswith(f'@{ALLOWED_EMAIL_DOMAIN}')
 
 
+def _needs_profile_completion(user) -> bool:
+    student_no = getattr(user, 'student_no', '') or ''
+    status = (getattr(user, 'status', '') or '').lower()
+    return (
+        not student_no
+        or str(student_no).startswith('TMP-')
+        or status in ('unverified', 'pending', '')
+    )
+
+
 class CustomAccountAdapter(DefaultAccountAdapter):
     def get_login_redirect_url(self, request):
         user = request.user
         if not user.is_authenticated:
             return reverse('product.list')
 
-        student_no = getattr(user, 'student_no', '') or ''
-        status = getattr(user, 'status', '') or ''
-
-        if (
-            not student_no
-            or str(student_no).startswith('TMP-')
-            or status == 'unverified'
-            or not user.is_active
-        ):
+        if _needs_profile_completion(user):
             try:
                 return reverse('complete_google_profile')
             except Exception:
-                return reverse('product.list')
+                return reverse('user.profile')
 
         return reverse('product.list')
 
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
     def pre_social_login(self, request, sociallogin):
-        """
-        Block any Google account that is not @cvsu.edu.ph
-        """
         email = (
             sociallogin.account.extra_data.get('email')
             or getattr(sociallogin.user, 'email', '')
@@ -54,29 +54,36 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
             messages.error(
                 request,
                 'Only CVSU email addresses (@cvsu.edu.ph) are allowed. '
-                'Please sign in with your institutional Google account.'
+                'Please sign in with your institutional Google account.',
             )
             raise ImmediateHttpResponse(redirect('user.login'))
 
-        # If a local user already has this email, connect Google to that account
-        user = sociallogin.user
-        if user.id:
+        # Already logged-in social user object with PK
+        if sociallogin.user.id:
+            # Reactivate if an older Google signup left them inactive
+            if not sociallogin.user.is_active:
+                sociallogin.user.is_active = True
+                sociallogin.user.save(update_fields=['is_active'])
             return
 
         existing = User.objects.filter(email__iexact=email).first()
         if existing:
-            # Also ensure existing account email is CVSU (safety)
             if not _is_cvsu_email(existing.email or ''):
                 messages.error(
                     request,
-                    'Only CVSU email addresses (@cvsu.edu.ph) are allowed.'
+                    'Only CVSU email addresses (@cvsu.edu.ph) are allowed.',
                 )
                 raise ImmediateHttpResponse(redirect('user.login'))
+
+            # Critical: inactive local accounts fail social login
+            if not existing.is_active:
+                existing.is_active = True
+                existing.save(update_fields=['is_active'])
+
             sociallogin.connect(request, existing)
 
     def populate_user(self, request, sociallogin, data):
         user = super().populate_user(request, sociallogin, data)
-
         email = (data.get('email') or getattr(user, 'email', '') or '').lower()
         user.email = email
 
@@ -108,22 +115,35 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         if not _is_cvsu_email(email):
             messages.error(
                 request,
-                'Only CVSU email addresses (@cvsu.edu.ph) are allowed.'
+                'Only CVSU email addresses (@cvsu.edu.ph) are allowed.',
             )
             raise ImmediateHttpResponse(redirect('user.login'))
 
         user = super().save_user(request, sociallogin, form=form)
 
-        student_no = getattr(user, 'student_no', None)
-        if not student_no:
-            import uuid
+        # Allow login; incomplete profile is enforced by status + middleware
+        changed = False
+        if not user.is_active:
+            user.is_active = True
+            changed = True
+
+        if not getattr(user, 'student_no', None):
             user.student_no = f'TMP-{uuid.uuid4().hex[:10]}'
-            user.is_active = False
+            changed = True
+
+        if not getattr(user, 'status', None) or user.status == '':
             user.status = 'unverified'
-            if not getattr(user, 'user_role', None):
-                user.user_role = 'student'
+            changed = True
+
+        if not getattr(user, 'user_role', None):
+            user.user_role = 'student'
+            changed = True
+
+        if changed:
             user.save()
-            request.session['pending_user_id'] = user.id
-            request.session['complete_google_signup'] = True
+
+        request.session['pending_user_id'] = user.id
+        request.session['complete_google_signup'] = True
+        request.session.modified = True
 
         return user

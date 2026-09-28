@@ -58,10 +58,16 @@ class UserCreateView(CreateView):
         
         try:
             send_otp_email(user)
-            messages.info(self.request, "A verification code has been sent to your CVSU email.")
+            messages.info(self.request, f"A verification code has been sent to {user.email}.")
         except Exception as e:
-            print(f"SMTP/Email Error: {e}")
-            messages.warning(self.request, "Account created, but we had trouble sending the email.")
+            # Log full error on Railway
+            import logging
+            logging.getLogger(__name__).exception('OTP email failed for %s', user.email)
+            messages.error(
+                self.request,
+                'Account created, but the verification email could not be sent. '
+                'Please try again or contact support.'
+            )
 
         return redirect('/verify-email/')
 

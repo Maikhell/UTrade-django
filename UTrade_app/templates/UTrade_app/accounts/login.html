@@ -97,7 +97,7 @@ Page {% endblock %} {% block content %} {% block extra_css %}
       </div>
 
       <a
-        href="{% url 'google_login' %}"
+        href="{% provider_login_url 'google' %}"
         class="btn btn-outline-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3"
       >
         <img

@@ -5,14 +5,7 @@ from django.contrib import messages
 from ..forms import UserLoginForm
 from django.contrib.auth import authenticate, login
 from ..models import User
-
-
-from django.contrib import messages
-from django.contrib.auth import authenticate, login
-from django.contrib.auth.views import LoginView
 from django.db.models import Q
-from django.shortcuts import redirect
-from django.urls import reverse_lazy
 from django.contrib.auth import get_user_model
 
 User = get_user_model()

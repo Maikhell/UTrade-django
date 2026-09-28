@@ -1,12 +1,15 @@
-from .models import SystemLog
+from .models import SystemLog, Product, StagedProduct
 import random
+import re
+import logging
 from datetime import timedelta
+
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
-from django.db.models import Max
-from .models import Product, StagedProduct
-import re
+
+logger = logging.getLogger(__name__)
+
 
 def log_action(user, action, item_type, item_name, details=""):
     SystemLog.objects.create(
@@ -14,30 +17,53 @@ def log_action(user, action, item_type, item_name, details=""):
         action=action,
         item_type=item_type,
         item_name=item_name,
-        details=details
+        details=details,
     )
+
+
 def send_otp_email(user):
     """
-    Generates a 6-digit OTP, sets expiry, and sends it to the user's CVSU email.
+    Generate a 6-digit OTP, store expiry on the user, email it to user.email.
+    Raises on missing email or SMTP failure so the caller can show a message.
     """
-    otp = str(random.randint(100000, 999999))
+    recipient = (getattr(user, 'email', None) or '').strip()
+    if not recipient:
+        raise ValueError(f'User id={getattr(user, "id", None)} has no email for OTP.')
+
+    otp = f'{random.randint(100000, 999999)}'
     user.otp_code = otp
     user.otp_expiry = timezone.now() + timedelta(minutes=10)
-    user.save()
+    user.save(update_fields=['otp_code', 'otp_expiry'])
 
     subject = 'Verify your UTrade Account'
-    message = f'Your verification code is: {otp}. It expires in 10 minutes.'
-    email_from = settings.DEFAULT_FROM_EMAIL
-    recipient_list = [user.email]
-    
-    send_mail(subject, message, email_from, recipient_list)
-    
+    message = (
+        f'Hi {user.first_name or user.username or "there"},\n\n'
+        f'Your UTrade verification code is: {otp}\n\n'
+        f'This code expires in 10 minutes.\n\n'
+        f'If you did not register for UTrade, you can ignore this email.\n\n'
+        f'— UTrade CVSU'
+    )
+    email_from = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or settings.EMAIL_HOST_USER
+
+    try:
+        sent = send_mail(
+            subject,
+            message,
+            email_from,
+            [recipient],
+            fail_silently=False,  # surface SMTP errors in Railway logs
+        )
+        logger.info('OTP email sent to %s (sent=%s)', recipient, sent)
+        return sent
+    except Exception:
+        logger.exception('OTP email FAILED for user_id=%s email=%s', user.id, recipient)
+        raise
+
+
 def generate_next_product_code(model_cls=None):
     """
     Format: UTR-YYYY-####  (zero-padded, auto-increment per year)
-    Looks at Product (+ StagedProduct if you pass both via a shared sequence).
-    """  
-
+    """
     year = timezone.now().year
     prefix = f'UTR-{year}-'
 
@@ -56,6 +82,7 @@ def generate_next_product_code(model_cls=None):
     next_num = last + 1
     return f'{prefix}{next_num:04d}'
 
+
 def get_seller_owner_type_filter(user):
     """
     Map role → product owner_type that this user may manage.
@@ -66,9 +93,7 @@ def get_seller_owner_type_filter(user):
     if role in ('management', 'admin', 'campus_admin'):
         return 'MANAGEMENT'
     if role in ('alumni_assoc',) or getattr(user, 'is_officer', False):
-        # Organization officers / org accounts
         return 'ORGANIZATION'
-    # Optional: explicit org role string
     if role in ('organization', 'org'):
         return 'ORGANIZATION'
-    return None  
+    return None

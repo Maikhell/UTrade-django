@@ -59,8 +59,19 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = f'UTrade CVSU <{EMAIL_HOST_USER}>'
-EMAIL_FAIL_SILENTLY = False
+
+# Prefer an explicit env override; fall back to host user
+_default_from = os.getenv('DEFAULT_FROM_EMAIL')
+if _default_from:
+    DEFAULT_FROM_EMAIL = _default_from
+elif EMAIL_HOST_USER:
+    DEFAULT_FROM_EMAIL = f'UTrade CVSU <{EMAIL_HOST_USER}>'
+else:
+    DEFAULT_FROM_EMAIL = 'UTrade CVSU <noreply@cvsu.edu.ph>'
+
+EMAIL_TIMEOUT = 20
+# Optional: some hosts prefer this instead of TLS on 587
+# EMAIL_USE_SSL = False
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

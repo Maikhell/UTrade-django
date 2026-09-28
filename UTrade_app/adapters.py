@@ -33,7 +33,7 @@ class CustomAccountAdapter(DefaultAccountAdapter):
         if not user.is_authenticated:
             return reverse('product.list')
 
-        if _needs_profile_completion(user):
+        if request.session.get('complete_google_signup', False) or _needs_profile_completion(user):
             try:
                 return reverse('complete_google_profile')
             except Exception:

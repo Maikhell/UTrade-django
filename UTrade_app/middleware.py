@@ -25,7 +25,7 @@ class LoginRequiredMiddleware:
 
         # Prefixes that must stay public (allauth Google OAuth lives under /accounts/)
         exempt_prefixes = (
-            '/accounts/',      # django-allauth (Google login + callback)
+            '/accounts/',   # django-allauth (Google login + callback)
             '/login/',
             '/register/',
             '/verify-email/',
@@ -52,23 +52,23 @@ class LoginRequiredMiddleware:
         # Everything else requires login
         if not request.user.is_authenticated:
             return redirect('landingpage')
+
         if request.user.is_authenticated:
-            u = request.user
-            student_no = getattr(u, 'student_no', '') or ''
-            status = (getattr(u, 'status', '') or '').lower()
-            needs = (
-                not student_no
-                or str(student_no).startswith('TMP-')
-                or status == 'unverified'
-            )
             complete_paths = (
                 '/profile/', '/userprofile/', '/complete-google-profile/',
                 '/logout/', '/accounts/logout/',
             )
-            if needs and not any(current_path.startswith(p) for p in complete_paths):
-                try:
-                    return redirect('complete_google_profile')  # or user.profile
-                except Exception:
-                    return redirect('user.profile')
+
+            # If this is a fresh Google signup, guide them to the profile page once.
+            # Once they reach a complete path, clear the flag so they can navigate the site normally.
+            if request.session.get('complete_google_signup', False):
+                if any(current_path.startswith(p) for p in complete_paths):
+                    request.session.pop('complete_google_signup', None)
+                    request.session.modified = True
+                else:
+                    try:
+                        return redirect('complete_google_profile')
+                    except Exception:
+                        return redirect('user.profile')
+
         return self.get_response(request)
-    

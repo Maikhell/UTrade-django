@@ -40,16 +40,18 @@ class ManagementPanelView(LoginRequiredMixin, View):
         if status_filter:
             users = users.filter(status=status_filter)
         
-        users = users.order_by(sort_param)
+        users = users.order_by(sort_param)[:50] # Limit initial load for performance
 
-        
+        # Optimized Approved Products & Services
         approved_services = Services.objects.filter(status='Approved')
         approved_products = (
-        Product.objects
-        .filter(status='Approved')
-        .select_related('seller', 'category')
-        .prefetch_related('variants', 'images')
-    )
+            Product.objects
+            .filter(status='Approved')
+            .select_related('seller', 'category')
+            .prefetch_related('variants', 'images')
+        )
+
+        # Lightened User Reports (Removed heavy message prefetching for the dashboard list)
         reported_items = (
             UserReport.objects
             .select_related(
@@ -60,8 +62,7 @@ class ManagementPanelView(LoginRequiredMixin, View):
                 'conversation__buyer',
                 'conversation__seller',
             )
-            .prefetch_related('conversation__messages__user')
-            .order_by('-created_at')[:100]
+            .order_by('-created_at')[:50] # Reduced limit to save RAM
         )
         
         if search_query:
@@ -69,64 +70,59 @@ class ManagementPanelView(LoginRequiredMixin, View):
                 Q(name__icontains=search_query) | 
                 Q(seller__first_name__icontains=search_query) |
                 Q(seller__last_name__icontains=search_query) |
-                Q(variants__price__icontains=search_query) # Products use variants
+                Q(variants__price__icontains=search_query)
             ).distinct()
 
             approved_services = approved_services.filter(
                 Q(name__icontains=search_query) |
                 Q(seller__first_name__icontains=search_query) |
                 Q(seller__last_name__icontains=search_query) |
-                Q(base_price__icontains=search_query)          
+                Q(base_price__icontains=search_query)         
             ).distinct()
 
         if pre_order_filter:
             is_pre = pre_order_filter == 'True'
             approved_products = approved_products.filter(pre_order=is_pre)
 
-        for p in approved_products: p.is_service = False
-        for s in approved_services: s.is_service = True
-        
-        approved_items = sorted(
-            chain(approved_products, approved_services),
-            key=lambda instance: instance.id, reverse=True
-        )
+        # Cache counts to prevent extra database hits
+        active_products_count = approved_products.count()
+        active_services_count = approved_services.count()
 
-        pending_products = Product.objects.filter(status='Pending')
-        pending_services = Services.objects.filter(status='Pending')
+        pending_products = Product.objects.filter(status='Pending')[:50]
+        pending_services = Services.objects.filter(status='Pending')[:50]
         
         incoming_preorders = PreOrderRequest.objects.filter(
             seller__user_role='management'
-        ).select_related('buyer', 'product_variant__product').order_by('-created_at')
+        ).select_related('buyer', 'product_variant__product').order_by('-created_at')[:50]
         
-        all_orders = Order.objects.all().distinct()
+        completed_orders = Order.objects.filter(status='Completed')[:50]
 
         context = {
             'org_name': "UTrade Global Management",
             'users': users,
             'verified_count': User.objects.filter(status='verified').count(),
             
-            # Inventory / Live Listings
-            'approved_items': approved_items,
-            'approved_count': len(approved_items), 
-            'active_products_count': approved_products.count(), 
-            'active_services_count': approved_services.count(), 
+            # Inventory / Live Listings (Consider paginating approved_items in templates)
+            'approved_count': active_products_count + active_services_count, 
+            'active_products_count': active_products_count, 
+            'active_services_count': active_services_count, 
             
             # Pending Items
             'pending_products': pending_products,
             'pending_products_count': pending_products.count(),
             'pending_services': pending_services,
             'pending_services_count': pending_services.count(),
-            'reported_items': UserReport.objects.select_related(
-            'reporter', 'reported_user', 'conversation', 'conversation__product'
-            ).order_by('-created_at')[:100],
-            # Logs and Orders
-            'logs': SystemLog.objects.all()[:50],
+            
+            # Fixed: Re-using the variable instead of running the query a second time!
+            'reported_items': reported_items,
+            
+            # Logs and Orders (Capped with slices to protect memory)
+            'logs': SystemLog.objects.all()[:30],
             'incoming_orders': incoming_preorders,
-            'completed_orders': all_orders.filter(status='Completed'),
+            'completed_orders': completed_orders,
         }
 
         return render(request, 'UTrade_app/management/dashboard.html', context)
-    
 
 
 def update_status(request, type, id):

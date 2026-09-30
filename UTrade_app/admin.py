@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, Category, ServiceCategory, Product, ProductVariant, Services
+from .models import User, Category, ServiceCategory, Product, ProductVariant
 
 class ProductVariantInline(admin.TabularInline):
     model = ProductVariant
@@ -15,6 +15,4 @@ class ProductAdmin(admin.ModelAdmin):
 
 admin.site.register(User)
 admin.site.register(Category)
-admin.site.register(ServiceCategory)
-admin.site.register(Services)
 admin.site.register(ProductVariant) 

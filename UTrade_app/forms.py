@@ -1,5 +1,5 @@
 from django import forms
-from .models import Product, User, Services, ProductVariant, ProductImage
+from .models import Product, User, ProductVariant, ProductImage
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 class ProductForm(forms.ModelForm):
     class Meta:
@@ -38,18 +38,6 @@ class VariantForm(forms.ModelForm):
         if product:
             self.fields['assigned_image'].queryset = ProductImage.objects.filter(product=product)
 
-
-class ServiceForm(forms.ModelForm):
-    class Meta:
-        model = Services  
-        fields = ['name', 'description', 'category', 'base_price', 'turnaround_time']        
-        widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Service Title'}),
-            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'category': forms.Select(attrs={'class': 'form-select'}),
-            'base_price': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '0.00'}),
-            'turnaround_time': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 3-5 days'}),
-        }
 
 class UserRegistrationForm(forms.ModelForm):
     password1 = forms.CharField(

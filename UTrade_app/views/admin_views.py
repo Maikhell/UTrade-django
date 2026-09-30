@@ -16,7 +16,7 @@ from ..models import User, Organization
 
 from xhtml2pdf import pisa
 
-from ..models import Product, Services, User, ProhibitedWord
+from ..models import Product, User, ProhibitedWord
 User = get_user_model()
 class AdminDashboard(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
     template_name = 'UTrade_app/admin/dashboard.html'
@@ -176,11 +176,8 @@ def update_item_status(request, item_id):
     try:
         data = json.loads(request.body)
         new_status = data.get('status')
-        item_type = data.get('item_type') 
         
-        ModelClass = Product if item_type == 'product' else Services
-        
-        item = get_object_or_404(ModelClass, id=item_id)
+        item = get_object_or_404(Product, id=item_id)
         
         item.status = new_status
         
@@ -204,7 +201,6 @@ class AdminReviewListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         context = super().get_context_data(**kwargs)
         
         context['pending_products'] = Product.objects.filter(status='Pending').select_related('seller', 'category').order_by('created_at')
-        context['pending_services'] = Services.objects.filter(status='Pending').select_related('seller', 'category').order_by('created_at')
         context['pending_users'] = User.objects.filter(status__iexact='Pending').order_by('date_joined')
         context['pending_officers'] = User.objects.filter(officer_status__iexact='Pending')
         

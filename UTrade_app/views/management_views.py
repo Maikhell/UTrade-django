@@ -3,7 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models import Q
-from ..models import CartItem, Order, OrderItem, Review, User, Product, Services, SystemLog,PreOrderRequest,Category, CategoryAttribute, Product, Conversation, ChatMessage, SystemLog, UserReport
+from ..models import CartItem, Order, OrderItem, Review, User, Product,SystemLog,PreOrderRequest,Category, CategoryAttribute, Product, Conversation, ChatMessage, SystemLog, UserReport
 from ..utils import log_action
 from itertools import chain
 from django.template.loader import get_template
@@ -43,7 +43,6 @@ class ManagementPanelView(LoginRequiredMixin, View):
         users = users.order_by(sort_param)[:50] # Limit initial load for performance
 
         # Optimized Approved Products & Services
-        approved_services = Services.objects.filter(status='Approved')
         approved_products = (
             Product.objects
             .filter(status='Approved')
@@ -73,24 +72,16 @@ class ManagementPanelView(LoginRequiredMixin, View):
                 Q(variants__price__icontains=search_query)
             ).distinct()
 
-            approved_services = approved_services.filter(
-                Q(name__icontains=search_query) |
-                Q(seller__first_name__icontains=search_query) |
-                Q(seller__last_name__icontains=search_query) |
-                Q(base_price__icontains=search_query)         
-            ).distinct()
-
         if pre_order_filter:
             is_pre = pre_order_filter == 'True'
             approved_products = approved_products.filter(pre_order=is_pre)
 
         # Cache counts to prevent extra database hits
         active_products_count = approved_products.count()
-        active_services_count = approved_services.count()
+    
 
         pending_products = Product.objects.filter(status='Pending')[:50]
-        pending_services = Services.objects.filter(status='Pending')[:50]
-        
+      
         incoming_preorders = PreOrderRequest.objects.filter(
             seller__user_role='management'
         ).select_related('buyer', 'product_variant__product').order_by('-created_at')[:50]
@@ -103,15 +94,13 @@ class ManagementPanelView(LoginRequiredMixin, View):
             'verified_count': User.objects.filter(status='verified').count(),
             
             # Inventory / Live Listings (Consider paginating approved_items in templates)
-            'approved_count': active_products_count + active_services_count, 
+            'approved_count': active_products_count,
             'active_products_count': active_products_count, 
-            'active_services_count': active_services_count, 
+          
             
             # Pending Items
             'pending_products': pending_products,
             'pending_products_count': pending_products.count(),
-            'pending_services': pending_services,
-            'pending_services_count': pending_services.count(),
             
             # Fixed: Re-using the variable instead of running the query a second time!
             'reported_items': reported_items,
@@ -128,9 +117,8 @@ class ManagementPanelView(LoginRequiredMixin, View):
 def update_status(request, type, id):
     new_status = request.GET.get('status')
     
-    if type == 'service':
-        item = get_object_or_404(Services, id=id)
-    elif type == 'product':
+    
+    if type == 'product':
         item = get_object_or_404(Product, id=id)
     elif type == 'user':
         item = get_object_or_404(User, id=id)
@@ -150,12 +138,6 @@ def update_status(request, type, id):
     messages.success(request, f"{type.capitalize()} updated successfully!")
     return redirect('management.panel')
 
-def service_details(request, service_id):
-    service = get_object_or_404(Services, id=service_id)
-    context = {
-        'service': service,
-    }
-    return render(request, 'UTrade_app/management/service_detail.html', context)
 
 def product_details(request, product_id):
     product = get_object_or_404(
@@ -216,9 +198,6 @@ def generate_report_pdf(request):
     elif report_type == 'pre_orders':
         title = "Management Pre-Order Report"
         data = Product.objects.filter(status='Approved', pre_order=True)
-    elif report_type == 'all_services':
-        title = "All Services Report"
-        data = Services.objects.all()
     elif report_type == 'all_products':
         title = "Complete Product Masterlist"
         data = Product.objects.all()

@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    items_views, services_views, user_views, authenticate, 
+    items_views, user_views, authenticate, 
     admin_views, cart_views, order_views, chat_views, 
     organization_views, management_views,alumni_views,
     otplink_views
@@ -33,8 +33,7 @@ urlpatterns = [
     path('wishlist/toggle/<int:product_id>/', items_views.toggle_wishlist, name='toggle_wishlist'),
     path('api/get-attributes/<int:category_id>/', items_views.get_attributes, name='get_attributes'),
     
-    path('services/', services_views.ServiceListView.as_view(), name='services.list'),
-    path('addservices/', services_views.ServiceCreateView.as_view(), name='services.create'),
+
 
     # --- Shopping Cart & Checkout ---
     path('cart/', cart_views.cart_detail, name='cart_detail'),

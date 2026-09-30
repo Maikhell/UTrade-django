@@ -17,11 +17,6 @@
         </button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link rounded-pill px-4 fw-bold" id="services-tab" data-bs-toggle="pill" data-bs-target="#services" type="button" role="tab">
-          Services <span class="badge bg-success ms-2">{{ pending_services.count }}</span>
-        </button>
-      </li>
-      <li class="nav-item" role="presentation">
         <button class="nav-link rounded-pill px-4 fw-bold" id="users-tab" data-bs-toggle="pill" data-bs-target="#users" type="button" role="tab">
           Users <span class="badge bg-dark ms-2">{{ pending_users.count }}</span>
         </button>
@@ -42,19 +37,6 @@
             <div class="text-center py-5">
               <i class="bi bi-box-seam display-4 text-muted"></i>
               <p class="text-muted mt-2">No pending products.</p>
-            </div>
-          {% endfor %}
-        </div>
-      </div>
-
-      <div class="tab-pane fade" id="services" role="tabpanel">
-        <div class="row g-4">
-          {% for item in pending_services %}
-            {% include 'UTrade_app/components/review_card.html' with type='service' %}
-          {% empty %}
-            <div class="text-center py-5">
-              <i class="bi bi-tools display-4 text-muted"></i>
-              <p class="text-muted mt-2">No pending services.</p>
             </div>
           {% endfor %}
         </div>

@@ -42,16 +42,27 @@ INSTALLED_APPS = [
 
 SITE_ID = 1
 
+
 AUTH_USER_MODEL = 'UTrade_app.User'
 ASGI_APPLICATION = 'config.asgi.application'
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [os.getenv('REDIS_URL', 'redis://127.0.0.1:6379')],
+REDIS_URL = os.getenv('REDIS_URL')
+
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+            },
         },
-    },
-}
+    }
+else:
+    # Local/dev only — not for multi-instance production chat
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'

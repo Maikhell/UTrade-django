@@ -114,12 +114,8 @@ class Payout(models.Model):
 
     # Financial Breakdown
     total_amount = models.DecimalField(max_digits=10, decimal_places=2) # Amount buyer paid
-    service_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # UTrade cut
     seller_net_amount = models.DecimalField(max_digits=10, decimal_places=2) # What seller gets
 
-    # Seller's GCash Info (Captured at time of payout request)
-    gcash_name = models.CharField(max_length=100, help_text="Registered GCash Name")
-    gcash_number = models.CharField(max_length=11, help_text="09XXXXXXXXX")
 
     # Management Proof & Oversight
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

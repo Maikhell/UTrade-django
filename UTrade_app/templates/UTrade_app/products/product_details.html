@@ -9,13 +9,16 @@
   {% block extra_css %}
     <link rel="stylesheet" href="{% static 'UTrade_app/css/product_details.css' %}" />
   {% endblock %}
+
   <nav aria-label="breadcrumb" class="mb-4">
     <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
       <i class="bi bi-arrow-left" aria-hidden="true"></i>
       <span>Back to marketplace</span>
     </a>
   </nav>
+
   {% csrf_token %}
+
   <div class="container py-5">
     <nav aria-label="breadcrumb" class="mb-4">
       <ol class="breadcrumb">
@@ -27,11 +30,14 @@
     </nav>
 
     <div class="row g-5">
+      {# ===================== LEFT: IMAGE + REVIEWS ===================== #}
       <div class="col-lg-7">
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
           <div class="main-image-container bg-light d-flex align-items-center justify-content-center" style="height: 500px;">
             {% if product.images.all %}
-              <img src="{{ product.images.first.image.url }}" class="img-fluid h-100" id="mainDisplayImage" style="object-fit: contain;" />
+              <img src="{{ product.images.first.image.url }}" class="img-fluid h-100" id="mainDisplayImage" style="object-fit: contain;" alt="{{ product.name }}" />
+            {% elif product.image %}
+              <img src="{{ product.image.url }}" class="img-fluid h-100" id="mainDisplayImage" style="object-fit: contain;" alt="{{ product.name }}" />
             {% else %}
               <i class="bi bi-image text-muted display-1"></i>
             {% endif %}
@@ -42,69 +48,145 @@
           <div class="row g-2 overflow-auto flex-nowrap pb-2" id="thumbGallery">
             {% for img in product.images.all %}
               <div class="col-auto">
-                <div class="thumbnail-wrapper rounded-3 border {% if forloop.first %}border-success border-2{% endif %}" style="width: 80px; height: 80px; cursor: pointer; overflow: hidden;" onclick="changeImage('{{ img.image.url }}', this)">
-                  <img src="{{ img.image.url }}" class="w-100 h-100" style="object-fit: cover;" />
+                <div class="thumbnail-wrapper rounded-3 border {% if forloop.first %}border-success border-2{% endif %}"
+                     style="width: 80px; height: 80px; cursor: pointer; overflow: hidden;"
+                     onclick="changeImage('{{ img.image.url }}', this)">
+                  <img src="{{ img.image.url }}" class="w-100 h-100" style="object-fit: cover;" alt="Thumbnail" />
                 </div>
               </div>
             {% endfor %}
           </div>
         {% endif %}
+
+        {# Ratings & Reviews under image #}
+        <div class="mt-4">
+          <h5 class="fw-bold mb-3">
+            <i class="bi bi-chat-left-quote me-2 text-success"></i>Ratings &amp; Reviews
+          </h5>
+          {% if reviews %}
+            <div class="d-flex flex-column gap-3">
+              {% for r in reviews %}
+                <div class="card border-0 bg-light rounded-3 p-3">
+                  <div class="d-flex justify-content-between align-items-start mb-1">
+                    <strong class="small">{{ r.user.get_full_name|default:r.user.username }}</strong>
+                    <span class="text-warning small">
+                      {% with rating=r.rating|default:0 %}
+                        {% for i in "12345" %}
+                          {% if forloop.counter <= rating %}
+                            <i class="bi bi-star-fill"></i>
+                          {% else %}
+                            <i class="bi bi-star"></i>
+                          {% endif %}
+                        {% endfor %}
+                      {% endwith %}
+                    </span>
+                  </div>
+                  <p class="mb-0 small text-secondary">
+                    {{ r.comment|default:r.review|default:"" }}
+                  </p>
+                  {% if r.created_at %}
+                    <small class="text-muted">{{ r.created_at|date:"M d, Y" }}</small>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted small mb-0">No reviews yet for this product.</p>
+          {% endif %}
+        </div>
       </div>
 
+      {# ===================== RIGHT: DETAILS ===================== #}
       <div class="col-lg-5">
         <div class="ps-lg-3">
           <div class="d-flex justify-content-between align-items-start mb-2">
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 flex-wrap">
               <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">{{ product.category.name }}</span>
               {% if product.pre_order %}
-                <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill"><i class="bi bi-clock-history me-1"></i> Pre-order</span>
+                <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill">
+                  <i class="bi bi-clock-history me-1"></i> Pre-order
+                </span>
               {% endif %}
             </div>
-            <small class="text-muted">ID: #UT-{{ product.id }}</small>
+            <small class="text-muted">
+              {% if product.product_code %}{{ product.product_code }}{% else %}ID: #UT-{{ product.id }}{% endif %}
+            </small>
           </div>
 
           <h1 class="fw-bold text-dark mb-1">{{ product.name }}</h1>
           <p class="text-muted small mb-3">
-            Listed by <span class="fw-bold text-success">@{{ product.seller.get_full_name }}</span>
+            Listed by <span class="fw-bold text-success">@{{ product.seller.get_full_name|default:product.seller.username }}</span>
           </p>
 
           <div class="d-flex align-items-center gap-3 mb-4 py-2 border-top border-bottom">
             <div class="text-warning">
-              <span class="fw-bold">{{ product.average_rating }}</span> <i class="bi bi-star-fill small"></i>
+              <span class="fw-bold">{{ product.average_rating|default:"—" }}</span>
+              <i class="bi bi-star-fill small"></i>
             </div>
             <div class="vr text-muted opacity-25"></div>
             <div>
-              <span class="fw-bold text-dark">{{ product.sold|default:0 }}</span> <span class="text-muted small ms-1">Sold</span>
+              <span class="fw-bold text-dark">{{ product.sold|default:0 }}</span>
+              <span class="text-muted small ms-1">Sold</span>
             </div>
             <div class="vr text-muted opacity-25"></div>
             <div>
-              <span class="fw-bold {% if product.get_total_stock < 5 %}       
-                  text-danger
-                {% else %}    
-                  text-dark
-                {% endif %}">
+              <span class="fw-bold {% if product.get_total_stock < 5 %}text-danger{% else %}text-dark{% endif %}">
                 {{ product.get_total_stock }}
               </span>
               <span class="text-muted small ms-1">Total Available</span>
             </div>
           </div>
+
           <h2 class="display-5 fw-bold text-success mb-4" id="displayPrice">₱{{ product.get_price_range }}</h2>
+
+          {# Description #}
           <div class="mb-4">
             <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Description</h6>
             <p class="text-secondary" style="line-height: 1.7; white-space: pre-line;">{{ product.description }}</p>
 
             <div id="variantDetails" class="mt-3 p-3 bg-light rounded-3 d-none animate__animated animate__fadeIn">
               <div class="small fw-bold text-uppercase text-muted mb-1">Variant Details:</div>
-              <div class="d-flex align-items-center mb-2">
+              <div class="d-flex align-items-center mb-2 flex-wrap gap-1">
                 <span id="variantConditionBadge" class="badge bg-warning text-dark me-2"></span>
-                <!-- Added Attribute Badge and Aligned Name -->
                 <span id="variantNameDisplay" class="text-dark fw-bold"></span>
-                <span id="variantAttributeDisplay" class="badge bg-secondary-subtle text-secondary ms-2" style="font-size: 0.75rem;"></span>
+                <span id="variantAttributeDisplay" class="badge bg-secondary-subtle text-secondary" style="font-size: 0.75rem;"></span>
               </div>
               <p id="variantFlaws" class="text-danger small mb-0" style="font-style: italic;"></p>
             </div>
           </div>
-          <!-- ===================== MEETUP / PICKUP AVAILABILITY ===================== -->
+
+          {# Variants dropdown (UI only — cart/pre-order still use openVariantSelector) #}
+          <div class="mb-4">
+            <button class="btn btn-outline-secondary w-100 rounded-3 d-flex justify-content-between align-items-center"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#variantsCollapse"
+                    aria-expanded="false"
+                    aria-controls="variantsCollapse">
+              <span><i class="bi bi-layers me-2"></i>Variants</span>
+              <i class="bi bi-chevron-down"></i>
+            </button>
+            <div class="collapse mt-2" id="variantsCollapse">
+              <div class="list-group list-group-flush border rounded-3">
+                {% for v in product.variants.all %}
+                  <div class="list-group-item d-flex justify-content-between align-items-center small">
+                    <div>
+                      <strong>{{ v.variant_name }}</strong>
+                      {% if v.attribute_value %}
+                        <span class="badge bg-secondary-subtle text-secondary ms-1">{{ v.attribute_value }}</span>
+                      {% endif %}
+                      <div class="text-muted">{{ v.condition|default:"—" }} · Stock: {{ v.stocks }}</div>
+                    </div>
+                    <span class="fw-bold text-success">₱{{ v.price }}</span>
+                  </div>
+                {% empty %}
+                  <div class="list-group-item text-muted small">No variants listed.</div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          {# Pickup availability #}
           <div class="card border-0 shadow-sm rounded-4 mb-4">
             <div class="card-body p-3">
               <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">
@@ -112,7 +194,6 @@
                 Pickup availability
               </h6>
 
-              <!-- Location -->
               <div class="mb-3">
                 <div class="small text-muted fw-semibold mb-1">Meetup location</div>
                 {% if product.meetup_location_text %}
@@ -125,7 +206,6 @@
                 {% endif %}
               </div>
 
-              <!-- Available days -->
               <div class="mb-3">
                 <div class="small text-muted fw-semibold mb-1">Available days</div>
                 {% if available_days_list %}
@@ -141,7 +221,6 @@
                 {% endif %}
               </div>
 
-              <!-- Time range -->
               <div>
                 <div class="small text-muted fw-semibold mb-1">Available time</div>
                 {% if product.preferred_meetup_time_from and product.preferred_meetup_time_to %}
@@ -157,36 +236,67 @@
               </div>
             </div>
           </div>
-          
+
+          {# Actions #}
           <div class="d-grid gap-3">
+            {% if user.is_authenticated %}
+              <button type="button"
+                      class="btn btn-outline-danger rounded-pill px-3 py-2"
+                      onclick="toggleWishlist({{ product.id }}, this)">
+                <i class="bi {% if in_wishlist %}bi-heart-fill{% else %}bi-heart{% endif %} me-1"></i>
+                Wishlist
+              </button>
+            {% endif %}
+
             {% if product.get_total_stock > 0 %}
               {% if user.is_staff or user.is_superuser or user.user_role == 'management' or user.user_role == 'alumni_assoc' %}
-                <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled><i class="bi bi-cart-x me-2"></i> Purchasing Disabled</button>
+                <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled>
+                  <i class="bi bi-cart-x me-2"></i> Purchasing Disabled
+                </button>
               {% else %}
-                {# FIX: Changed product.pre_order to product.is_preorder #}
                 {% if product.pre_order %}
-                  <button id="preOrderBtn" onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', true)" class="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm"><i class="bi bi-calendar-check me-2"></i> Pre-order Now</button>
+                  <button id="preOrderBtn"
+                          onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', true)"
+                          class="btn btn-primary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
+                    <i class="bi bi-calendar-check me-2"></i> Pre-order Now
+                  </button>
                 {% else %}
-                  <button id="addToCartBtn" onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', false)" class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm"><i class="bi bi-cart-plus me-2"></i> Add to Cart</button>
+                  <button id="addToCartBtn"
+                          onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', false)"
+                          class="btn btn-success btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm">
+                    <i class="bi bi-cart-plus me-2"></i> Add to Cart
+                  </button>
                 {% endif %}
               {% endif %}
             {% else %}
-              <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled><i class="bi bi-exclamation-octagon me-2"></i> Out of Stock</button>
+              <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled>
+                <i class="bi bi-exclamation-octagon me-2"></i> Out of Stock
+              </button>
             {% endif %}
           </div>
 
+          {# Seller card + View Shop #}
           <div class="card mt-5 border-0 bg-light rounded-4 p-3 shadow-sm">
             <div class="d-flex align-items-center">
               {% if product.seller.image %}
-                <img src="{{ product.seller.image.url }}" class="rounded-circle me-3 border border-2 border-white" style="width: 55px; height: 55px; object-fit: cover;" />
+                <img src="{{ product.seller.image.url }}"
+                     class="rounded-circle me-3 border border-2 border-white"
+                     style="width: 55px; height: 55px; object-fit: cover;"
+                     alt="Seller" />
               {% else %}
-                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3 text-white fw-bold shadow-sm" style="width: 55px; height: 55px;">{{ product.seller.username|slice:':1'|upper }}</div>
+                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3 text-white fw-bold shadow-sm"
+                     style="width: 55px; height: 55px;">
+                  {{ product.seller.username|slice:':1'|upper }}
+                </div>
               {% endif %}
               <div>
-                <h6 class="mb-0 fw-bold">{{ product.seller.get_full_name }}</h6>
+                <h6 class="mb-0 fw-bold">{{ product.seller.get_full_name|default:product.seller.username }}</h6>
                 <p class="small text-muted mb-0">Member since {{ product.seller.date_joined|date:'Y' }}</p>
               </div>
-              <a href="#" class="btn btn-sm btn-outline-success ms-auto rounded-pill px-3">View Shop</a>
+              <a href="{% url 'storefront' product.seller.id %}"
+                 class="btn btn-sm btn-outline-success ms-auto rounded-pill px-3">
+                View Shop
+              </a>
             </div>
           </div>
         </div>
@@ -194,24 +304,26 @@
     </div>
   </div>
 
+  {# Variant JSON for openVariantSelector — do not remove #}
   <script id="variant-data" type="application/json">
 [
   {% for v in product.variants.all %}
     {
       "id": "{{ v.id }}",
       "name": "{{ v.variant_name|escapejs }}",
-      "attribute": "{{ v.attribute_value|escapejs }}",  {# Added this to retrieve the separated attribute #}
+      "attribute": "{{ v.attribute_value|escapejs }}",
       "price": "{{ v.price }}",
       "stock": {{ v.stocks }},
       "condition": "{{ v.condition|escapejs }}",
       "flaws": "{{ v.flaws_description|default:'No major flaws reported.'|escapejs }}",
-      "image_url": "{% if v.assigned_image %}{{ v.assigned_image.image.url }}{% else %}{{ product.images.first.image.url }}{% endif %}"
+      "image_url": "{% if v.assigned_image %}{{ v.assigned_image.image.url }}{% elif product.images.first %}{{ product.images.first.image.url }}{% endif %}"
     }{% if not forloop.last %},{% endif %}
   {% endfor %}
 ]
-</script>
+  </script>
 {% endblock %}
 
 {% block extra_js %}
   <script src="{% static 'UTrade_app/js/product_details.js' %}"></script>
+  <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
 {% endblock %}

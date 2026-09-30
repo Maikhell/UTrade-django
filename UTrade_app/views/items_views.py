@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.db import transaction
+from django.shortcuts import get_object_or_404
+from django.contrib.auth import get_user_model
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
@@ -288,6 +290,23 @@ class ProductDetailView(DetailView):
             for d in (product.available_days or '').split(',')
             if d.strip()
         ]
+
+        # Reviews (adjust related_name if yours differs)
+        reviews = getattr(product, 'reviews', None)
+        if reviews is not None:
+            context['reviews'] = reviews.select_related('user').order_by('-created_at')[:20]
+        else:
+            from ..models import Review  # if Review links to product
+            context['reviews'] = Review.objects.filter(
+                Q(product=product) | Q(order_item__product_variant__product=product)
+            ).select_related('user').order_by('-created_at')[:20]
+
+        context['in_wishlist'] = False
+        if self.request.user.is_authenticated:
+            context['in_wishlist'] = Wishlist.objects.filter(
+                user=self.request.user, product=product
+            ).exists()
+
         return context
 
 
@@ -651,3 +670,45 @@ def get_attributes(request, category_id):
     )
     return JsonResponse({'attributes': list(attributes)})
 
+class StorefrontView(ListView):
+    """Seller shop — same product grid as marketplace, filtered by seller."""
+    model = Product
+    template_name = 'UTrade_app/products/storefront.html'
+    context_object_name = 'products'
+    paginate_by = 12
+
+    def get_seller(self):
+        return get_object_or_404(User, pk=self.kwargs['seller_id'])
+
+    def get_queryset(self):
+        seller = self.get_seller()
+        qs = (
+            Product.objects.filter(status='Approved', seller=seller)
+            .select_related('category', 'seller')
+            .prefetch_related('images', 'variants')
+        )
+        category_id = self.request.GET.get('category')
+        if category_id:
+            qs = qs.filter(category_id=category_id)
+        return qs.order_by('-created_at')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        seller = self.get_seller()
+        context['shop_seller'] = seller
+        context['categories'] = Category.objects.filter(
+            products__seller=seller,
+            products__status='Approved',
+        ).distinct()
+        context['current_category'] = self.request.GET.get('category')
+
+        if self.request.user.is_authenticated:
+            context['user_wishlist_ids'] = set(
+                Wishlist.objects.filter(user=self.request.user).values_list(
+                    'product_id', flat=True
+                )
+            )
+        else:
+            context['user_wishlist_ids'] = set()
+
+        return context

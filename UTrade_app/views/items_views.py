@@ -670,10 +670,12 @@ def get_attributes(request, category_id):
     )
     return JsonResponse({'attributes': list(attributes)})
 
+User = get_user_model()
+
 class StorefrontView(ListView):
     """Seller shop — same product grid as marketplace, filtered by seller."""
     model = Product
-    template_name = 'UTrade_app/products/storefront.html'
+    template_name = 'UTrade_app/seller/storefront.html'
     context_object_name = 'products'
     paginate_by = 12
 

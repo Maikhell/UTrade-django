@@ -119,84 +119,162 @@ function onVariantChange(variantId) {
 
 // ================= VARIANT SELECTOR =================
 function openVariantSelector(productId, productName, isPreOrder = false) {
-    if (!variantData || variantData.length === 0) {
-        isPreOrder ? performPreOrderRequest([{ id: productId, quantity: 1 }]) : performAddToCart([{ id: productId, quantity: 1 }]);
-        return;
-    }
+  if (!variantData || variantData.length === 0) {
+    isPreOrder
+      ? performPreOrderRequest([{ variant_id: productId, quantity: 1 }])
+      : performAddToCart([{ variant_id: productId, quantity: 1 }]);
+    return;
+  }
 
-    let variantHtml = `
-        <div class="text-start mb-2 mt-3 px-1">
-            <small class="text-muted text-uppercase fw-bold" style="font-size: 0.7rem;">Select Variants & Quantities</small>
+  let optionsHtml = `<option value="">Choose a variant / size…</option>`;
+  let chipsHtml = '';
+
+  variantData.forEach((v) => {
+    const isOut = v.stock <= 0;
+    const label = [v.name, v.attribute].filter(Boolean).join(' · ') || `Variant #${v.id}`;
+    const sizeLabel = v.attribute || v.name || label;
+
+    optionsHtml += `
+      <option value="${v.id}"
+              data-price="${v.price}"
+              data-stock="${v.stock}"
+              data-condition="${(v.condition || '').replace(/"/g, '&quot;')}"
+              data-name="${(v.name || '').replace(/"/g, '&quot;')}"
+              data-attr="${(v.attribute || '').replace(/"/g, '&quot;')}"
+              ${isOut ? 'disabled' : ''}>
+        ${label} — ₱${parseFloat(v.price).toFixed(2)}${isOut ? ' (Sold out)' : ` · ${v.stock} left`}
+      </option>`;
+
+    chipsHtml += `
+      <button type="button"
+              class="btn btn-sm rounded-pill variant-chip ${isOut ? 'btn-outline-secondary opacity-50' : 'btn-outline-dark'}"
+              data-id="${v.id}"
+              ${isOut ? 'disabled' : ''}
+              style="min-width: 3rem; font-weight: 600;">
+        ${sizeLabel}
+      </button>`;
+  });
+
+  const html = `
+    <div class="text-start">
+      <label class="form-label small fw-bold text-secondary mb-1">Variants / sizes</label>
+      <select id="swalVariantSelect" class="form-select form-select-lg mb-3">
+        ${optionsHtml}
+      </select>
+
+      <div class="small text-muted mb-1">Quick select size</div>
+      <div id="swalVariantChips" class="d-flex flex-wrap gap-2 mb-3">
+        ${chipsHtml}
+      </div>
+
+      <div id="swalVariantInfo" class="p-3 bg-light rounded-3 small mb-3 d-none">
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">Price</span>
+          <strong id="swalModalPrice" class="text-success"></strong>
         </div>
-        <div class="list-group text-start gap-2" id="variantListContainer">`;
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">Stock</span>
+          <span id="swalModalStock"></span>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">Condition</span>
+          <span id="swalModalCondition"></span>
+        </div>
+      </div>
 
-    variantData.forEach(v => {
-        const isOut = v.stock <= 0;
+      <label class="form-label small fw-bold text-secondary">Quantity</label>
+      <div class="input-group" style="max-width: 160px;">
+        <button type="button" class="btn btn-outline-secondary" id="swalQtyMinus">−</button>
+        <input type="number" id="swalVariantQty" class="form-control text-center" value="1" min="1" />
+        <button type="button" class="btn btn-outline-secondary" id="swalQtyPlus">+</button>
+      </div>
+    </div>
+  `;
 
-        variantHtml += `
-            <div class="list-group-item d-flex align-items-center justify-content-between rounded-3 border p-3 ${isOut ? 'opacity-50 bg-light' : ''}">
-                <div class="d-flex align-items-center gap-3">
-                    <input class="form-check-input variant-checkbox border-success mt-0" type="checkbox" data-variant-id="${v.id}" id="check_var_${v.id}" ${isOut ? 'disabled' : ''} onchange="toggleQtyInput('${v.id}')">
-                    <div class="variant-img-wrapper rounded border" style="width:45px;height:45px;overflow:hidden;flex-shrink:0;">
-                        <img src="${v.image_url}" style="width:100%;height:100%;object-fit:cover;">
-                    </div>
-                    <div>
-                        <div class="fw-bold lh-sm">${v.name}</div>
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="text-success small fw-bold">₱${parseFloat(v.price).toFixed(2)}</span>
-                            ${v.attribute ? `<span class="badge bg-secondary-subtle text-secondary" style="font-size:0.6rem;">${v.attribute}</span>` : ''}
-                        </div>
-                    </div>
-                </div>
+  Swal.fire({
+    title: isPreOrder ? `Pre-order ${productName}` : `Add to Cart — ${productName}`,
+    html,
+    showCancelButton: true,
+    confirmButtonText: isPreOrder ? 'Confirm Pre-order' : 'Add to Cart',
+    confirmButtonColor: isPreOrder ? '#0d6efd' : '#198754',
+    focusConfirm: false,
+    didOpen: () => {
+      const select = document.getElementById('swalVariantSelect');
+      const chips = document.getElementById('swalVariantChips');
+      const info = document.getElementById('swalVariantInfo');
+      const qtyInput = document.getElementById('swalVariantQty');
 
-                <div>
-                    ${isOut ? '<span class="badge bg-danger">Sold Out</span>' : `
-                        <div class="input-group input-group-sm" style="width: 110px;">
-                            <button class="btn btn-outline-secondary" type="button" onclick="adjustQty('${v.id}', -1)" id="minus_btn_${v.id}" disabled>-</button>
-                            <input type="number" class="form-control text-center variant-qty" id="qty_var_${v.id}" value="1" min="1" max="${v.stock}" disabled data-max-stock="${v.stock}">
-                            <button class="btn btn-outline-secondary" type="button" onclick="adjustQty('${v.id}', 1)" id="plus_btn_${v.id}" disabled>+</button>
-                        </div>
-                    `}
-                </div>
-            </div>`;
-    });
+      function highlightChip(id) {
+        chips.querySelectorAll('.variant-chip').forEach((btn) => {
+          const on = btn.dataset.id === String(id);
+          btn.classList.toggle('btn-success', on);
+          btn.classList.toggle('text-white', on);
+          btn.classList.toggle('btn-outline-dark', !on && !btn.disabled);
+        });
+      }
 
-    variantHtml += `</div>`;
-
-    Swal.fire({
-        title: isPreOrder ? `Pre-order ${productName}` : `Select Items`,
-        html: variantHtml,
-        showCancelButton: true,
-        confirmButtonText: isPreOrder ? 'Confirm Pre-orders' : 'Add Selected to Cart',
-        confirmButtonColor: isPreOrder ? '#0d6efd' : '#198754',
-
-        preConfirm: () => {
-            const selectedItems = [];
-            const checkboxes = document.querySelectorAll('.variant-checkbox:checked');
-
-            if (checkboxes.length === 0) {
-                Swal.showValidationMessage('Please select at least one variant.');
-                return false;
-            }
-
-            checkboxes.forEach(cb => {
-                const varId = cb.getAttribute('data-variant-id');
-                const qtyInput = document.getElementById(`qty_var_${varId}`);
-                const qty = parseInt(qtyInput.value) || 1;
-
-                selectedItems.push({
-                    variant_id: varId,
-                    quantity: qty
-                });
-            });
-
-            return selectedItems;
+      function syncFromSelect() {
+        const opt = select.selectedOptions[0];
+        if (!opt || !opt.value) {
+          info.classList.add('d-none');
+          highlightChip(null);
+          return;
         }
-    }).then(result => {
-        if (result.isConfirmed && result.value) {
-            isPreOrder ? performPreOrderRequest(result.value) : performAddToCart(result.value);
-        }
-    });
+        document.getElementById('swalModalPrice').textContent =
+          '₱' + parseFloat(opt.dataset.price || 0).toFixed(2);
+        document.getElementById('swalModalStock').textContent = opt.dataset.stock || '—';
+        document.getElementById('swalModalCondition').textContent = opt.dataset.condition || '—';
+        info.classList.remove('d-none');
+        highlightChip(opt.value);
+
+        const max = parseInt(opt.dataset.stock, 10) || 1;
+        qtyInput.max = max;
+        if (parseInt(qtyInput.value, 10) > max) qtyInput.value = max;
+
+        onVariantChange(opt.value);
+      }
+
+      select.addEventListener('change', syncFromSelect);
+
+      chips.querySelectorAll('.variant-chip:not([disabled])').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          select.value = btn.dataset.id;
+          select.dispatchEvent(new Event('change'));
+        });
+      });
+
+      document.getElementById('swalQtyMinus').onclick = () => {
+        let v = parseInt(qtyInput.value, 10) || 1;
+        qtyInput.value = Math.max(1, v - 1);
+      };
+      document.getElementById('swalQtyPlus').onclick = () => {
+        let v = parseInt(qtyInput.value, 10) || 1;
+        const max = parseInt(qtyInput.max, 10) || 99;
+        qtyInput.value = Math.min(max, v + 1);
+      };
+    },
+    preConfirm: () => {
+      const select = document.getElementById('swalVariantSelect');
+      const qtyInput = document.getElementById('swalVariantQty');
+      if (!select || !select.value) {
+        Swal.showValidationMessage('Please select a variant / size.');
+        return false;
+      }
+      const qty = parseInt(qtyInput.value, 10) || 1;
+      const max = parseInt(select.selectedOptions[0]?.dataset.stock, 10) || 1;
+      if (qty < 1 || qty > max) {
+        Swal.showValidationMessage(`Quantity must be between 1 and ${max}.`);
+        return false;
+      }
+      return [{ variant_id: select.value, quantity: qty }];
+    },
+  }).then((result) => {
+    if (result.isConfirmed && result.value) {
+      isPreOrder
+        ? performPreOrderRequest(result.value)
+        : performAddToCart(result.value);
+    }
+  });
 }
 function toggleQtyInput(varId) {
     const cb = document.getElementById(`check_var_${varId}`);

@@ -58,7 +58,6 @@
           </div>
         {% endif %}
 
-        {# Ratings & Reviews under image #}
         <div class="mt-4">
           <h5 class="fw-bold mb-3">
             <i class="bi bi-chat-left-quote me-2 text-success"></i>Ratings &amp; Reviews
@@ -139,7 +138,6 @@
 
           <h2 class="display-5 fw-bold text-success mb-4" id="displayPrice">₱{{ product.get_price_range }}</h2>
 
-          {# Description #}
           <div class="mb-4">
             <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Description</h6>
             <p class="text-secondary" style="line-height: 1.7; white-space: pre-line;">{{ product.description }}</p>
@@ -152,37 +150,6 @@
                 <span id="variantAttributeDisplay" class="badge bg-secondary-subtle text-secondary" style="font-size: 0.75rem;"></span>
               </div>
               <p id="variantFlaws" class="text-danger small mb-0" style="font-style: italic;"></p>
-            </div>
-          </div>
-
-          {# Variants dropdown (UI only — cart/pre-order still use openVariantSelector) #}
-          <div class="mb-4">
-            <button class="btn btn-outline-secondary w-100 rounded-3 d-flex justify-content-between align-items-center"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#variantsCollapse"
-                    aria-expanded="false"
-                    aria-controls="variantsCollapse">
-              <span><i class="bi bi-layers me-2"></i>Variants</span>
-              <i class="bi bi-chevron-down"></i>
-            </button>
-            <div class="collapse mt-2" id="variantsCollapse">
-              <div class="list-group list-group-flush border rounded-3">
-                {% for v in product.variants.all %}
-                  <div class="list-group-item d-flex justify-content-between align-items-center small">
-                    <div>
-                      <strong>{{ v.variant_name }}</strong>
-                      {% if v.attribute_value %}
-                        <span class="badge bg-secondary-subtle text-secondary ms-1">{{ v.attribute_value }}</span>
-                      {% endif %}
-                      <div class="text-muted">{{ v.condition|default:"—" }} · Stock: {{ v.stocks }}</div>
-                    </div>
-                    <span class="fw-bold text-success">₱{{ v.price }}</span>
-                  </div>
-                {% empty %}
-                  <div class="list-group-item text-muted small">No variants listed.</div>
-                {% endfor %}
-              </div>
             </div>
           </div>
 
@@ -237,7 +204,6 @@
             </div>
           </div>
 
-          {# Actions #}
           <div class="d-grid gap-3">
             {% if user.is_authenticated %}
               <button type="button"
@@ -275,7 +241,6 @@
             {% endif %}
           </div>
 
-          {# Seller card + View Shop #}
           <div class="card mt-5 border-0 bg-light rounded-4 p-3 shadow-sm">
             <div class="d-flex align-items-center">
               {% if product.seller.image %}
@@ -304,7 +269,6 @@
     </div>
   </div>
 
-  {# Variant JSON for openVariantSelector — do not remove #}
   <script id="variant-data" type="application/json">
 [
   {% for v in product.variants.all %}

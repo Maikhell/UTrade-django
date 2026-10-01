@@ -80,9 +80,9 @@
                       {% endwith %}
                     </span>
                   </div>
-                  <p class="mb-0 small text-secondary">
-                    {{ r.comment|default:r.review|default:"" }}
-                  </p>
+                    <p class="mb-0 small text-secondary">
+                      {{ r.comment|default:"" }}
+                    </p>
                   {% if r.created_at %}
                     <small class="text-muted">{{ r.created_at|date:"M d, Y" }}</small>
                   {% endif %}

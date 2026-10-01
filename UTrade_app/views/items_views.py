@@ -22,7 +22,8 @@ import re
 import json
 from django.db.models import Q
 
-
+def get_seller(self):
+    return get_object_or_404(User, pk=self.kwargs['seller_id'])
 # ===================== PRODUCT CODE =====================
 def generate_next_product_code():
     """

@@ -777,173 +777,143 @@
        </div>
       <hr class="my-5 opacity-25">
 
-      <!-- ========== MY PRODUCTS ========== -->
-      <div id="my-products">
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-          <h2 class="fw-bold mb-0">My Products</h2>
-          <a href="{% url 'product.create' %}" class="btn btn-success rounded-pill">
+            <!-- ========== MY PRODUCTS ========== -->
+      <div id="my-products" class="mb-5">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+          <h4 class="fw-bold mb-0">
+            <i class="bi bi-box-seam text-primary me-2"></i>My Products
+          </h4>
+          <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
             <i class="bi bi-plus-lg me-1"></i> Add Product
           </a>
         </div>
 
-        <div class="row mb-4 g-3">
-          <div class="col-md-4">
-            <div class="card border-0 shadow-sm p-3 rounded-4">
-              <small class="text-muted d-block">Live Products</small>
-              <span class="h4 fw-bold text-success">{{ approved_count }}</span>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card border-0 shadow-sm p-3 rounded-4">
-              <small class="text-muted d-block">Pending Approval</small>
-              <span class="h4 fw-bold text-warning">{{ pending_count }}</span>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card border-0 shadow-sm p-3 rounded-4">
-              <small class="text-muted d-block">Rejected Products</small>
-              <span class="h4 fw-bold text-danger">{{ rejected_count }}</span>
-            </div>
-          </div>
-        </div>
-
         <div class="row g-4">
           {% for item in products %}
-            <div class="col-12">
+            <div class="col-12" id="product-{{ item.id }}">
               <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-
-                <!-- Product Header -->
                 <div class="card-body p-3 p-md-4">
-                  <div class="row align-items-center g-3">
-                    <div class="col-auto">
+                  <div class="d-flex flex-wrap gap-3 align-items-start">
+                    <div class="flex-shrink-0">
                       {% if item.images.first %}
                         <img src="{{ item.images.first.image.url }}"
                              class="rounded-3"
-                             style="width: 80px; height: 80px; object-fit: cover;"
+                             style="width: 88px; height: 88px; object-fit: cover;"
+                             alt="{{ item.name }}">
+                      {% elif item.image %}
+                        <img src="{{ item.image.url }}"
+                             class="rounded-3"
+                             style="width: 88px; height: 88px; object-fit: cover;"
                              alt="{{ item.name }}">
                       {% else %}
                         <div class="bg-light rounded-3 d-flex align-items-center justify-content-center"
-                             style="width: 80px; height: 80px;">
-                          <i class="bi bi-image text-muted"></i>
+                             style="width: 88px; height: 88px;">
+                          <i class="bi bi-image text-muted fs-4"></i>
                         </div>
                       {% endif %}
                     </div>
 
-                    <div class="col">
-                      <h5 class="mb-1 fw-bold">{{ item.name }}</h5>
-                      <div class="d-flex flex-wrap align-items-center gap-3 small">
-                        <span class="badge bg-light text-dark border rounded-pill">
-                          <i class="bi bi-cart-check text-primary"></i> {{ item.sold }} sold
-                        </span>
-                        <span class="text-warning">
-                          <i class="bi bi-star-fill"></i> {{ item.average_rating }}
-                        </span>
-
-                        {% if item.status == 'Approved' %}
-                          <span class="badge bg-success-subtle text-success border border-success-subtle">
-                            <i class="bi bi-check-circle-fill"></i> Live
-                          </span>
-                        {% elif item.status == 'Rejected' %}
-                          <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                            <i class="bi bi-x-circle-fill"></i> Rejected
-                          </span>
-                        {% elif item.status == 'Pending' %}
-                          <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
-                            <i class="bi bi-clock-history"></i> Pending
-                          </span>
-                        {% endif %}
+                    <div class="flex-grow-1">
+                      <div class="d-flex flex-wrap justify-content-between gap-2">
+                        <div>
+                          <h5 class="fw-bold mb-1">{{ item.name }}</h5>
+                          <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                            <span class="badge rounded-pill
+                              {% if item.status == 'Approved' %}bg-success
+                              {% elif item.status == 'Pending' %}bg-warning text-dark
+                              {% elif item.status == 'Rejected' %}bg-danger
+                              {% else %}bg-secondary{% endif %}">
+                              {{ item.status }}
+                            </span>
+                            {% if item.pre_order %}
+                              <span class="badge bg-info text-dark rounded-pill">Pre-order</span>
+                            {% endif %}
+                            {% if item.product_code %}
+                              <small class="text-muted">{{ item.product_code }}</small>
+                            {% endif %}
+                          </div>
+                          <p class="text-muted small mb-0 text-truncate" style="max-width: 420px;">
+                            {{ item.description|truncatewords:18 }}
+                          </p>
+                        </div>
+                        <div class="text-md-end">
+                          <div class="fw-bold text-success">₱{{ item.get_price_range }}</div>
+                          <small class="text-muted">Stock: {{ item.get_total_stock }}</small>
+                        </div>
                       </div>
-                    </div>
 
-                    <div class="col-12 col-md-auto">
-                      <div class="d-flex flex-wrap gap-2">
-                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                      <div class="d-flex flex-wrap gap-2 mt-3">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-primary rounded-pill"
                                 data-bs-toggle="modal"
                                 data-bs-target="#editConfirmModal{{ item.id }}">
-                          <i class="bi bi-pencil me-1"></i> Edit
+                          Edit
                         </button>
-                        <button class="btn btn-sm btn-outline-danger rounded-pill px-3"
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger rounded-pill"
                                 data-bs-toggle="modal"
                                 data-bs-target="#deleteConfirmModal{{ item.id }}">
-                          <i class="bi bi-trash me-1"></i> Remove
+                          Remove
                         </button>
-                        <button class="btn btn-sm btn-success rounded-pill px-3"
-                                data-bs-toggle="modal"
-                                data-bs-target="#addVariantModal{{ item.id }}">
-                          <i class="bi bi-plus-lg me-1"></i> Add Variant
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary rounded-pill"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#variants{{ item.id }}">
+                          Variants ({{ item.variants.count }})
                         </button>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Variants -->
-                <div class="border-top bg-light-subtle">
-                  <div class="px-3 px-md-4 py-3">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                      <h6 class="fw-bold mb-0 text-muted">
-                        <i class="bi bi-layers me-1"></i> Variants
-                        <span class="badge bg-secondary rounded-pill ms-1">{{ item.variants.count }}</span>
-                      </h6>
-                    </div>
-
-                    {% if item.variants.exists %}
-                      <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
-                          <thead class="table-light">
-                            <tr>
-                              <th>Variant Name</th>
-                              <th>Price</th>
-                              <th>Stock</th>
-                              <th class="text-end">Actions</th>
+                  <!-- Variants collapse -->
+                  <div class="collapse mt-3" id="variants{{ item.id }}">
+                    <div class="table-responsive border rounded-3">
+                      <table class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                          <tr>
+                            <th>Name</th>
+                            <th>Attribute</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                            <th class="text-end">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for variant in item.variants.all %}
+                            <tr class="variant-row" id="variant-{{ variant.id }}">
+                              <td>{{ variant.variant_name|default:"—" }}</td>
+                              <td>{{ variant.attribute_value|default:"—" }}</td>
+                              <td>₱{{ variant.price }}</td>
+                              <td>{{ variant.stocks }}</td>
+                              <td class="text-end">
+                                <button type="button"
+                                        class="btn btn-sm btn-link text-primary p-0 me-2"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editVariantModal{{ variant.id }}">
+                                  Edit
+                                </button>
+                                <button type="button"
+                                        class="btn btn-sm btn-link text-danger p-0"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteVariantModal{{ variant.id }}">
+                                  Remove
+                                </button>
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {% for variant in item.variants.all %}
-                              <tr class="variant-row">
-                                <td>
-                                  <span class="fw-semibold">{{ variant.name|default:"Default" }}</span>
-                                </td>
-                                <td class="text-success fw-bold">₱{{ variant.price }}</td>
-                                <td>
-                                  {% if variant.stocks > 10 %}
-                                    <span class="badge bg-success-subtle text-success">{{ variant.stocks }}</span>
-                                  {% elif variant.stocks > 0 %}
-                                    <span class="badge bg-warning-subtle text-warning">{{ variant.stocks }}</span>
-                                  {% else %}
-                                    <span class="badge bg-danger-subtle text-danger">Out of stock</span>
-                                  {% endif %}
-                                </td>
-                                <td class="text-end">
-                                  <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-primary rounded-start-pill px-3"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#editVariantModal{{ variant.id }}">
-                                      Edit
-                                    </button>
-                                    <button class="btn btn-outline-danger rounded-end-pill px-3"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#deleteVariantModal{{ v.id }}">
-                                      Remove
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            {% endfor %}
-                          </tbody>
-                        </table>
-                      </div>
-                    {% else %}
-                      <div class="text-center py-4 text-muted">
-                        <i class="bi bi-inbox fs-3 d-block mb-2"></i>
-                        <p class="mb-2 small">No variants yet.</p>
-                        <button class="btn btn-sm btn-success rounded-pill"
-                                data-bs-toggle="modal"
-                                data-bs-target="#addVariantModal{{ item.id }}">
-                          <i class="bi bi-plus-lg me-1"></i> Add First Variant
-                        </button>
-                      </div>
-                    {% endif %}
+                          {% empty %}
+                            <tr>
+                              <td colspan="5" class="text-muted text-center py-3">No variants</td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button type="button"
+                            class="btn btn-sm btn-success rounded-pill mt-2"
+                            data-bs-toggle="modal"
+                            data-bs-target="#addVariantModal{{ item.id }}">
+                      <i class="bi bi-plus-lg me-1"></i> Add Variant
+                    </button>
                   </div>
                 </div>
               </div>
@@ -953,18 +923,22 @@
             <div class="modal fade" id="addVariantModal{{ item.id }}" tabindex="-1" aria-hidden="true">
               <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 rounded-4 shadow">
-                  {% comment %} <form action="{% url 'variant.create' item.id %}" method="POST"> {% endcomment %}
+                  <form action="{% url 'variant.create' item.id %}" method="POST">
                     {% csrf_token %}
                     <div class="modal-header border-0 pb-0">
-                      <h5 class="fw-bold">Add Variant – {{ item.name }}</h5>
+                      <h5 class="fw-bold">Add Variant</h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                       <div class="mb-3">
                         <label class="form-label small fw-bold">Variant Name</label>
-                        <input type="text" name="name" class="form-control rounded-3"
-                               placeholder="e.g. Red / Large / 500g">
-                        <div class="form-text">Leave blank for a default variant.</div>
+                        <input type="text" name="variant_name" class="form-control rounded-3"
+                               placeholder="e.g. Combo A" required>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label small fw-bold">Attribute (size/color)</label>
+                        <input type="text" name="attribute_value" class="form-control rounded-3"
+                               placeholder="e.g. XL">
                       </div>
                       <div class="row g-3">
                         <div class="col-6">
@@ -995,7 +969,7 @@
               <div class="modal fade" id="editVariantModal{{ variant.id }}" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                   <div class="modal-content border-0 rounded-4 shadow">
-                    {% comment %} <form action="{% url 'variant.update' variant.id %}" method="POST"> {% endcomment %}
+                    <form action="{% url 'variant.update' variant.id %}" method="POST">
                       {% csrf_token %}
                       <div class="modal-header border-0 pb-0">
                         <h5 class="fw-bold">Edit Variant</h5>
@@ -1004,8 +978,13 @@
                       <div class="modal-body">
                         <div class="mb-3">
                           <label class="form-label small fw-bold">Variant Name</label>
-                          <input type="text" name="name" class="form-control rounded-3"
-                                 value="{{ variant.name }}" placeholder="e.g. Red / Large">
+                          <input type="text" name="variant_name" class="form-control rounded-3"
+                                 value="{{ variant.variant_name }}" placeholder="e.g. Red / Large">
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label small fw-bold">Attribute (size/color)</label>
+                          <input type="text" name="attribute_value" class="form-control rounded-3"
+                                 value="{{ variant.attribute_value|default:'' }}">
                         </div>
                         <div class="row g-3">
                           <div class="col-6">
@@ -1036,13 +1015,12 @@
                       <i class="bi bi-exclamation-triangle text-danger display-4 mb-3"></i>
                       <h5 class="fw-bold">Delete this variant?</h5>
                       <p class="text-muted">
-                        Are you sure you want to remove
-                        <strong>{{ variant.name|default:"Default" }}</strong>
+                        Remove <strong>{{ variant.variant_name|default:"Default" }}</strong>
                         (₱{{ variant.price }})?
                       </p>
                       <div class="d-flex gap-2 justify-content-center mt-4">
                         <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                        {% comment %} <form action="{% url 'variant.delete' variant.id %}" method="POST"> {% endcomment %}
+                        <form action="{% url 'variant.delete' variant.id %}" method="POST" class="d-inline">
                           {% csrf_token %}
                           <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete</button>
                         </form>
@@ -1053,7 +1031,7 @@
               </div>
             {% endfor %}
 
-            <!-- Product Edit / Delete Modals -->
+            <!-- Product Delete -->
             <div class="modal fade" id="deleteConfirmModal{{ item.id }}" tabindex="-1" aria-hidden="true">
               <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 rounded-4 shadow">
@@ -1061,11 +1039,11 @@
                     <i class="bi bi-exclamation-triangle text-danger display-4 mb-3"></i>
                     <h5 class="fw-bold">Delete this listing?</h5>
                     <p class="text-muted">
-                      Are you sure you want to remove <strong>{{ item.name }}</strong>? This cannot be undone.
+                      Remove <strong>{{ item.name }}</strong>? This cannot be undone.
                     </p>
                     <div class="d-flex gap-2 justify-content-center mt-4">
                       <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                      <form action="{% url 'product.delete' item.id %}" method="POST">
+                      <form action="{% url 'product.delete' item.id %}" method="POST" class="d-inline">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete</button>
                       </form>
@@ -1075,6 +1053,7 @@
               </div>
             </div>
 
+            <!-- Product Edit notice → product.edit -->
             <div class="modal fade" id="editConfirmModal{{ item.id }}" tabindex="-1" aria-hidden="true">
               <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 rounded-4 shadow">
@@ -1082,7 +1061,8 @@
                     <i class="bi bi-info-circle text-primary display-4 mb-3"></i>
                     <h5 class="fw-bold">Important Notice</h5>
                     <p class="text-muted">
-                      Editing will temporarily remove <strong>{{ item.name }}</strong> from the shop for admin re-review.
+                      Editing will temporarily remove <strong>{{ item.name }}</strong>
+                      from the shop for admin re-review.
                     </p>
                     <div class="d-flex gap-2 justify-content-center mt-4">
                       <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Go Back</button>

@@ -118,5 +118,9 @@ urlpatterns = [
     path('product/<int:pk>/edit/', user_views.ProductUpdateView.as_view(), name='product.edit'),
     path('product/<int:pk>/delete/', management_views.product_delete, name='product.delete'),
     path('variant/<int:pk>/delete/', management_views.variant_delete, name='variant.delete'),
+    path('product/<int:pk>/delete/', management_views.product_delete, name='product.delete'),
+    path('product/<int:pk>/edit/', management_views.ProductUpdateView.as_view(), name='product.edit'),
+    path('variant/<int:pk>/delete/', management_views.variant_delete, name='variant.delete'),
+
     ]
 

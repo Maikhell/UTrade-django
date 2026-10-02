@@ -656,3 +656,54 @@ def variant_delete(request, pk):
         return JsonResponse({'status': 'success', 'message': notice})
     messages.success(request, notice)
     return redirect('seller_inventory')
+
+@login_required
+@require_POST
+def variant_create(request, product_id):
+    product = get_object_or_404(
+        Product,
+        pk=product_id,
+        seller=request.user
+    )
+
+    variant_name = (request.POST.get('variant_name') or '').strip()
+    attribute_value = (request.POST.get('attribute_value') or '').strip()
+    price = request.POST.get('price')
+    stocks = request.POST.get('stocks')
+
+    if not variant_name:
+        messages.error(request, "Variant name is required.")
+        return redirect('seller_inventory')
+
+    try:
+        price = Decimal(price)
+        stocks = int(stocks)
+    except (TypeError, ValueError, ArithmeticError):
+        messages.error(request, "Please enter a valid price and stock quantity.")
+        return redirect('seller_inventory')
+
+    if price < 0 or stocks < 0:
+        messages.error(request, "Price and stock cannot be negative.")
+        return redirect('seller_inventory')
+
+    ProductVariant.objects.create(
+        product=product,
+        variant_name=variant_name,
+        attribute_value=attribute_value,
+        price=price,
+        stocks=stocks,
+    )
+
+    # Any change to a live product requires re-approval.
+    if product.status == 'Approved':
+        product.status = 'Pending'
+        product.save(update_fields=['status'])
+        message = (
+            f"Variant added to '{product.name}'. "
+            "The product has been returned to Pending for re-approval."
+        )
+    else:
+        message = f"Variant added to '{product.name}'."
+
+    messages.success(request, message)
+    return redirect('seller_inventory')

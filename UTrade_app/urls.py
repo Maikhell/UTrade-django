@@ -115,5 +115,6 @@ urlpatterns = [
     path('management/suspend-user/', chat_views.management_suspend_user, name='management.suspend_user'),
     path('shop/<int:seller_id>/', items_views.StorefrontView.as_view(), name='storefront'),
     path('variant/<int:pk>/delete/', management_views.variant_delete, name='variant.delete'),
+    path('product/<int:product_id>/variant/create/',user_views.variant_create,name='variant.create'),
     ]
 

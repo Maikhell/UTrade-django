@@ -23,7 +23,6 @@ urlpatterns = [
     path('browse/', items_views.ProductListView.as_view(), name='product.list'),
     path('addproduct/', items_views.ProductCreateView.as_view(), name='product.create'),
     path('product/<int:pk>/', items_views.ProductDetailView.as_view(), name='product.detail'),
-    path('product/<int:pk>/', items_views.ProductDetailView.as_view(), name='product.detail'),
     path('cart/add-batch/', items_views.BatchAddToCartView.as_view(), name='cart.add_batch'),
     path('preorder/request-batch/', items_views.BatchPreOrderView.as_view(), name='preorder.request_batch'),
     path('inventory/', user_views.UserProductsView.as_view(), name='seller_inventory'),
@@ -115,10 +114,6 @@ urlpatterns = [
     path('chat/report/<int:conversation_id>/', chat_views.report_conversation, name='chat.report'),
     path('management/suspend-user/', chat_views.management_suspend_user, name='management.suspend_user'),
     path('shop/<int:seller_id>/', items_views.StorefrontView.as_view(), name='storefront'),
-    path('product/<int:pk>/edit/', user_views.ProductUpdateView.as_view(), name='product.edit'),
     path('variant/<int:pk>/delete/', management_views.variant_delete, name='variant.delete'),
-    path('product/<int:pk>/delete/', management_views.product_delete, name='product.delete'),
-
-
     ]
 

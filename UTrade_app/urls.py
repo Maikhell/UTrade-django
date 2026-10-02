@@ -115,5 +115,8 @@ urlpatterns = [
     path('chat/report/<int:conversation_id>/', chat_views.report_conversation, name='chat.report'),
     path('management/suspend-user/', chat_views.management_suspend_user, name='management.suspend_user'),
     path('shop/<int:seller_id>/', items_views.StorefrontView.as_view(), name='storefront'),
+    path('product/<int:pk>/edit/', user_views.ProductUpdateView.as_view(), name='product.edit'),
+    path('product/<int:pk>/delete/', user_views.product_delete, name='product.delete'),
+    path('variant/<int:pk>/delete/', user_views.variant_delete, name='variant.delete'),
     ]
 

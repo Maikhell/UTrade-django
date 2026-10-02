@@ -3,7 +3,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views import View
 from django.shortcuts import get_object_or_404, redirect
 from django.db.models import Q
-from ..models import CartItem, Order, OrderItem, Review, User, Product,SystemLog,PreOrderRequest,Category, CategoryAttribute, Product, Conversation, ChatMessage, SystemLog, UserReport
+from ..forms import ProductForm
+from ..models import CartItem, Order, OrderItem, Review, User, Product,SystemLog,PreOrderRequest,Category, CategoryAttribute, Product, Conversation, ProductVariant, ChatMessage, SystemLog, UserReport
 from ..utils import log_action
 from itertools import chain
 from django.template.loader import get_template
@@ -12,6 +13,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from django.contrib import messages 
 import json
+from django.views.generic import UpdateView
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test, login_required
@@ -19,6 +21,11 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import render
 from django.http import JsonResponse
 from ..models import ProhibitedWord, Category, MeetupLocation
+from django.core.paginator import Paginator
+from django.db.models import Sum, F, Count
+from django.db.models.functions import TruncDate
+from datetime import timedelta
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
 class ManagementPanelView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
@@ -48,8 +55,12 @@ class ManagementPanelView(LoginRequiredMixin, View):
             .filter(status='Approved')
             .select_related('seller', 'category')
             .prefetch_related('variants', 'images')
+            .order_by('-created_at')
         )
-
+        page_number = request.GET.get('page', 1)
+        paginator = Paginator(approved_products, 15)
+        page_obj = paginator.get_page(page_number)
+        
         # Lightened User Reports (Removed heavy message prefetching for the dashboard list)
         reported_items = (
             UserReport.objects
@@ -109,11 +120,67 @@ class ManagementPanelView(LoginRequiredMixin, View):
             'logs': SystemLog.objects.all()[:30],
             'incoming_orders': incoming_preorders,
             'completed_orders': completed_orders,
+            
+            'approved_items': page_obj,          # template already uses approved_items
+            'approved_count': paginator.count,
+            'active_products_count': paginator.count,
+            'page_obj': page_obj,
+            'is_paginated': page_obj.has_other_pages(),
         }
 
         return render(request, 'UTrade_app/management/dashboard.html', context)
 
+class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Product
+    form_class = ProductForm
+    template_name = 'UTrade_app/products/edit_product.html'
 
+    def test_func(self):
+        return self.get_object().seller_id == self.request.user.id
+
+    def form_valid(self, form):
+        product = form.save(commit=False)
+        product.status = 'Pending'  # force re-review after edit
+        product.save()
+
+        # Optional: update variants from POST JSON
+        variants_raw = self.request.POST.get('variants')
+        if variants_raw:
+            import json
+            try:
+                variants = json.loads(variants_raw)
+            except json.JSONDecodeError:
+                variants = []
+            for v in variants:
+                vid = v.get('id')
+                if vid:
+                    ProductVariant.objects.filter(
+                        id=vid, product=product
+                    ).update(
+                        variant_name=v.get('name', ''),
+                        attribute_value=v.get('attribute', ''),
+                        price=v.get('price') or 0,
+                        stocks=v.get('stock') or 0,
+                        condition=v.get('condition', 'Brand New'),
+                        flaws_description=v.get('flaws', ''),
+                    )
+                else:
+                    ProductVariant.objects.create(
+                        product=product,
+                        variant_name=v.get('name', ''),
+                        attribute_value=v.get('attribute', ''),
+                        price=v.get('price') or 0,
+                        stocks=v.get('stock') or 0,
+                        condition=v.get('condition', 'Brand New'),
+                        flaws_description=v.get('flaws', ''),
+                    )
+
+        messages.warning(
+            self.request,
+            f'“{product.name}” was updated and sent back to Management for approval. '
+            f'It is hidden from the marketplace until approved again.'
+        )
+        return redirect('seller_inventory')
 def update_status(request, type, id):
     new_status = request.GET.get('status')
     
@@ -427,3 +494,70 @@ def management_unlist_product(request, product_id):
     )
 
     return JsonResponse({'success': True, 'message': 'Product unlisted and seller notified.'})
+
+def seller_sales_chart_data(request):
+    """JSON for Chart.js — completed orders only."""
+    user = request.user
+    days = int(request.GET.get('days', 30))
+    since = timezone.now() - timedelta(days=days)
+
+    # Prefer OrderItem path if multi-seller cart
+    qs = (
+        OrderItem.objects.filter(
+            product_variant__product__seller=user,
+            order__status__iexact='Completed',
+            order__updated_at__gte=since,  # or created_at / completed_at
+        )
+        .annotate(day=TruncDate('order__updated_at'))
+        .values('day')
+        .annotate(
+            revenue=Sum(F('price') * F('quantity')),
+            units=Sum('quantity'),
+            orders=Count('order_id', distinct=True),
+        )
+        .order_by('day')
+    )
+
+    labels = [r['day'].strftime('%b %d') for r in qs if r['day']]
+    revenue = [float(r['revenue'] or 0) for r in qs]
+    units = [int(r['units'] or 0) for r in qs]
+
+    return JsonResponse({
+        'labels': labels,
+        'revenue': revenue,
+        'units': units,
+    })
+    
+@login_required
+@require_POST
+def product_delete(request, pk):
+    product = get_object_or_404(Product, pk=pk, seller=request.user)
+    name = product.name
+    product.delete()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'message': f'{name} removed.'})
+    messages.success(request, f'“{name}” was removed.')
+    return redirect('seller_inventory')
+
+@login_required
+@require_POST
+def variant_delete(request, pk):
+    variant = get_object_or_404(
+        ProductVariant,
+        pk=pk,
+        product__seller=request.user,
+    )
+    product = variant.product
+    variant.delete()
+    # Optional: force re-review if product was live
+    if product.status == 'Approved':
+        product.status = 'Pending'
+        product.save(update_fields=['status'])
+        notice = 'Variant removed. Product returned to Pending for re-approval.'
+    else:
+        notice = 'Variant removed.'
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'message': notice})
+    messages.success(request, notice)
+    return redirect('seller_inventory')

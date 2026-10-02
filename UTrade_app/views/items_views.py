@@ -377,7 +377,7 @@ class ProductListView(ListView):
     model = Product
     template_name = 'UTrade_app/products/marketplace.html'
     context_object_name = 'products'
-    paginate_by = 12
+    paginate_by = 15
 
     def get_queryset(self):
         queryset = Product.objects.filter(status='Approved').select_related('category', 'seller')
@@ -678,9 +678,11 @@ class StorefrontView(ListView):
     model = Product
     template_name = 'UTrade_app/seller/storefront.html'
     context_object_name = 'products'
-    paginate_by = 12
+    paginate_by = 15
 
     def get_seller(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
         return get_object_or_404(User, pk=self.kwargs['seller_id'])
 
     def get_queryset(self):

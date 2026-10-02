@@ -166,7 +166,34 @@
       {% endfor %}
     </div>
   </div>
+        </div>{# end row #}
 
+    {% if is_paginated %}
+      <nav class="mt-5 d-flex justify-content-center" aria-label="Marketplace pages">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">‹</a>
+            </li>
+          {% endif %}
+          {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+              <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ num }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">›</a>
+            </li>
+          {% endif %}
+        </ul>
+      </nav>
+    {% endif %}
+  </div>{# end container #}
   <input type="hidden" id="user-auth-status" value="{{ user.is_authenticated|yesno:'true,false' }}" />
   <input type="hidden" id="user-verification-status" value="{{ user.status }}" />
   <input type="hidden" id="login-url" value="{% url 'user.login' %}" />

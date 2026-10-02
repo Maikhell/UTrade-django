@@ -923,7 +923,7 @@
                                     </button>
                                     <button class="btn btn-outline-danger rounded-end-pill px-3"
                                             data-bs-toggle="modal"
-                                            data-bs-target="#deleteVariantModal{{ variant.id }}">
+                                            data-bs-target="#deleteVariantModal{{ v.id }}">
                                       Remove
                                     </button>
                                   </div>
@@ -1469,5 +1469,59 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+async function removeProduct(productId) {
+  const { isConfirmed } = await Swal.fire({
+    title: 'Remove product?',
+    text: 'This cannot be undone.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'Yes, remove',
+  });
+  if (!isConfirmed) return;
+
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+  const res = await fetch(`/product/${productId}/delete/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': csrf,
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.ok && data.status === 'success') {
+    await Swal.fire('Removed', data.message || 'Product deleted.', 'success');
+    location.reload();
+  } else {
+    Swal.fire('Error', data.message || 'Could not delete product.', 'error');
+  }
+}
+
+async function removeVariant(variantId) {
+  const { isConfirmed } = await Swal.fire({
+    title: 'Remove variant?',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'Yes, remove',
+  });
+  if (!isConfirmed) return;
+
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+  const res = await fetch(`/variant/${variantId}/delete/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': csrf,
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.ok && data.status === 'success') {
+    await Swal.fire('Removed', data.message || 'Variant deleted.', 'success');
+    location.reload();
+  } else {
+    Swal.fire('Error', data.message || 'Could not delete variant.', 'error');
+  }
+}
 </script>
 {% endblock %}

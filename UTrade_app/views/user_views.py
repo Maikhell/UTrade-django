@@ -1,6 +1,8 @@
 from decimal import Decimal
 import json
-
+from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
@@ -620,3 +622,37 @@ def update_preorder_status(request, order_id):
         return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
+    
+@login_required
+@require_POST
+def product_delete(request, pk):
+    product = get_object_or_404(Product, pk=pk, seller=request.user)
+    name = product.name
+    product.delete()
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'message': f'{name} removed.'})
+    messages.success(request, f'“{name}” was removed.')
+    return redirect('seller_inventory')
+
+@login_required
+@require_POST
+def variant_delete(request, pk):
+    variant = get_object_or_404(
+        ProductVariant,
+        pk=pk,
+        product__seller=request.user,
+    )
+    product = variant.product
+    variant.delete()
+    # Optional: force re-review if product was live
+    if product.status == 'Approved':
+        product.status = 'Pending'
+        product.save(update_fields=['status'])
+        notice = 'Variant removed. Product returned to Pending for re-approval.'
+    else:
+        notice = 'Variant removed.'
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'message': notice})
+    messages.success(request, notice)
+    return redirect('seller_inventory')

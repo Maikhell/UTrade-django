@@ -16,7 +16,7 @@ import json
 from django.views.generic import UpdateView
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.decorators import user_passes_test, login_required
+from django.contrib.auth.decorators import user_passes_test
 from django.views.decorators.http import require_POST
 from django.shortcuts import render
 from django.http import JsonResponse

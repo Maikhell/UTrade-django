@@ -41,7 +41,7 @@ Account {% endblock %} {% block content %} {% block extra_css %}
 
         <div class="col text-center text-md-start">
           <h1 class="display-6 fw-bold text-dark mb-1">
-            {{ user.first_name|default:user.username }}
+            {{ user.first_name}}
           </h1>
           {% if not user.is_superuser %}
           <p class="text-muted fw-medium mb-2">{{ user.email }}</p>

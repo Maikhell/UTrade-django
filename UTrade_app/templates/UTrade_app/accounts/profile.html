@@ -158,29 +158,6 @@
                     </div>
                   </div>
 
-                  <div class="card border-0 shadow-sm rounded-4 mt-4 bg-light text-dark">
-                    <div class="card-body p-4">
-                      <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0 text-dark">Officer Registration</h5>
-                        {% if user.officer_status == 'verified' %}
-                          <span class="badge bg-success rounded-pill px-3">Verified Officer</span>
-                        {% elif user.officer_status == 'pending' %}
-                          <span class="badge bg-warning text-dark rounded-pill px-3">Pending Officer</span>
-                        {% endif %}
-                      </div>
-                      <p class="text-dark-50 small">
-                        Are you an elected student leader? Register as an officer to access organization management tools.
-                      </p>
-                      <button type="button" 
-                              class="btn btn-outline-success w-100 rounded-pill fw-bold py-2" 
-                              data-bs-toggle="modal" 
-                              data-bs-target="#officerRegistrationModal">
-                        <i class="bi bi-shield-check me-2"></i> 
-                        {% if user.officer_status == 'verified' %}Update Officer Details{% else %}Register as Officer{% endif %}
-                      </button>
-                    </div>
-                  </div>
-
                   <div class="mt-5 d-flex gap-2">
                     <button type="submit" class="btn btn-success px-4 fw-bold rounded-3">Save Changes</button>
                     <a href="{% url 'user.account' %}" class="btn btn-outline-secondary px-4 rounded-3">Cancel</a>

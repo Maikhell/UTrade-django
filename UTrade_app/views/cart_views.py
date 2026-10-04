@@ -12,9 +12,10 @@ def cart_detail(request):
     
     # Remove variant__product__meetup_location from select_related
     cart_items = cart.items.select_related(
-        'variant', 
-        'variant__product'
-    ).all()
+    'variant',
+    'variant__product',
+    'variant__product__seller',
+).prefetch_related('variant__product__images').all()
     
     total_price = sum(item.variant.price * item.quantity for item in cart_items)
     meetup_locations = MeetupLocation.objects.all()

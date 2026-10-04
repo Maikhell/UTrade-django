@@ -116,5 +116,8 @@ urlpatterns = [
     path('shop/<int:seller_id>/', items_views.StorefrontView.as_view(), name='storefront'),
     path('variant/<int:pk>/delete/', management_views.variant_delete, name='variant.delete'),
     path('product/<int:product_id>/variant/create/',user_views.variant_create,name='variant.create'),
+    
+    path('management/platform-fee/record/', record_platform_remittance, name='platform_fee.record'),
+    path('management/platform-fee/receipt/<int:remittance_id>/', platform_fee_receipt, name='platform_fee_receipt'),
     ]
 

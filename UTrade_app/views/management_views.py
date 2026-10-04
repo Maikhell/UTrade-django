@@ -1,31 +1,49 @@
-from django.shortcuts import render
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views import View
-from django.shortcuts import get_object_or_404, redirect
-from django.db.models import Q
-from ..forms import ProductForm
-from ..models import CartItem, Order, OrderItem, Review, User, Product,SystemLog,PreOrderRequest,Category, CategoryAttribute, Product, Conversation, ProductVariant, ChatMessage, SystemLog, UserReport
-from ..utils import log_action
-from itertools import chain
-from django.template.loader import get_template
-from xhtml2pdf import pisa
-from django.http import HttpResponse
-from django.utils import timezone
-from django.contrib import messages 
 import json
-from django.views.generic import UpdateView
-from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.decorators import user_passes_test
-from django.views.decorators.http import require_POST
-from django.shortcuts import render
-from django.http import JsonResponse
-from ..models import ProhibitedWord, Category, MeetupLocation
-from django.core.paginator import Paginator
-from django.db.models import Sum, F, Count
-from django.db.models.functions import TruncDate
+import uuid
 from datetime import timedelta
+from itertools import chain
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.db.models import Count, F, Q, Sum
+from django.db.models.functions import TruncDate
+from django.core.paginator import Paginator
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import get_template, render_to_string
+from django.utils import timezone
+from django.views import View
+from django.views.decorators.http import require_POST
+from django.views.generic import UpdateView
+
+from xhtml2pdf import pisa
+
+from ..forms import ProductForm
+from ..models import (
+    CartItem,
+    Category,
+    CategoryAttribute,
+    ChatMessage,
+    Conversation,
+    MeetupLocation,
+    Order,
+    OrderItem,
+    PreOrderRequest,
+    Product,
+    ProductVariant,
+    ProhibitedWord,
+    Review,
+    Organization,
+    SystemLog,
+    User,
+    UserReport,
+    PlatformFeeLine,
+    OrganizationPlatformLedger,
+    PlatformFeeRemittance
+    
+)
+from ..utils import log_action
 
 class ManagementPanelView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
@@ -38,33 +56,43 @@ class ManagementPanelView(LoginRequiredMixin, View):
 
         if search_query:
             users = users.filter(
-                Q(username__icontains=search_query) |
-                Q(first_name__icontains=search_query) |
-                Q(last_name__icontains=search_query) |
-                Q(student_no__icontains=search_query)
+                Q(username__icontains=search_query)
+                | Q(first_name__icontains=search_query)
+                | Q(last_name__icontains=search_query)
+                | Q(student_no__icontains=search_query)
             )
 
         if status_filter:
             users = users.filter(status=status_filter)
-        
-        users = users.order_by(sort_param)[:50] # Limit initial load for performance
 
-        # Optimized Approved Products & Services
+        users = users.order_by(sort_param)[:50]
+
+        # Live inventory (Approved products)
         approved_products = (
-            Product.objects
-            .filter(status='Approved')
+            Product.objects.filter(status='Approved')
             .select_related('seller', 'category')
             .prefetch_related('variants', 'images')
             .order_by('-created_at')
         )
+
+        if search_query:
+            approved_products = approved_products.filter(
+                Q(name__icontains=search_query)
+                | Q(seller__first_name__icontains=search_query)
+                | Q(seller__last_name__icontains=search_query)
+                | Q(variants__price__icontains=search_query)
+            ).distinct()
+
+        if pre_order_filter:
+            is_pre = pre_order_filter == 'True'
+            approved_products = approved_products.filter(pre_order=is_pre)
+
         page_number = request.GET.get('page', 1)
         paginator = Paginator(approved_products, 15)
         page_obj = paginator.get_page(page_number)
-        
-        # Lightened User Reports (Removed heavy message prefetching for the dashboard list)
+
         reported_items = (
-            UserReport.objects
-            .select_related(
+            UserReport.objects.select_related(
                 'reporter',
                 'reported_user',
                 'conversation',
@@ -72,60 +100,56 @@ class ManagementPanelView(LoginRequiredMixin, View):
                 'conversation__buyer',
                 'conversation__seller',
             )
-            .order_by('-created_at')[:50] # Reduced limit to save RAM
+            .order_by('-created_at')[:50]
         )
-        
-        if search_query:
-            approved_products = approved_products.filter(
-                Q(name__icontains=search_query) | 
-                Q(seller__first_name__icontains=search_query) |
-                Q(seller__last_name__icontains=search_query) |
-                Q(variants__price__icontains=search_query)
-            ).distinct()
 
-        if pre_order_filter:
-            is_pre = pre_order_filter == 'True'
-            approved_products = approved_products.filter(pre_order=is_pre)
+        pending_products = (
+            Product.objects.filter(status='Pending')
+            .select_related('seller', 'category')
+            .prefetch_related('variants', 'images')
+            .order_by('-created_at')[:50]
+        )
 
-        # Cache counts to prevent extra database hits
-        active_products_count = approved_products.count()
-    
+        incoming_preorders = (
+            PreOrderRequest.objects.filter(seller__user_role='management')
+            .select_related('buyer', 'product_variant__product')
+            .order_by('-created_at')[:50]
+        )
 
-        pending_products = Product.objects.filter(status='Pending')[:50]
-      
-        incoming_preorders = PreOrderRequest.objects.filter(
-            seller__user_role='management'
-        ).select_related('buyer', 'product_variant__product').order_by('-created_at')[:50]
-        
         completed_orders = Order.objects.filter(status='Completed')[:50]
 
+        # ---------- Platform fees (3% org cycles) ----------
+        fee_ledgers = (
+            OrganizationPlatformLedger.objects.filter(status__in=['OPEN', 'DUE'])
+            .select_related('organization')
+            .order_by('cycle_due')
+        )
+        fee_warnings = [L for L in fee_ledgers if L.is_warning or L.is_overdue]
+        organizations = Organization.objects.all().order_by('name')
+
         context = {
-            'org_name': "UTrade Global Management",
+            'org_name': 'UTrade Global Management',
+            'target_course': 'campus',
             'users': users,
             'verified_count': User.objects.filter(status='verified').count(),
-            
-            # Inventory / Live Listings (Consider paginating approved_items in templates)
-            'approved_count': active_products_count,
-            'active_products_count': active_products_count, 
-          
-            
-            # Pending Items
-            'pending_products': pending_products,
-            'pending_products_count': pending_products.count(),
-            
-            # Fixed: Re-using the variable instead of running the query a second time!
-            'reported_items': reported_items,
-            
-            # Logs and Orders (Capped with slices to protect memory)
-            'logs': SystemLog.objects.all()[:30],
-            'incoming_orders': incoming_preorders,
-            'completed_orders': completed_orders,
-            
-            'approved_items': page_obj,          # template already uses approved_items
+            # Inventory
+            'approved_items': page_obj,
             'approved_count': paginator.count,
             'active_products_count': paginator.count,
             'page_obj': page_obj,
             'is_paginated': page_obj.has_other_pages(),
+            # Pending
+            'pending_products': pending_products,
+            'pending_products_count': Product.objects.filter(status='Pending').count(),
+            # Reports / logs / orders
+            'reported_items': reported_items,
+            'logs': SystemLog.objects.all()[:30],
+            'incoming_orders': incoming_preorders,
+            'completed_orders': completed_orders,
+            # Platform fees
+            'fee_ledgers': fee_ledgers,
+            'fee_warnings': fee_warnings,
+            'organizations': organizations,
         }
 
         return render(request, 'UTrade_app/management/dashboard.html', context)
@@ -561,3 +585,53 @@ def variant_delete(request, pk):
         return JsonResponse({'status': 'success', 'message': notice})
     messages.success(request, notice)
     return redirect('seller_inventory')
+
+def is_management(user):
+    return user.is_authenticated and user.user_role == 'management'
+
+@login_required
+@user_passes_test(is_management)
+@require_POST
+def record_platform_remittance(request):
+    ledger_id = request.POST.get('ledger_id')
+    rep_name = (request.POST.get('management_rep_name') or '').strip()
+    if not rep_name:
+        messages.error(request, 'Management representative name is required.')
+        return redirect('management.panel')
+
+    ledger = get_object_or_404(
+        OrganizationPlatformLedger,
+        id=ledger_id,
+        status__in=['OPEN', 'DUE'],
+    )
+    today = timezone.localdate()
+    receipt_no = f'PFR-{today.strftime("%Y%m%d")}-{uuid.uuid4().hex[:6].upper()}'
+
+    rem = PlatformFeeRemittance.objects.create(
+        ledger=ledger,
+        amount_paid=ledger.accumulated_fee,
+        payment_date=today,
+        due_date=ledger.cycle_due,
+        management_rep_name=rep_name,
+        recorded_by=request.user,
+        receipt_no=receipt_no,
+        notes=request.POST.get('notes', ''),
+    )
+    ledger.status = 'PAID'
+    ledger.save(update_fields=['status', 'updated_at'])
+
+    messages.success(request, f'Remittance recorded. Receipt {receipt_no}.')
+    return redirect('platform_fee_receipt', remittance_id=rem.id)
+
+
+@login_required
+@user_passes_test(is_management)
+def platform_fee_receipt(request, remittance_id):
+    rem = get_object_or_404(
+        PlatformFeeRemittance.objects.select_related('ledger__organization', 'recorded_by'),
+        id=remittance_id,
+    )
+    return render(request, 'UTrade_app/reports/platform_fee_receipt.html', {
+        'rem': rem,
+        'org': rem.ledger.organization,
+    })

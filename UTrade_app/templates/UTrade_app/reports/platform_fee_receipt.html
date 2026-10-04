@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Platform Fee Receipt {{ rem.receipt_no }}</title>
+  <style>
+    body { font-family: Helvetica, Arial, sans-serif; color: #333; padding: 24px; max-width: 640px; margin: auto; }
+    .header { text-align: center; border-bottom: 2px solid #198754; padding-bottom: 12px; margin-bottom: 20px; }
+    .title { font-size: 18px; font-weight: bold; color: #198754; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 13px; }
+    .amount { font-size: 20px; font-weight: bold; color: #198754; }
+    .footer { margin-top: 40px; font-size: 11px; color: #888; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">UTrade — Platform Fee Acknowledgement</div>
+    <div>Receipt No: {{ rem.receipt_no }}</div>
+  </div>
+  <p>This confirms that the organization successfully remitted its platform fee to Management.</p>
+  <table>
+    <tr><th>Organization</th><td>{{ org.full_name }} ({{ org.name }})</td></tr>
+    <tr><th>Amount paid</th><td class="amount">₱{{ rem.amount_paid }}</td></tr>
+    <tr><th>Payment date</th><td>{{ rem.payment_date }}</td></tr>
+    <tr><th>Cycle due date</th><td>{{ rem.due_date }}</td></tr>
+    <tr><th>Management representative</th><td>{{ rem.management_rep_name }}</td></tr>
+    <tr><th>Recorded by</th><td>{{ rem.recorded_by.get_full_name|default:rem.recorded_by.username }}</td></tr>
+  </table>
+  <div class="footer">UTrade CVSU · System-generated acknowledgement</div>
+  <script>window.print && window.print();</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-from .models import SystemLog, Product, StagedProduct
+from .models import SystemLog, Product, StagedProduct, OrganizationPlatformLedger,PlatformFeeLine
 import random
 import re
 import logging
@@ -7,9 +7,12 @@ from datetime import timedelta
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils import timezone
+from decimal import Decimal, ROUND_HALF_UP
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
+PLATFORM_FEE_RATE = Decimal('0.03')
 
 def log_action(user, action, item_type, item_name, details=""):
     SystemLog.objects.create(
@@ -97,3 +100,61 @@ def get_seller_owner_type_filter(user):
     if role in ('organization', 'org'):
         return 'ORGANIZATION'
     return None
+
+def _resolve_organization(order):
+    """Map order seller → Organization."""
+    seller = order.seller
+    # Prefer product.related_org / owner_type on items
+    for item in order.items.select_related('product_variant__product__related_org').all():
+        p = item.product_variant.product
+        if getattr(p, 'related_org_id', None):
+            return p.related_org
+        if getattr(p, 'owner_type', '') == 'ORGANIZATION' and hasattr(seller, 'org_link'):
+            return seller.org_link
+    if hasattr(seller, 'org_link') and seller.org_link_id:
+        return seller.org_link
+    return None
+
+
+@transaction.atomic
+def accrue_platform_fee_for_order(order):
+    if (order.status or '').upper() != 'COMPLETED':
+        return None
+    if hasattr(order, 'platform_fee_line'):
+        return order.platform_fee_line  # already accrued
+
+    org = _resolve_organization(order)
+    if not org:
+        return None  # personal sellers — no platform fee
+
+    today = timezone.localdate()
+    ledger = (
+        OrganizationPlatformLedger.objects
+        .filter(organization=org, status__in=['OPEN', 'DUE'])
+        .order_by('-cycle_start')
+        .first()
+    )
+    if not ledger:
+        ledger = OrganizationPlatformLedger.objects.create(
+            organization=org,
+            cycle_start=today,
+            cycle_due=today + timedelta(days=30),
+            status='OPEN',
+        )
+    elif ledger.cycle_due < today and ledger.status == 'OPEN':
+        ledger.status = 'DUE'
+        ledger.save(update_fields=['status'])
+
+    amount = Decimal(str(order.total_amount or 0))
+    fee = (amount * PLATFORM_FEE_RATE).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    line = PlatformFeeLine.objects.create(
+        ledger=ledger,
+        order=order,
+        order_amount=amount,
+        fee_amount=fee,
+    )
+    ledger.accumulated_sales = (ledger.accumulated_sales or 0) + amount
+    ledger.accumulated_fee = (ledger.accumulated_fee or 0) + fee
+    ledger.save(update_fields=['accumulated_sales', 'accumulated_fee', 'updated_at'])
+    return line

@@ -1,154 +1,181 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}
-  My Cart - UTrade
-{% endblock %}
+{% block title %}My Cart - UTrade{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb" class="mb-4">
-    <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
-      <i class="bi bi-arrow-left" aria-hidden="true"></i>
-      <span>Go Back</span>
-    </a>
-  </nav>
-  <div class="container py-4 py-md-5">
-    <div class="row g-4">
-      <div class="col-lg-8">
-        <div class="card border-0 shadow-sm rounded-4 p-3 p-md-4">
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="fw-bold mb-0">Shopping Cart</h4>
-            <span class="badge bg-light text-dark border" id="selected-count">{{ cart_items.count }} Items Selected</span>
-          </div>
+<nav aria-label="breadcrumb" class="mb-3 mb-md-4">
+  <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left"></i><span>Go Back</span>
+  </a>
+</nav>
 
-          <hr class="opacity-10" />
+<div class="container py-3 py-md-5">
+  <div class="row g-3 g-lg-4">
+    <div class="col-12 col-lg-8">
+      <div class="card border-0 shadow-sm rounded-4 p-3 p-md-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 mb-md-4">
+          <h4 class="fw-bold mb-0">Shopping Cart</h4>
+          <span class="badge bg-light text-dark border" id="selected-count">{{ cart_items.count }} Items</span>
+        </div>
+        <hr class="opacity-10" />
 
-          {% if cart_items %}
-            {% regroup cart_items by variant.product.seller.username as seller_list %}
+        {% if cart_items %}
+          {% regroup cart_items by variant.product.seller.username as seller_list %}
+          {% for seller in seller_list %}
+            <div class="seller-group" data-seller="{{ seller.grouper }}">
+              <div class="d-flex align-items-center mb-2 mt-3 bg-light p-2 rounded-3">
+                <input type="checkbox" class="form-check-input me-2 seller-checkbox" checked data-seller-target="{{ seller.grouper }}" />
+                <p class="small text-muted mb-0">
+                  Seller: <span class="text-dark fw-medium">@{{ seller.grouper }}</span>
+                </p>
+              </div>
 
-            {% for seller in seller_list %}
-              <div class="seller-group" data-seller="{{ seller.grouper }}">
-                <div class="d-flex align-items-center mb-1 mt-3 bg-light p-2 rounded-3">
-                  <input type="checkbox" class="form-check-input me-2 seller-checkbox" checked data-seller-target="{{ seller.grouper }}" />
-                  <p class="small text-muted mb-0">
-                    Seller: <span class="text-dark fw-medium">@{{ seller.grouper }}</span>
-                  </p>
-                </div>
-
-                {% for item in seller.list %}
-                  <div class="row align-items-center py-3 border-bottom border-light cart-item-row" id="cart-item-{{ item.id }}" data-price="{{ item.variant.price }}" data-quantity="{{ item.quantity }}">
-                    <div class="col-1 text-center">
+              {% for item in seller.list %}
+                <div class="cart-item-row border-bottom border-light py-3"
+                     id="cart-item-{{ item.id }}"
+                     data-price="{{ item.variant.price }}"
+                     data-quantity="{{ item.quantity }}">
+                  <div class="d-flex gap-2 gap-md-3 align-items-start">
+                    <div class="pt-1">
                       <input type="checkbox" class="form-check-input item-checkbox" checked data-item-seller="{{ seller.grouper }}" />
                     </div>
 
-                    <div class="col-2 col-md-2">
+                    <div class="flex-shrink-0" style="width:72px;">
                       {% if item.variant.assigned_image %}
-                        <img src="{{ item.variant.assigned_image.image.url }}" class="img-fluid rounded-3 shadow-sm" alt="{{ item.variant.product.name }}" />
+                        <img src="{{ item.variant.assigned_image.image.url }}" class="img-fluid rounded-3 shadow-sm w-100" style="height:72px;object-fit:cover;" alt="">
+                      {% elif item.variant.product.images.first %}
+                        <img src="{{ item.variant.product.images.first.image.url }}" class="img-fluid rounded-3 shadow-sm w-100" style="height:72px;object-fit:cover;" alt="">
                       {% elif item.variant.product.image %}
-                        <img src="{{ item.variant.product.image.url }}" class="img-fluid rounded-3 shadow-sm" alt="{{ item.variant.product.name }}" />
+                        <img src="{{ item.variant.product.image.url }}" class="img-fluid rounded-3 shadow-sm w-100" style="height:72px;object-fit:cover;" alt="">
                       {% else %}
-                        <div class="bg-light rounded-3 d-flex align-items-center justify-content-center py-3">
+                        <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height:72px;">
                           <i class="bi bi-image text-muted"></i>
                         </div>
                       {% endif %}
                     </div>
 
-                    <div class="col-6 col-md-4">
+                    <div class="flex-grow-1 min-w-0">
                       <h6 class="fw-bold mb-1 text-truncate">{{ item.variant.product.name }}</h6>
 
-                      <div class="mb-2 d-flex flex-wrap gap-1">
-                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size: 0.65rem;">
+                      <div class="d-flex flex-wrap gap-1 mb-1">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill" style="font-size:0.65rem;">
                           {{ item.variant.variant_name }}
                         </span>
-                        
-                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill" style="font-size: 0.65rem;">
-                          <i class="bi bi-geo-alt-fill me-1"></i>
-                          {% if item.variant.product.meetup_location %}
-                            {{ item.variant.product.meetup_location.name }}
-                          {% else %}
-                            {{ item.variant.product.meetup_location_text|default:'Bacoor Campus' }}
-                          {% endif %}
-                        </span>
+                        {% if item.variant.attribute_value %}
+                          <span class="badge bg-secondary-subtle text-secondary border rounded-pill" style="font-size:0.65rem;">
+                            {{ item.variant.attribute_value }}
+                          </span>
+                        {% endif %}
+                        {% if item.variant.condition %}
+                          <span class="badge bg-light text-dark border rounded-pill" style="font-size:0.65rem;">
+                            {{ item.variant.condition }}
+                          </span>
+                        {% endif %}
+                        {% if item.variant.product.pre_order %}
+                          <span class="badge bg-warning text-dark rounded-pill" style="font-size:0.65rem;">Pre-order</span>
+                        {% endif %}
                       </div>
 
-                      {% if item.variant.flaws %}
-                        <p class="text-danger mb-1" style="font-size: 0.7rem; line-height: 1.2;">
-                          <i class="bi bi-exclamation-circle-fill me-1"></i>Flaw: {{ item.variant.flaws }}
+                      <div class="small text-muted mb-1">
+                        <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                        {{ item.variant.product.meetup_location_text|default:"Campus meetup" }}
+                      </div>
+
+                      {% if item.variant.product.available_days %}
+                        <div class="small text-muted mb-1">
+                          <i class="bi bi-calendar2-week me-1"></i>
+                          {{ item.variant.product.available_days }}
+                        </div>
+                      {% endif %}
+
+                      {% if item.variant.product.preferred_meetup_time_from and item.variant.product.preferred_meetup_time_to %}
+                        <div class="small text-muted mb-1">
+                          <i class="bi bi-clock me-1"></i>
+                          {{ item.variant.product.preferred_meetup_time_from|time:"g:i A" }}
+                          –
+                          {{ item.variant.product.preferred_meetup_time_to|time:"g:i A" }}
+                        </div>
+                      {% endif %}
+
+                      {% if item.variant.flaws_description or item.variant.flaws %}
+                        <p class="text-danger mb-1" style="font-size:0.7rem;line-height:1.2;">
+                          <i class="bi bi-exclamation-circle-fill me-1"></i>
+                          Flaw: {{ item.variant.flaws_description|default:item.variant.flaws }}
                         </p>
                       {% endif %}
 
-                      <div class="d-md-none fw-bold text-success">₱{{ item.variant.price }}</div>
-                    </div>
+                      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+                        <form action="{% url 'update_cart' item.id %}" method="POST" class="d-flex align-items-center gap-2">
+                          {% csrf_token %}
+                          <div class="input-group input-group-sm border rounded-pill overflow-hidden" style="width:110px;">
+                            <button name="action" value="down" class="btn btn-link text-dark border-0 px-2"><i class="bi bi-dash"></i></button>
+                            <input type="text" class="form-control border-0 text-center bg-white fw-bold p-0" value="{{ item.quantity }}" readonly style="font-size:0.85rem;" />
+                            <button name="action" value="up" class="btn btn-link text-dark border-0 px-2"><i class="bi bi-plus"></i></button>
+                          </div>
+                          {% if item.variant.stocks < 5 %}
+                            <small class="text-danger" style="font-size:0.65rem;">{{ item.variant.stocks }} left</small>
+                          {% endif %}
+                        </form>
 
-                    <div class="col-3 col-md-3">
-                      <form action="{% url 'update_cart' item.id %}" method="POST" class="d-flex flex-column align-items-center">
-                        {% csrf_token %}
-                        <div class="input-group input-group-sm border rounded-pill overflow-hidden">
-                          <button name="action" value="down" class="btn btn-link text-dark border-0 px-2"><i class="bi bi-dash"></i></button>
-                          <input type="text" class="form-control border-0 text-center bg-white fw-bold p-0" value="{{ item.quantity }}" readonly style="width: 30px; font-size: 0.85rem;" />
-                          <button name="action" value="up" class="btn btn-link text-dark border-0 px-2"><i class="bi bi-plus"></i></button>
+                        <div class="text-end">
+                          <div class="fw-bold text-success">₱{{ item.get_cost }}</div>
+                          <div class="small text-muted">₱{{ item.variant.price }} each</div>
+                          <a href="{% url 'remove_from_cart' item.id %}" class="text-danger small text-decoration-none">
+                            <i class="bi bi-trash3"></i> Remove
+                          </a>
                         </div>
-                        {% if item.variant.stocks < 5 %}
-                          <small class="text-danger mt-1" style="font-size: 0.6rem;">{{ item.variant.stocks }} left</small>
-                        {% endif %}
-                      </form>
-                    </div>
-
-                    <div class="col-md-2 text-end d-none d-md-block">
-                      <span class="fw-bold d-block">₱{{ item.get_cost }}</span>
-                      <a href="{% url 'remove_from_cart' item.id %}" class="btn btn-sm text-danger p-0 mt-1"><i class="bi bi-trash3 small"></i> Remove</a>
-                    </div>
-
-                    <div class="col-12 d-md-none text-end mt-2">
-                      <a href="{% url 'remove_from_cart' item.id %}" class="text-danger small text-decoration-none"><i class="bi bi-trash3"></i> Remove</a>
+                      </div>
                     </div>
                   </div>
-                {% endfor %}
-              </div>
-            {% endfor %}
-          {% else %}
-
-          {% endif %}
-
-          <div class="mt-4">
-            <a href="{% url 'product.list' %}" class="text-decoration-none text-success small fw-bold"><i class="bi bi-arrow-left me-1"></i> Continue Browsing</a>
+                </div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-5 text-muted">
+            <i class="bi bi-cart-x display-4 d-block mb-2"></i>
+            Your cart is empty.
           </div>
-        </div>
-      </div>
+        {% endif %}
 
-      <div class="col-lg-4">
-        <div class="card border-0 shadow-lg rounded-4 p-4 sticky-top" style="top: 100px; z-index: 10;">
-          <h5 class="fw-bold mb-4">Order Summary</h5>
-
-          <div class="d-flex justify-content-between mb-2">
-            <span class="text-muted">Subtotal</span>
-            <span class="fw-bold" id="subtotal-display">₱{{ total_price }}</span>
-          </div>
-
-          <div class="d-flex justify-content-between mb-3">
-            <span class="text-muted">Campus Handling</span>
-            <span class="text-success small fw-bold">FREE</span>
-          </div>
-
-          <hr class="opacity-10" />
-
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <span class="h6 mb-0 fw-bold">Total</span>
-            <span class="h4 mb-0 fw-bold text-success" id="grand-total-display">₱{{ total_price }}</span>
-          </div>
-
-          {% if cart_items %}
-            <a href="{% url 'checkout_view' %}" id="checkout-btn" class="btn btn-success btn-lg w-100 py-3 fw-bold rounded-3 shadow-sm mb-3">Proceed to Checkout</a>
-          {% else %}
-            <button class="btn btn-secondary btn-lg w-100 py-3 fw-bold rounded-3 mb-3" disabled>Proceed to Checkout</button>
-          {% endif %}
-
-          <div class="text-center"></div>
+        <div class="mt-4">
+          <a href="{% url 'product.list' %}" class="text-decoration-none text-success small fw-bold">
+            <i class="bi bi-arrow-left me-1"></i> Continue Browsing
+          </a>
         </div>
       </div>
     </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="card border-0 shadow-lg rounded-4 p-4 sticky-lg-top" style="top: 1rem; z-index: 10;">
+        <h5 class="fw-bold mb-4">Order Summary</h5>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Subtotal</span>
+          <span class="fw-bold" id="subtotal-display">₱{{ total_price }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-3">
+          <span class="text-muted">Campus Handling</span>
+          <span class="text-success small fw-bold">FREE</span>
+        </div>
+        <hr class="opacity-10" />
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <span class="h6 mb-0 fw-bold">Total</span>
+          <span class="h4 mb-0 fw-bold text-success" id="grand-total-display">₱{{ total_price }}</span>
+        </div>
+        {% if cart_items %}
+          <a href="{% url 'checkout_view' %}" id="checkout-btn" class="btn btn-success btn-lg w-100 py-3 fw-bold rounded-3 shadow-sm mb-3">
+            Proceed to Checkout
+          </a>
+        {% else %}
+          <button class="btn btn-secondary btn-lg w-100 py-3 fw-bold rounded-3 mb-3" disabled>Proceed to Checkout</button>
+        {% endif %}
+      </div>
+    </div>
   </div>
-  {% block extra_js %}
-    <script src="{% static 'UTrade_app/js/cart.js' %}"></script>
-  {% endblock %}
+</div>
+
+{% block extra_js %}
+  <script src="{% static 'UTrade_app/js/cart.js' %}"></script>
+{% endblock %}
 {% endblock %}

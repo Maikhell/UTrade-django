@@ -9,6 +9,7 @@ from django.db.models import Sum
 @login_required
 def cart_detail(request):
     cart, _ = Cart.objects.get_or_create(user=request.user)
+    meetup_locations = MeetupLocation.objects.all()
     cart_items = cart.items.all()
     
     total_price = sum(item.variant.price * item.quantity for item in cart_items)
@@ -16,7 +17,8 @@ def cart_detail(request):
     return render(request, 'UTrade_app/cart/details.html', {
         'cart': cart,
         'cart_items': cart_items,
-        'total_price': total_price
+        'total_price': total_price,
+        'meetup_locations': meetup_locations
     })
 @login_required
 @require_POST

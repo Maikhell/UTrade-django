@@ -72,7 +72,7 @@ urlpatterns = [
     path('orders/cancel/<int:order_id>/', order_views.cancel_order, name='cancel_order'),
     
     # --- Management Dashboard & Reports ---
-    path('managementn/panel/', management_views.ManagementPanelView.as_view(), name='management.panel'),
+    path('management/panel/', management_views.ManagementPanelView.as_view(), name='management.panel'),
     path('management/update/<str:type>/<int:id>/', management_views.update_status, name='management.update'),
     path('productview/<int:product_id>/', management_views.product_details, name='product.detail.view'),
     path('management/generate-report/', management_views.generate_report_pdf, name='generate.report.pdf'),

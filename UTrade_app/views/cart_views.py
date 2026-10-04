@@ -10,10 +10,10 @@ from django.db.models import Sum
 def cart_detail(request):
     cart, _ = Cart.objects.get_or_create(user=request.user)
     
+    # Remove variant__product__meetup_location from select_related
     cart_items = cart.items.select_related(
         'variant', 
-        'variant__product', 
-        'variant__product__meetup_location'
+        'variant__product'
     ).all()
     
     total_price = sum(item.variant.price * item.quantity for item in cart_items)

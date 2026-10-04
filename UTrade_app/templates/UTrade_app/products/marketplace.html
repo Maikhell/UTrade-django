@@ -44,14 +44,14 @@
   {% endblock %}
 <div class="banner-container">
   <picture>
-    <!-- Desktop / Large Screens (1025px and up) -->
-    <source media="(min-width: 1025px)" srcset="img/1920x600px BANNER.png">
+    <!-- Large Screens -->
+    <source media="(min-width: 1025px)" srcset="{% static 'UTrade_app/img/1920x600px BANNER.png' %}">
 
-    <!-- Tablet / Medium Screens (601px to 1024px) -->
-    <source media="(min-width: 601px)" srcset="img/1024x150px BANNER.png">
+    <!-- Medium Screens -->
+    <source media="(min-width: 601px)" srcset="{% static 'UTrade_app/img/1024x150px BANNER.png' %}">
 
-    <!-- Mobile / Small Screens (default fallback up to 600px) -->
-    <img src="img/320x50px BANNER.png" alt="Website Banner" class="banner-img">
+    <!-- Small Screens / Default Fallback -->
+    <img src="{% static 'UTrade_app/img/320x50px BANNER.png' %}" alt="Website Banner" class="banner-img">
   </picture>
 </div>
   <div class="container py-5">

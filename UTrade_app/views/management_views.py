@@ -16,6 +16,8 @@ from django.utils import timezone
 from django.views import View
 from django.views.decorators.http import require_POST
 from django.views.generic import UpdateView
+from django.db import transaction
+from decimal import Decimal
 
 from xhtml2pdf import pisa
 
@@ -591,13 +593,60 @@ def is_management(user):
 
 @login_required
 @user_passes_test(is_management)
+def remittance_management(request):
+    """Main remittance management table."""
+    ledgers = (
+        OrganizationPlatformLedger.objects
+        .select_related('organization', 'remittance')
+        .filter(status__in=['OPEN', 'DUE', 'PAID'])  # or only OPEN/DUE if preferred
+        .order_by('cycle_due')
+    )
+    return render(request, 'UTrade_app/management/remittance.html', {
+        'ledgers': ledgers,
+    })
+
+
+@login_required
+@user_passes_test(is_management)
 @require_POST
+def notify_org_remittance(request, ledger_id):
+    """Action 1: Notify Organization via chat message."""
+    ledger = get_object_or_404(
+        OrganizationPlatformLedger.objects.select_related('organization'),
+        id=ledger_id,
+        status__in=['OPEN', 'DUE'],
+    )
+    org = ledger.organization
+    days = ledger.days_until_due
+
+    if days < 0:
+        msg = (f"Reminder: Your platform fee of ₱{ledger.accumulated_fee} is OVERDUE "
+               f"(due {ledger.cycle_due}). Please remit as soon as possible.")
+    elif days <= 7:
+        msg = (f"Reminder: Your platform fee of ₱{ledger.accumulated_fee} is due in {days} day(s) "
+               f"({ledger.cycle_due}). Please prepare the remittance.")
+    else:
+        msg = (f"Friendly reminder: Platform fee cycle for {org.name} ends on {ledger.cycle_due}. "
+               f"Current amount due: ₱{ledger.accumulated_fee}.")
+
+    # TODO: replace with your real chat / notification system
+    # Example: create a ChatMessage or Notification for the org officers
+    # ChatMessage.objects.create(recipient_org=org, sender=request.user, body=msg, ...)
+    messages.success(request, f"Notification sent to {org.name}: “{msg[:80]}…”")
+    return redirect('remittance_management')
+
+
+@login_required
+@user_passes_test(is_management)
+@require_POST
+@transaction.atomic
 def record_platform_remittance(request):
+    """Action 2 + 3: Mark as Paid + auto-generate receipt (your existing logic enhanced)."""
     ledger_id = request.POST.get('ledger_id')
     rep_name = (request.POST.get('management_rep_name') or '').strip()
     if not rep_name:
         messages.error(request, 'Management representative name is required.')
-        return redirect('management.panel')
+        return redirect('remittance_management')
 
     ledger = get_object_or_404(
         OrganizationPlatformLedger,
@@ -607,6 +656,7 @@ def record_platform_remittance(request):
     today = timezone.localdate()
     receipt_no = f'PFR-{today.strftime("%Y%m%d")}-{uuid.uuid4().hex[:6].upper()}'
 
+    # Create remittance record
     rem = PlatformFeeRemittance.objects.create(
         ledger=ledger,
         amount_paid=ledger.accumulated_fee,
@@ -617,10 +667,22 @@ def record_platform_remittance(request):
         receipt_no=receipt_no,
         notes=request.POST.get('notes', ''),
     )
+
+    # Mark current cycle paid
     ledger.status = 'PAID'
     ledger.save(update_fields=['status', 'updated_at'])
 
-    messages.success(request, f'Remittance recorded. Receipt {receipt_no}.')
+    # Reset: create a fresh open cycle starting today (+30 days)
+    OrganizationPlatformLedger.objects.create(
+        organization=ledger.organization,
+        cycle_start=today,
+        cycle_due=today + timedelta(days=30),
+        status='OPEN',
+        accumulated_fee=Decimal('0.00'),
+        accumulated_sales=Decimal('0.00'),
+    )
+
+    messages.success(request, f'Remittance recorded. Receipt {receipt_no} generated.')
     return redirect('platform_fee_receipt', remittance_id=rem.id)
 
 

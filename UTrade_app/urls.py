@@ -117,7 +117,10 @@ urlpatterns = [
     path('variant/<int:pk>/delete/', management_views.variant_delete, name='variant.delete'),
     path('product/<int:product_id>/variant/create/',user_views.variant_create,name='variant.create'),
     
-    path('management/platform-fee/record/', management_views.record_platform_remittance, name='platform_fee.record'),
-    path('management/platform-fee/receipt/<int:remittance_id>/', management_views.platform_fee_receipt, name='platform_fee_receipt'),
+    path('management/remittance/', management_views.remittance_management, name='remittance_management'),
+    path('management/remittance/notify/<int:ledger_id>/', management_views.notify_org_remittance, name='notify_org_remittance'),
+    path('management/remittance/record/', management_views.record_platform_remittance, name='record_platform_remittance'),
+    # existing receipt view remains:
+    path('management/remittance/receipt/<int:remittance_id>/', management_views.platform_fee_receipt, name='platform_fee_receipt'),
     ]
 

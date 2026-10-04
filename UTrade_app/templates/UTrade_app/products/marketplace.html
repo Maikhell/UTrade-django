@@ -24,9 +24,36 @@
         box-shadow: 0 2px 8px rgba(0,0,0,.12);
       }
       .wishlist-btn .bi-heart-fill { color: #dc3545; }
+      /* Center the banner container */
+      .banner-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        text-align: center;
+        margin: 0 auto;
+      }
+
+      /* Make sure the image scales responsively inside its container */
+      .banner-img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
     </style>
   {% endblock %}
+<div class="banner-container">
+  <picture>
+    <!-- Desktop / Large Screens (1025px and up) -->
+    <source media="(min-width: 1025px)" srcset="img/1920x600px BANNER.png">
 
+    <!-- Tablet / Medium Screens (601px to 1024px) -->
+    <source media="(min-width: 601px)" srcset="img/1024x150px BANNER.png">
+
+    <!-- Mobile / Small Screens (default fallback up to 600px) -->
+    <img src="img/320x50px BANNER.png" alt="Website Banner" class="banner-img">
+  </picture>
+</div>
   <div class="container py-5">
     <div class="mb-5">
       <h1 class="fw-bolder text-dark mb-0">Categories</h1>

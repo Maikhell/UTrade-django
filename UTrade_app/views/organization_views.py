@@ -100,7 +100,7 @@ def organization_panel(request):
         'incoming_orders': incoming_orders,
         'completed_orders': completed_orders,
         'verified_count': verified_count,
-'       remittance_ledger': remittance_ledger,
+        'remittance_ledger': remittance_ledger,
         'remittance_status_color': remittance_status_color,
     }
     

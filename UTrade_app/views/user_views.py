@@ -1,5 +1,6 @@
 from decimal import Decimal
 import json
+from xhtml2pdf import pisa
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
@@ -495,7 +496,6 @@ def register_officer(request):
     
     return redirect('user.account')
 
-@login_required
 def _money(value):
     """Always return a plain string PDF engines can render (no ₱ glyph)."""
     if value is None:

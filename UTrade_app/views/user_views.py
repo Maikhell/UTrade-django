@@ -5,7 +5,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Count, F, Q, Sum
@@ -15,6 +14,9 @@ from django.template.loader import get_template
 from django.urls import reverse_lazy
 from django.http import JsonResponse
 from django.utils import timezone
+from django.shortcuts import render
+from django.db.models.functions import TruncDate
+from ..utils import send_otp_email, get_seller_owner_type_filter
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -36,7 +38,8 @@ from ..models import (
     User,
     PreOrderRequest,
 )
-from ..utils import send_otp_email, get_seller_owner_type_filter
+
+
 
 class UserCreateView(CreateView):
     model = User 
@@ -304,8 +307,77 @@ class UserProductsView(LoginRequiredMixin, ListView):
             'section_options': list(section_options),
             'owner_type_filter': owner_type, 
         })
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        seller = self.request.user
+        now = timezone.now()
+        seven_days_ago = now - timezone.timedelta(days=7)
+
+        # 1. Base query for seller's orders
+        seller_orders = Order.objects.filter(
+            items__product_variant__product__seller=seller
+        ).distinct()
+
+        incoming_orders = seller_orders.filter(status__iexact='Pending')
+        accepted_orders = seller_orders.filter(status__iexact='Accepted')
+        completed_orders = seller_orders.filter(status__iexact='Completed')
+
+        # 2. Revenue Over Time (Last 7 Days)
+        revenue_daily = (
+            completed_orders.filter(created_at__gte=seven_days_ago)
+            .annotate(date=TruncDate('created_at'))
+            .values('date')
+            .annotate(daily_revenue=Sum('total_amount'))
+            .order_by('date')
+        )
+        revenue_labels = [r['date'].strftime('%a') for r in revenue_daily]
+        revenue_data = [float(r['daily_revenue'] or 0) for r in revenue_daily]
+
+        # 3. Top Selling Products
+        completed_items = OrderItem.objects.filter(
+            order__in=completed_orders,
+            product_variant__product__seller=seller,
+        )
+        top_products_qs = (
+            completed_items.values('product_variant__product__name')
+            .annotate(total_units=Sum('quantity'))
+            .order_by('-total_units')[:5]
+        )
+        top_products_labels = [p['product_variant__product__name'] or 'Unknown' for p in top_products_qs]
+        top_products_data = [p['total_units'] or 0 for p in top_products_qs]
+
+        # 4. Orders Over Time
+        orders_daily = (
+            seller_orders.filter(created_at__gte=seven_days_ago)
+            .annotate(date=TruncDate('created_at'))
+            .values('date')
+            .annotate(order_count=Count('id'))
+            .order_by('date')
+        )
+        orders_over_time_labels = [o['date'].strftime('%a') for o in orders_daily]
+        orders_over_time_data = [o['order_count'] for o in orders_daily]
+
+        default_days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        default_zeros = [0, 0, 0, 0, 0, 0, 0]
+
+        # Pass variables to context
+        context.update({
+            'incoming_orders': incoming_orders,
+            'accepted_orders': accepted_orders,
+            'completed_orders': completed_orders,
+
+            'revenue_labels_json': json.dumps(revenue_labels if revenue_labels else default_days),
+            'revenue_data_json': json.dumps(revenue_data if revenue_data else default_zeros),
+            
+            'top_products_labels_json': json.dumps(top_products_labels if top_products_labels else ["No Sales Yet"]),
+            'top_products_data_json': json.dumps(top_products_data if top_products_data else [0]),
+            
+            'orders_over_time_labels_json': json.dumps(orders_over_time_labels if orders_over_time_labels else default_days),
+            'orders_over_time_data_json': json.dumps(orders_over_time_data if orders_over_time_data else default_zeros),
+        })
 
         return context
+
 
 class ProductUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Product
@@ -504,7 +576,6 @@ def seller_sales_report(request):
     if pisa_status.err:
         return HttpResponse('Error generating PDF report.', status=500)
     return response
-
 def _get_managed_preorder(request, preorder_id):
     """Fetch pre-order only if seller owns it AND owner_type matches role."""
     qs = PreOrderRequest.objects.filter(

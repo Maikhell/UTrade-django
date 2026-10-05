@@ -1310,8 +1310,8 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ========== CHARTS ==========
-  const revenueLabels = {{ revenue_labels|safe|default:'["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]' }};
-  const revenueData   = {{ revenue_data|safe|default:'[0,0,0,0,0,0,0]' }};
+  const revenueLabels = JSON.parse("{{ revenue_labels_json|escapejs }}");
+  const revenueData   = JSON.parse("{{ revenue_data_json|escapejs }}");
 
   const ordersStatusData = {
     incoming: {{ incoming_orders.count|default:0 }},
@@ -1319,11 +1319,11 @@ document.addEventListener('DOMContentLoaded', function () {
     completed: {{ completed_orders.count|default:0 }}
   };
 
-  const topProductsLabels = {{ top_products_labels|safe|default:'[]' }};
-  const topProductsData   = {{ top_products_data|safe|default:'[]' }};
+  const topProductsLabels = JSON.parse("{{ top_products_labels_json|escapejs }}");
+  const topProductsData   = JSON.parse("{{ top_products_data_json|escapejs }}");
 
-  const ordersOverTimeLabels = {{ orders_over_time_labels|safe|default:'["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]' }};
-  const ordersOverTimeData   = {{ orders_over_time_data|safe|default:'[0,0,0,0,0,0,0]' }};
+  const ordersOverTimeLabels = JSON.parse("{{ orders_over_time_labels_json|escapejs }}");
+  const ordersOverTimeData   = JSON.parse("{{ orders_over_time_data_json|escapejs }}");
 
   // Revenue Chart
   const revenueCtx = document.getElementById('revenueChart');

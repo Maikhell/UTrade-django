@@ -742,7 +742,7 @@ def view_remittance_receipt(request, ledger_id):
     )
     
     # Fetch all itemized order fee lines attached to this ledger
-    fee_lines = ledger.fee_lines.select_related('order').all()
+    fee_lines = ledger.remittance.select_related('order').all()
 
     context = {
         'ledger': ledger,

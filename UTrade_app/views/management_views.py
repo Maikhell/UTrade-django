@@ -18,6 +18,8 @@ from django.views.decorators.http import require_POST
 from django.views.generic import UpdateView
 from django.db import transaction
 from decimal import Decimal
+from django.db.models import Subquery, OuterRef, Value, DecimalField
+from django.db.models.functions import Coalesce
 
 from xhtml2pdf import pisa
 
@@ -588,21 +590,33 @@ def variant_delete(request, pk):
     messages.success(request, notice)
     return redirect('seller_inventory')
 
-def is_management(user):
-    return user.is_authenticated and user.user_role == 'management'
-
 @login_required
 @user_passes_test(is_management)
 def remittance_management(request):
-    """Main remittance management table."""
-    ledgers = (
-        OrganizationPlatformLedger.objects
-        .select_related('organization', 'remittance')
-        .filter(status__in=['OPEN', 'DUE', 'PAID'])  # or only OPEN/DUE if preferred
-        .order_by('cycle_due')
-    )
+    """Main remittance management table listing all organizations and their latest cycle."""
+    
+    # Latest ledger for each organization (preferring non-PAID first, then latest cycle_start)
+    latest_ledger_qs = OrganizationPlatformLedger.objects.filter(
+        organization=OuterRef('pk')
+    ).order_by('status', '-cycle_start')
+
+    organizations_qs = Organization.objects.annotate(
+        latest_ledger_id=Subquery(latest_ledger_qs.values('id')[:1]),
+        cycle_start=Subquery(latest_ledger_qs.values('cycle_start')[:1]),
+        cycle_due=Subquery(latest_ledger_qs.values('cycle_due')[:1]),
+        accumulated_sales=Subquery(latest_ledger_qs.values('accumulated_sales')[:1]),
+        accumulated_fee=Subquery(latest_ledger_qs.values('accumulated_fee')[:1]),
+        status=Subquery(latest_ledger_qs.values('status')[:1]),
+        remittance_id=Subquery(latest_ledger_qs.values('remittance__id')[:1]),
+    ).order_by('name')
+
+    # Paginate for live server performance
+    paginator = Paginator(organizations_qs, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'UTrade_app/management/remittance.html', {
-        'ledgers': ledgers,
+        'page_obj': page_obj,
     })
 
 
@@ -629,9 +643,7 @@ def notify_org_remittance(request, ledger_id):
         msg = (f"Friendly reminder: Platform fee cycle for {org.name} ends on {ledger.cycle_due}. "
                f"Current amount due: ₱{ledger.accumulated_fee}.")
 
-    # TODO: replace with your real chat / notification system
-    # Example: create a ChatMessage or Notification for the org officers
-    # ChatMessage.objects.create(recipient_org=org, sender=request.user, body=msg, ...)
+    # TODO: Connect your notification/chat dispatch service here
     messages.success(request, f"Notification sent to {org.name}: “{msg[:80]}…”")
     return redirect('remittance_management')
 
@@ -641,18 +653,23 @@ def notify_org_remittance(request, ledger_id):
 @require_POST
 @transaction.atomic
 def record_platform_remittance(request):
-    """Action 2 + 3: Mark as Paid + auto-generate receipt (your existing logic enhanced)."""
+    """Action 2 + 3: Mark as Paid + auto-generate receipt and reset cycle."""
     ledger_id = request.POST.get('ledger_id')
     rep_name = (request.POST.get('management_rep_name') or '').strip()
+
     if not rep_name:
         messages.error(request, 'Management representative name is required.')
         return redirect('remittance_management')
 
-    ledger = get_object_or_404(
-        OrganizationPlatformLedger,
-        id=ledger_id,
-        status__in=['OPEN', 'DUE'],
-    )
+    # Lock row to prevent race conditions from double submission
+    ledger = OrganizationPlatformLedger.objects.select_for_update().filter(
+        id=ledger_id
+    ).first()
+
+    if not ledger or ledger.status == OrganizationPlatformLedger.STATUS_PAID:
+        messages.warning(request, 'This remittance cycle is already marked as paid or does not exist.')
+        return redirect('remittance_management')
+
     today = timezone.localdate()
     receipt_no = f'PFR-{today.strftime("%Y%m%d")}-{uuid.uuid4().hex[:6].upper()}'
 
@@ -669,7 +686,7 @@ def record_platform_remittance(request):
     )
 
     # Mark current cycle paid
-    ledger.status = 'PAID'
+    ledger.status = OrganizationPlatformLedger.STATUS_PAID
     ledger.save(update_fields=['status', 'updated_at'])
 
     # Reset: create a fresh open cycle starting today (+30 days)
@@ -677,7 +694,7 @@ def record_platform_remittance(request):
         organization=ledger.organization,
         cycle_start=today,
         cycle_due=today + timedelta(days=30),
-        status='OPEN',
+        status=OrganizationPlatformLedger.STATUS_OPEN,
         accumulated_fee=Decimal('0.00'),
         accumulated_sales=Decimal('0.00'),
     )
@@ -689,6 +706,7 @@ def record_platform_remittance(request):
 @login_required
 @user_passes_test(is_management)
 def platform_fee_receipt(request, remittance_id):
+    """View/print platform fee receipt."""
     rem = get_object_or_404(
         PlatformFeeRemittance.objects.select_related('ledger__organization', 'recorded_by'),
         id=remittance_id,

@@ -8,12 +8,13 @@
 {% endblock %}
 
 {% block content %}
- <nav aria-label="breadcrumb" class="mb-4">
-    <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
-      <i class="bi bi-arrow-left" aria-hidden="true"></i>
-      <span>Back</span>
-    </a>
-  </nav>
+<nav aria-label="breadcrumb" class="mb-4">
+  <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back</span>
+  </a>
+</nav>
+
 <div class="container-fluid py-4">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
@@ -22,7 +23,7 @@
     </div>
     <div class="d-flex gap-2">
       <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
-        Open / Due cycles: {{ ledgers|length }}
+        Total Organizations: {{ page_obj.paginator.count }}
       </span>
     </div>
   </div>
@@ -52,59 +53,79 @@
             </tr>
           </thead>
           <tbody>
-            {% for ledger in ledgers %}
-              <tr class="{% if ledger.is_overdue %}table-danger{% elif ledger.is_warning %}table-warning{% endif %}">
+            {% for org in page_obj %}
+              <tr>
+                <!-- Organization Column -->
                 <td class="ps-4">
-                  <div class="fw-semibold">{{ ledger.organization.full_name }}</div>
-                  <small class="text-muted">{{ ledger.organization.name }} · {{ ledger.organization.course_code }}</small>
+                  <div class="fw-semibold">{{ org.full_name }}</div>
+                  <small class="text-muted">{{ org.name }} · {{ org.course_code }}</small>
                 </td>
+
+                <!-- Cycle Dates -->
                 <td>
-                  <small class="text-muted">
-                    {{ ledger.cycle_start|date:"M d, Y" }} → {{ ledger.cycle_due|date:"M d, Y" }}
-                  </small>
-                </td>
-                <td>
-                  <div class="fw-medium">{{ ledger.cycle_due|date:"M d, Y" }}</div>
-                  {% if ledger.status != 'PAID' %}
-                    {% if ledger.is_overdue %}
-                      <span class="badge bg-danger">Overdue by {{ ledger.days_until_due|abs }} day{{ ledger.days_until_due|abs|pluralize }}</span>
-                    {% elif ledger.is_warning %}
-                      <span class="badge bg-warning text-dark">Due in {{ ledger.days_until_due }} day{{ ledger.days_until_due|pluralize }}</span>
-                    {% else %}
-                      <span class="badge bg-secondary">{{ ledger.days_until_due }} day{{ ledger.days_until_due|pluralize }} left</span>
-                    {% endif %}
+                  {% if org.cycle_start %}
+                    <small class="text-muted">
+                      {{ org.cycle_start|date:"M d, Y" }} → {{ org.cycle_due|date:"M d, Y" }}
+                    </small>
+                  {% else %}
+                    <span class="text-muted small">No active cycle</span>
                   {% endif %}
                 </td>
-                <td class="text-end">₱{{ ledger.accumulated_sales|floatformat:2|intcomma }}</td>
-                <td class="text-end fw-bold {% if ledger.accumulated_fee > 0 %}text-success{% endif %}">
-                  ₱{{ ledger.accumulated_fee|floatformat:2|intcomma }}
-                </td>
+
+                <!-- Due Date -->
                 <td>
-                  {% if ledger.status == 'OPEN' %}
+                  {% if org.cycle_due %}
+                    <div class="fw-medium">{{ org.cycle_due|date:"M d, Y" }}</div>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+
+                <!-- Accumulated Sales -->
+                <td class="text-end">
+                  ₱{{ org.accumulated_sales|default:"0.00"|floatformat:2|intcomma }}
+                </td>
+
+                <!-- Amount Due -->
+                <td class="text-end fw-bold {% if org.accumulated_fee and org.accumulated_fee > 0 %}text-success{% endif %}">
+                  ₱{{ org.accumulated_fee|default:"0.00"|floatformat:2|intcomma }}
+                </td>
+
+                <!-- Status Badge -->
+                <td>
+                  {% if org.status == 'OPEN' %}
                     <span class="badge bg-primary">Open</span>
-                  {% elif ledger.status == 'DUE' %}
+                  {% elif org.status == 'DUE' %}
                     <span class="badge bg-warning text-dark">Due</span>
-                  {% elif ledger.status == 'PAID' %}
+                  {% elif org.status == 'PAID' %}
                     <span class="badge bg-success">Paid / Remitted</span>
+                  {% else %}
+                    <span class="badge bg-light text-dark border">No Activity</span>
                   {% endif %}
                 </td>
+
+                <!-- Actions -->
                 <td class="text-center pe-4">
                   <div class="btn-group btn-group-sm" role="group">
                     <!-- 1. Notify Organization -->
-                    <form method="post" action="{% url 'notify_org_remittance' ledger.id %}" class="d-inline">
-                      {% csrf_token %}
-                      <button type="submit" class="btn btn-outline-info"
-                              title="Send chat reminder about upcoming/overdue remittance"
-                              {% if ledger.status == 'PAID' %}disabled{% endif %}>
+                    {% if org.latest_ledger_id and org.status != 'PAID' %}
+                      <form method="post" action="{% url 'notify_org_remittance' org.latest_ledger_id %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-info" title="Send chat reminder about upcoming/overdue remittance">
+                          <i class="bi bi-chat-dots"></i> Notify
+                        </button>
+                      </form>
+                    {% else %}
+                      <button class="btn btn-outline-secondary" disabled title="No active unpaid ledger to notify">
                         <i class="bi bi-chat-dots"></i> Notify
                       </button>
-                    </form>
+                    {% endif %}
 
                     <!-- 2. Mark as Paid -->
-                    {% if ledger.status != 'PAID' and ledger.accumulated_fee > 0 %}
+                    {% if org.latest_ledger_id and org.status != 'PAID' and org.accumulated_fee > 0 %}
                       <button type="button" class="btn btn-outline-success"
                               data-bs-toggle="modal"
-                              data-bs-target="#payModal{{ ledger.id }}"
+                              data-bs-target="#payModal{{ org.latest_ledger_id }}"
                               title="Record payment, clear amount, reset cycle to +30 days">
                         <i class="bi bi-check2-circle"></i> Mark Paid
                       </button>
@@ -114,9 +135,9 @@
                       </button>
                     {% endif %}
 
-                    <!-- 3. Generate / View Receipt -->
-                    {% if ledger.remittance %}
-                      <a href="{% url 'platform_fee_receipt' ledger.remittance.id %}"
+                    <!-- 3. View Receipt -->
+                    {% if org.remittance_id %}
+                      <a href="{% url 'platform_fee_receipt' org.remittance_id %}"
                          class="btn btn-outline-primary" target="_blank"
                          title="View / print / download receipt">
                         <i class="bi bi-receipt"></i> Receipt
@@ -130,55 +151,64 @@
                 </td>
               </tr>
 
-              <!-- Pay Modal for this ledger -->
-              <div class="modal fade" id="payModal{{ ledger.id }}" tabindex="-1" aria-hidden="true">
-                <div class="modal-dialog">
-                  <div class="modal-content">
-                    <form method="post" action="{% url 'record_platform_remittance' %}">
-                      {% csrf_token %}
-                      <input type="hidden" name="ledger_id" value="{{ ledger.id }}">
-                      <div class="modal-header">
-                        <h5 class="modal-title">Record Remittance — {{ ledger.organization.name }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                      </div>
-                      <div class="modal-body">
-                        <p class="mb-3">
-                          Amount due: <strong class="text-success">₱{{ ledger.accumulated_fee|floatformat:2|intcomma }}</strong><br>
-                          Cycle due: {{ ledger.cycle_due|date:"M d, Y" }}
-                        </p>
-                        <div class="mb-3">
-                          <label class="form-label">Management representative name <span class="text-danger">*</span></label>
-                          <input type="text" name="management_rep_name" class="form-control" required
-                                 placeholder="Full name of the person receiving the payment">
+              <!-- Pay Modal for Active Ledger -->
+              {% if org.latest_ledger_id %}
+                <div class="modal fade" id="payModal{{ org.latest_ledger_id }}" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <form method="post" action="{% url 'record_platform_remittance' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="ledger_id" value="{{ org.latest_ledger_id }}">
+                        
+                        <div class="modal-header">
+                          <h5 class="modal-title">Record Remittance — {{ org.name }}</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
-                        <div class="mb-3">
-                          <label class="form-label">Notes (optional)</label>
-                          <textarea name="notes" class="form-control" rows="2"></textarea>
+                        
+                        <div class="modal-body text-start">
+                          <p class="mb-3">
+                            Amount due: <strong class="text-success">₱{{ org.accumulated_fee|default:"0.00"|floatformat:2|intcomma }}</strong><br>
+                            Cycle due: {{ org.cycle_due|date:"M d, Y" }}
+                          </p>
+                          
+                          <div class="mb-3">
+                            <label class="form-label">Management representative name <span class="text-danger">*</span></label>
+                            <input type="text" name="management_rep_name" class="form-control" required
+                                   placeholder="Full name of the person receiving the payment">
+                          </div>
+                          
+                          <div class="mb-3">
+                            <label class="form-label">Notes (optional)</label>
+                            <textarea name="notes" class="form-control" rows="2"></textarea>
+                          </div>
+                          
+                          <div class="alert alert-info small mb-0">
+                            On confirmation the system will:
+                            <ul class="mb-0 mt-1">
+                              <li>Create a <code>PlatformFeeRemittance</code> record</li>
+                              <li>Mark the ledger as <strong>PAID</strong></li>
+                              <li>Generate a unique receipt number</li>
+                              <li>Reset a new open cycle starting today (+30 days)</li>
+                            </ul>
+                          </div>
                         </div>
-                        <div class="alert alert-info small mb-0">
-                          On confirmation the system will:
-                          <ul class="mb-0 mt-1">
-                            <li>Create a <code>PlatformFeeRemittance</code> record</li>
-                            <li>Mark the ledger as <strong>PAID</strong></li>
-                            <li>Generate a unique receipt number</li>
-                            <li>Reset a new open cycle starting today (+30 days)</li>
-                          </ul>
+                        
+                        <div class="modal-footer">
+                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                          <button type="submit" class="btn btn-success">
+                            Confirm Payment & Generate Receipt
+                          </button>
                         </div>
-                      </div>
-                      <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-success">
-                          Confirm Payment & Generate Receipt
-                        </button>
-                      </div>
-                    </form>
+                      </form>
+                    </div>
                   </div>
                 </div>
-              </div>
+              {% endif %}
+
             {% empty %}
               <tr>
                 <td colspan="7" class="text-center py-5 text-muted">
-                  No open or due remittance cycles found.
+                  No organizations found.
                 </td>
               </tr>
             {% endfor %}
@@ -187,5 +217,26 @@
       </div>
     </div>
   </div>
+
+  <!-- Pagination controls -->
+  {% if page_obj.has_other_pages %}
+    <nav aria-label="Page navigation" class="mt-4">
+      <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page=1">&laquo; First</a></li>
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+        {% endif %}
+
+        <li class="page-item disabled">
+          <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        </li>
+
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
 </div>
 {% endblock %}

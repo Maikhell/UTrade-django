@@ -11,6 +11,7 @@ from django.http import HttpResponse, JsonResponse
 from django.template.loader import render_to_string
 from weasyprint import HTML
 from django.contrib import messages
+from ..utils import accrue_platform_fee_for_order
 
 from ..models import (
     CartItem,
@@ -218,52 +219,6 @@ def order_history(request):
     return render(request, 'UTrade_app/orders/history.html', context)
 
 
-@login_required
-@transaction.atomic
-def cancel_order(request, order_id):
-    if request.method == 'POST':
-        order = get_object_or_404(Order, id=order_id, user=request.user)
-
-        if order.status != 'Pending':
-            return JsonResponse(
-                {'status': 'error', 'message': 'Order cannot be cancelled.'},
-                status=400,
-            )
-
-        for item in order.items.all():
-            variant = item.product_variant
-            if variant:
-                variant.stocks += item.quantity
-                variant.save(update_fields=['stocks'])
-
-        reason = request.POST.get('reason', 'No reason provided')
-        order.status = 'Cancelled'
-        order.cancellation_reason = reason
-        order.save(update_fields=['status', 'cancellation_reason'])
-
-        first_item = order.items.first()
-        product = first_item.product_variant.product if first_item and first_item.product_variant else None
-
-        if product:
-            conversation, _ = Conversation.objects.get_or_create(
-                product=product,
-                buyer=request.user,
-                seller=order.seller,
-            )
-            ChatMessage.objects.create(
-                conversation=conversation,
-                user=request.user,
-                content=(
-                    f"🚨 SYSTEM: Order #{order.id} has been cancelled by the buyer.\n"
-                    f"Reason: {reason}"
-                ),
-                is_read=False,
-            )
-
-        return JsonResponse({'status': 'success', 'message': 'Order cancelled successfully.'})
-
-    return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
-
 
 @login_required
 def accept_order(request, order_id):
@@ -314,10 +269,14 @@ def mark_order_delivered(request, order_id):
         order.status = 'Completed'
         order.save(update_fields=['status', 'updated_at'])
 
+        # Increment product sold counts
         for item in order.items.all():
             product = item.product_variant.product
             product.sold += item.quantity
             product.save(update_fields=['sold'])
+
+        # Accrue platform fee & ledger record
+        accrue_platform_fee_for_order(order)
 
         messages.success(request, f"Order #{order.id} has been marked as Completed.")
 
@@ -340,38 +299,12 @@ def confirm_receipt(request, order_id):
                 product.sold += item.quantity
                 product.save(update_fields=['sold'])
 
+            # Accrue platform fee & ledger record
+            accrue_platform_fee_for_order(order)
+
             messages.success(request, "Order completed! Please rate the product.")
         else:
             messages.error(request, "This order cannot be confirmed yet.")
-
-    return redirect('order_history')
-
-
-@login_required
-def submit_review(request, order_id):
-    if request.method == 'POST':
-        order = get_object_or_404(Order, id=order_id, user=request.user)
-
-        if order.status != 'Completed':
-            messages.error(request, "You can only rate completed orders.")
-            return redirect('order_history')
-
-        rating_value = request.POST.get('rating')
-        comment = request.POST.get('comment')
-
-        for item in order.items.all():
-            Review.objects.update_or_create(
-                order=order,
-                product=item.product_variant.product,
-                user=request.user,
-                defaults={
-                    'rating': rating_value,
-                    'comment': comment,
-                },
-            )
-
-        messages.success(request, "Thank you for your review!")
-        return redirect('order_history')
 
     return redirect('order_history')
 
@@ -427,6 +360,80 @@ def update_preorder_status(request, order_id):
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
+
+@login_required
+@transaction.atomic
+def cancel_order(request, order_id):
+    if request.method == 'POST':
+        order = get_object_or_404(Order, id=order_id, user=request.user)
+
+        if order.status != 'Pending':
+            return JsonResponse(
+                {'status': 'error', 'message': 'Order cannot be cancelled.'},
+                status=400,
+            )
+
+        for item in order.items.all():
+            variant = item.product_variant
+            if variant:
+                variant.stocks += item.quantity
+                variant.save(update_fields=['stocks'])
+
+        reason = request.POST.get('reason', 'No reason provided')
+        order.status = 'Cancelled'
+        order.cancellation_reason = reason
+        order.save(update_fields=['status', 'cancellation_reason'])
+
+        first_item = order.items.first()
+        product = first_item.product_variant.product if first_item and first_item.product_variant else None
+
+        if product:
+            conversation, _ = Conversation.objects.get_or_create(
+                product=product,
+                buyer=request.user,
+                seller=order.seller,
+            )
+            ChatMessage.objects.create(
+                conversation=conversation,
+                user=request.user,
+                content=(
+                    f"🚨 SYSTEM: Order #{order.id} has been cancelled by the buyer.\n"
+                    f"Reason: {reason}"
+                ),
+                is_read=False,
+            )
+
+        return JsonResponse({'status': 'success', 'message': 'Order cancelled successfully.'})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
+
+@login_required
+def submit_review(request, order_id):
+    if request.method == 'POST':
+        order = get_object_or_404(Order, id=order_id, user=request.user)
+
+        if order.status != 'Completed':
+            messages.error(request, "You can only rate completed orders.")
+            return redirect('order_history')
+
+        rating_value = request.POST.get('rating')
+        comment = request.POST.get('comment')
+
+        for item in order.items.all():
+            Review.objects.update_or_create(
+                order=order,
+                product=item.product_variant.product,
+                user=request.user,
+                defaults={
+                    'rating': rating_value,
+                    'comment': comment,
+                },
+            )
+
+        messages.success(request, "Thank you for your review!")
+        return redirect('order_history')
+
+    return redirect('order_history')
 
 @login_required
 def generate_receipt(request, order_id):

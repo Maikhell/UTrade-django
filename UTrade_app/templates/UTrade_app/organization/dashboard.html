@@ -71,6 +71,20 @@
               {% endif %}
             {% endif %}
           </div>
+
+          <!-- Amount Display -->
+          <h3 class="fw-bold text-dark mb-1">
+            ₱{{ remittance_ledger.accumulated_fee|default:"0.00" }}
+          </h3>
+
+          <!-- Due Date Footer -->
+          <div class="small text-muted">
+            {% if remittance_ledger %}
+              <span>Due: <strong>{{ remittance_ledger.cycle_due|date:"M d, Y" }}</strong></span>
+            {% else %}
+              <span>No active billing cycle</span>
+            {% endif %}
+          </div>
         </div>
       </div>
    <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">

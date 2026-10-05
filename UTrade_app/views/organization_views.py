@@ -9,17 +9,18 @@ from ..models import User, Product, Order,OrganizationPlatformLedger
 from django.utils import timezone
 
 def organization_panel(request):
-    organization_obj = request.user.org_link 
+    organization_obj = getattr(request.user, 'org_link', None)
     
     search_query = request.GET.get('search')
     status_filter = request.GET.get('status_filter')
     role_filter = request.GET.get('role_filter')
     sort_param = request.GET.get('sort', '-date_joined')
+
     remittance_ledger = None
     remittance_status_color = 'secondary'
 
     if organization_obj:
-        # Fetch the active cycle (OPEN or DUE) for this organization
+        # 1. Remittance Ledger Logic
         remittance_ledger = OrganizationPlatformLedger.objects.filter(
             organization=organization_obj,
             status__in=[OrganizationPlatformLedger.STATUS_OPEN, OrganizationPlatformLedger.STATUS_DUE]
@@ -27,15 +28,14 @@ def organization_panel(request):
 
         if remittance_ledger:
             days = remittance_ledger.days_until_due
-
-            # Set border & indicator badge colors based on properties
             if remittance_ledger.is_overdue or days <= 3:
-                remittance_status_color = 'danger'     # Red for <= 3 days or Overdue
-            elif remittance_ledger.is_warning:         # True when 0 <= days <= 7 and NOT PAID
-                remittance_status_color = 'warning'    # Yellow for 4 - 7 days
+                remittance_status_color = 'danger'
+            elif remittance_ledger.is_warning:
+                remittance_status_color = 'warning'
             else:
                 remittance_status_color = 'success'
-    if organization_obj:
+
+        # 2. Organization Data & Filters
         target_course = organization_obj.course_code
         org_users = User.objects.filter(org_link=organization_obj)
 
@@ -88,7 +88,7 @@ def organization_panel(request):
         incoming_orders = Order.objects.none()
         completed_orders = Order.objects.none()
         verified_count = 0
-    
+
     context = {
         'org_name': organization_obj.name if organization_obj else "No Organization",
         'org_full_name': organization_obj.full_name if organization_obj else "No Organization Assigned",

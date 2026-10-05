@@ -103,9 +103,11 @@
                   {% else %}
                     <span class="badge bg-light text-dark border fw-medium">Processing</span>
                   {% endif %}
+                {% if p.id %}
                   <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
                     <i class="bi bi-chat-dots"></i> Message Seller
                   </a>
+                {% endif %}
                 </div>
               </div>
             </div>

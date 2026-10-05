@@ -110,7 +110,6 @@ urlpatterns = [
     path('seller/preorder/<int:preorder_id>/ready/', user_views.preorder_mark_ready, name='preorder.mark_ready'),
     path('seller/preorder/<int:preorder_id>/complete/', user_views.preorder_mark_completed, name='preorder.mark_completed'),
     path('seller/reports/preorders/', user_views.seller_preorder_report, name='seller.preorder_report'),
-    path('preorder/update-status/<int:order_id>/',user_views.update_preorder_status,name='preorder.update_status',),
     path('chat/report/<int:conversation_id>/', chat_views.report_conversation, name='chat.report'),
     path('management/suspend-user/', chat_views.management_suspend_user, name='management.suspend_user'),
     path('shop/<int:seller_id>/', items_views.StorefrontView.as_view(), name='storefront'),

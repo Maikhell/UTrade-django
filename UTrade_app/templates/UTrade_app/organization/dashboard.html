@@ -27,66 +27,81 @@
       </div>
     </div>
 
-    <div class="row g-3 mb-5">
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <small class="text-uppercase text-muted fw-bold small">Total Students</small>
-          <h3 class="fw-bold text-primary mb-0">{{ users.count|default:'0' }}</h3>
-        </div>
+   <div class="row g-3 mb-5">
+  <!-- Card 1: Total Students -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+      <small class="text-uppercase text-muted fw-bold small">Students</small>
+      <h3 class="fw-bold text-primary mb-1">{{ users.count|default:'0' }}</h3>
+      <div class="small text-muted">
+        <span>Total students</span>
       </div>
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
-          <small class="text-uppercase text-muted fw-bold small">Verified</small>
-          <h3 class="fw-bold text-success mb-0">{{ verified_count|default:'0' }}</h3>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-          <small class="text-uppercase text-muted fw-bold small">Department's Listings</small>
-          <h3 class="fw-bold text-dark mb-0">{{ products.count|default:'0' }}</h3>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-{{ remittance_status_color }} border-4">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <small class="text-uppercase text-muted fw-bold small">Remittance Fee</small>
+    </div>
+  </div>
 
-            {% if remittance_ledger %}
-              {% if remittance_ledger.is_overdue %}
-                <span class="badge bg-danger rounded-pill">
-                  <i class="bi bi-exclamation-triangle-fill me-1"></i>Overdue
-                </span>
-              {% elif remittance_ledger.days_until_due <= 3 %}
-                <span class="badge bg-danger rounded-pill">
-                  <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ remittance_ledger.days_until_due }}d left
-                </span>
-              {% elif remittance_ledger.is_warning %}
-                <span class="badge bg-warning text-dark rounded-pill">
-                  <i class="bi bi-exclamation-circle-fill me-1"></i>{{ remittance_ledger.days_until_due }}d left
-                </span>
-              {% else %}
-                <span class="badge bg-success rounded-pill">
-                  <i class="bi bi-check-circle-fill me-1"></i>On Track
-                </span>
-              {% endif %}
-            {% endif %}
-          </div>
-
-          <!-- Amount Display -->
-          <h3 class="fw-bold text-dark mb-1">
-            ₱{{ remittance_ledger.accumulated_fee|default:"0.00" }}
-          </h3>
-
-          <!-- Due Date Footer -->
-          <div class="small text-muted">
-            {% if remittance_ledger %}
-              <span>Due: <strong>{{ remittance_ledger.cycle_due|date:"M d, Y" }}</strong></span>
-            {% else %}
-              <span>No active billing cycle</span>
-            {% endif %}
-          </div>
-        </div>
+  <!-- Card 2: Verified Students -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
+      <small class="text-uppercase text-muted fw-bold small">Verified</small>
+      <h3 class="fw-bold text-success mb-1">{{ verified_count|default:'0' }}</h3>
+      <div class="small text-muted">
+        <span>Total verified students</span>
       </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Department's Listings -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
+      <small class="text-uppercase text-muted fw-bold small">Department's Listings</small>
+      <h3 class="fw-bold text-dark mb-1">{{ products.count|default:'0' }}</h3>
+      <div class="small text-muted">
+        <span>Total products</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4: Remittance Fee -->
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-{{ remittance_status_color }} border-4">
+      <div class="d-flex justify-content-between align-items-center mb-1">
+        <small class="text-uppercase text-muted fw-bold small">Remittance Fee</small>
+
+        {% if remittance_ledger %}
+          {% if remittance_ledger.is_overdue %}
+            <span class="badge bg-danger rounded-pill">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>Overdue
+            </span>
+          {% elif remittance_ledger.days_until_due <= 3 %}
+            <span class="badge bg-danger rounded-pill">
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ remittance_ledger.days_until_due }}d left
+            </span>
+          {% elif remittance_ledger.is_warning %}
+            <span class="badge bg-warning text-dark rounded-pill">
+              <i class="bi bi-exclamation-circle-fill me-1"></i>{{ remittance_ledger.days_until_due }}d left
+            </span>
+          {% else %}
+            <span class="badge bg-success rounded-pill">
+              <i class="bi bi-check-circle-fill me-1"></i>On Track
+            </span>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <h3 class="fw-bold text-dark mb-1">
+        ₱{{ remittance_ledger.accumulated_fee|default:"0.00" }}
+      </h3>
+
+      <div class="small text-muted">
+        {% if remittance_ledger %}
+          <span>Due: <strong>{{ remittance_ledger.cycle_due|date:"M d, Y" }}</strong></span>
+        {% else %}
+          <span>No active billing cycle</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
    <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">
   <li class="nav-item">
     <button class="nav-link active fw-bold border-0 bg-transparent px-4" id="students-tab" data-bs-toggle="tab" data-bs-target="#students-pane">Students</button>

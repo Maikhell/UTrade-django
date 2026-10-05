@@ -103,11 +103,15 @@
                   {% else %}
                     <span class="badge bg-light text-dark border fw-medium">Processing</span>
                   {% endif %}
-                {% if p.id %}
-                  <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
-                    <i class="bi bi-chat-dots"></i> Message Seller
-                  </a>
-                {% endif %}
+                  {% if p and p.id %}
+                    <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                      <i class="bi bi-chat-dots"></i> Message Seller
+                    </a>
+                  {% else %}
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
+                      <i class="bi bi-chat-dots"></i> Item Unavailable
+                    </button>
+                  {% endif %}
                 </div>
               </div>
             </div>
@@ -261,10 +265,15 @@
                           data-bs-target="#preorderDetails{{ po.id }}">
                     View Details
                   </button>
-                  <a href="{% url 'start_chat' product_id=p.id %}"
-                     class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
-                    <i class="bi bi-chat-dots"></i> Message Seller
-                  </a>
+                    {% if p and p.id %}
+                      <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                        <i class="bi bi-chat-dots"></i> Message Seller
+                      </a>
+                    {% else %}
+                      <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
+                        <i class="bi bi-chat-dots"></i> Item Unavailable
+                      </button>
+                    {% endif %}
                 </div>
               </div>
             </div>
@@ -341,9 +350,15 @@
                     </div>
                   </div>
                   <div class="modal-footer justify-content-between">
-                    <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary rounded-pill px-4">
-                      <i class="bi bi-chat-dots me-1"></i> Message Seller
+                  {% if p and p.id %}
+                    <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                      <i class="bi bi-chat-dots"></i> Message Seller
                     </a>
+                  {% else %}
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
+                      <i class="bi bi-chat-dots"></i> Item Unavailable
+                    </button>
+                  {% endif %}
                     <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
                   </div>
                 </div>
@@ -429,10 +444,15 @@
                 </button>
                 {% with first_item=order.items.all.0 %}
                   {% if first_item %}
-                    <a href="{% url 'start_chat' product_id=first_item.product_variant.product.id %}"
-                       class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                  {% if p and p.id %}
+                    <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
                       <i class="bi bi-chat-dots"></i> Message Seller
                     </a>
+                  {% else %}
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
+                      <i class="bi bi-chat-dots"></i> Item Unavailable
+                    </button>
+                  {% endif %}
                   {% endif %}
                 {% endwith %}
               </div>
@@ -719,9 +739,15 @@
           <div class="modal-footer justify-content-between">
             {% with first_item=order.items.all.0 %}
               {% if first_item %}
-                <a href="{% url 'start_chat' product_id=first_item.product_variant.product.id %}" class="btn btn-outline-secondary rounded-pill px-4">
-                  <i class="bi bi-chat-dots me-1"></i> Message Seller
-                </a>
+                {% if p and p.id %}
+                  <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                    <i class="bi bi-chat-dots"></i> Message Seller
+                  </a>
+                {% else %}
+                  <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
+                    <i class="bi bi-chat-dots"></i> Item Unavailable
+                  </button>
+                {% endif %}
               {% endif %}
             {% endwith %}
             <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>

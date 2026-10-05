@@ -38,30 +38,36 @@
   <div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-200 print-shadow-none">
     
     <!-- Header -->
-    <div class="flex justify-between items-start border-b border-gray-200 pb-6">
-      <div>
-        <div class="glass-bg p-4 mb-4">
-      <img
-        src="{% static 'UTrade_app/img/UTrade.png' %}"
-        alt="Logo"
-        class="img-fluid"
-        style="
-          max-width: 25px;
-          filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.2));
-        "
-      />
+<div class="flex justify-between items-start border-b border-gray-200 pb-6">
+  <!-- Left side: Logo + Title -->
+  <div class="flex items-center gap-3">
+    <img
+      src="{% static 'UTrade_app/img/UTrade.png' %}"
+      alt="UTrade Logo"
+      class="img-fluid"
+      style="
+        max-width: 42px;
+        height: auto;
+        filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
+      "
+    />
+    <div>
+      <h1 class="text-2xl font-bold tracking-tight text-emerald-700 leading-tight">
+        UTrade CVSU Bacoor Campus
+      </h1>
+      <p class="text-xs text-gray-500 mt-0.5">Platform Fee Remittance Receipt</p>
     </div>
-        <h1 class="text-2xl font-bold tracking-tight text-emerald-700">UTrade CVSU Bacoor Campus</h1>
-        <p class="text-xs text-gray-500 mt-0.5">Platform Fee Remittance Receipt</p>
-      </div>
-      <div class="text-right">
-        <span class="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full uppercase tracking-wider mb-1">
-          PAID
-        </span>
-        <p class="text-sm font-semibold text-gray-800">Receipt #REC-{{ ledger.id }}</p>
-        <p class="text-xs text-gray-500">Issued: {{ ledger.updated_at|date:"F d, Y" }}</p>
-      </div>
-    </div>
+  </div>
+
+  <!-- Right side: Status + Receipt info -->
+  <div class="text-right">
+    <span class="inline-block px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full uppercase tracking-wider mb-1">
+      PAID
+    </span>
+    <p class="text-sm font-semibold text-gray-800">Receipt #REC-{{ ledger.id }}</p>
+    <p class="text-xs text-gray-500">Issued: {{ ledger.updated_at|date:"F d, Y" }}</p>
+  </div>
+</div>
 
     <!-- Info Grid -->
     <div class="grid grid-cols-2 gap-6 my-6 text-sm">

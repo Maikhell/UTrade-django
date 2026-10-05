@@ -715,3 +715,38 @@ def platform_fee_receipt(request, remittance_id):
         'rem': rem,
         'org': rem.ledger.organization,
     })
+    
+@login_required
+def remittance_logs_view(request):
+    # Fetch all ledgers that have been paid/settled
+    paid_ledgers = (
+        OrganizationPlatformLedger.objects
+        .filter(status='PAID')
+        .select_related('organization')
+        .order_by('-updated_at')
+    )
+    
+    context = {
+        'paid_ledgers': paid_ledgers
+    }
+    return render(request, 'UTrade_app/management/remittance_logs.html', context)
+
+@login_required
+def view_remittance_receipt(request, ledger_id):
+    """
+    Renders a printable invoice/receipt for a paid remittance ledger.
+    """
+    ledger = get_object_or_404(
+        OrganizationPlatformLedger.objects.select_related('organization'),
+        id=ledger_id
+    )
+    
+    # Fetch all itemized order fee lines attached to this ledger
+    fee_lines = ledger.fee_lines.select_related('order').all()
+
+    context = {
+        'ledger': ledger,
+        'fee_lines': fee_lines,
+        'printed_at': timezone.now(),
+    }
+    return render(request, 'UTrade_app/reports/remittance_receipt.html', context)

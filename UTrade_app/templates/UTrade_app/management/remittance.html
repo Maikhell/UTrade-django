@@ -36,7 +36,17 @@
       </div>
     {% endfor %}
   {% endif %}
-
+<!-- Mini Sub-Nav for Remittance section -->
+<div class="flex border-b border-gray-200 mb-6 text-sm font-medium">
+  <a href="{% url 'remittance' %}" 
+     class="py-3 px-5 border-b-2 font-semibold transition-colors duration-150 border-emerald-600 text-emerald-600">
+    Active Remittances
+  </a>
+  <a href="{% url 'remittance_logs' %}" 
+     class="py-3 px-5 border-b-2 font-medium text-gray-500 hover:text-gray-700 border-transparent hover:border-gray-300 transition-colors duration-150">
+    Remittance Logs & Receipts
+  </a>
+</div>
   <div class="card shadow-sm border-0">
     <div class="card-body p-0">
       <div class="table-responsive">

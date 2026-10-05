@@ -46,8 +46,33 @@
           <h3 class="fw-bold text-dark mb-0">{{ products.count|default:'0' }}</h3>
         </div>
       </div>
+      <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-{{ remittance_status_color }} border-4">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <small class="text-uppercase text-muted fw-bold small">Remittance Fee</small>
 
-    </div>
+            {% if remittance_ledger %}
+              {% if remittance_ledger.is_overdue %}
+                <span class="badge bg-danger rounded-pill">
+                  <i class="bi bi-exclamation-triangle-fill me-1"></i>Overdue
+                </span>
+              {% elif remittance_ledger.days_until_due <= 3 %}
+                <span class="badge bg-danger rounded-pill">
+                  <i class="bi bi-exclamation-triangle-fill me-1"></i>{{ remittance_ledger.days_until_due }}d left
+                </span>
+              {% elif remittance_ledger.is_warning %}
+                <span class="badge bg-warning text-dark rounded-pill">
+                  <i class="bi bi-exclamation-circle-fill me-1"></i>{{ remittance_ledger.days_until_due }}d left
+                </span>
+              {% else %}
+                <span class="badge bg-success rounded-pill">
+                  <i class="bi bi-check-circle-fill me-1"></i>On Track
+                </span>
+              {% endif %}
+            {% endif %}
+          </div>
+        </div>
+      </div>
 
    <ul class="nav nav-tabs border-0 mb-4" id="orgTabs" role="tablist">
   <li class="nav-item">

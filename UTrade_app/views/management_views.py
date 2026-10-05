@@ -633,18 +633,61 @@ def notify_org_remittance(request, ledger_id):
     org = ledger.organization
     days = ledger.days_until_due
 
+    # 1. Prepare notification message
     if days < 0:
-        msg = (f"Reminder: Your platform fee of ₱{ledger.accumulated_fee} is OVERDUE "
-               f"(due {ledger.cycle_due}). Please remit as soon as possible.")
+        msg = (
+            f"🚨 REMITTANCE OVERDUE: Your platform fee of ₱{ledger.accumulated_fee} "
+            f"was due on {ledger.cycle_due}. Please remit as soon as possible to avoid account restrictions."
+        )
     elif days <= 7:
-        msg = (f"Reminder: Your platform fee of ₱{ledger.accumulated_fee} is due in {days} day(s) "
-               f"({ledger.cycle_due}). Please prepare the remittance.")
+        msg = (
+            f"⚠️ REMITTANCE DUE SOON: Your platform fee of ₱{ledger.accumulated_fee} "
+            f"is due in {days} day(s) ({ledger.cycle_due}). Please prepare your remittance."
+        )
     else:
-        msg = (f"Friendly reminder: Platform fee cycle for {org.name} ends on {ledger.cycle_due}. "
-               f"Current amount due: ₱{ledger.accumulated_fee}.")
+        msg = (
+            f"ℹ️ REMITTANCE NOTICE: Platform fee cycle for {org.name} ends on {ledger.cycle_due}. "
+            f"Current accumulated balance: ₱{ledger.accumulated_fee}."
+        )
 
-    # TODO: Connect your notification/chat dispatch service here
-    messages.success(request, f"Notification sent to {org.name}: “{msg[:80]}…”")
+    # 2. Target an officer or member linked to this organization
+    target_user = (
+        User.objects.filter(org_link=org, is_officer=True).first()
+        or User.objects.filter(org_link=org).first()
+    )
+
+    if not target_user:
+        messages.error(
+            request,
+            f"Could not send chat: No user account is associated with '{org.name}'."
+        )
+        return redirect('remittance_management')
+
+    # 3. Get or create direct conversation without requiring a Product
+    conversation, _ = Conversation.objects.get_or_create(
+        buyer=request.user,
+        seller=target_user,
+        product=None,
+    )
+
+    # 4. Create and store the chat message
+    ChatMessage.objects.create(
+        conversation=conversation,
+        user=request.user,
+        content=msg,
+        is_read=False,
+    )
+
+    # 5. Audit log
+    log_action(
+        user=request.user,
+        action='Remittance Notified',
+        item_type='Organization',
+        item_name=str(org.name),
+        details=f'Sent remittance notification to {target_user.username}: {msg}',
+    )
+
+    messages.success(request, f"Notification successfully sent to {org.name} ({target_user.get_short_name}).")
     return redirect('remittance_management')
 
 

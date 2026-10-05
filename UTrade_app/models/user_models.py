@@ -100,7 +100,7 @@ class User(AbstractUser):
         return str(self.get_short_name)
 class Conversation(models.Model):
 
-    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, null=True, blank=True)
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='buyer_chats')
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_chats')
     created_at = models.DateTimeField(auto_now_add=True)

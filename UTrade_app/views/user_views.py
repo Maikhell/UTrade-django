@@ -307,37 +307,133 @@ class UserProductsView(LoginRequiredMixin, ListView):
             'section_options': list(section_options),
             'owner_type_filter': owner_type, 
         })
+class UserProductsView(LoginRequiredMixin, ListView):
+    model = Product
+    template_name = 'UTrade_app/seller/inventory.html'
+    context_object_name = 'products'
+
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user).order_by('-created_at')
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        seller = self.request.user
+        user = self.request.user
         now = timezone.now()
         seven_days_ago = now - timezone.timedelta(days=7)
 
-        # 1. Base query for seller's orders
+        # ==========================================
+        # 1. PRE-ORDERS & OPTIONS
+        # ==========================================
+        seller_preorders = PreOrderRequest.objects.filter(
+            seller=user
+        ).select_related(
+            'buyer',
+            'product_variant',
+            'product_variant__product',
+        ).order_by('-id')
+
+        owner_type = get_seller_owner_type_filter(user)
+        if owner_type:
+            seller_preorders = seller_preorders.filter(
+                product_variant__product__owner_type=owner_type
+            )
+
+        incoming_preorders = seller_preorders.filter(
+            Q(status__iexact='Pending') | Q(status__iexact='Paid')
+        )
+        ready_preorders = seller_preorders.filter(
+            Q(status__iexact='Accepted')
+            | Q(status__iexact='Ready')
+            | Q(status__iexact='Ready for Pickup')
+        )
+        completed_preorders = seller_preorders.filter(
+            status__iexact='Completed'
+        )
+
+        course_options = (
+            seller_preorders
+            .exclude(buyer__course__isnull=True)
+            .exclude(buyer__course='')
+            .values_list('buyer__course', flat=True)
+            .distinct()
+            .order_by('buyer__course')
+        )
+        section_options = (
+            seller_preorders
+            .exclude(buyer__section__isnull=True)
+            .exclude(buyer__section='')
+            .values_list('buyer__section', flat=True)
+            .distinct()
+            .order_by('buyer__section')
+        )
+
+        # ==========================================
+        # 2. PRODUCT & ORDERS QUERYSETS
+        # ==========================================
+        counts = Product.objects.filter(seller=user).aggregate(
+            approved=Count('id', filter=Q(status__iexact='Approved')),
+            pending=Count('id', filter=Q(status__iexact='Pending')),
+            rejected=Count('id', filter=Q(status__iexact='Rejected'))
+        )
+
+        # All orders containing products listed by this seller
         seller_orders = Order.objects.filter(
-            items__product_variant__product__seller=seller
+            items__product_variant__product__seller=user
         ).distinct()
 
-        incoming_orders = seller_orders.filter(status__iexact='Pending')
-        accepted_orders = seller_orders.filter(status__iexact='Accepted')
-        completed_orders = seller_orders.filter(status__iexact='Completed')
+        incoming_orders = seller_orders.filter(
+            Q(status__iexact='Pending') | Q(status__iexact='Paid')
+        ).order_by('-created_at')
 
-        # 2. Revenue Over Time (Last 7 Days)
+        accepted_orders = seller_orders.filter(
+            status__iexact='Accepted'
+        ).order_by('-created_at')
+
+        completed_orders = seller_orders.filter(
+            status__iexact='Completed'
+        ).order_by('-updated_at')
+
+        # Items from completed orders for this seller
+        completed_items = OrderItem.objects.filter(
+            order__in=completed_orders,
+            product_variant__product__seller=user,
+        )
+
+        # ==========================================
+        # 3. DASHBOARD STATS CARDS
+        # ==========================================
+        # Handles both 'stock' and 'stocks' field names safely
+        try:
+            total_stocks = ProductVariant.objects.filter(
+                product__seller=user
+            ).aggregate(total=Sum('stock'))['total'] or 0
+        except Exception:
+            total_stocks = ProductVariant.objects.filter(
+                product__seller=user
+            ).aggregate(total=Sum('stocks'))['total'] or 0
+
+        total_orders = seller_orders.count()
+
+        # Income calculated specifically from items belonging to this seller
+        total_income = completed_items.aggregate(
+            total=Sum(F('price') * F('quantity'))
+        )['total'] or Decimal('0.00')
+
+        # ==========================================
+        # 4. ANALYTICS CHARTS DATA (JSON)
+        # ==========================================
+        # Chart 1: Revenue Over Time (Completed items in last 7 days)
         revenue_daily = (
-            completed_orders.filter(created_at__gte=seven_days_ago)
-            .annotate(date=TruncDate('created_at'))
+            completed_items.filter(order__created_at__gte=seven_days_ago)
+            .annotate(date=TruncDate('order__created_at'))
             .values('date')
-            .annotate(daily_revenue=Sum('total_amount'))
+            .annotate(daily_revenue=Sum(F('price') * F('quantity')))
             .order_by('date')
         )
         revenue_labels = [r['date'].strftime('%a') for r in revenue_daily]
         revenue_data = [float(r['daily_revenue'] or 0) for r in revenue_daily]
 
-        # 3. Top Selling Products
-        completed_items = OrderItem.objects.filter(
-            order__in=completed_orders,
-            product_variant__product__seller=seller,
-        )
+        # Chart 3: Top Selling Products (Top 5 by units sold)
         top_products_qs = (
             completed_items.values('product_variant__product__name')
             .annotate(total_units=Sum('quantity'))
@@ -346,7 +442,7 @@ class UserProductsView(LoginRequiredMixin, ListView):
         top_products_labels = [p['product_variant__product__name'] or 'Unknown' for p in top_products_qs]
         top_products_data = [p['total_units'] or 0 for p in top_products_qs]
 
-        # 4. Orders Over Time
+        # Chart 4: Orders Over Time (Last 7 days)
         orders_daily = (
             seller_orders.filter(created_at__gte=seven_days_ago)
             .annotate(date=TruncDate('created_at'))
@@ -360,18 +456,41 @@ class UserProductsView(LoginRequiredMixin, ListView):
         default_days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         default_zeros = [0, 0, 0, 0, 0, 0, 0]
 
-        # Pass variables to context
+        # ==========================================
+        # 5. CONTEXT UPDATE
+        # ==========================================
         context.update({
+            # Product status badges
+            'approved_count': counts['approved'] or 0,
+            'pending_count': counts['pending'] or 0,
+            'rejected_count': counts['rejected'] or 0,
+
+            # Orders
             'incoming_orders': incoming_orders,
             'accepted_orders': accepted_orders,
             'completed_orders': completed_orders,
 
+            # Stats cards
+            'total_stocks': total_stocks,
+            'total_orders': total_orders,
+            'total_income': f"{total_income:,.2f}",
+
+            # Pre-orders
+            'incoming_preorders': incoming_preorders,
+            'ready_preorders': ready_preorders,
+            'completed_preorders': completed_preorders,
+            'incoming_preorder_count': incoming_preorders.count(),
+            'ready_preorder_count': ready_preorders.count(),
+            'completed_preorder_count': completed_preorders.count(),
+            'course_options': list(course_options),
+            'section_options': list(section_options),
+            'owner_type_filter': owner_type,
+
+            # Charts JSON
             'revenue_labels_json': json.dumps(revenue_labels if revenue_labels else default_days),
             'revenue_data_json': json.dumps(revenue_data if revenue_data else default_zeros),
-            
             'top_products_labels_json': json.dumps(top_products_labels if top_products_labels else ["No Sales Yet"]),
             'top_products_data_json': json.dumps(top_products_data if top_products_data else [0]),
-            
             'orders_over_time_labels_json': json.dumps(orders_over_time_labels if orders_over_time_labels else default_days),
             'orders_over_time_data_json': json.dumps(orders_over_time_data if orders_over_time_data else default_zeros),
         })

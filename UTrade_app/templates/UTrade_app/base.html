@@ -98,7 +98,7 @@
           {% endif %}
           <div class="nav-right d-flex align-items-center gap-3">
             {% if user.is_authenticated %}
-              {% if not user.is_staff and not user.is_superuser and user.user_role != 'management' and user.user_role != 'alumni_assoc' %}
+              {% if not user.is_staff and not user.is_superuser and user.user_role != 'management' and user.user_role != 'officer' and user.user_role != 'alumni_assoc' %}
                 <a href="{% url 'cart_detail' %}" class="text-white position-relative">
                   <i class="bi bi-cart fs-4"></i>
                   <span id="cart-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.5rem; {% if not request.user.cart.count %}display: none;{% endif %}">{{ request.user.cart.count }}</span>

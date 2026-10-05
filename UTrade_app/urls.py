@@ -121,5 +121,8 @@ urlpatterns = [
     path('management/remittance/record/', management_views.record_platform_remittance, name='record_platform_remittance'),
     # existing receipt view remains:
     path('management/remittance/receipt/<int:remittance_id>/', management_views.platform_fee_receipt, name='platform_fee_receipt'),
+    path('remittance/logs/', management_views.remittance_logs_view, name='remittance_logs'),
+    # View/download receipt URL endpoint
+    path('remittance/receipt/<int:ledger_id>/', management_views.view_remittance_receipt, name='view_remittance_receipt'),
     ]
 

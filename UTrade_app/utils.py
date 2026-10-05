@@ -102,17 +102,23 @@ def get_seller_owner_type_filter(user):
     return None
 
 def _resolve_organization(order):
-    """Map order seller → Organization."""
-    seller = order.seller
-    # Prefer product.related_org / owner_type on items
-    for item in order.items.select_related('product_variant__product__related_org').all():
-        p = item.product_variant.product
-        if getattr(p, 'related_org_id', None):
-            return p.related_org
-        if getattr(p, 'owner_type', '') == 'ORGANIZATION' and hasattr(seller, 'org_link'):
-            return seller.org_link
-    if hasattr(seller, 'org_link') and seller.org_link_id:
+    """Map order seller → Organization safely without blocking evaluation."""
+    seller = getattr(order, 'seller', None)
+    
+    # 1. First check if the seller account directly links to an organization
+    if seller and getattr(seller, 'org_link_id', None):
         return seller.org_link
+
+    # 2. Iterate items safely using a concrete list query
+    items = list(order.items.select_related('product_variant__product__related_org').all())
+    for item in items:
+        product = getattr(item.product_variant, 'product', None)
+        if product:
+            if getattr(product, 'related_org_id', None):
+                return product.related_org
+            if getattr(product, 'owner_type', '') == 'ORGANIZATION' and hasattr(seller, 'org_link'):
+                return seller.org_link
+                
     return None
 
 
@@ -120,26 +126,34 @@ def _resolve_organization(order):
 def accrue_platform_fee_for_order(order):
     if (order.status or '').upper() != 'COMPLETED':
         return None
-    if hasattr(order, 'platform_fee_line'):
-        return order.platform_fee_line  # already accrued
+
+    # Idempotency check: check DB directly instead of relying on cached reverse attribute
+    if PlatformFeeLine.objects.filter(order=order).exists():
+        return PlatformFeeLine.objects.filter(order=order).first()
 
     org = _resolve_organization(order)
     if not org:
-        return None  # personal sellers — no platform fee
+        return None  # Personal sellers — no platform fee
 
     today = timezone.localdate()
+    
+    # Select ledger with select_for_update to avoid race conditions
     ledger = (
         OrganizationPlatformLedger.objects
+        .select_for_update()
         .filter(organization=org, status__in=['OPEN', 'DUE'])
         .order_by('-cycle_start')
         .first()
     )
+    
     if not ledger:
         ledger = OrganizationPlatformLedger.objects.create(
             organization=org,
             cycle_start=today,
             cycle_due=today + timedelta(days=30),
             status='OPEN',
+            accumulated_sales=Decimal('0.00'),
+            accumulated_fee=Decimal('0.00'),
         )
     elif ledger.cycle_due < today and ledger.status == 'OPEN':
         ledger.status = 'DUE'
@@ -154,7 +168,9 @@ def accrue_platform_fee_for_order(order):
         order_amount=amount,
         fee_amount=fee,
     )
-    ledger.accumulated_sales = (ledger.accumulated_sales or 0) + amount
-    ledger.accumulated_fee = (ledger.accumulated_fee or 0) + fee
-    ledger.save(update_fields=['accumulated_sales', 'accumulated_fee', 'updated_at'])
+    
+    ledger.accumulated_sales = (ledger.accumulated_sales or Decimal('0.00')) + amount
+    ledger.accumulated_fee = (ledger.accumulated_fee or Decimal('0.00')) + fee
+    ledger.save(update_fields=['accumulated_sales', 'accumulated_fee'])
+    
     return line

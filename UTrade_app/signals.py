@@ -12,9 +12,14 @@ def create_user_cart(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=Order)
 def trigger_platform_fee_accrual(sender, instance, created, **kwargs):
-    """
-    Automatically accrue 3% platform fee and update or create the 
-    OrganizationPlatformLedger whenever an order reaches COMPLETED status.
-    """
+    # Only run on status 'Completed'
     if (instance.status or '').upper() == 'COMPLETED':
-        accrue_platform_fee_for_order(instance)
+        # Prevent recursion if order is saved again inside accrue_platform_fee_for_order
+        if getattr(instance, '_accruing_fee', False):
+            return
+        
+        instance._accruing_fee = True
+        try:
+            accrue_platform_fee_for_order(instance)
+        finally:
+            instance._accruing_fee = False

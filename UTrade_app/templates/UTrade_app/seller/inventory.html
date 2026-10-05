@@ -1253,7 +1253,7 @@
           <div class="mb-3">
             <i class="bi bi-box-seam-fill text-success display-4"></i>
           </div>
-          <h5 class="fw-bold">Confirm Delivery?</h5>
+          <h5 class="fw-bold">Confirm Pickup?</h5>
           <p class="text-muted small">
             Are you sure you have handed over the items for
             <strong>Order #{{ order.id }}</strong> to
@@ -1267,7 +1267,7 @@
             <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Not yet</button>
             <form action="{% url 'order.delivered' order.id %}" method="POST">
               {% csrf_token %}
-              <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Confirm Delivered</button>
+              <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold">Confirm Pickup</button>
             </form>
           </div>
         </div>

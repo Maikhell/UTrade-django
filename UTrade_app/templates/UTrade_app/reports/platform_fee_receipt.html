@@ -1,33 +1,408 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Platform Fee Receipt {{ rem.receipt_no }}</title>
+  <title>UTrade Seller Sales Report</title>
   <style>
-    body { font-family: Helvetica, Arial, sans-serif; color: #333; padding: 24px; max-width: 640px; margin: auto; }
-    .header { text-align: center; border-bottom: 2px solid #198754; padding-bottom: 12px; margin-bottom: 20px; }
-    .title { font-size: 18px; font-weight: bold; color: #198754; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 13px; }
-    .amount { font-size: 20px; font-weight: bold; color: #198754; }
-    .footer { margin-top: 40px; font-size: 11px; color: #888; text-align: center; }
+    @page {
+      size: A4;
+      margin: 1.4cm 1.2cm 1.6cm 1.2cm;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      color: #1f2937;
+      font-size: 11px;
+      line-height: 1.45;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ---------- Header ---------- */
+    .header {
+      display: table;
+      width: 100%;
+      border-bottom: 2.5px solid #059669;
+      padding-bottom: 14px;
+      margin-bottom: 18px;
+    }
+    .header-left,
+    .header-right {
+      display: table-cell;
+      vertical-align: middle;
+    }
+    .header-right {
+      text-align: right;
+      width: 38%;
+    }
+    .brand {
+      font-size: 18px;
+      font-weight: bold;
+      color: #047857;
+      letter-spacing: -0.02em;
+      margin: 0 0 2px 0;
+    }
+    .brand-sub {
+      font-size: 10px;
+      color: #6b7280;
+      margin: 0;
+    }
+    .doc-badge {
+      display: inline-block;
+      background: #d1fae5;
+      color: #065f46;
+      font-size: 9px;
+      font-weight: bold;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 999px;
+      margin-bottom: 6px;
+    }
+    .doc-meta {
+      font-size: 10px;
+      color: #4b5563;
+      margin: 0;
+    }
+    .doc-meta strong {
+      color: #111827;
+    }
+
+    /* ---------- Seller strip ---------- */
+    .seller-bar {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 18px;
+    }
+    .seller-bar table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .seller-bar td {
+      vertical-align: top;
+      padding: 0;
+    }
+    .label-xs {
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #9ca3af;
+      margin: 0 0 2px 0;
+    }
+    .value-sm {
+      font-size: 12px;
+      font-weight: bold;
+      color: #111827;
+      margin: 0;
+    }
+    .value-xs {
+      font-size: 10px;
+      color: #6b7280;
+      margin: 2px 0 0 0;
+    }
+
+    /* ---------- KPI cards ---------- */
+    .kpi {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 8px 0;
+      margin: 0 -8px 8px -8px;
+    }
+    .kpi td {
+      width: 25%;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px 10px;
+      text-align: center;
+      background: #fff;
+      vertical-align: middle;
+    }
+    .kpi .k-label {
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #9ca3af;
+      margin: 0 0 4px 0;
+    }
+    .kpi .k-value {
+      font-size: 15px;
+      font-weight: bold;
+      color: #111827;
+      margin: 0;
+    }
+    .kpi .k-value.green {
+      color: #047857;
+    }
+    .kpi .k-value.muted {
+      color: #4b5563;
+    }
+
+    /* ---------- Section titles ---------- */
+    h3.section {
+      font-size: 12px;
+      font-weight: bold;
+      color: #111827;
+      margin: 20px 0 8px 0;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    /* ---------- Data tables ---------- */
+    table.data {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 6px;
+    }
+    table.data thead th {
+      background: #f3f4f6;
+      color: #4b5563;
+      font-size: 9px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      text-align: left;
+      padding: 8px 10px;
+      border-top: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    table.data tbody td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 11px;
+      color: #374151;
+      vertical-align: middle;
+    }
+    table.data tbody tr:nth-child(even) td {
+      background: #fafafa;
+    }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .mono { font-variant-numeric: tabular-nums; }
+    .empty {
+      text-align: center;
+      color: #9ca3af;
+      padding: 16px !important;
+    }
+
+    /* ---------- Totals strip ---------- */
+    .totals {
+      margin-top: 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .totals table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .totals td {
+      padding: 8px 12px;
+      font-size: 11px;
+    }
+    .totals .row-label {
+      color: #6b7280;
+    }
+    .totals .row-value {
+      text-align: right;
+      font-weight: bold;
+      color: #111827;
+      font-variant-numeric: tabular-nums;
+    }
+    .totals .grand td {
+      background: #ecfdf5;
+      border-top: 1px solid #a7f3d0;
+      color: #047857;
+      font-size: 12px;
+    }
+
+    /* ---------- Notes / footer ---------- */
+    .note {
+      margin-top: 16px;
+      font-size: 9px;
+      color: #9ca3af;
+      line-height: 1.5;
+    }
+    .footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      border-top: 1px solid #e5e7eb;
+      padding-top: 6px;
+      font-size: 8px;
+      color: #9ca3af;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Header -->
   <div class="header">
-    <div class="title">UTrade — Platform Fee Acknowledgement</div>
-    <div>Receipt No: {{ rem.receipt_no }}</div>
+    <div class="header-left">
+      <p class="brand">UTrade CVSU Bacoor Campus</p>
+      <p class="brand-sub">Seller Sales Performance Report</p>
+    </div>
+    <div class="header-right">
+      <div class="doc-badge">Sales Report</div>
+      <p class="doc-meta"><strong>Period:</strong> {{ period_label }}</p>
+      <p class="doc-meta"><strong>Generated:</strong> {{ generated_at|date:"F d, Y g:i A" }}</p>
+    </div>
   </div>
-  <p>This confirms that the organization successfully remitted its platform fee to Management.</p>
-  <table>
-    <tr><th>Organization</th><td>{{ org.full_name }} ({{ org.name }})</td></tr>
-    <tr><th>Amount paid</th><td class="amount">₱{{ rem.amount_paid }}</td></tr>
-    <tr><th>Payment date</th><td>{{ rem.payment_date }}</td></tr>
-    <tr><th>Cycle due date</th><td>{{ rem.due_date }}</td></tr>
-    <tr><th>Management representative</th><td>{{ rem.management_rep_name }}</td></tr>
-    <tr><th>Recorded by</th><td>{{ rem.recorded_by.get_full_name|default:rem.recorded_by.username }}</td></tr>
+
+  <!-- Seller info -->
+  <div class="seller-bar">
+    <table>
+      <tr>
+        <td style="width:55%;">
+          <p class="label-xs">Seller</p>
+          <p class="value-sm">{{ seller.get_full_name|default:seller.username }}</p>
+          <p class="value-xs">
+            @{{ seller.username }}
+            {% if seller.student_no %} · Student No. {{ seller.student_no }}{% endif %}
+            {% if seller.course %} · {{ seller.course }}{% if seller.section %} {{ seller.section }}{% endif %}{% endif %}
+          </p>
+        </td>
+        <td style="width:45%; text-align:right;">
+          <p class="label-xs">Report scope</p>
+          <p class="value-sm">{{ period_label }}</p>
+          <p class="value-xs">Completed transactions only</p>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- KPI row 1 -->
+  <table class="kpi">
+    <tr>
+      <td>
+        <p class="k-label">Total Orders</p>
+        <p class="k-value">{{ total_orders }}</p>
+      </td>
+      <td>
+        <p class="k-label">Completed</p>
+        <p class="k-value">{{ completed_orders_count }}</p>
+      </td>
+      <td>
+        <p class="k-label">Units Sold</p>
+        <p class="k-value">{{ total_units_sold }}</p>
+      </td>
+      <td>
+        <p class="k-label">Gross Revenue</p>
+        <p class="k-value green">PHP {{ total_revenue }}</p>
+      </td>
+    </tr>
   </table>
-  <div class="footer">UTrade CVSU · System-generated acknowledgement</div>
-  <script>window.print && window.print();</script>
+
+  <!-- KPI row 2 -->
+  <table class="kpi">
+    <tr>
+      <td>
+        <p class="k-label">Est. Platform Fee</p>
+        <p class="k-value muted">PHP {{ platform_fee }}</p>
+      </td>
+      <td>
+        <p class="k-label">Net (est.)</p>
+        <p class="k-value green">PHP {{ net_profit }}</p>
+      </td>
+      <td>
+        <p class="k-label">Avg. Order Value</p>
+        <p class="k-value">PHP {{ avg_order_value }}</p>
+      </td>
+      <td>
+        <p class="k-label">Active Products</p>
+        <p class="k-value">{{ active_products }}</p>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Completed orders -->
+  <h3 class="section">Completed Orders</h3>
+  <table class="data">
+    <thead>
+      <tr>
+        <th style="width:14%;">Order ID</th>
+        <th style="width:32%;">Buyer</th>
+        <th style="width:18%;">Date</th>
+        <th style="width:16%;">Payment</th>
+        <th class="text-right" style="width:20%;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in completed_orders %}
+        <tr>
+          <td class="mono">#{{ order.id }}</td>
+          <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+          <td>{{ order.updated_at|date:"M d, Y" }}</td>
+          <td>{{ order.payment_method|default:"—" }}</td>
+          <td class="text-right mono">PHP {{ order.total_amount }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5" class="empty">No completed orders in this period.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Top products -->
+  <h3 class="section">Top Products by Units Sold</h3>
+  <table class="data">
+    <thead>
+      <tr>
+        <th style="width:55%;">Product</th>
+        <th class="text-right" style="width:20%;">Units Sold</th>
+        <th class="text-right" style="width:25%;">Revenue</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in top_products %}
+        <tr>
+          <td>{{ row.name }}</td>
+          <td class="text-right mono">{{ row.units }}</td>
+          <td class="text-right mono">PHP {{ row.revenue }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="3" class="empty">No product sales data.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Financial summary -->
+  <div class="totals">
+    <table>
+      <tr>
+        <td class="row-label">Gross revenue (completed)</td>
+        <td class="row-value">PHP {{ total_revenue }}</td>
+      </tr>
+      <tr>
+        <td class="row-label">Estimated platform fee</td>
+        <td class="row-value">PHP {{ platform_fee }}</td>
+      </tr>
+      <tr class="grand">
+        <td class="row-label"><strong>Estimated net</strong></td>
+        <td class="row-value"><strong>PHP {{ net_profit }}</strong></td>
+      </tr>
+    </table>
+  </div>
+
+  <p class="note">
+    Platform fee figures are estimates for seller reference. Official organization remittance
+    cycles and receipts are managed separately by campus Management. Amounts shown are based
+    on completed orders only for the selected period.
+  </p>
+
+  <div class="footer">
+    UTrade CVSU Bacoor · Seller Sales Report · {{ seller.username }} · Generated {% now "F d, Y" %}
+  </div>
+
 </body>
 </html>

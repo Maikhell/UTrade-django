@@ -57,6 +57,26 @@
           height: 28px;
         }
       }
+
+      /* Footer styling */
+      .site-footer {
+        background-color: #f8f9fa;
+        border-top: 1px solid #e9ecef;
+      }
+      .footer-link {
+        color: #6c757d;
+        text-decoration: none;
+        font-size: 0.85rem;
+        transition: color 0.2s ease;
+      }
+      .footer-link:hover {
+        color: #198754;
+        text-decoration: underline;
+      }
+      .footer-divider {
+        color: #dee2e6;
+        margin: 0 0.6rem;
+      }
     </style>
   </head>
   <body>
@@ -122,14 +142,426 @@
         </div>
       </nav>
     {% endwith %}
+
     <main class="container mt-4">
       {% block content %}
 
       {% endblock %}
     </main>
-    <footer class="container py-4 text-center border-top mt-5">
-      <p class="text-muted small">© 2026 UTrade</p>
+
+    <!-- ===================== FOOTER ===================== -->
+    <footer class="site-footer py-4 mt-5">
+      <div class="container">
+        <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-3">
+
+          <!-- Logo + Copyright -->
+          <div class="d-flex align-items-center gap-2">
+            <img
+              src="{% static 'UTrade_app/img/Utrade-logo.png' %}"
+              alt="UTrade Logo"
+              class="img-fluid"
+              style="max-width: 38px; height: auto; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.12));"
+            />
+            <div>
+              <div class="fw-semibold text-success" style="font-size: 0.95rem;">UTrade</div>
+              <div class="text-muted" style="font-size: 0.75rem;">© 2026 · CvSU Bacoor Campus</div>
+            </div>
+          </div>
+
+          <!-- Links -->
+          <div class="d-flex align-items-center flex-wrap justify-content-center">
+            <a href="#" class="footer-link" data-bs-toggle="modal" data-bs-target="#termsModal">
+              Terms of Service
+            </a>
+            <span class="footer-divider">|</span>
+            <a href="#" class="footer-link" data-bs-toggle="modal" data-bs-target="#privacyModal">
+              Data Privacy Notice
+            </a>
+          </div>
+
+          <!-- Small note -->
+          <div class="text-muted text-center text-md-end" style="font-size: 0.75rem;">
+            Business & Resource Generation Office
+          </div>
+        </div>
+      </div>
     </footer>
+
+    <!-- ===================== TERMS OF SERVICE MODAL ===================== -->
+    <div class="modal fade" id="termsModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header bg-success text-white">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-shield-check fs-4 me-2"></i>
+              <h5 class="modal-title fw-bold mb-0">
+                U-Trade Platform – Seller Terms & Conditions
+              </h5>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body text-dark p-4" style="font-size: 0.95rem; line-height: 1.6">
+            <div class="text-center mb-4">
+              <h6 class="fw-bold text-success mb-1">Business and Resource Generation Office</h6>
+              <p class="fw-semibold mb-1" style="font-size: 0.95rem;">
+                U-TRADE PLATFORM: SELLER TERMS AND CONDITIONS OF SERVICE
+              </p>
+              <p class="text-muted small mb-1">
+                (For Central Student Government & Recognized Student Societies)
+              </p>
+              <p class="text-danger small fw-semibold mb-1">
+                CONFIDENTIAL: Internal campus operations only within CvSU Bacoor.
+              </p>
+              <p class="text-muted small mb-0">
+                <strong>EFFECTIVE DATE:</strong> Academic Year 2026–2027
+              </p>
+            </div>
+
+            <hr class="my-4">
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                1. Acceptance of Seller Terms
+              </h6>
+              <p class="text-muted">
+                Welcome to the merchant portal of U-Trade, the official e-commerce platform of Cavite State University – Bacoor Campus. 
+                By registering, accessing, or utilizing a Seller Dashboard as a representative of the Central Student Government (CSG) 
+                or a recognized student society, you agree to be bound by these Seller Terms and Conditions. These terms derive their 
+                authority directly from the platform bylaws and are concurred by the Office of the Vice President for Business and 
+                Resource Generation (OVBRG).
+              </p>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                2. Seller Eligibility, Authentication, & Dashboard Access
+              </h6>
+              <ul class="text-muted">
+                <li class="mb-2">
+                  <strong>2.1 Institutional Authentication:</strong> All seller accounts must be registered and accessed using 
+                  official CvSU institutional credentials to preserve a closed-loop, secure campus ecosystem.
+                </li>
+                <li class="mb-2">
+                  <strong>2.2 Organizational Tier Restrictions:</strong> Seller privileges are strictly limited to verified accounts 
+                  belonging to the Central Student Government (CSG) and recognized Student Societies.
+                </li>
+                <li class="mb-0">
+                  <strong>2.3 Dashboard Security:</strong> Financial ledgers, business generation metrics, and organizational 
+                  management tools are isolated exclusively to authorized seller dashboards. Unauthorized access attempts will 
+                  result in immediate administrative intervention.
+                </li>
+              </ul>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                3. Mandatory Merchandise and Pricing Approvals
+              </h6>
+              <ul class="text-muted">
+                <li class="mb-2">
+                  <strong>3.1 Pre-Approval Requirement:</strong> The CSG and all recognized student societies acting as sellers 
+                  on U-Trade must submit all proposed merchandise, items, and exact selling prices to the Business Generating 
+                  Office for rigorous review and formal written approval prior to publishing any listings on the platform.
+                </li>
+                <li class="mb-0">
+                  <strong>3.2 Absolute Pricing Authority:</strong> The Business Generating Office maintains absolute authority 
+                  over pricing controls to protect student consumer welfare and guarantee fair trade practices across the campus. 
+                  Any unapproved listings or unauthorized price modifications will be removed immediately by platform administrators.
+                </li>
+              </ul>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                4. Transactions, Receipts, and the 3% System Hosting Fee
+              </h6>
+              <ul class="text-muted">
+                <li class="mb-2">
+                  <strong>4.1 Payment Processing:</strong> The platform supports cash-upon-meetup transactions and verified 
+                  digital payment integrations. The system automatically generates and stores digital receipts for all completed sales.
+                </li>
+                <li class="mb-2">
+                  <strong>4.2 Mandatory 3% Platform Fee:</strong> To support continuous server maintenance, system security, 
+                  and platform operations, a mandatory 3% Platform fee is automatically computed and retained per transaction.
+                </li>
+                <li class="mb-0">
+                  <strong>4.3 Monthly Settlement Deadline:</strong> All accumulated financial obligations, fees, and hosting 
+                  deductions must be cleared directly with the Campus Cashiering Office on or before the 5th day of each succeeding month.
+                </li>
+              </ul>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                5. Fulfillment Protocols and Campus Safety Standards
+              </h6>
+              <ul class="text-muted">
+                <li class="mb-2">
+                  <strong>5.1 Designated Drop-Off Zones:</strong> To maintain campus security, pedestrian safety, and an 
+                  undisturbed academic atmosphere, all physical exchanges, item hand-offs, and buyer-seller meet-ups for orders 
+                  processed via U-Trade must occur strictly within official campus drop-off zones designated by the administration 
+                  (e.g., Student Center Hub or Gazebo areas).
+                </li>
+                <li class="mb-2">
+                  <strong>5.2 Strict Delivery Restrictions:</strong> Unregulated classroom-to-classroom deliveries, 
+                  building-to-building drops, and hallway peddling are strictly prohibited.
+                </li>
+                <li class="mb-0">
+                  <strong>5.3 Prohibited Commodities:</strong> Listing, marketing, or selling weapons, illegal drugs, 
+                  alcoholic beverages, tobacco, vape products, or unverified perishable food items is strictly banned. 
+                  Violations will trigger immediate account freezing.
+                </li>
+              </ul>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                6. Seller Violations and Disciplinary Sanctions
+              </h6>
+              <p class="text-muted mb-2">
+                <strong>6.1 Grounds for Penalties:</strong> Failure by the CSG or any student society to secure prior 
+                Business Generating Office price approval, attempting to bypass platform transaction workflows, or defaulting 
+                on the monthly platform fee settlement deadline will invoke immediate administrative action.
+              </p>
+              <p class="text-muted mb-2">
+                <strong>6.2 Administrative Penalties:</strong> Violations of these seller terms shall result in:
+              </p>
+              <ul class="text-muted mb-0">
+                <li>Immediate freezing of the organizational U-Trade dashboard and suspension of merchant selling privileges.</li>
+                <li>Formal account suspension from the platform.</li>
+                <li>Direct referral to campus disciplinary authorities and the Office of Student Affairs and Services (OSAS) for institutional review.</li>
+              </ul>
+            </section>
+
+            <hr class="my-4">
+
+            <div class="mt-4" style="font-size: 0.88rem;">
+              <p class="mb-1"><strong>Prepared by:</strong></p>
+              <p class="mb-3">
+                <strong>DIANA MAE M. BELARMINO, MMPA</strong><br>
+                Head, Business and Resource Generation Office
+              </p>
+              <p class="mb-1"><strong>Approved and Adopted by:</strong></p>
+              <p class="mb-3">Cavite State University - Bacoor City Campus</p>
+              <p class="mb-1"><strong>Concurred by:</strong></p>
+              <p class="mb-0">
+                Office of the Vice President for Business and Resource Generation (OVPBaRG)<br>
+                Cavite State University - Don Severino de las Alas Campus
+              </p>
+            </div>
+          </div>
+
+          <div class="modal-footer border-0 p-3">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== DATA PRIVACY NOTICE MODAL ===================== -->
+    <div class="modal fade" id="privacyModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header bg-success text-white">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-shield-lock fs-4 me-2"></i>
+              <h5 class="modal-title fw-bold mb-0">
+                U-Trade Platform – Data Privacy Notice
+              </h5>
+            </div>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body text-dark p-4" style="font-size: 0.95rem; line-height: 1.6">
+            <div class="text-center mb-4">
+              <h6 class="fw-bold text-success mb-1">Business and Resource Generation Office</h6>
+              <p class="fw-semibold mb-1" style="font-size: 0.95rem;">
+                U-TRADE PLATFORM: DATA PRIVACY NOTICE AND COMPLIANCE POLICY
+              </p>
+              <p class="text-muted small mb-1">
+                In Compliance with Republic Act No. 10173 – Data Privacy Act of 2012
+              </p>
+              <p class="text-danger small fw-semibold mb-1">
+                CONFIDENTIAL: For internal campus operations only within CvSU Bacoor.
+              </p>
+              <p class="text-muted small mb-0">
+                <strong>EFFECTIVE DATE:</strong> Academic Year 2026–2027
+              </p>
+            </div>
+
+            <hr class="my-4">
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                1. Introduction and Commitment to Privacy
+              </h6>
+              <p class="text-muted">
+                Cavite State University – Bacoor Campus respects your right to privacy and is committed to protecting the personal 
+                data of all students, faculty, staff, and organizational members who utilize the U-Trade e-commerce platform. 
+                This Data Privacy Policy outlines how we collect, use, store, process, and protect your personal information in 
+                accordance with Republic Act No. 10173 (Data Privacy Act of 2012) and its Implementing Rules and Regulations (IRR).
+              </p>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                2. Personal Data Collected
+              </h6>
+              <p class="text-muted mb-2">
+                To ensure a secure, closed-loop campus ecosystem, the U-Trade platform collects the following types of information:
+              </p>
+              <ul class="text-muted">
+                <li class="mb-2">
+                  <strong>2.1 Account Registration Data:</strong> Official CvSU institutional credentials, student/employee ID numbers, 
+                  university email addresses, and encrypted passwords.
+                </li>
+                <li class="mb-2">
+                  <strong>2.2 Profile and Verification Data:</strong> Full name, degree program/year level, department/office, 
+                  and verification status managed by university databases.
+                </li>
+                <li class="mb-2">
+                  <strong>2.3 Transactional Data:</strong> Digital receipts, order histories, product/service listings, pricing details 
+                  approved by the Business Generating Office, and automated system hosting fee logs.
+                </li>
+                <li class="mb-0">
+                  <strong>2.4 Behavioral and System Logs:</strong> Automated tracking metrics for order cancellations, unfulfilled 
+                  meet-ups, chat histories between buyers and sellers, and login timestamps.
+                </li>
+              </ul>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                3. Purpose of Data Processing
+              </h6>
+              <p class="text-muted mb-2">
+                Your personal data is collected and processed strictly for legitimate institutional and platform-related purposes, which include:
+              </p>
+              <ul class="text-muted">
+                <li class="mb-2">
+                  <strong>3.1 Authentication and Security:</strong> Verifying user identities to maintain a closed campus ecosystem 
+                  and preventing external fraudulent accounts.
+                </li>
+                <li class="mb-2">
+                  <strong>3.2 Role Management:</strong> Enforcing strict access privileges across system tiers (Campus Administration / 
+                  Business and Resource Generation Office, CSG & Student Societies, and Standard Campus Users).
+                </li>
+                <li class="mb-2">
+                  <strong>3.3 Marketplace Operations:</strong> Facilitating peer-to-peer trading, digital receipts, product listing 
+                  approvals, and communication between campus buyers and sellers.
+                </li>
+                <li class="mb-0">
+                  <strong>3.4 Accountability and Enforcement:</strong> Monitoring cancellation trends to apply progressive buyer 
+                  penalties, tracking monthly system fee settlements, and executing campus safety protocols.
+                </li>
+              </ul>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                4. Data Sharing, Disclosure, and Access
+              </h6>
+              <ul class="text-muted">
+                <li class="mb-2">
+                  <strong>4.1 Internal Access Only:</strong> Personal data is strictly accessible to authorized platform administrators, 
+                  the Campus Business Generating Office, internal auditors, and designated IT system operators.
+                </li>
+                <li class="mb-2">
+                  <strong>4.2 Disciplinary Referrals:</strong> In the event of consecutive buyer cancellations (third offense) or severe 
+                  violations of platform rules by the CSG, student societies, or individual users, relevant data and incident reports 
+                  will be officially transmitted to the Office of Student Affairs and Services (OSAS) or campus disciplinary authorities.
+                </li>
+                <li class="mb-0">
+                  <strong>4.3 Third-Party Restrictions:</strong> Personal data will never be sold, traded, or shared with external 
+                  commercial entities, advertisers, or individuals outside the CvSU Bacoor academic ecosystem.
+                </li>
+              </ul>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                5. Data Storage, Security, and Retention
+              </h6>
+              <ul class="text-muted">
+                <li class="mb-2">
+                  <strong>5.1 Security Measures:</strong> The platform enforces technical, organizational, and physical security 
+                  measures—including encrypted passwords, secure database hosting, and dashboard isolation—to safeguard your personal 
+                  information against unauthorized access, alteration, or disclosure.
+                </li>
+                <li class="mb-0">
+                  <strong>5.2 Retention Period:</strong> Personal data and transaction logs shall be retained for the duration of the 
+                  active academic year (Academic Year 2026–2027) and archived in accordance with university document retention policies 
+                  and auditing requirements.
+                </li>
+              </ul>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                6. Rights of the Data Subject
+              </h6>
+              <p class="text-muted mb-2">
+                As a user of the U-Trade platform under the Data Privacy Act of 2012, you possess the following rights:
+              </p>
+              <ul class="text-muted">
+                <li class="mb-2">
+                  <strong>6.1 Right to Be Informed:</strong> You have the right to be notified of how your personal data is gathered and processed.
+                </li>
+                <li class="mb-2">
+                  <strong>6.2 Right to Access:</strong> You may request access to your personal account profile, order logs, and system warning histories.
+                </li>
+                <li class="mb-2">
+                  <strong>6.3 Right to Correction:</strong> You have the right to update or correct inaccuracies in your institutional 
+                  profile data through authorized campus registration channels.
+                </li>
+                <li class="mb-0">
+                  <strong>6.4 Right to Object / Erasure:</strong> You may object to the processing of your data or request account 
+                  deactivation, subject to any pending administrative, financial (e.g., unpaid hosting fees), or disciplinary obligations.
+                </li>
+              </ul>
+            </section>
+
+            <section class="mb-4">
+              <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+                7. Contact Information
+              </h6>
+              <p class="text-muted mb-0">
+                For questions, concerns, or data privacy inquiries regarding the U-Trade platform, you may contact the Campus Business 
+                Generating Office or the designated Data Protection Officer through the Office of the Campus Administrator at 
+                CvSU Bacoor Campus.
+              </p>
+            </section>
+
+            <hr class="my-4">
+
+            <div class="mt-4" style="font-size: 0.88rem;">
+              <p class="mb-1"><strong>Prepared by:</strong></p>
+              <p class="mb-3">
+                <strong>DIANA MAE M. BELARMINO, MMPA</strong><br>
+                Head, Business and Resource Generation Office
+              </p>
+              <p class="mb-1"><strong>Approved and Adopted by:</strong></p>
+              <p class="mb-3">Cavite State University - Bacoor City Campus</p>
+              <p class="mb-1"><strong>Concurred by:</strong></p>
+              <p class="mb-0">
+                Office of the Vice President for Business and Resource Generation (OVPBaRG)<br>
+                Cavite State University - Don Severino de las Alas Campus
+              </p>
+            </div>
+          </div>
+
+          <div class="modal-footer border-0 p-3">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     {% if messages %}

@@ -131,17 +131,11 @@ class ManagementPanelView(LoginRequiredMixin, View):
         fee_warnings = [L for L in fee_ledgers if L.is_warning or L.is_overdue]
         organizations = Organization.objects.all().order_by('name')
         
-        org_with_letter = (
-            Organization.objects
-            .filter(approval_letter__isnull=False)
-            .exclude(approval_letter='')
-            .first()
-        )
         
         context = {
             'org_name': 'UTrade Global Management',
             'target_course': 'campus',
-            'org': org_with_letter,
+            'org': request.user.org_link,
             'users': users,
             'verified_count': User.objects.filter(status='verified').count(),
             # Inventory

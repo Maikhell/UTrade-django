@@ -517,11 +517,14 @@ class ProductListView(ListView):
                 | Q(related_org__full_name__icontains=query)
             )
 
+            # Convert query string to int if searching numeric IDs to avoid DB crash
+            if query.isdigit():
+                queryset = queryset | Product.objects.filter(id=int(query), status='Approved')
+
         if category_id:
             queryset = queryset.filter(category_id=category_id)
 
         if org_id:
-            # Match by product.related_org OR seller.org_link
             queryset = queryset.filter(
                 Q(related_org_id=org_id)
                 | Q(seller__org_link_id=org_id)
@@ -554,8 +557,6 @@ class ProductListView(ListView):
         context = super().get_context_data(**kwargs)
 
         context['categories'] = Category.objects.all().order_by('name')
-
-        # ★ Show ALL orgs in the filter chips (not only those with products)
         context['organizations'] = Organization.objects.all().order_by('name')
 
         context['current_category'] = self.request.GET.get('category')
@@ -564,15 +565,19 @@ class ProductListView(ListView):
         context['search_query'] = self.request.GET.get('q')
 
         if self.request.user.is_authenticated:
+            # ✅ SAFELY filter out missing/deleted product references
             context['user_wishlist_ids'] = set(
-                Wishlist.objects.filter(user=self.request.user).values_list(
-                    'product_id', flat=True
-                )
+                Wishlist.objects.filter(
+                    user=self.request.user,
+                    product__isnull=False  # Ignore deleted/orphaned products
+                ).values_list('product_id', flat=True)
             )
             context['user_cart_ids'] = set(
-                CartItem.objects.filter(cart__user=self.request.user).values_list(
-                    'variant__product_id', flat=True
-                )
+                CartItem.objects.filter(
+                    cart__user=self.request.user,
+                    variant__isnull=False,          # Ignore deleted variants
+                    variant__product__isnull=False  # Ignore deleted parent products
+                ).values_list('variant__product_id', flat=True)
             )
         else:
             context['user_wishlist_ids'] = set()

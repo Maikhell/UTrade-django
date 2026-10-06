@@ -495,10 +495,15 @@ class ProductListView(ListView):
     paginate_by = 15
 
     def get_queryset(self):
-        queryset = Product.objects.filter(status='Approved').select_related('category', 'seller')
+        queryset = (
+            Product.objects.filter(status='Approved')
+            .select_related('category', 'seller', 'related_org')
+            .prefetch_related('images', 'variants')
+        )
 
         query = self.request.GET.get('q')
         category_id = self.request.GET.get('category')
+        org_id = self.request.GET.get('org')          # single organization
         user_type = self.request.GET.get('type')
 
         if query:
@@ -507,34 +512,63 @@ class ProductListView(ListView):
                 | Q(description__icontains=query)
                 | Q(category__name__icontains=query)
                 | Q(seller__user_role__icontains=query)
-                | Q(seller__organization__icontains=query)
                 | Q(product_code__icontains=query)
+                | Q(related_org__name__icontains=query)
+                | Q(related_org__full_name__icontains=query)
             )
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)
 
+        # Specific organization → that org’s products only
+        if org_id:
+            queryset = queryset.filter(
+                Q(related_org_id=org_id)
+                | Q(owner_type='ORGANIZATION', seller__org_link_id=org_id)
+            )
+
         if user_type == 'management':
-            queryset = queryset.filter(seller__user_role__in=['management', 'admin'])
-        elif user_type == 'organization':
+            queryset = queryset.filter(
+                Q(owner_type='MANAGEMENT')
+                | Q(seller__user_role__in=['management', 'admin'])
+            )
+        elif user_type == 'organization' and not org_id:
+            # All org merch (no single org selected)
             queryset = queryset.filter(owner_type='ORGANIZATION')
         elif user_type == 'student':
             queryset = queryset.exclude(
-                seller__user_role__in=['management', 'admin', 'organization', 'alumni_assoc']
+                Q(owner_type__in=['MANAGEMENT', 'ORGANIZATION'])
+                | Q(seller__user_role__in=['management', 'admin', 'organization', 'alumni_assoc'])
             )
 
         return queryset.order_by('-created_at').distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.all()
+        context['categories'] = Category.objects.all().order_by('name')
+        # Only orgs that actually have approved listings (optional but cleaner)
+        context['organizations'] = (
+            Organization.objects.filter(
+                Q(products__status='Approved') | Q(id__in=Product.objects.filter(
+                    status='Approved', owner_type='ORGANIZATION', related_org__isnull=False
+                ).values('related_org_id'))
+            )
+            .distinct()
+            .order_by('name')
+        )
+        # Fallback if related_name differs — use all orgs:
+        # context['organizations'] = Organization.objects.all().order_by('name')
+
         context['current_category'] = self.request.GET.get('category')
+        context['current_org'] = self.request.GET.get('org')
         context['current_type'] = self.request.GET.get('type')
         context['search_query'] = self.request.GET.get('q')
 
         if self.request.user.is_authenticated:
             context['user_wishlist_ids'] = set(
-                Wishlist.objects.filter(user=self.request.user).values_list('product_id', flat=True)
+                Wishlist.objects.filter(user=self.request.user).values_list(
+                    'product_id', flat=True
+                )
             )
             context['user_cart_ids'] = set(
                 CartItem.objects.filter(cart__user=self.request.user).values_list(
@@ -542,8 +576,8 @@ class ProductListView(ListView):
                 )
             )
         else:
-            context['user_wishlist_ids'] = []
-            context['user_cart_ids'] = []
+            context['user_wishlist_ids'] = set()
+            context['user_cart_ids'] = set()
 
         return context
 

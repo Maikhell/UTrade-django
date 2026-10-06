@@ -314,7 +314,13 @@ async function addToStaging() {
       "warning",
     );
   }
-
+  if (typeof validateApprovalLetter === "function" && !validateApprovalLetter()) {
+  return Swal.fire(
+    "Letter of Approval Required",
+    "Please attach a Letter of Approval (JPG/PNG, max 10 MB).",
+    "warning",
+  );
+}
   if (typeof validateMeetupDays === "function") {
     if (!validateMeetupDays(true)) {
       return Swal.fire(
@@ -466,7 +472,11 @@ async function addToStaging() {
   const paymentEl = document.querySelector('input[name="payment"]:checked');
   formData.append("payment", paymentEl ? paymentEl.value : "BOTH");
   formData.append("variants", JSON.stringify(window.productVariants || []));
-
+  
+  const approvalInput = document.getElementById("approval_letter");
+  if (approvalInput && approvalInput.files && approvalInput.files[0]) {
+    formData.append("approval_letter", approvalInput.files[0]);
+  }
   window.selectedFiles.forEach((file) => {
     formData.append("images", file);
   });
@@ -985,7 +995,13 @@ async function submitToAdmin() {
       confirmButtonColor: "#198754",
     });
   }
-
+  if (typeof validateApprovalLetter === "function" && !validateApprovalLetter()) {
+  return Swal.fire(
+    "Letter of Approval Required",
+    "Please attach a Letter of Approval (JPG/PNG, max 10 MB).",
+    "warning",
+  );
+}
   const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]")?.value;
   if (!csrftoken) {
     return Swal.fire(
@@ -1018,6 +1034,11 @@ async function submitToAdmin() {
   const formData = new FormData();
   formData.append("action", "submit_staging");
   formData.append("total_products", stagedCount);
+
+  const approvalInput = document.getElementById("approval_letter");
+  if (approvalInput && approvalInput.files && approvalInput.files[0]) {
+    formData.append("approval_letter", approvalInput.files[0]);
+  }
 
   try {
     const response = await fetch(window.location.href, {

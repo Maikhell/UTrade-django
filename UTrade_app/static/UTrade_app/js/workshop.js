@@ -1210,3 +1210,59 @@ document.addEventListener("DOMContentLoaded", () => {
     cb.addEventListener("change", () => validateMeetupDays(true));
   });
 });
+function previewApprovalLetter(event) {
+  const file = event.target.files[0];
+  const preview = document.getElementById('approval_preview');
+  const errorEl = document.getElementById('approval_letter_error');
+  if (!preview || !errorEl) return;
+
+  preview.innerHTML = '';
+  errorEl.classList.add('d-none');
+  errorEl.textContent = '';
+
+  if (!file) return;
+
+  const okType = ['image/jpeg', 'image/png'].includes(file.type) ||
+                 /\.(jpe?g|png)$/i.test(file.name);
+  if (!okType) {
+    errorEl.textContent = 'Only JPG or PNG files are allowed.';
+    errorEl.classList.remove('d-none');
+    event.target.value = '';
+    return;
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    errorEl.textContent = 'File exceeds the 10 MB limit.';
+    errorEl.classList.remove('d-none');
+    event.target.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    preview.innerHTML = `
+      <a href="${e.target.result}" target="_blank" rel="noopener">
+        <img src="${e.target.result}" class="rounded border shadow-sm"
+             style="max-width:160px;max-height:120px;object-fit:contain">
+      </a>
+      <div class="small text-muted mt-1">Click image to view full size</div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function validateApprovalLetter() {
+  const section = document.getElementById('approval_letter_section');
+  if (!section) return true;               // management / personal → skip
+
+  const input = document.getElementById('approval_letter');
+  const hasExisting = !!document.querySelector(
+    '#approval_letter_section img[alt="Current Approval Letter"]'
+  );
+  if (!hasExisting && (!input || !input.files.length)) {
+    const err = document.getElementById('approval_letter_error');
+    err.textContent = 'Letter of Approval is required.';
+    err.classList.remove('d-none');
+    return false;
+  }
+  return true;
+}

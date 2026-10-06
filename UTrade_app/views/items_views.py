@@ -14,7 +14,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from ..models import (
     Product, Category, ProductImage, Wishlist, Cart, CartItem,
     ProductVariant, MeetupLocation, ProhibitedWord, StagedProduct,
-    StagedVariant, StagedImage, CategoryAttribute, PreOrderRequest,
+    StagedVariant, StagedImage, CategoryAttribute, PreOrderRequest, Organization
 )
 from django.http import JsonResponse
 from django.utils import timezone
@@ -96,35 +96,81 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             is_submitted=False,
         )
         context['next_product_code'] = generate_next_product_code()
+
+        # Only officers need the organization + letter
+        organization = None
+        if getattr(self.request.user, 'is_officer', False):
+            organization = getattr(self.request.user, 'organization', None)
+            # Fallback if your relation is different:
+            # organization = Organization.objects.filter(...).first()
+        context['organization'] = organization
         return context
 
+    def _save_approval_letter(self, request):
+        """
+        Save / replace the organization’s approval letter.
+        Management accounts are completely exempt.
+        Returns (ok: bool, message: str|None)
+        """
+        # Management & personal sellers skip entirely
+        if not getattr(request.user, 'is_officer', False):
+            return True, None
+
+        organization = getattr(request.user, 'organization', None)
+        if organization is None:
+            return False, 'No organization linked to this account.'
+
+        file = request.FILES.get('approval_letter')
+        if not file:
+            # Already has a letter → allow proceeding without re-upload
+            if organization.approval_letter:
+                return True, None
+            return False, 'Letter of Approval is required.'
+
+        # Type check
+        allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
+        if (file.content_type not in allowed_types and
+                not file.name.lower().endswith(('.jpg', '.jpeg', '.png'))):
+            return False, 'Only JPG or PNG files are allowed.'
+
+        # Size check (10 MB)
+        if file.size > 10 * 1024 * 1024:
+            return False, 'File exceeds the 10 MB limit.'
+
+        # Overwrite existing (single field → no duplicates)
+        if organization.approval_letter:
+            organization.approval_letter.delete(save=False)
+        organization.approval_letter = file
+        organization.save(update_fields=['approval_letter'])
+        return True, 'Approval letter saved.'
+
     def is_content_prohibited(self, text):
-        if not text:
+            if not text:
+                return None
+            translations = {
+                '4': 'a', '@': 'a', '1': 'i', '!': 'i', '3': 'e',
+                '0': 'o', '5': 's', '$': 's', '7': 't', '8': 'b',
+            }
+            text = text.lower()
+            for char, replacement in translations.items():
+                text = text.replace(char, replacement)
+            clean_text = re.sub(r'[^a-z]', '', text)
+            for word in self.BANNED_KEYWORDS:
+                if word in clean_text:
+                    return word
             return None
-        translations = {
-            '4': 'a', '@': 'a', '1': 'i', '!': 'i', '3': 'e',
-            '0': 'o', '5': 's', '$': 's', '7': 't', '8': 'b',
-        }
-        text = text.lower()
-        for char, replacement in translations.items():
-            text = text.replace(char, replacement)
-        clean_text = re.sub(r'[^a-z]', '', text)
-        for word in self.BANNED_KEYWORDS:
-            if word in clean_text:
-                return word
-        return None
 
     def get_or_create_custom_category(self, request):
-        category_id = request.POST.get('category')
-        custom_name = request.POST.get('custom_category_name')
+            category_id = request.POST.get('category')
+            custom_name = request.POST.get('custom_category_name')
 
-        if category_id == 'other' and custom_name:
-            category, created = Category.objects.get_or_create(
-                name=custom_name.strip().title()
-            )
-            return category
+            if category_id == 'other' and custom_name:
+                category, created = Category.objects.get_or_create(
+                    name=custom_name.strip().title()
+                )
+                return category
 
-        return Category.objects.filter(id=category_id).first()
+            return Category.objects.filter(id=category_id).first()
 
     def form_valid(self, form):
         name = form.cleaned_data.get('name', '')
@@ -163,6 +209,9 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
+        ok, msg = self._save_approval_letter(request)
+        if not ok:
+            return JsonResponse({'status': 'error', 'message': msg}, status=400)
         is_final_submit = request.POST.get('action') == 'submit_staging'
 
         if not is_final_submit:

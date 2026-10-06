@@ -1,22 +1,21 @@
 import os
-import django
 from django.core.asgi import get_asgi_application
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-django.setup()
 
-from channels.routing import ProtocolTypeRouter, URLRouter
+# 1. Initialize Django ASGI application FIRST
+django_asgi_app = get_asgi_application()
+
+# 2. Import channels components AFTER get_asgi_application()
 from channels.auth import AuthMiddlewareStack
-import UTrade_app.routing 
+from channels.routing import ProtocolTypeRouter, URLRouter
+import UTrade_app.routing
 
-application = ProtocolTypeRouter({
-    # Standard HTTP requests
-    "http": get_asgi_application(),
-    
-    # WebSocket (Chat) requests
-    "websocket": AuthMiddlewareStack(
-        URLRouter(
-            UTrade_app.routing.websocket_urlpatterns
-        )
-    ),
-})
+application = ProtocolTypeRouter(
+    {
+        "http": django_asgi_app,
+        "websocket": AuthMiddlewareStack(
+            URLRouter(UTrade_app.routing.websocket_urlpatterns)
+        ),
+    }
+)

@@ -8,7 +8,9 @@
 {% block content %}
   <div class="container py-4">
     <nav aria-label="breadcrumb" class="mb-4">
-      <a href="{% url 'user.account' %}" class="btn btn-link text-decoration-none p-0 text-muted"><i class="bi bi-chevron-left"></i> Back to My Account</a>
+      <a href="{% url 'user.account' %}" class="btn btn-link text-decoration-none p-0 text-muted">
+        <i class="bi bi-chevron-left"></i> Back to My Account
+      </a>
     </nav>
 
     <div class="row mb-4">
@@ -54,11 +56,14 @@
 
     <ul class="nav nav-tabs border-0 mb-4" id="adminTabs" role="tablist">
       <li class="nav-item">
-        <button class="nav-link active fw-bold border-0 bg-transparent px-4" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-pane">User Directory</button>
+        <button class="nav-link active fw-bold border-0 bg-transparent px-4" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-pane">
+          User Directory
+        </button>
       </li>
       <li class="nav-item">
         <button class="nav-link fw-bold border-0 bg-transparent px-4" id="reviews-tab" data-bs-toggle="tab" data-bs-target="#reviews-pane">
-          Officer Applications{% if pending_officers %}
+          Officer Applications
+          {% if pending_officers %}
             <span class="badge bg-danger ms-1">{{ pending_officers.count }}</span>
           {% endif %}
         </button>
@@ -66,8 +71,11 @@
     </ul>
 
     <div class="tab-content">
+
+      {# ===================== USERS TAB ===================== #}
       <div class="tab-pane fade show active" id="users-pane">
-        
+
+        {# Filter Card #}
         <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-light">
           <form method="GET" class="row g-3 align-items-center">
             <div class="col-lg-4">
@@ -75,10 +83,11 @@
                 <span class="input-group-text bg-white border-end-0 rounded-start-pill ps-3">
                   <i class="bi bi-search text-muted"></i>
                 </span>
-                <input type="text" name="search" class="form-control border-start-0 rounded-end-pill py-2" placeholder="Search username or email..." value="{{ request.GET.search }}">
+                <input type="text" name="search" class="form-control border-start-0 rounded-end-pill py-2"
+                       placeholder="Search username or email..." value="{{ request.GET.search }}">
               </div>
             </div>
-            
+
             <div class="col-md-3 col-lg-2">
               <select name="status_filter" class="form-select rounded-pill border-0 shadow-sm">
                 <option value="">All Status</option>
@@ -94,7 +103,7 @@
                 <option value="officer" {% if request.GET.role_filter == 'officer' %}selected{% endif %}>Officer</option>
                 <option value="management" {% if request.GET.role_filter == 'management' %}selected{% endif %}>Management</option>
                 <option value="campus_admin" {% if request.GET.role_filter == 'campus_admin' %}selected{% endif %}>Campus Admin</option>
-                <option value="alumni" {% if request.GET.role_filter == 'alumni' %}selected{% endif %}>Alumni Assoc</option>
+                <option value="alumni_assoc" {% if request.GET.role_filter == 'alumni_assoc' %}selected{% endif %}>Alumni Assoc</option>
               </select>
             </div>
 
@@ -109,11 +118,24 @@
 
             <div class="col-md-3 col-lg-2 d-flex gap-2">
               <button type="submit" class="btn btn-primary rounded-pill px-4 flex-grow-1 shadow-sm">Apply</button>
-              <a href="{% url 'admin.dashboard' %}" class="btn btn-outline-secondary rounded-pill border-0"><i class="bi bi-arrow-counterclockwise"></i></a>
+              <a href="{% url 'admin.dashboard' %}" class="btn btn-outline-secondary rounded-pill border-0">
+                <i class="bi bi-arrow-counterclockwise"></i>
+              </a>
             </div>
           </form>
         </div>
 
+        {# ===== GENERATE REPORT BUTTON (above the table) ===== #}
+        <div class="d-flex justify-content-end mb-3">
+          <button type="button"
+                  class="btn btn-success rounded-pill px-4 shadow-sm"
+                  data-bs-toggle="modal"
+                  data-bs-target="#pdfModal">
+            <i class="bi bi-file-pdf me-2"></i>Generate User Report
+          </button>
+        </div>
+
+        {# Users Table #}
         <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -132,9 +154,13 @@
                     <td class="ps-4">
                       <div class="d-flex align-items-center">
                         {% if u.image %}
-                          <img src="{{ u.image.url }}" class="rounded-circle me-3 border" style="width: 40px; height: 40px; object-fit: cover;" />
+                          <img src="{{ u.image.url }}" class="rounded-circle me-3 border"
+                               style="width: 40px; height: 40px; object-fit: cover;" />
                         {% else %}
-                          <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3 border fw-bold text-success" style="width: 40px; height: 40px;">{{ u.username|slice:':1'|upper }}</div>
+                          <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3 border fw-bold text-success"
+                               style="width: 40px; height: 40px;">
+                            {{ u.username|slice:':1'|upper }}
+                          </div>
                         {% endif %}
                         <div>
                           <div class="fw-bold text-dark">{{ u.username }}</div>
@@ -143,28 +169,34 @@
                       </div>
                     </td>
                     <td>
-                      <span class="badge {% if u.status == 'verified' %}bg-success-subtle text-success{% elif u.status == 'Pending' %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %} border px-3 py-2 rounded-pill">
+                      <span class="badge {% if u.status == 'verified' %}bg-success-subtle text-success
+                                         {% elif u.status == 'Pending' %}bg-warning-subtle text-warning
+                                         {% else %}bg-danger-subtle text-danger{% endif %}
+                             border px-3 py-2 rounded-pill">
                         {{ u.status|title }}
                       </span>
                     </td>
                     <td>
-  {% if u.is_superuser %}
-    <span class="badge bg-dark px-2"><i class="bi bi-cpu me-1"></i>System Admin</span>
-  {% elif u.user_role == 'campus_admin' %}
-    <span class="text-primary small fw-bold"><i class="bi bi-building me-1"></i>Campus Admin</span>
-  {% elif u.user_role == 'management' %}
-    <span class="text-warning small fw-bold"><i class="bi bi-person-workspace me-1"></i>Management</span>
-  {% elif u.user_role == 'alumni_assoc' %}
-    <span class="text-danger small fw-bold"><i class="bi bi-mortarboard me-1"></i>Alumni Assoc</span>
-  {% elif u.is_officer %}
-    <span class="text-info small fw-bold"><i class="bi bi-person-badge me-1"></i>Officer</span>
-  {% else %}
-    <span class="text-secondary small">Student</span>
-  {% endif %}
-</td>
+                      {% if u.is_superuser %}
+                        <span class="badge bg-dark px-2"><i class="bi bi-cpu me-1"></i>System Admin</span>
+                      {% elif u.user_role == 'campus_admin' %}
+                        <span class="text-primary small fw-bold"><i class="bi bi-building me-1"></i>Campus Admin</span>
+                      {% elif u.user_role == 'management' %}
+                        <span class="text-warning small fw-bold"><i class="bi bi-person-workspace me-1"></i>Management</span>
+                      {% elif u.user_role == 'alumni_assoc' %}
+                        <span class="text-danger small fw-bold"><i class="bi bi-mortarboard me-1"></i>Alumni Assoc</span>
+                      {% elif u.is_officer %}
+                        <span class="text-info small fw-bold"><i class="bi bi-person-badge me-1"></i>Officer</span>
+                      {% else %}
+                        <span class="text-secondary small">Student</span>
+                      {% endif %}
+                    </td>
                     <td class="text-muted small">{{ u.date_joined|date:'M d, Y' }}</td>
                     <td class="text-end pe-4">
-                      <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openEditModal('{{ u.id }}', '{{ u.username }}', '{{ u.status }}', '{{ u.user_role }}', '{{ u.organization }}', '{{ u.position }}')">Edit</button>
+                      <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                              onclick="openEditModal('{{ u.id }}', '{{ u.username }}', '{{ u.status }}', '{{ u.user_role }}', '{{ u.organization }}', '{{ u.position }}')">
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 {% empty %}
@@ -176,89 +208,83 @@
             </table>
           </div>
         </div>
+      </div>
 
-        <div class="d-flex justify-content-end">
-          <button type="button" class="btn btn-success rounded-pill px-4 shadow-sm" data-bs-toggle="modal" data-bs-target="#pdfModal"><i class="bi bi-file-pdf me-2"></i>Generate User Report</button>
+      {# ===================== OFFICER APPLICATIONS TAB ===================== #}
+      <div class="tab-pane fade" id="reviews-pane">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th>Applicant</th>
+                  <th>Organization</th>
+                  <th>Position</th>
+                  <th>Proof Image</th>
+                  <th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for applicant in pending_officers %}
+                  <tr>
+                    <td>
+                      <div class="fw-bold">
+                        {{ applicant.get_full_name|default:applicant.username }}
+                      </div>
+                      <small class="text-muted">{{ applicant.student_no }}</small>
+                    </td>
+                    <td>
+                      <span class="badge bg-info-subtle text-info rounded-pill px-3">
+                        {% if applicant.org_link %}
+                          {{ applicant.org_link.name }}
+                        {% else %}
+                          {{ applicant.organization|default:"N/A" }}
+                        {% endif %}
+                      </span>
+                    </td>
+                    <td>{{ applicant.position }}</td>
+                    <td>
+                      {% if applicant.officer_id_image %}
+                        <a href="{{ applicant.officer_id_image.url }}" target="_blank">
+                          <img src="{{ applicant.officer_id_image.url }}"
+                               alt="Proof for {{ applicant.username }}"
+                               class="rounded border"
+                               style="width: 50px; height: 50px; object-fit: cover; cursor: pointer;">
+                        </a>
+                      {% else %}
+                        <span class="text-muted small">No proof uploaded</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end">
+                      <button type="button"
+                              class="btn btn-sm btn-success rounded-pill"
+                              onclick="confirmOfficerAction('{{ applicant.id }}', '{{ applicant.username }}', 'ApproveOfficer')">
+                        Approve
+                      </button>
+                      <button type="button"
+                              class="btn btn-sm btn-outline-danger rounded-pill"
+                              onclick="confirmOfficerAction('{{ applicant.id }}', '{{ applicant.username }}', 'RejectOfficer')">
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-4 text-muted">
+                      No pending officer applications.
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div class="tab-pane fade" id="reviews-pane">
-  <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="bg-light">
-          <tr>
-            <th>Applicant</th>
-            <th>Organization</th> <!-- Added Header -->
-            <th>Position</th>
-            <th>Proof Image</th>
-            <th class="text-end">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-
-          {% for applicant in pending_officers %}
-            <tr>
-              <td>
-                <div class="fw-bold">
-                  {{ applicant.get_full_name|default:applicant.username }}
-                </div>
-                <small class="text-muted">{{ applicant.student_no }}</small>
-              </td>
-
-              <!-- Organization Column -->
-              <td>
-                <span class="badge bg-info-subtle text-info rounded-pill px-3">
-                  {% if applicant.org_link %}
-                    {{ applicant.org_link.name }}
-                  {% else %}
-                    {{ applicant.organization|default:"N/A" }}
-                  {% endif %}
-                </span>
-              </td>
-
-              <td>{{ applicant.position }}</td>
-
-              <td>
-                {% if applicant.officer_id_image %}
-                  <a href="{{ applicant.officer_id_image.url }}" target="_blank">
-                    <img src="{{ applicant.officer_id_image.url }}"
-                         alt="Proof for {{ applicant.username }}"
-                         class="rounded border"
-                         style="width: 50px; height: 50px; object-fit: cover; cursor: pointer;">
-                  </a>
-                {% else %}
-                  <span class="text-muted small">No proof uploaded</span>
-                {% endif %}
-              </td>
-
-              <td class="text-end">
-                <button type="button"
-                        class="btn btn-sm btn-success rounded-pill"
-                        onclick="confirmOfficerAction('{{ applicant.id }}', '{{ applicant.username }}', 'ApproveOfficer')">
-                  Approve
-                </button>
-                <button type="button"
-                        class="btn btn-sm btn-outline-danger rounded-pill"
-                        onclick="confirmOfficerAction('{{ applicant.id }}', '{{ applicant.username }}', 'RejectOfficer')">
-                  Reject
-                </button>
-              </td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="5" class="text-center py-4 text-muted"> <!-- Updated colspan to 5 -->
-                No pending officer applications.
-              </td>
-            </tr>
-          {% endfor %}
-
-        </tbody>
-      </table>
     </div>
   </div>
-</div>
 
+  {# ===================== PDF REPORT MODAL ===================== #}
   <div class="modal fade" id="pdfModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
       <div class="modal-content border-0 rounded-4 shadow">
@@ -267,41 +293,43 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-    <p class="text-muted small">Choose the user group for the PDF report:</p>
-    <form action="{% url 'generate.pdf' %}" method="GET">
-        <div class="d-grid gap-2">
-            <button type="submit" name="filter" value="all" class="btn btn-outline-secondary text-start">
+          <p class="text-muted small mb-3">Choose the user group for the PDF report:</p>
+          <form action="{% url 'generate.pdf' %}" method="GET">
+            <div class="d-grid gap-2">
+              <button type="submit" name="filter" value="all"
+                      class="btn btn-outline-success text-start rounded-3">
                 <i class="bi bi-people me-2"></i> All Users
-            </button>
-            <button type="submit" name="filter" value="admin" class="btn btn-outline-secondary text-start">
-                <i class="bi bi-shield-check me-2"></i> Campus Admins
-            </button>
-            <button type="submit" name="filter" value="management" class="btn btn-outline-secondary text-start">
-                <i class="bi bi-briefcase me-2"></i> All Management
-            </button>
+              </button>
 
-            <button type="submit" name="filter" value="officer" class="btn btn-outline-secondary text-start">
-                <i class="bi bi-person-badge me-2"></i> Student Officers
-            </button>
-            <button type="submit" name="filter" value="alumni" class="btn btn-outline-secondary text-start">
-                <i class="bi bi-mortarboard me-2"></i> Alumni Association
-            </button>
+              <button type="submit" name="filter" value="management"
+                      class="btn btn-outline-success text-start rounded-3">
+                <i class="bi bi-briefcase me-2"></i> Management
+              </button>
 
-            <hr class="my-2 opacity-25">
+              <button type="submit" name="filter" value="organizations"
+                      class="btn btn-outline-success text-start rounded-3">
+                <i class="bi bi-building me-2"></i> Organizations
+              </button>
 
-            <button type="submit" name="filter" value="verified" class="btn btn-outline-secondary text-start">
+              <hr class="my-2 opacity-25">
+
+              <button type="submit" name="filter" value="verified"
+                      class="btn btn-outline-success text-start rounded-3">
                 <i class="bi bi-check-circle me-2"></i> Verified Students
-            </button>
-            <button type="submit" name="filter" value="unverified" class="btn btn-outline-secondary text-start">
+              </button>
+
+              <button type="submit" name="filter" value="unverified"
+                      class="btn btn-outline-success text-start rounded-3">
                 <i class="bi bi-x-circle me-2"></i> Unverified Students
-            </button>
+              </button>
+            </div>
+          </form>
         </div>
-    </form>
-</div>
       </div>
     </div>
   </div>
 
+  {# ===================== EDIT USER MODAL ===================== #}
   <div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content border-0 rounded-4 shadow">
@@ -379,80 +407,84 @@
       </div>
     </div>
   </div>
-<div class="modal fade" id="officerConfirmModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow rounded-4">
-      <div class="modal-header border-0">
-        <h5 class="modal-title fw-bold" id="officerActionTitle">Confirm Action</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+
+  {# ===================== OFFICER CONFIRM MODAL ===================== #}
+  <div class="modal fade" id="officerConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow rounded-4">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-bold" id="officerActionTitle">Confirm Action</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form method="POST">
+          {% csrf_token %}
+          <div class="modal-body">
+            <p id="officerActionText"></p>
+            <input type="hidden" name="user_id" id="modal_user_id">
+            <input type="hidden" name="action" id="modal_action">
+          </div>
+          <div class="modal-footer border-0">
+            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" id="confirmBtnClass" class="btn rounded-pill px-4">Confirm</button>
+          </div>
+        </form>
       </div>
-      <form method="POST">
-        {% csrf_token %}
-        <div class="modal-body">
-          <p id="officerActionText"></p>
-          <input type="hidden" name="user_id" id="modal_user_id">
-          <input type="hidden" name="action" id="modal_action">
-        </div>
-        <div class="modal-footer border-0">
-          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" id="confirmBtnClass" class="btn rounded-pill px-4">Confirm</button>
-        </div>
-      </form>
     </div>
   </div>
-</div>
+
   <script>
     function confirmOfficerAction(userId, username, action) {
-    const modal = new bootstrap.Modal(document.getElementById('officerConfirmModal'));
-    const title = document.getElementById('officerActionTitle');
-    const text = document.getElementById('officerActionText');
-    const confirmBtn = document.getElementById('confirmBtnClass');
-    
-    document.getElementById('modal_user_id').value = userId;
-    document.getElementById('modal_action').value = action;
+      const modal = new bootstrap.Modal(document.getElementById('officerConfirmModal'));
+      const title = document.getElementById('officerActionTitle');
+      const text = document.getElementById('officerActionText');
+      const confirmBtn = document.getElementById('confirmBtnClass');
 
-    if (action === 'ApproveOfficer') {
+      document.getElementById('modal_user_id').value = userId;
+      document.getElementById('modal_action').value = action;
+
+      if (action === 'ApproveOfficer') {
         title.innerText = "Approve Officer";
         text.innerHTML = `Are you sure you want to approve <strong>${username}</strong> as a new officer?`;
         confirmBtn.className = "btn btn-success rounded-pill px-4";
-    } else {
+      } else {
         title.innerText = "Reject Application";
         text.innerHTML = `Are you sure you want to reject the application for <strong>${username}</strong>?`;
         confirmBtn.className = "btn btn-danger rounded-pill px-4";
+      }
+
+      modal.show();
     }
-    
-    modal.show();
-}
+
     function toggleOfficerFields(role) {
-      const fields = document.getElementById('officerFields')
-      const orgSelect = document.getElementById('editUserOrg')
-      const posSelect = document.getElementById('editUserPosition')
-    
+      const fields = document.getElementById('officerFields');
+      const orgSelect = document.getElementById('editUserOrg');
+      const posSelect = document.getElementById('editUserPosition');
+
       if (role === 'officer') {
-        fields.style.display = 'block'
-        orgSelect.required = true
-        posSelect.required = true
+        fields.style.display = 'block';
+        orgSelect.required = true;
+        posSelect.required = true;
       } else {
-        fields.style.display = 'none'
-        orgSelect.required = false
-        posSelect.required = false
+        fields.style.display = 'none';
+        orgSelect.required = false;
+        posSelect.required = false;
       }
     }
-    
+
     function openEditModal(id, username, status, role, org, pos) {
-      document.getElementById('editUserId').value = id
-      document.getElementById('editModalUsername').innerText = username
-      document.getElementById('editUserStatus').value = status
-      document.getElementById('editUserRole').value = role || 'student'
-    
-      const orgEl = document.getElementById('editUserOrg')
-      const posEl = document.getElementById('editUserPosition')
-    
-      if (orgEl) orgEl.value = org && org !== 'None' ? org : ''
-      if (posEl) posEl.value = pos && pos !== 'None' ? pos : ''
-    
-      toggleOfficerFields(role || 'student')
-      new bootstrap.Modal(document.getElementById('editUserModal')).show()
+      document.getElementById('editUserId').value = id;
+      document.getElementById('editModalUsername').innerText = username;
+      document.getElementById('editUserStatus').value = status;
+      document.getElementById('editUserRole').value = role || 'student';
+
+      const orgEl = document.getElementById('editUserOrg');
+      const posEl = document.getElementById('editUserPosition');
+
+      if (orgEl) orgEl.value = org && org !== 'None' ? org : '';
+      if (posEl) posEl.value = pos && pos !== 'None' ? pos : '';
+
+      toggleOfficerFields(role || 'student');
+      new bootstrap.Modal(document.getElementById('editUserModal')).show();
     }
   </script>
 

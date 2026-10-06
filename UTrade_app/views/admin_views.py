@@ -294,61 +294,62 @@ class UpdateStatusView(View):
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
+@staff_member_required
 def generate_pdf(request):
     user_filter = request.GET.get('filter', 'all')
     
     users = User.objects.all()
 
-    if user_filter == 'admin':
-        users = users.filter(user_role='campus_admin')
-        report_title = "Campus Administrators Report"
-        
-    elif user_filter == 'management':
+    if user_filter == 'management':
         users = users.filter(user_role='management')
-        report_title = "University Management Report"
-        
-    elif user_filter == 'officer':
-        users = users.filter(is_officer=True)
-        report_title = "Student Officers Directory"
-        
-    elif user_filter == 'alumni':
-        users = users.filter(user_role='alumni')
-        report_title = "Alumni Association Report"
-        
+        report_title = "Management Personnel Report"
+
+    elif user_filter == 'organizations':
+        # All users linked to an organization (officers)
+        users = users.filter(Q(is_officer=True) | Q(org_link__isnull=False))
+        report_title = "Organizations & Officers Directory"
+
     elif user_filter == 'verified':
-        users = users.filter(status='verified', is_staff=False, is_officer=False)
+        users = users.filter(
+            status='verified',
+            is_staff=False,
+            is_officer=False,
+            user_role='student'
+        )
         report_title = "Verified Students Report"
-        
+
     elif user_filter == 'unverified':
         users = users.filter(status='unverified', is_staff=False)
         report_title = "Unverified Students Report"
-        
-    else:
+
+    else:  # all
         users = users.all()
         report_title = "Full User Directory Report"
-        
-    users = users.order_by('-date_joined')
+
+    users = users.select_related('org_link').order_by('-date_joined')
 
     context = {
         'users': users,
         'report_title': report_title,
-        'generated_by': request.user.username,
-        'current_date': datetime.now(), 
+        'generated_by': request.user.get_full_name() or request.user.username,
+        'current_date': datetime.now(),
+        'total_count': users.count(),
+        'filter_label': user_filter.replace('_', ' ').title(),
     }
 
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{user_filter}_report_{datetime.now().strftime("%Y%m%d")}.pdf"'
-    
-    template = get_template('UTrade_app/admin/pdf_template.html')
+    filename = f"UTrade_{user_filter}_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    template = get_template('UTrade_app/reports/admin_template.html')
     html = template.render(context)
 
     pisa_status = pisa.CreatePDF(html, dest=response)
-    
-    if pisa_status.err:
-       return HttpResponse('Error generating PDF')
-       
-    return response
 
+    if pisa_status.err:
+        return HttpResponse('Error generating PDF. Please try again.', status=500)
+
+    return response
 
 User = get_user_model()
 

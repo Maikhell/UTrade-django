@@ -96,7 +96,8 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             is_submitted=False,
         )
         context['next_product_code'] = generate_next_product_code()
-
+        context['organization'] = self._get_user_organization(self.request.user)
+   
         # Only officers need the organization + letter
         organization = None
         if getattr(self.request.user, 'is_officer', False):
@@ -107,22 +108,17 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def _save_approval_letter(self, request):
-        """
-        Save / replace the organization’s approval letter.
-        Management accounts are completely exempt.
-        Returns (ok: bool, message: str|None)
-        """
-        # Management & personal sellers skip entirely
+        # Management & personal sellers are exempt
         if not getattr(request.user, 'is_officer', False):
             return True, None
 
-        organization = getattr(request.user, 'organization', None)
+        organization = self._get_user_organization(request.user)
         if organization is None:
             return False, 'No organization linked to this account.'
 
         file = request.FILES.get('approval_letter')
         if not file:
-            # Already has a letter → allow proceeding without re-upload
+            # Already has a letter → allow proceeding
             if organization.approval_letter:
                 return True, None
             return False, 'Letter of Approval is required.'

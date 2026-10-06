@@ -503,7 +503,7 @@ class ProductListView(ListView):
 
         query = self.request.GET.get('q')
         category_id = self.request.GET.get('category')
-        org_id = self.request.GET.get('org')          # single organization
+        org_id = self.request.GET.get('org')
         user_type = self.request.GET.get('type')
 
         if query:
@@ -520,44 +520,43 @@ class ProductListView(ListView):
         if category_id:
             queryset = queryset.filter(category_id=category_id)
 
-        # Specific organization → that org’s products only
         if org_id:
+            # Match by product.related_org OR seller.org_link
             queryset = queryset.filter(
                 Q(related_org_id=org_id)
+                | Q(seller__org_link_id=org_id)
                 | Q(owner_type='ORGANIZATION', seller__org_link_id=org_id)
             )
 
         if user_type == 'management':
             queryset = queryset.filter(
                 Q(owner_type='MANAGEMENT')
-                | Q(seller__user_role__in=['management', 'admin'])
+                | Q(seller__user_role__in=['management', 'admin', 'campus_admin'])
             )
         elif user_type == 'organization' and not org_id:
-            # All org merch (no single org selected)
-            queryset = queryset.filter(owner_type='ORGANIZATION')
+            queryset = queryset.filter(
+                Q(owner_type='ORGANIZATION')
+                | Q(related_org__isnull=False)
+                | Q(seller__org_link__isnull=False)
+            )
         elif user_type == 'student':
             queryset = queryset.exclude(
                 Q(owner_type__in=['MANAGEMENT', 'ORGANIZATION'])
-                | Q(seller__user_role__in=['management', 'admin', 'organization', 'alumni_assoc'])
+                | Q(seller__user_role__in=[
+                    'management', 'admin', 'campus_admin',
+                    'org_officer', 'alumni_assoc',
+                ])
             )
 
         return queryset.order_by('-created_at').distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
         context['categories'] = Category.objects.all().order_by('name')
-        # Only orgs that actually have approved listings (optional but cleaner)
-        context['organizations'] = (
-            Organization.objects.filter(
-                Q(products__status='Approved') | Q(id__in=Product.objects.filter(
-                    status='Approved', owner_type='ORGANIZATION', related_org__isnull=False
-                ).values('related_org_id'))
-            )
-            .distinct()
-            .order_by('name')
-        )
-        # Fallback if related_name differs — use all orgs:
-        # context['organizations'] = Organization.objects.all().order_by('name')
+
+        # ★ Show ALL orgs in the filter chips (not only those with products)
+        context['organizations'] = Organization.objects.all().order_by('name')
 
         context['current_category'] = self.request.GET.get('category')
         context['current_org'] = self.request.GET.get('org')

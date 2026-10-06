@@ -87,28 +87,48 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         'examanswer', 'leakage', 'leak', 'cheating', 'dregs', 'weed',
     ]
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['meetup_locations'] = MeetupLocation.objects.all()
-        context['categories'] = Category.objects.all()
-        context['staged_items'] = StagedProduct.objects.filter(
-            seller=self.request.user,
-            is_submitted=False,
-        )
-        context['next_product_code'] = generate_next_product_code()
-        context['organization'] = self._get_user_organization(self.request.user)
-   
-        # Only officers need the organization + letter
-        organization = None
-        if getattr(self.request.user, 'is_officer', False):
-            organization = getattr(self.request.user, 'organization', None)
-            # Fallback if your relation is different:
-            # organization = Organization.objects.filter(...).first()
-        context['organization'] = organization
-        return context
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def _get_user_organization(self, user):
+        """
+        Return the Organization instance linked to this user, or None.
+        Only officers have an organization. Management is exempt.
+        """
+        if not getattr(user, 'is_officer', False):
+            return None
+
+        org = getattr(user, 'organization', None)
+
+        # Already a model instance
+        if org is not None and hasattr(org, 'approval_letter'):
+            return org
+
+        # Stored as string (name or course_code)
+        if isinstance(org, str) and org.strip():
+            return (
+                Organization.objects.filter(name=org).first()
+                or Organization.objects.filter(course_code=org).first()
+            )
+
+        # Stored as primary key
+        if isinstance(org, int):
+            return Organization.objects.filter(pk=org).first()
+
+        # Fallback patterns – uncomment the one that matches your schema
+        # return getattr(user, 'org', None)
+        # return user.organizations.first()                 # M2M
+        # return Organization.objects.filter(officers=user).first()
+
+        return None
 
     def _save_approval_letter(self, request):
-        # Management & personal sellers are exempt
+        """
+        Save / replace the organization’s approval letter.
+        Management accounts and personal sellers are completely exempt.
+        Returns (ok: bool, message: str|None)
+        """
+        # Management & personal sellers skip entirely
         if not getattr(request.user, 'is_officer', False):
             return True, None
 
@@ -118,15 +138,17 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
 
         file = request.FILES.get('approval_letter')
         if not file:
-            # Already has a letter → allow proceeding
+            # Already has a letter → allow proceeding without re-upload
             if organization.approval_letter:
                 return True, None
             return False, 'Letter of Approval is required.'
 
         # Type check
         allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
-        if (file.content_type not in allowed_types and
-                not file.name.lower().endswith(('.jpg', '.jpeg', '.png'))):
+        if (
+            file.content_type not in allowed_types
+            and not file.name.lower().endswith(('.jpg', '.jpeg', '.png'))
+        ):
             return False, 'Only JPG or PNG files are allowed.'
 
         # Size check (10 MB)
@@ -140,34 +162,57 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         organization.save(update_fields=['approval_letter'])
         return True, 'Approval letter saved.'
 
+    # ------------------------------------------------------------------
+    # Context
+    # ------------------------------------------------------------------
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['meetup_locations'] = MeetupLocation.objects.all()
+        context['categories'] = Category.objects.all()
+        context['staged_items'] = StagedProduct.objects.filter(
+            seller=self.request.user,
+            is_submitted=False,
+        )
+        context['next_product_code'] = generate_next_product_code()
+
+        # Only officers need the organization + letter
+        context['organization'] = self._get_user_organization(self.request.user)
+        return context
+
+    # ------------------------------------------------------------------
+    # Content validation
+    # ------------------------------------------------------------------
     def is_content_prohibited(self, text):
-            if not text:
-                return None
-            translations = {
-                '4': 'a', '@': 'a', '1': 'i', '!': 'i', '3': 'e',
-                '0': 'o', '5': 's', '$': 's', '7': 't', '8': 'b',
-            }
-            text = text.lower()
-            for char, replacement in translations.items():
-                text = text.replace(char, replacement)
-            clean_text = re.sub(r'[^a-z]', '', text)
-            for word in self.BANNED_KEYWORDS:
-                if word in clean_text:
-                    return word
+        if not text:
             return None
+        translations = {
+            '4': 'a', '@': 'a', '1': 'i', '!': 'i', '3': 'e',
+            '0': 'o', '5': 's', '$': 's', '7': 't', '8': 'b',
+        }
+        text = text.lower()
+        for char, replacement in translations.items():
+            text = text.replace(char, replacement)
+        clean_text = re.sub(r'[^a-z]', '', text)
+        for word in self.BANNED_KEYWORDS:
+            if word in clean_text:
+                return word
+        return None
 
     def get_or_create_custom_category(self, request):
-            category_id = request.POST.get('category')
-            custom_name = request.POST.get('custom_category_name')
+        category_id = request.POST.get('category')
+        custom_name = request.POST.get('custom_category_name')
 
-            if category_id == 'other' and custom_name:
-                category, created = Category.objects.get_or_create(
-                    name=custom_name.strip().title()
-                )
-                return category
+        if category_id == 'other' and custom_name:
+            category, created = Category.objects.get_or_create(
+                name=custom_name.strip().title()
+            )
+            return category
 
-            return Category.objects.filter(id=category_id).first()
+        return Category.objects.filter(id=category_id).first()
 
+    # ------------------------------------------------------------------
+    # Form handling (non-staging path)
+    # ------------------------------------------------------------------
     def form_valid(self, form):
         name = form.cleaned_data.get('name', '')
         desc = form.cleaned_data.get('description', '')
@@ -190,7 +235,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         product.status = 'Pending'
         product.pre_order = form.cleaned_data.get('pre_order', False)
         product.owner_type = self.request.POST.get('owner_type', 'PERSONAL')
-        
+
         # Capture the selected location from the dropdown
         selected_location = self.request.POST.get('location_options', '').strip()
         if selected_location:
@@ -203,11 +248,16 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         product.save()
         return redirect('product.list')
 
+    # ------------------------------------------------------------------
+    # POST – staging submit + approval letter
+    # ------------------------------------------------------------------
     @transaction.atomic
     def post(self, request, *args, **kwargs):
+        # Persist / enforce the letter early (only officers reach the check)
         ok, msg = self._save_approval_letter(request)
         if not ok:
             return JsonResponse({'status': 'error', 'message': msg}, status=400)
+
         is_final_submit = request.POST.get('action') == 'submit_staging'
 
         if not is_final_submit:
@@ -234,8 +284,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 ):
                     product_code = generate_next_product_code()
 
-               # Grab selected location from dropdown submission
-                location_text = (request.POST.get('location_options') or getattr(staged_prod, 'meetup_locations_list', '')).strip()
+                # Grab selected location from dropdown submission
+                location_text = (
+                    request.POST.get('location_options')
+                    or getattr(staged_prod, 'meetup_locations_list', '')
+                ).strip()
 
                 new_product = Product.objects.create(
                     name=staged_prod.name,
@@ -247,16 +300,22 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     owner_type=staged_prod.owner_type,
                     status='Pending',
                     product_code=product_code,
-                    meetup_location_text=location_text, # Assigned from admin-managed dropdown
+                    meetup_location_text=location_text,
                     available_days=getattr(staged_prod, 'available_days', '') or '',
-                    preferred_meetup_time_from=getattr(staged_prod, 'preferred_meetup_time_from', None),
-                    preferred_meetup_time_to=getattr(staged_prod, 'preferred_meetup_time_to', None),
+                    preferred_meetup_time_from=getattr(
+                        staged_prod, 'preferred_meetup_time_from', None
+                    ),
+                    preferred_meetup_time_to=getattr(
+                        staged_prod, 'preferred_meetup_time_to', None
+                    ),
                 )
 
                 # Optional: also link MeetupLocation M2M if you still use it
                 if location_text and hasattr(new_product, 'meetup_locations'):
                     try:
-                        location_obj, _ = MeetupLocation.objects.get_or_create(name=location_text)
+                        location_obj, _ = MeetupLocation.objects.get_or_create(
+                            name=location_text
+                        )
                         new_product.meetup_locations.set([location_obj])
                     except Exception as e:
                         print(f'Error linking location: {e}')
@@ -267,7 +326,9 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         product=new_product,
                         image=staged_img.image,
                     )
-                    if getattr(staged_img, 'is_main', False) and hasattr(new_product, 'image'):
+                    if getattr(staged_img, 'is_main', False) and hasattr(
+                        new_product, 'image'
+                    ):
                         new_product.image = staged_img.image
                         new_product.save(update_fields=['image'])
 
@@ -279,11 +340,20 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         price=v.price,
                         stocks=v.stocks,
                         condition=v.condition,
-                        flaws_description=getattr(v, 'flaws', '') or getattr(v, 'flaws_description', ''),
-                        attribute_value=getattr(v, 'variant_attribute', '') or getattr(v, 'attribute_value', ''),
+                        flaws_description=(
+                            getattr(v, 'flaws', '')
+                            or getattr(v, 'flaws_description', '')
+                        ),
+                        attribute_value=(
+                            getattr(v, 'variant_attribute', '')
+                            or getattr(v, 'attribute_value', '')
+                        ),
                     )
 
-                    attr_value = getattr(v, 'variant_attribute', None) or getattr(v, 'attribute_value', None)
+                    attr_value = (
+                        getattr(v, 'variant_attribute', None)
+                        or getattr(v, 'attribute_value', None)
+                    )
                     if staged_prod.category and attr_value:
                         CategoryAttribute.objects.get_or_create(
                             category=staged_prod.category,

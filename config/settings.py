@@ -122,9 +122,18 @@ DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv('DATABASE_URL'),
         conn_max_age=0,
-        ssl_require=True
+        ssl_require=True,
     )
 }
+
+# Add options for PostgreSQL timeouts under Daphne/ASGI
+DATABASES['default'].setdefault('OPTIONS', {})
+DATABASES['default']['OPTIONS'].update(
+    {
+        'connect_timeout': 5,
+        'options': '-c statement_timeout=5000',  # Automatically cancels queries exceeding 5s
+    }
+)
 
 TIME_INPUT_FORMATS = [
     '%H:%M',  # 14:30

@@ -52,20 +52,47 @@ def generate_next_product_code():
 
 
 def landing_page(request):
-    categories = Category.objects.all()
-    products = Product.objects.all()
-    meetup_locations = MeetupLocation.objects.all()
+  # 1. Fetch categories and meetup locations efficiently
+  categories = Category.objects.all().order_by('name')
+  meetup_locations = MeetupLocation.objects.all()
 
-    category_id = request.GET.get('category')
-    if category_id:
-        products = products.filter(category_id=category_id)
+  # 2. Base queryset: ONLY approved products + prefetch related fields to avoid N+1 queries
+  products = (
+      Product.objects.filter(status='Approved')
+      .select_related('category', 'seller', 'related_org')
+      .prefetch_related('images', 'variants')
+      .order_by('-created_at')
+  )
 
-    return render(request, 'UTrade_app/landingpage.html', {
-        'categories': categories,
-        'products': products,
-        'meetup_locations': meetup_locations,
-    })
+  # 3. Apply optional search filter
+  query = request.GET.get('q')
+  if query:
+    products = products.filter(
+        Q(name__icontains=query)
+        | Q(description__icontains=query)
+        | Q(category__name__icontains=query)
+        | Q(product_code__icontains=query)
+    )
 
+  # 4. Apply category filter
+  category_id = request.GET.get('category')
+  if category_id:
+    products = products.filter(category_id=category_id)
+
+  # 5. Limit initial load to 12 featured/recent products for guest landing speed
+  featured_products = products[:12]
+
+  return render(
+      request,
+      'UTrade_app/landingpage.html',
+      {
+          'categories': categories,
+          'products': featured_products,
+          'meetup_locations': meetup_locations,
+          'search_query': query,
+          'current_category': category_id,
+      },
+  )
 
 def prohibited_words_api(request):
     words = list(ProhibitedWord.objects.values_list('word', flat=True))

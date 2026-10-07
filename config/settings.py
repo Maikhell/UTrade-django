@@ -121,12 +121,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv('DATABASE_URL'),
-        conn_max_age=0,
+        conn_max_age=600,  # Keep DB connections open for 10 minutes (prevents constant re-connecting)
         ssl_require=True,
     )
 }
 
-# Add options for PostgreSQL timeouts under Daphne/ASGI
+# Add options for PostgreSQL timeouts under Gunicorn/Uvicorn/ASGI
 DATABASES['default'].setdefault('OPTIONS', {})
 DATABASES['default']['OPTIONS'].update(
     {

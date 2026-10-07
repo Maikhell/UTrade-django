@@ -118,265 +118,276 @@
 </div>
 
 <script>
-  (function () {
-    // ---- Constants & limits ----
-    const MAX_FILE_BYTES = 9 * 1024 * 1024; // 9 MB
-    const MAX_VIDEO_SECONDS = 3;
-    const conversationId = "{{ conversation.id }}";
-    const currentUserId = "{{ request.user.id }}";
+(function () {
+  // ---- Constants ----
+  const MAX_FILE_BYTES = 9 * 1024 * 1024; // 9 MB
+  const MAX_VIDEO_SECONDS = 3;
+  const conversationId = "{{ conversation.id }}";
+  const currentUserId = "{{ request.user.id }}";
+  const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    // ---- WebSocket ----
-    const chatSocket = new WebSocket(
-      (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
-      window.location.host + '/ws/chat/' + conversationId + '/'
-    );
+  // ---- WebSocket ----
+  const chatSocket = new WebSocket(
+    (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
+    window.location.host + '/ws/chat/' + conversationId + '/'
+  );
 
-    const chatLog = document.querySelector('#chat-log');
-    const messageInput = document.querySelector('#chat-message-input');
-    const submitBtn = document.querySelector('#chat-message-submit');
-    const fileInput = document.querySelector('#chat-file-input');
-    const previewBox = document.querySelector('#attachment-preview');
-    const previewContent = document.querySelector('#preview-content');
-    const clearAttachmentBtn = document.querySelector('#clear-attachment');
+  const chatLog = document.querySelector('#chat-log');
+  const messageInput = document.querySelector('#chat-message-input');
+  const submitBtn = document.querySelector('#chat-message-submit');
+  const fileInput = document.querySelector('#chat-file-input');
+  const previewBox = document.querySelector('#attachment-preview');
+  const previewContent = document.querySelector('#preview-content');
+  const clearAttachmentBtn = document.querySelector('#clear-attachment');
 
-    let pendingFile = null; // { file, type, dataUrl? }
+  let pendingFile = null; // { file, type, uploadedUrl? }
 
-    // Scroll to bottom on load
+  // Scroll to bottom on load
+  chatLog.scrollTop = chatLog.scrollHeight;
+
+  // ---- Helpers ----
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function createMessageElement(data) {
+    const isMe = String(data.user_id) === String(currentUserId);
+    const alignment = isMe ? 'justify-content-end' : 'justify-content-start';
+    const bubbleClass = isMe
+      ? 'bg-primary text-white shadow-sm sender-bubble'
+      : 'bg-light text-dark border receiver-bubble';
+
+    let mediaHtml = '';
+    if (data.attachment_url) {
+      if (data.attachment_type && data.attachment_type.startsWith('video')) {
+        mediaHtml = `
+          <video controls playsinline class="rounded-3 mt-1" style="max-width:100%;max-height:220px;">
+            <source src="${data.attachment_url}" type="${data.attachment_type}">
+          </video>`;
+      } else {
+        mediaHtml = `
+          <a href="${data.attachment_url}" target="_blank" rel="noopener">
+            <img src="${data.attachment_url}" class="rounded-3 mt-1" style="max-width:100%;max-height:220px;object-fit:contain;" alt="attachment">
+          </a>`;
+      }
+    }
+
+    const content = data.message
+      ? `<p class="mb-0 small message-content">${escapeHtml(data.message)}</p>`
+      : '';
+    const timeLabel = data.timestamp || 'Just now';
+
+    return `
+      <div class="d-flex ${alignment} mb-3 message-row" data-user-id="${data.user_id}">
+        <div class="p-3 rounded-4 message-bubble ${bubbleClass}" style="max-width:75%;">
+          ${content}
+          ${mediaHtml}
+          <small class="opacity-75 d-block mt-1" style="font-size:0.65rem;">${timeLabel}</small>
+        </div>
+      </div>`;
+  }
+
+  function appendMessage(data) {
+    chatLog.insertAdjacentHTML('beforeend', createMessageElement(data));
     chatLog.scrollTop = chatLog.scrollHeight;
+  }
 
-    // ---- Helpers ----
-    function createMessageElement(data) {
-      const isMe = String(data.user_id) === String(currentUserId);
-      const alignment = isMe ? 'justify-content-end' : 'justify-content-start';
-      const bubbleClass = isMe
-        ? 'bg-primary text-white shadow-sm sender-bubble'
-        : 'bg-light text-dark border receiver-bubble';
+  // ---- WebSocket handlers ----
+  chatSocket.onmessage = function (e) {
+    const data = JSON.parse(e.data);
+    if (data.error) {
+      Swal.fire('Error', data.error, 'error');
+      return;
+    }
+    appendMessage(data);
+  };
 
-      let mediaHtml = '';
-      if (data.attachment_url) {
-        if (data.attachment_type && data.attachment_type.startsWith('video')) {
-          mediaHtml = `
-            <video controls playsinline class="rounded-3 mt-1" style="max-width:100%;max-height:220px;">
-              <source src="${data.attachment_url}" type="${data.attachment_type}">
-            </video>`;
-        } else {
-          mediaHtml = `
-            <a href="${data.attachment_url}" target="_blank" rel="noopener">
-              <img src="${data.attachment_url}" class="rounded-3 mt-1" style="max-width:100%;max-height:220px;object-fit:contain;" alt="attachment">
-            </a>`;
+  chatSocket.onclose = function () {
+    console.warn('Chat socket closed');
+  };
+
+  // ---- Send message (text + optional already-uploaded attachment) ----
+  async function sendMessage() {
+    const text = messageInput.value.trim();
+    if (!text && !pendingFile) return;
+
+    // If there is a pending file that has not been uploaded yet → upload first
+    if (pendingFile && !pendingFile.uploadedUrl) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', pendingFile.file);
+
+        const res = await fetch('/chat/upload/', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrftoken },
+          body: formData
+        });
+
+        const data = await res.json();
+        if (!data.success) {
+          Swal.fire('Upload failed', data.message || 'Could not upload file', 'error');
+          return;
         }
+
+        pendingFile.uploadedUrl = data.url;
+        pendingFile.type = data.resource_type === 'video'
+          ? `video/${data.format || 'mp4'}`
+          : `image/${data.format || 'jpeg'}`;
+      } catch (err) {
+        console.error(err);
+        Swal.fire('Network error', 'Could not reach the upload endpoint', 'error');
+        return;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-send-fill"></i>';
       }
-
-      const content = data.message ? `<p class="mb-0 small message-content">${escapeHtml(data.message)}</p>` : '';
-      const timeLabel = data.timestamp || 'Just now';
-
-      return `
-        <div class="d-flex ${alignment} mb-3 message-row" data-user-id="${data.user_id}">
-          <div class="p-3 rounded-4 message-bubble ${bubbleClass}" style="max-width:75%;">
-            ${content}
-            ${mediaHtml}
-            <small class="opacity-75 d-block mt-1" style="font-size:0.65rem;">${timeLabel}</small>
-          </div>
-        </div>`;
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    function appendMessage(data) {
-      chatLog.insertAdjacentHTML('beforeend', createMessageElement(data));
-      chatLog.scrollTop = chatLog.scrollHeight;
-    }
-
-    // ---- WebSocket handlers ----
-    chatSocket.onmessage = function (e) {
-      const data = JSON.parse(e.data);
-      appendMessage(data);
+    // Now send over WebSocket
+    const payload = {
+      message: text,
+      attachment_url: pendingFile ? pendingFile.uploadedUrl : '',
+      attachment_type: pendingFile ? pendingFile.type : ''
     };
 
-    chatSocket.onclose = function () {
-      console.warn('Chat socket closed');
-    };
+    chatSocket.send(JSON.stringify(payload));
+    messageInput.value = '';
+    clearPendingFile();
+  }
 
-    // ---- Send text (and optional attachment metadata) ----
-    function sendMessage() {
-      const text = messageInput.value.trim();
-      if (!text && !pendingFile) return;
+  messageInput.addEventListener('keyup', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  submitBtn.addEventListener('click', sendMessage);
 
-      const payload = { message: text };
+  // ---- Attachment selection + validation ----
+  fileInput.addEventListener('change', async function () {
+    const file = this.files[0];
+    if (!file) return;
 
-      if (pendingFile) {
-        // Prefer a pre-uploaded URL if backend supports it; otherwise send base64 for small files.
-        // For production scalability the preferred path is: upload via POST → receive URL → send URL over WS.
-        payload.attachment_type = pendingFile.file.type;
-        if (pendingFile.dataUrl) {
-          payload.attachment_data = pendingFile.dataUrl; // base64 (fallback)
-        }
-        if (pendingFile.uploadedUrl) {
-          payload.attachment_url = pendingFile.uploadedUrl;
-        }
-      }
-
-      chatSocket.send(JSON.stringify(payload));
-      messageInput.value = '';
-      clearPendingFile();
+    if (file.size > MAX_FILE_BYTES) {
+      Swal.fire('File too large', 'Maximum allowed size is 9 MB.', 'warning');
+      this.value = '';
+      return;
     }
 
-    messageInput.addEventListener('keyup', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    });
-    submitBtn.addEventListener('click', sendMessage);
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
 
-    // ---- Attachment handling ----
-    fileInput.addEventListener('change', async function () {
-      const file = this.files[0];
-      if (!file) return;
+    if (!isVideo && !isImage) {
+      Swal.fire('Unsupported type', 'Only images and videos are allowed.', 'warning');
+      this.value = '';
+      return;
+    }
 
-      // Size check
-      if (file.size > MAX_FILE_BYTES) {
-        Swal.fire('File too large', 'Maximum allowed size is 9 MB.', 'warning');
-        this.value = '';
-        return;
-      }
-
-      const isVideo = file.type.startsWith('video/');
-      const isImage = file.type.startsWith('image/');
-
-      if (!isVideo && !isImage) {
-        Swal.fire('Unsupported type', 'Only images and videos are allowed.', 'warning');
-        this.value = '';
-        return;
-      }
-
-      // Video duration check
-      if (isVideo) {
-        try {
-          const duration = await getVideoDuration(file);
-          if (duration > MAX_VIDEO_SECONDS) {
-            Swal.fire('Video too long', `Videos must be ${MAX_VIDEO_SECONDS} seconds or shorter.`, 'warning');
-            this.value = '';
-            return;
-          }
-        } catch (err) {
-          Swal.fire('Error', 'Could not read video duration.', 'error');
+    if (isVideo) {
+      try {
+        const duration = await getVideoDuration(file);
+        if (duration > MAX_VIDEO_SECONDS) {
+          Swal.fire('Video too long', `Videos must be ${MAX_VIDEO_SECONDS} seconds or shorter.`, 'warning');
           this.value = '';
           return;
         }
+      } catch (err) {
+        Swal.fire('Error', 'Could not read video duration.', 'error');
+        this.value = '';
+        return;
       }
+    }
 
-      // Preview
-      const reader = new FileReader();
-      reader.onload = function (ev) {
-        pendingFile = {
-          file,
-          type: file.type,
-          dataUrl: ev.target.result
-        };
-        previewContent.innerHTML = isVideo
-          ? `<i class="bi bi-camera-video me-1"></i> ${escapeHtml(file.name)} (${(file.size / 1024 / 1024).toFixed(1)} MB)`
-          : `<i class="bi bi-image me-1"></i> ${escapeHtml(file.name)} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
-        previewBox.classList.remove('d-none');
+    // Show preview
+    pendingFile = { file, type: file.type };
+    previewContent.innerHTML = isVideo
+      ? `<i class="bi bi-camera-video me-1"></i> ${escapeHtml(file.name)} (${(file.size / 1024 / 1024).toFixed(1)} MB)`
+      : `<i class="bi bi-image me-1"></i> ${escapeHtml(file.name)} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+    previewBox.classList.remove('d-none');
+  });
+
+  clearAttachmentBtn.addEventListener('click', clearPendingFile);
+
+  function clearPendingFile() {
+    pendingFile = null;
+    fileInput.value = '';
+    previewBox.classList.add('d-none');
+    previewContent.innerHTML = '';
+  }
+
+  function getVideoDuration(file) {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = function () {
+        window.URL.revokeObjectURL(video.src);
+        resolve(video.duration);
       };
-      reader.readAsDataURL(file);
+      video.onerror = reject;
+      video.src = URL.createObjectURL(file);
     });
+  }
 
-    clearAttachmentBtn.addEventListener('click', clearPendingFile);
-
-    function clearPendingFile() {
-      pendingFile = null;
-      fileInput.value = '';
-      previewBox.classList.add('d-none');
-      previewContent.innerHTML = '';
-    }
-
-    function getVideoDuration(file) {
-      return new Promise((resolve, reject) => {
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.onloadedmetadata = function () {
-          window.URL.revokeObjectURL(video.src);
-          resolve(video.duration);
+  // ---- Report user (unchanged) ----
+  window.reportUser = async function () {
+    const { value: formValues } = await Swal.fire({
+      title: 'Report User',
+      html: `
+        <p class="small text-muted mb-2">Select a reason. Management will review the full chat.</p>
+        <select id="swal-reason" class="form-select mb-2">
+          <option value="">Select reason...</option>
+          <option value="Harassment">Harassment / Abuse</option>
+          <option value="Spam">Spam / Scam</option>
+          <option value="Inappropriate">Inappropriate content</option>
+          <option value="Threats">Threats / Intimidation</option>
+          <option value="Impersonation">Impersonation</option>
+          <option value="Other">Other</option>
+        </select>
+        <textarea id="swal-details" class="form-control" rows="3" placeholder="Optional details"></textarea>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Submit Report',
+      confirmButtonColor: '#dc3545',
+      preConfirm: () => {
+        const reason = document.getElementById('swal-reason').value;
+        if (!reason) {
+          Swal.showValidationMessage('Please select a reason');
+          return false;
+        }
+        return {
+          reason,
+          details: document.getElementById('swal-details').value.trim()
         };
-        video.onerror = reject;
-        video.src = URL.createObjectURL(file);
-      });
-    }
-
-    // ---- Report user (unchanged logic) ----
-    window.reportUser = async function () {
-      const { value: formValues } = await Swal.fire({
-        title: 'Report User',
-        html: `
-          <p class="small text-muted mb-2">Select a reason. Management will review the full chat.</p>
-          <select id="swal-reason" class="form-select mb-2">
-            <option value="">Select reason...</option>
-            <option value="Harassment">Harassment / Abuse</option>
-            <option value="Spam">Spam / Scam</option>
-            <option value="Inappropriate">Inappropriate content</option>
-            <option value="Threats">Threats / Intimidation</option>
-            <option value="Impersonation">Impersonation</option>
-            <option value="Other">Other</option>
-          </select>
-          <textarea id="swal-details" class="form-control" rows="3" placeholder="Optional details"></textarea>
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Submit Report',
-        confirmButtonColor: '#dc3545',
-        preConfirm: () => {
-          const reason = document.getElementById('swal-reason').value;
-          if (!reason) {
-            Swal.showValidationMessage('Please select a reason');
-            return false;
-          }
-          return {
-            reason,
-            details: document.getElementById('swal-details').value.trim()
-          };
-        }
-      });
-      if (!formValues) return;
-
-      const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-      try {
-        const res = await fetch(`/chat/report/${conversationId}/`, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrftoken,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formValues)
-        });
-        const data = await res.json();
-        if (data.success) {
-          Swal.fire('Reported', data.message || 'Management will review this chat.', 'success');
-        } else {
-          Swal.fire('Error', data.message || 'Could not submit report.', 'error');
-        }
-      } catch (e) {
-        Swal.fire('Error', 'Network error.', 'error');
-      }
-    };
-
-    // ---- One-time conversation notification (ONLY on this page) ----
-    // The Django messages framework already sets a one-time success message in the view.
-    // We deliberately do NOT show any extra toast/alert here so it never leaks to other pages.
-    // If you need a visual toast only on conversation.html you can enable the block below.
-    /*
-    document.addEventListener('DOMContentLoaded', function () {
-      // Example: only run if a specific data attribute is present
-      if (document.body.dataset.page === 'conversation') {
-        // optional toast code
       }
     });
-    */
-  })();
+    if (!formValues) return;
+
+    try {
+      const res = await fetch(`/chat/report/${conversationId}/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrftoken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formValues)
+      });
+      const data = await res.json();
+      if (data.success) {
+        Swal.fire('Reported', data.message || 'Management will review this chat.', 'success');
+      } else {
+        Swal.fire('Error', data.message || 'Could not submit report.', 'error');
+      }
+    } catch (e) {
+      Swal.fire('Error', 'Network error.', 'error');
+    }
+  };
+})();
 </script>
 
 <style>

@@ -9,6 +9,8 @@ from django.db.models import Q
 from django.contrib import messages 
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404, redirect
+import cloudinary.uploader
+from django.conf import settings
 
 from ..models import Conversation, ChatMessage, UserReport, User, Product
 from ..utils import log_action
@@ -16,6 +18,61 @@ from ..utils import log_action
 
 
 
+MAX_FILE_BYTES = 9 * 1024 * 1024          # 9 MB
+MAX_VIDEO_SECONDS = 3
+
+@login_required
+@require_POST
+def upload_chat_attachment(request):
+    """
+    Accepts a single image or short video, validates size/duration,
+    uploads to Cloudinary and returns the secure URL.
+    """
+    if 'file' not in request.FILES:
+        return JsonResponse({'success': False, 'message': 'No file provided'}, status=400)
+
+    f = request.FILES['file']
+
+    # size check
+    if f.size > MAX_FILE_BYTES:
+        return JsonResponse({'success': False, 'message': 'File exceeds 9 MB limit'}, status=400)
+
+    content_type = f.content_type or ''
+    is_image = content_type.startswith('image/')
+    is_video = content_type.startswith('video/')
+
+    if not (is_image or is_video):
+        return JsonResponse({'success': False, 'message': 'Only images and videos allowed'}, status=400)
+
+    # Cloudinary upload options
+    upload_options = {
+        'folder': f'utrade/chat/{request.user.id}',
+        'resource_type': 'auto',          # auto-detect image/video
+        'overwrite': False,
+        'unique_filename': True,
+    }
+
+    if is_video:
+        # enforce max 3 seconds at upload time (Cloudinary can also trim)
+        upload_options['eager'] = [
+            {'duration': MAX_VIDEO_SECONDS}   # Cloudinary will truncate if longer
+        ]
+
+    try:
+        result = cloudinary.uploader.upload(f, **upload_options)
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+    return JsonResponse({
+        'success': True,
+        'url': result['secure_url'],
+        'public_id': result['public_id'],
+        'resource_type': result['resource_type'],
+        'format': result.get('format'),
+        'bytes': result.get('bytes'),
+        'duration': result.get('duration'),   # only present for video
+    })
+    
 def report_conversation(request, conversation_id):
     conversation = get_object_or_404(Conversation, id=conversation_id)
     if request.user not in (conversation.buyer, conversation.seller):

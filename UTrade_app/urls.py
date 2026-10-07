@@ -57,7 +57,8 @@ urlpatterns = [
     path('inbox/', chat_views.inbox, name='inbox'),
     path('chat/<int:conversation_id>/', chat_views.chat_view, name='chat_view'),
     path('start_chat/<int:product_id>/', chat_views.start_chat, name='start_chat'),
-
+    path('chat/upload/', chat_views.upload_chat_attachment, name='chat_upload'),   
+    
     # --- Admin (Campus Administration) ---
     path('admindashboard/', admin_views.AdminDashboard.as_view(), name="admin.dashboard"),
     path('pendingproducts/', admin_views.AdminReviewListView.as_view(), name='admin.review'),

@@ -108,11 +108,16 @@ class Conversation(models.Model):
 class ChatMessage(models.Model):
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    content = models.TextField()
+    content = models.TextField(blank=True)          # can now be empty when only media is sent
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
+    
+    attachment = models.URLField(blank=True, null=True)          # permanent Cloudinary URL
+    attachment_type = models.CharField(max_length=50, blank=True)  # e.g. "image/jpeg", "video/mp4"
+    attachment_public_id = models.CharField(max_length=255, blank=True)  # optional, for later deletion
+
     def __str__(self):
-        return f"{self.user.username}: {self.content[:20]}"
+        return f"{self.user}: {self.content[:20] if self.content else '[media]'}"
     
 # models.py (or messaging models)
 class UserReport(models.Model):

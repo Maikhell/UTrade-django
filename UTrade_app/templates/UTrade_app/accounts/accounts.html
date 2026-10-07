@@ -285,20 +285,6 @@
           </a>
         </div>
         <div class="col-12 col-sm-6">
-          <a href="{% url 'seller_inventory' %}"
-             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark">
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-primary shadow-sm">
-                <i class="bi bi-box-seam fs-4"></i>
-              </div>
-              <div class="ms-3 ms-md-4">
-                <h5 class="fw-bold mb-1">Products</h5>
-                <p class="text-muted small mb-0">Shop manager & listings</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <div class="col-12 col-sm-6">
           <a href="{% url 'inbox' %}"
              class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark border-primary-hover">
             {% if unread_messages_count %}
@@ -375,67 +361,6 @@
               <div class="ms-3 ms-md-4">
                 <h5 class="fw-bold mb-1">Add Product</h5>
                 <p class="text-muted small mb-0">List a new item</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <div class="col-12 col-sm-6">
-          <a href="{% url 'seller_inventory' %}"
-             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark">
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-primary shadow-sm">
-                <i class="bi bi-box-seam fs-4"></i>
-              </div>
-              <div class="ms-3 ms-md-4">
-                <h5 class="fw-bold mb-1">Products</h5>
-                <p class="text-muted small mb-0">Shop manager & listings</p>
-              </div>
-            </div>
-          </a>
-        </div>
-
-      {% elif user.user_role == 'alumni_assoc' %}
-        <div class="col-12 col-sm-6">
-          <a href="{% url 'user.profile' %}"
-             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark border-success-hover">
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-dark shadow-sm">
-                <i class="bi bi-person-bounding-box fs-4"></i>
-              </div>
-              <div class="ms-3 ms-md-4">
-                <h5 class="fw-bold mb-1">Organization Profile</h5>
-                <p class="text-muted small mb-0">View association profile</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <div class="col-12 col-sm-6">
-          <a href="{% url 'inbox' %}"
-             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark border-primary-hover">
-            {% if unread_messages_count %}
-              <span class="notif-bubble">{{ unread_messages_count }}</span>
-            {% endif %}
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-primary shadow-sm">
-                <i class="bi bi-chat-left-dots fs-4"></i>
-              </div>
-              <div class="ms-3 ms-md-4">
-                <h5 class="fw-bold mb-1">Messages</h5>
-                <p class="text-muted small mb-0">Alumni inbox</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <div class="col-12 col-sm-6">
-          <a href="{% url 'seller_inventory' %}"
-             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark">
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-primary shadow-sm">
-                <i class="bi bi-box-seam fs-4"></i>
-              </div>
-              <div class="ms-3 ms-md-4">
-                <h5 class="fw-bold mb-1">Products</h5>
-                <p class="text-muted small mb-0">Shop manager & listings</p>
               </div>
             </div>
           </a>
@@ -531,37 +456,6 @@
               <div class="ms-3 ms-md-4">
                 <h5 class="fw-bold mb-1">Wishlist</h5>
                 <p class="text-muted small mb-0">Your saved favorites</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <div class="col-12 col-sm-6">
-          <a href="{% url 'seller_inventory' %}"
-             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark">
-            {% if incoming_orders_count %}
-              <span class="notif-bubble">{{ incoming_orders_count }}</span>
-            {% endif %}
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-primary shadow-sm">
-                <i class="bi bi-box-seam fs-4"></i>
-              </div>
-              <div class="ms-3 ms-md-4">
-                <h5 class="fw-bold mb-1">Products</h5>
-                <p class="text-muted small mb-0">Your listings & shop manager</p>
-              </div>
-            </div>
-          </a>
-        </div>
-        <div class="col-12 col-sm-6">
-          <a href="{% url 'product.create' %}"
-             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark border-success-hover">
-            <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-success shadow-sm">
-                <i class="bi bi-plus-circle fs-4"></i>
-              </div>
-              <div class="ms-3 ms-md-4">
-                <h5 class="fw-bold mb-1">Add Product</h5>
-                <p class="text-muted small mb-0">List a new item</p>
               </div>
             </div>
           </a>

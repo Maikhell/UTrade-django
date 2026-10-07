@@ -2,6 +2,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 import dj_database_url
+import warnings
+warnings.filterwarnings('error', category=RuntimeWarning, module='django.core.handlers.asgi')
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, '.env'))

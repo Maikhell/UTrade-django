@@ -6,9 +6,10 @@
 {% block content %}
 {% csrf_token %}
 <div class="container py-3">
+  <!-- Header -->
   <div class="d-flex align-items-center justify-content-between bg-white p-3 rounded-4 shadow-sm mb-3">
     <div class="d-flex align-items-center">
-      <a href="{% url 'inbox' %}" class="btn btn-light rounded-circle me-3">
+      <a href="{% url 'inbox' %}" class="btn btn-light rounded-circle me-3" aria-label="Back to inbox">
         <i class="bi bi-arrow-left"></i>
       </a>
       {% if conversation.product.images.first %}
@@ -18,14 +19,48 @@
       {% endif %}
       <div>
         <h6 class="mb-0 fw-bold">{{ conversation.product.name }}</h6>
-        <small class="text-muted">
-          Chatting with
-          {% if request.user == conversation.buyer %}
-            {{ conversation.seller.get_short_name }}
-          {% else %}
-            {{ conversation.buyer.get_short_name }}
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+          <small class="text-muted">
+            Chatting with
+            {% if request.user == conversation.buyer %}
+              {{ conversation.seller.get_short_name }}
+            {% else %}
+              {{ conversation.buyer.get_short_name }}
+            {% endif %}
+          </small>
+
+          {# Role badge #}
+          {% with other=other_user %}
+            {% if other.user_role == 'management' %}
+              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2" style="font-size:0.65rem;">Management</span>
+            {% elif other.user_role in 'system_admin,campus_admin' or other.is_staff %}
+              <span class="badge bg-danger-subtle text-danger rounded-pill px-2" style="font-size:0.65rem;">Admin</span>
+            {% else %}
+              <span class="badge bg-primary-subtle text-primary rounded-pill px-2" style="font-size:0.65rem;">Student</span>
+            {% endif %}
+          {% endwith %}
+        </div>
+
+        {# Organization / section #}
+        {% with other=other_user %}
+          {% if other.organization or other.org_link or other.course or other.section %}
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
+              {% if other.org_link %}
+                <small class="text-success fw-semibold" style="font-size:0.7rem;">{{ other.org_link.name }}</small>
+              {% elif other.organization %}
+                <small class="text-success fw-semibold" style="font-size:0.7rem;">{{ other.organization }}</small>
+              {% endif %}
+              {% if other.course %}
+                <span class="text-muted" style="font-size:0.7rem;">•</span>
+                <small class="text-muted" style="font-size:0.7rem;">{{ other.course }}</small>
+              {% endif %}
+              {% if other.section %}
+                <span class="text-muted" style="font-size:0.7rem;">•</span>
+                <small class="text-muted" style="font-size:0.7rem;">Sec {{ other.section }}</small>
+              {% endif %}
+            </div>
           {% endif %}
-        </small>
+        {% endwith %}
       </div>
     </div>
     <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="reportUser()">
@@ -33,148 +68,369 @@
     </button>
   </div>
 
+  <!-- Chat log -->
   <div id="chat-log" class="bg-white shadow-sm rounded-4 p-3 mb-3"
-       style="height:60vh;overflow-y:auto;display:flex;flex-direction:column;">
+       style="height:60vh;overflow-y:auto;display:flex;flex-direction:column;"
+       role="log" aria-live="polite" aria-relevant="additions">
     {% for message in messages %}
-      <div class="d-flex {% if message.user == request.user %}justify-content-end{% else %}justify-content-start{% endif %} mb-3">
-        <div class="p-3 rounded-4 {% if message.user == request.user %}bg-primary text-white shadow-sm{% else %}bg-light text-dark{% endif %}" style="max-width:75%;">
-          <p class="mb-0 small">{{ message.content }}</p>
-          <small class="opacity-75" style="font-size:0.65rem;">{{ message.timestamp|date:"h:i A" }}</small>
+      <div class="d-flex {% if message.user == request.user %}justify-content-end{% else %}justify-content-start{% endif %} mb-3 message-row"
+           data-user-id="{{ message.user.id }}">
+        <div class="p-3 rounded-4 message-bubble
+                    {% if message.user == request.user %}
+                      bg-primary text-white shadow-sm sender-bubble
+                    {% else %}
+                      bg-light text-dark border receiver-bubble
+                    {% endif %}"
+             style="max-width:75%;">
+          <p class="mb-0 small message-content">{{ message.content }}</p>
+          <small class="opacity-75 d-block mt-1" style="font-size:0.65rem;">{{ message.timestamp|date:"h:i A" }}</small>
         </div>
       </div>
     {% endfor %}
   </div>
 
-  <div class="input-group mb-3">
-    <input type="text" id="chat-message-input" class="form-control rounded-pill border-0 shadow-sm p-3" placeholder="Type your message here...">
-    <button id="chat-message-submit" class="btn btn-primary rounded-pill px-4 shadow-sm ms-2">
-      <i class="bi bi-send-fill"></i>
-    </button>
+  <!-- Input + attachments -->
+  <div class="bg-white rounded-4 shadow-sm p-2">
+    <div id="attachment-preview" class="d-none mb-2 px-2">
+      <div class="d-flex align-items-center gap-2 p-2 bg-light rounded-3">
+        <div id="preview-content" class="flex-grow-1 small text-truncate"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle" id="clear-attachment" aria-label="Remove attachment">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label class="btn btn-light rounded-circle d-flex align-items-center justify-content-center me-1" style="width:42px;height:42px;" for="chat-file-input" title="Attach image or video (max 9 MB, video ≤ 3 s)">
+        <i class="bi bi-paperclip"></i>
+      </label>
+      <input type="file" id="chat-file-input" accept="image/*,video/*" class="d-none" aria-label="Attach file">
+
+      <input type="text" id="chat-message-input" class="form-control rounded-pill border-0 shadow-sm p-3" placeholder="Type your message here..." autocomplete="off">
+      <button id="chat-message-submit" class="btn btn-primary rounded-pill px-4 shadow-sm ms-2" aria-label="Send message">
+        <i class="bi bi-send-fill"></i>
+      </button>
+    </div>
+    <div class="px-2 pt-1">
+      <small class="text-muted" style="font-size:0.7rem;">Images &amp; videos ≤ 9 MB. Videos max 3 seconds.</small>
+    </div>
   </div>
 </div>
 
 <script>
-  const conversationId = "{{ conversation.id }}";
-  const currentUserId = "{{ request.user.id }}";
-  const chatSocket = new WebSocket(
-    (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
-    window.location.host + '/ws/chat/' + conversationId + '/'
-  );
-  const chatLog = document.querySelector('#chat-log');
-  chatLog.scrollTop = chatLog.scrollHeight;
+  (function () {
+    // ---- Constants & limits ----
+    const MAX_FILE_BYTES = 9 * 1024 * 1024; // 9 MB
+    const MAX_VIDEO_SECONDS = 3;
+    const conversationId = "{{ conversation.id }}";
+    const currentUserId = "{{ request.user.id }}";
 
-  chatSocket.onmessage = function (e) {
-    const data = JSON.parse(e.data);
-    const isMe = String(data.user_id) === String(currentUserId);
-    const alignment = isMe ? 'justify-content-end' : 'justify-content-start';
-    const bgColor = isMe ? 'bg-primary text-white shadow-sm' : 'bg-light text-dark';
-    chatLog.innerHTML += `
-      <div class="d-flex ${alignment} mb-3">
-        <div class="p-3 rounded-4 ${bgColor}" style="max-width:75%;">
-          <p class="mb-0 small">${data.message}</p>
-          <small class="opacity-75" style="font-size:0.65rem;">Just now</small>
-        </div>
-      </div>`;
+    // ---- WebSocket ----
+    const chatSocket = new WebSocket(
+      (window.location.protocol === 'https:' ? 'wss://' : 'ws://') +
+      window.location.host + '/ws/chat/' + conversationId + '/'
+    );
+
+    const chatLog = document.querySelector('#chat-log');
+    const messageInput = document.querySelector('#chat-message-input');
+    const submitBtn = document.querySelector('#chat-message-submit');
+    const fileInput = document.querySelector('#chat-file-input');
+    const previewBox = document.querySelector('#attachment-preview');
+    const previewContent = document.querySelector('#preview-content');
+    const clearAttachmentBtn = document.querySelector('#clear-attachment');
+
+    let pendingFile = null; // { file, type, dataUrl? }
+
+    // Scroll to bottom on load
     chatLog.scrollTop = chatLog.scrollHeight;
-  };
 
-  document.querySelector('#chat-message-input').onkeyup = function (e) {
-    if (e.keyCode === 13) document.querySelector('#chat-message-submit').click();
-  };
-  document.querySelector('#chat-message-submit').onclick = function () {
-    const input = document.querySelector('#chat-message-input');
-    const message = input.value.trim();
-    if (!message) return;
-    chatSocket.send(JSON.stringify({ message }));
-    input.value = '';
-  };
+    // ---- Helpers ----
+    function createMessageElement(data) {
+      const isMe = String(data.user_id) === String(currentUserId);
+      const alignment = isMe ? 'justify-content-end' : 'justify-content-start';
+      const bubbleClass = isMe
+        ? 'bg-primary text-white shadow-sm sender-bubble'
+        : 'bg-light text-dark border receiver-bubble';
 
-  async function reportUser() {
-    const { value: formValues } = await Swal.fire({
-      title: 'Report User',
-      html: `
-        <p class="small text-muted mb-2">Select a reason. Management will review the full chat.</p>
-        <select id="swal-reason" class="form-select mb-2">
-          <option value="">Select reason...</option>
-          <option value="Harassment">Harassment / Abuse</option>
-          <option value="Spam">Spam / Scam</option>
-          <option value="Inappropriate">Inappropriate content</option>
-          <option value="Threats">Threats / Intimidation</option>
-          <option value="Impersonation">Impersonation</option>
-          <option value="Other">Other</option>
-        </select>
-        <textarea id="swal-details" class="form-control" rows="3" placeholder="Optional details"></textarea>
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: 'Submit Report',
-      confirmButtonColor: '#dc3545',
-      preConfirm: () => {
-        const reason = document.getElementById('swal-reason').value;
-        if (!reason) {
-          Swal.showValidationMessage('Please select a reason');
-          return false;
+      let mediaHtml = '';
+      if (data.attachment_url) {
+        if (data.attachment_type && data.attachment_type.startsWith('video')) {
+          mediaHtml = `
+            <video controls playsinline class="rounded-3 mt-1" style="max-width:100%;max-height:220px;">
+              <source src="${data.attachment_url}" type="${data.attachment_type}">
+            </video>`;
+        } else {
+          mediaHtml = `
+            <a href="${data.attachment_url}" target="_blank" rel="noopener">
+              <img src="${data.attachment_url}" class="rounded-3 mt-1" style="max-width:100%;max-height:220px;object-fit:contain;" alt="attachment">
+            </a>`;
         }
-        return {
-          reason,
-          details: document.getElementById('swal-details').value.trim()
-        };
+      }
+
+      const content = data.message ? `<p class="mb-0 small message-content">${escapeHtml(data.message)}</p>` : '';
+      const timeLabel = data.timestamp || 'Just now';
+
+      return `
+        <div class="d-flex ${alignment} mb-3 message-row" data-user-id="${data.user_id}">
+          <div class="p-3 rounded-4 message-bubble ${bubbleClass}" style="max-width:75%;">
+            ${content}
+            ${mediaHtml}
+            <small class="opacity-75 d-block mt-1" style="font-size:0.65rem;">${timeLabel}</small>
+          </div>
+        </div>`;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function appendMessage(data) {
+      chatLog.insertAdjacentHTML('beforeend', createMessageElement(data));
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    // ---- WebSocket handlers ----
+    chatSocket.onmessage = function (e) {
+      const data = JSON.parse(e.data);
+      appendMessage(data);
+    };
+
+    chatSocket.onclose = function () {
+      console.warn('Chat socket closed');
+    };
+
+    // ---- Send text (and optional attachment metadata) ----
+    function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text && !pendingFile) return;
+
+      const payload = { message: text };
+
+      if (pendingFile) {
+        // Prefer a pre-uploaded URL if backend supports it; otherwise send base64 for small files.
+        // For production scalability the preferred path is: upload via POST → receive URL → send URL over WS.
+        payload.attachment_type = pendingFile.file.type;
+        if (pendingFile.dataUrl) {
+          payload.attachment_data = pendingFile.dataUrl; // base64 (fallback)
+        }
+        if (pendingFile.uploadedUrl) {
+          payload.attachment_url = pendingFile.uploadedUrl;
+        }
+      }
+
+      chatSocket.send(JSON.stringify(payload));
+      messageInput.value = '';
+      clearPendingFile();
+    }
+
+    messageInput.addEventListener('keyup', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
       }
     });
-    if (!formValues) return;
+    submitBtn.addEventListener('click', sendMessage);
 
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    try {
-      const res = await fetch(`/chat/report/${conversationId}/`, {
-        method: 'POST',
-        headers: {
-          'X-CSRFToken': csrftoken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formValues)
-      });
-      const data = await res.json();
-      if (data.success) {
-        Swal.fire('Reported', data.message || 'Management will review this chat.', 'success');
-      } else {
-        Swal.fire('Error', data.message || 'Could not submit report.', 'error');
+    // ---- Attachment handling ----
+    fileInput.addEventListener('change', async function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      // Size check
+      if (file.size > MAX_FILE_BYTES) {
+        Swal.fire('File too large', 'Maximum allowed size is 9 MB.', 'warning');
+        this.value = '';
+        return;
       }
-    } catch (e) {
-      Swal.fire('Error', 'Network error.', 'error');
+
+      const isVideo = file.type.startsWith('video/');
+      const isImage = file.type.startsWith('image/');
+
+      if (!isVideo && !isImage) {
+        Swal.fire('Unsupported type', 'Only images and videos are allowed.', 'warning');
+        this.value = '';
+        return;
+      }
+
+      // Video duration check
+      if (isVideo) {
+        try {
+          const duration = await getVideoDuration(file);
+          if (duration > MAX_VIDEO_SECONDS) {
+            Swal.fire('Video too long', `Videos must be ${MAX_VIDEO_SECONDS} seconds or shorter.`, 'warning');
+            this.value = '';
+            return;
+          }
+        } catch (err) {
+          Swal.fire('Error', 'Could not read video duration.', 'error');
+          this.value = '';
+          return;
+        }
+      }
+
+      // Preview
+      const reader = new FileReader();
+      reader.onload = function (ev) {
+        pendingFile = {
+          file,
+          type: file.type,
+          dataUrl: ev.target.result
+        };
+        previewContent.innerHTML = isVideo
+          ? `<i class="bi bi-camera-video me-1"></i> ${escapeHtml(file.name)} (${(file.size / 1024 / 1024).toFixed(1)} MB)`
+          : `<i class="bi bi-image me-1"></i> ${escapeHtml(file.name)} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+        previewBox.classList.remove('d-none');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    clearAttachmentBtn.addEventListener('click', clearPendingFile);
+
+    function clearPendingFile() {
+      pendingFile = null;
+      fileInput.value = '';
+      previewBox.classList.add('d-none');
+      previewContent.innerHTML = '';
     }
-  }
+
+    function getVideoDuration(file) {
+      return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = function () {
+          window.URL.revokeObjectURL(video.src);
+          resolve(video.duration);
+        };
+        video.onerror = reject;
+        video.src = URL.createObjectURL(file);
+      });
+    }
+
+    // ---- Report user (unchanged logic) ----
+    window.reportUser = async function () {
+      const { value: formValues } = await Swal.fire({
+        title: 'Report User',
+        html: `
+          <p class="small text-muted mb-2">Select a reason. Management will review the full chat.</p>
+          <select id="swal-reason" class="form-select mb-2">
+            <option value="">Select reason...</option>
+            <option value="Harassment">Harassment / Abuse</option>
+            <option value="Spam">Spam / Scam</option>
+            <option value="Inappropriate">Inappropriate content</option>
+            <option value="Threats">Threats / Intimidation</option>
+            <option value="Impersonation">Impersonation</option>
+            <option value="Other">Other</option>
+          </select>
+          <textarea id="swal-details" class="form-control" rows="3" placeholder="Optional details"></textarea>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Submit Report',
+        confirmButtonColor: '#dc3545',
+        preConfirm: () => {
+          const reason = document.getElementById('swal-reason').value;
+          if (!reason) {
+            Swal.showValidationMessage('Please select a reason');
+            return false;
+          }
+          return {
+            reason,
+            details: document.getElementById('swal-details').value.trim()
+          };
+        }
+      });
+      if (!formValues) return;
+
+      const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      try {
+        const res = await fetch(`/chat/report/${conversationId}/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formValues)
+        });
+        const data = await res.json();
+        if (data.success) {
+          Swal.fire('Reported', data.message || 'Management will review this chat.', 'success');
+        } else {
+          Swal.fire('Error', data.message || 'Could not submit report.', 'error');
+        }
+      } catch (e) {
+        Swal.fire('Error', 'Network error.', 'error');
+      }
+    };
+
+    // ---- One-time conversation notification (ONLY on this page) ----
+    // The Django messages framework already sets a one-time success message in the view.
+    // We deliberately do NOT show any extra toast/alert here so it never leaks to other pages.
+    // If you need a visual toast only on conversation.html you can enable the block below.
+    /*
+    document.addEventListener('DOMContentLoaded', function () {
+      // Example: only run if a specific data attribute is present
+      if (document.body.dataset.page === 'conversation') {
+        // optional toast code
+      }
+    });
+    */
+  })();
 </script>
+
 <style>
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(5px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    #chat-log::-webkit-scrollbar {
-        width: 6px;
-    }
-    #chat-log::-webkit-scrollbar-thumb {
-        background-color: #e9ecef;
-        border-radius: 10px;
-    }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .message-row {
+    animation: fadeIn 0.25s ease-out;
+  }
+  #chat-log::-webkit-scrollbar {
+    width: 6px;
+  }
+  #chat-log::-webkit-scrollbar-thumb {
+    background-color: #e9ecef;
+    border-radius: 10px;
+  }
+  /* Clearer visual distinction */
+  .sender-bubble {
+    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
+    color: #fff !important;
+    border-bottom-right-radius: 0.4rem !important;
+  }
+  .receiver-bubble {
+    background-color: #f8f9fa !important;
+    color: #212529 !important;
+    border: 1px solid #e9ecef !important;
+    border-bottom-left-radius: 0.4rem !important;
+  }
+  .message-content {
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
 </style>
+
+<!-- Community Guidelines modal (unchanged) -->
 <div class="modal fade" id="termsModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow rounded-4">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold text-success"><i class="bi bi-shield-check me-2"></i>Community Guidelines</h5>
-            </div>
-            <div class="modal-body py-4">
-                <p class="text-secondary">Welcome to UTrade Chat! To keep our university marketplace safe, please follow these rules:</p>
-                <ul class="small text-muted mb-0">
-                    <li class="mb-2"><strong>Be Respectful:</strong> Harassment or inappropriate language is strictly prohibited.</li>
-                    <li class="mb-2"><strong>Safety First:</strong> Meet in public campus areas for item trades.</li>
-                    <li class="mb-2"><strong>Monitored:</strong> While private, conversations can be reported and reviewed by Admins if a dispute arises.</li>
-                </ul>
-            </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" id="agreeBtn" class="btn btn-success w-100 rounded-3 fw-bold py-2">I Agree & Continue</button>
-            </div>
-        </div>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-success"><i class="bi bi-shield-check me-2"></i>Community Guidelines</h5>
+      </div>
+      <div class="modal-body py-4">
+        <p class="text-secondary">Welcome to UTrade Chat! To keep our university marketplace safe, please follow these rules:</p>
+        <ul class="small text-muted mb-0">
+          <li class="mb-2"><strong>Be Respectful:</strong> Harassment or inappropriate language is strictly prohibited.</li>
+          <li class="mb-2"><strong>Safety First:</strong> Meet in public campus areas for item trades.</li>
+          <li class="mb-2"><strong>Monitored:</strong> While private, conversations can be reported and reviewed by Admins if a dispute arises.</li>
+        </ul>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" id="agreeBtn" class="btn btn-success w-100 rounded-3 fw-bold py-2">I Agree & Continue</button>
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}

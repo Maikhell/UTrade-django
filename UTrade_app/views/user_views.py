@@ -39,6 +39,7 @@ from ..models import (
     ProductVariant,
     User,
     PreOrderRequest,
+    ChatMessage,
 )
 
 
@@ -87,15 +88,49 @@ class UserAccountView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        
-        if self.request.user.is_authenticated:
-            context['incoming_orders_count'] = Order.objects.filter(
-                items__product_variant__product__seller=self.request.user,
-                status='Pending'
-            ).distinct().count()
-        else:
-            context['incoming_orders_count'] = 0
-            
+        user = self.request.user
+
+        context['incoming_orders_count'] = 0
+        context['unread_messages_count'] = 0
+        context['mgmt_pending_count'] = 0
+        context['org_pending_count'] = 0
+
+        if not user.is_authenticated:
+            return context
+
+        context['incoming_orders_count'] = (
+            Order.objects.filter(
+                items__product_variant__product__seller=user,
+                status__iexact='Pending',
+            )
+            .distinct()
+            .count()
+        )
+
+        # Unread chats: messages in your conversations not sent by you
+        context['unread_messages_count'] = ChatMessage.objects.filter(
+            Q(conversation__buyer=user) | Q(conversation__seller=user),
+            is_read=False,
+        ).exclude(user=user).count()
+
+        if user.user_role == 'management':
+            pending_products = Product.objects.filter(status__iexact='Pending').count()
+            pending_pre = PreOrderRequest.objects.filter(
+                status__iexact='PENDING',
+                product_variant__product__owner_type='MANAGEMENT',
+            ).count()
+            context['mgmt_pending_count'] = pending_products + pending_pre
+
+        if user.is_officer or user.user_role == 'org_officer':
+            org = getattr(user, 'org_link', None)
+            if org:
+                context['org_pending_count'] = PreOrderRequest.objects.filter(
+                    status__iexact='PENDING',
+                    product_variant__product__related_org=org,
+                ).count()
+            else:
+                context['org_pending_count'] = context['incoming_orders_count']
+
         return context
 class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = User

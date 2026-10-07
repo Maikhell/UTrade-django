@@ -3,8 +3,20 @@ import os
 from dotenv import load_dotenv
 import dj_database_url
 import warnings
-warnings.filterwarnings('error', category=RuntimeWarning, module='django.core.handlers.asgi')
+import traceback
+import sys
 
+def _streaming_warning_handler(message, category, filename, lineno, file=None, line=None):
+    if "StreamingHttpResponse" in str(message):
+        print("\n===== STREAMING HTTP RESPONSE WARNING =====", file=sys.stderr)
+        traceback.print_stack(file=sys.stderr)
+        print("===========================================\n", file=sys.stderr)
+    # still show the original warning
+    return warnings._showwarnmsg_impl(
+        warnings.WarningMessage(message, category, filename, lineno, file, line)
+    )
+
+warnings.showwarning = _streaming_warning_handler
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 

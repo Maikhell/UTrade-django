@@ -1,36 +1,44 @@
-{% extends 'UTrade_app/base.html' %} {% load static %} {% block title %}
-Register {% endblock %} {% block content %} {% block extra_css %}
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}Register{% endblock %}
+
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'UTrade_app/css/register.css' %}" />
 {% endblock %}
 
-<section class="row g-0 min-vh-100 align-items-center bg-success">
-  <div
-    class="col-md-6 d-flex flex-column justify-content-center align-items-center p-5 text-center"
-  >
-    <div class="glass-bg p-4 mb-4">
-      <img
-        src="{% static 'UTrade_app/img/UTrade.png' %}"
-        alt="Logo"
-        class="img-fluid"
-        style="
-          max-width: 180px;
-          filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.2));
-        "
-      />
+{% block content %}
+<section class="auth-section">
+  <!-- Branding Panel -->
+  <div class="auth-branding d-none d-md-flex">
+    <div class="branding-inner">
+      <div class="glass-bg">
+        <img
+          src="{% static 'UTrade_app/img/UTrade.png' %}"
+          alt="UTrade Logo"
+          class="brand-logo"
+        />
+      </div>
+      <h1 class="brand-title">UTRADE</h1>
+      <p class="brand-tagline">Your gateway to smarter trading.</p>
     </div>
-    <h1 class="display-4 fw-bold text-white tracking-tight mb-0">UTRADE</h1>
-    <p class="text-light opacity-75 fw-medium mt-2">
-      Your gateway to smarter trading.
-    </p>
   </div>
 
-  <div class="col-md-6 d-flex justify-content-center align-items-center p-4">
-    <div
-      class="card border-0 shadow-lg p-4 p-md-5 rounded-3xl w-100"
-      style="max-width: 480px"
-    >
-      <h2 class="fw-bold text-dark mb-1">Welcome</h2>
-      <p class="text-muted mb-4">Please enter your details to sign up.</p>
+  <!-- Form Panel -->
+  <div class="auth-form-panel">
+    <!-- Mobile logo (visible only on small screens) -->
+    <div class="mobile-brand d-md-none text-center mb-4">
+      <img
+        src="{% static 'UTrade_app/img/UTrade.png' %}"
+        alt="UTrade Logo"
+        class="mobile-logo"
+      />
+      <h1 class="mobile-title">UTRADE</h1>
+    </div>
+
+    <div class="auth-card">
+      <h2 class="auth-heading">Welcome</h2>
+      <p class="auth-subheading">Please enter your details to sign up.</p>
 
       <form
         method="post"
@@ -45,101 +53,113 @@ Register {% endblock %} {% block content %} {% block extra_css %}
           id="id_user_role"
           value="student"
         />
+
         <div class="mb-3">
-          <label class="form-label small fw-bold text-secondary"
-            >Student Number</label
-          >
+          <label class="form-label" for="id_student_no">Student Number</label>
           <input
             type="text"
             name="student_no"
             id="id_student_no"
             value="{{ form.student_no.value|default:'' }}"
             placeholder="Enter student number"
-            class="form-control form-control-xl bg-light {% if form.student_no.errors %}is-invalid{% endif %}"
+            class="form-control form-control-lg bg-light {% if form.student_no.errors %}is-invalid{% endif %}"
             required
+            autocomplete="username"
           />
           {% if form.student_no.errors %}
           <div class="invalid-feedback">
-            {% for error in form.student_no.errors %} {{ error }} {% endfor %}
+            {% for error in form.student_no.errors %}{{ error }}{% endfor %}
           </div>
           {% endif %}
         </div>
 
         <div class="mb-3">
-          <label class="form-label small fw-bold text-secondary">Email</label>
+          <label class="form-label" for="id_email">Email</label>
           <input
             type="email"
             name="email"
+            id="id_email"
             value="{{ form.email.value|default:'' }}"
             placeholder="student.name@cvsu.edu.ph"
-            class="form-control form-control-xl bg-light {% if form.email.errors %}is-invalid{% endif %}"
+            class="form-control form-control-lg bg-light {% if form.email.errors %}is-invalid{% endif %}"
             required
+            autocomplete="email"
           />
           {% if form.email.errors %}
           <div class="invalid-feedback">
-            {% for error in form.email.errors %} {{ error }} {% endfor %}
+            {% for error in form.email.errors %}{{ error }}{% endfor %}
           </div>
           {% endif %}
         </div>
 
         <div class="mb-3">
-          <label class="form-label small fw-bold text-secondary"
-            >Password</label
-          >
-          <input
-            type="password"
-            name="password1"
-            placeholder="••••••••"
-            class="form-control form-control-xl bg-light {% if form.password1.errors %}is-invalid{% endif %}"
-            required
-          />
-          {% if form.password1.errors %}
-          <div class="invalid-feedback">
-            {% for error in form.password1.errors %} {{ error }} {% endfor %}
-          </div>
-          {% endif %}
-        </div>
-
-        <div class="mb-4">
-          <label class="form-label small fw-bold text-secondary"
-            >Confirm Password</label
-          >
-          <input
-            type="password"
-            name="password2"
-            placeholder="••••••••"
-            class="form-control form-control-xl bg-light {% if form.password2.errors %}is-invalid{% endif %}"
-            required
-          />
-          {% if form.password2.errors %}
-          <div class="invalid-feedback">
-            {% for error in form.password2.errors %} {{ error }} {% endfor %}
-          </div>
-          {% endif %}
-        </div>
-
-        <div class="mb-4">
-          <div class="form-check small">
+          <label class="form-label" for="id_password1">Password</label>
+          <div class="password-wrapper">
             <input
-              class="form-check-input {% if form.non_field_errors or form.terms.errors %}is-invalid{% endif %}"
+              type="password"
+              name="password1"
+              id="id_password1"
+              placeholder="••••••••"
+              class="form-control form-control-lg bg-light {% if form.password1.errors %}is-invalid{% endif %}"
+              required
+              autocomplete="new-password"
+            />
+            <button type="button" class="toggle-password" data-target="id_password1" aria-label="Show password">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          {% if form.password1.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.password1.errors %}{{ error }}{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label" for="id_password2">Confirm Password</label>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              name="password2"
+              id="id_password2"
+              placeholder="••••••••"
+              class="form-control form-control-lg bg-light {% if form.password2.errors %}is-invalid{% endif %}"
+              required
+              autocomplete="new-password"
+            />
+            <button type="button" class="toggle-password" data-target="id_password2" aria-label="Show password">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          {% if form.password2.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.password2.errors %}{{ error }}{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="mb-4">
+          <div class="form-check">
+            <input
+              class="form-check-input {% if form.non_field_errors %}is-invalid{% endif %}"
               type="checkbox"
               id="termsCheckbox"
               name="terms"
               required
             />
-            <label class="form-check-label text-muted" for="termsCheckbox"
-              >I have read and agree to the
+            <label class="form-check-label" for="termsCheckbox">
+              I have read and agree to the
               <a
                 href="#"
-                class="text-success fw-bold text-decoration-none"
+                class="terms-link"
                 data-bs-toggle="modal"
                 data-bs-target="#termsModal"
                 >Terms and Services</a
-              ></label
-            >
+              >
+            </label>
             {% if form.non_field_errors %}
             <div class="invalid-feedback d-block">
-              {% for error in form.non_field_errors %} {{ error }} {% endfor %}
+              {% for error in form.non_field_errors %}{{ error }}{% endfor %}
             </div>
             {% endif %}
           </div>
@@ -148,48 +168,47 @@ Register {% endblock %} {% block content %} {% block extra_css %}
         <button
           type="submit"
           id="signUpBtn"
-          class="btn btn-success w-100 fw-bold btn-xl shadow-sm"
+          class="btn btn-success w-100 fw-bold btn-lg shadow-sm"
+          disabled
         >
           Sign Up
         </button>
       </form>
-      <div class="d-flex align-items-center my-4">
-        <hr class="flex-grow-1" />
-        <span class="px-3 text-muted small">or</span>
-        <hr class="flex-grow-1" />
+
+      <div class="divider">
+        <span>or</span>
       </div>
 
-<a
-  href="{% url 'google_login' %}"
-  class="btn btn-outline-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3"
->
-  <img
-    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-    alt=""
-    width="18"
-    height="18"
-  />
-  Continue with Google
-</a>
-      <p class="text-center text-muted mt-5 mb-0">
+      <a
+        href="{% url 'google_login' %}"
+        class="btn btn-outline-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 google-btn"
+      >
+        <img
+          src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+          alt=""
+          width="18"
+          height="18"
+        />
+        Continue with Google
+      </a>
+
+      <p class="auth-footer">
         Already have an account?
-        <a
-          href="{% url 'user.login' %}"
-          class="text-success fw-bold text-decoration-none"
-          >Login</a
-        >
+        <a href="{% url 'user.login' %}" class="text-success fw-bold text-decoration-none">Login</a>
       </p>
     </div>
   </div>
+</section>
 
-  <div class="modal fade" id="termsModal" tabindex="-1" aria-hidden="true">
+<!-- Terms Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-success text-white">
         <div class="d-flex align-items-center">
           <i class="bi bi-shield-check fs-4 me-2"></i>
-          <h5 class="modal-title fw-bold">
-            U-Trade Platform – Seller Terms & Conditions
+          <h5 class="modal-title fw-bold" id="termsModalLabel">
+            U-Trade Platform – Seller Terms &amp; Conditions
           </h5>
         </div>
         <button
@@ -200,16 +219,14 @@ Register {% endblock %} {% block content %} {% block extra_css %}
         ></button>
       </div>
 
-      <div class="modal-body text-dark p-4" style="font-size: 0.95rem; line-height: 1.6">
-        
-        <!-- Header Info -->
+      <div class="modal-body text-dark p-4 terms-body">
         <div class="text-center mb-4">
           <h6 class="fw-bold text-success mb-1">Business and Resource Generation Office</h6>
-          <p class="fw-semibold mb-1" style="font-size: 0.95rem;">
+          <p class="fw-semibold mb-1">
             U-TRADE PLATFORM: SELLER TERMS AND CONDITIONS OF SERVICE
           </p>
           <p class="text-muted small mb-1">
-            (For Central Student Government & Recognized Student Societies)
+            (For Central Student Government &amp; Recognized Student Societies)
           </p>
           <p class="text-danger small fw-semibold mb-1">
             CONFIDENTIAL: Internal campus operations only within CvSU Bacoor.
@@ -219,116 +236,98 @@ Register {% endblock %} {% block content %} {% block extra_css %}
           </p>
         </div>
 
-        <hr class="my-4">
+        <hr class="my-4" />
 
-        <!-- 1 -->
         <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            1. Acceptance of Seller Terms
-          </h6>
+          <h6 class="terms-section-title">1. Acceptance of Seller Terms</h6>
           <p class="text-muted">
-            Welcome to the merchant portal of U-Trade, the official e-commerce platform of Cavite State University – Bacoor Campus. 
-            By registering, accessing, or utilizing a Seller Dashboard as a representative of the Central Student Government (CSG) 
-            or a recognized student society, you agree to be bound by these Seller Terms and Conditions. These terms derive their 
-            authority directly from the platform bylaws and are concurred by the Office of the Vice President for Business and 
+            Welcome to the merchant portal of U-Trade, the official e-commerce platform of Cavite State University – Bacoor Campus.
+            By registering, accessing, or utilizing a Seller Dashboard as a representative of the Central Student Government (CSG)
+            or a recognized student society, you agree to be bound by these Seller Terms and Conditions. These terms derive their
+            authority directly from the platform bylaws and are concurred by the Office of the Vice President for Business and
             Resource Generation (OVBRG).
           </p>
         </section>
 
-        <!-- 2 -->
         <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            2. Seller Eligibility, Authentication, & Dashboard Access
-          </h6>
+          <h6 class="terms-section-title">2. Seller Eligibility, Authentication, &amp; Dashboard Access</h6>
           <ul class="text-muted">
             <li class="mb-2">
-              <strong>2.1 Institutional Authentication:</strong> All seller accounts must be registered and accessed using 
+              <strong>2.1 Institutional Authentication:</strong> All seller accounts must be registered and accessed using
               official CvSU institutional credentials to preserve a closed-loop, secure campus ecosystem.
             </li>
             <li class="mb-2">
-              <strong>2.2 Organizational Tier Restrictions:</strong> Seller privileges are strictly limited to verified accounts 
+              <strong>2.2 Organizational Tier Restrictions:</strong> Seller privileges are strictly limited to verified accounts
               belonging to the Central Student Government (CSG) and recognized Student Societies.
             </li>
             <li class="mb-0">
-              <strong>2.3 Dashboard Security:</strong> Financial ledgers, business generation metrics, and organizational 
-              management tools are isolated exclusively to authorized seller dashboards. Unauthorized access attempts will 
+              <strong>2.3 Dashboard Security:</strong> Financial ledgers, business generation metrics, and organizational
+              management tools are isolated exclusively to authorized seller dashboards. Unauthorized access attempts will
               result in immediate administrative intervention.
             </li>
           </ul>
         </section>
 
-        <!-- 3 -->
         <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            3. Mandatory Merchandise and Pricing Approvals
-          </h6>
+          <h6 class="terms-section-title">3. Mandatory Merchandise and Pricing Approvals</h6>
           <ul class="text-muted">
             <li class="mb-2">
-              <strong>3.1 Pre-Approval Requirement:</strong> The CSG and all recognized student societies acting as sellers 
-              on U-Trade must submit all proposed merchandise, items, and exact selling prices to the Business Generating 
+              <strong>3.1 Pre-Approval Requirement:</strong> The CSG and all recognized student societies acting as sellers
+              on U-Trade must submit all proposed merchandise, items, and exact selling prices to the Business Generating
               Office for rigorous review and formal written approval prior to publishing any listings on the platform.
             </li>
             <li class="mb-0">
-              <strong>3.2 Absolute Pricing Authority:</strong> The Business Generating Office maintains absolute authority 
-              over pricing controls to protect student consumer welfare and guarantee fair trade practices across the campus. 
+              <strong>3.2 Absolute Pricing Authority:</strong> The Business Generating Office maintains absolute authority
+              over pricing controls to protect student consumer welfare and guarantee fair trade practices across the campus.
               Any unapproved listings or unauthorized price modifications will be removed immediately by platform administrators.
             </li>
           </ul>
         </section>
 
-        <!-- 4 -->
         <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            4. Transactions, Receipts, and the 3% System Hosting Fee
-          </h6>
+          <h6 class="terms-section-title">4. Transactions, Receipts, and the 3% System Hosting Fee</h6>
           <ul class="text-muted">
             <li class="mb-2">
-              <strong>4.1 Payment Processing:</strong> The platform supports cash-upon-meetup transactions and verified 
+              <strong>4.1 Payment Processing:</strong> The platform supports cash-upon-meetup transactions and verified
               digital payment integrations. The system automatically generates and stores digital receipts for all completed sales.
             </li>
             <li class="mb-2">
-              <strong>4.2 Mandatory 3% Platform Fee:</strong> To support continuous server maintenance, system security, 
+              <strong>4.2 Mandatory 3% Platform Fee:</strong> To support continuous server maintenance, system security,
               and platform operations, a mandatory 3% Platform fee is automatically computed and retained per transaction.
             </li>
             <li class="mb-0">
-              <strong>4.3 Monthly Settlement Deadline:</strong> All accumulated financial obligations, fees, and hosting 
+              <strong>4.3 Monthly Settlement Deadline:</strong> All accumulated financial obligations, fees, and hosting
               deductions must be cleared directly with the Campus Cashiering Office on or before the 5th day of each succeeding month.
             </li>
           </ul>
         </section>
 
-        <!-- 5 -->
         <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            5. Fulfillment Protocols and Campus Safety Standards
-          </h6>
+          <h6 class="terms-section-title">5. Fulfillment Protocols and Campus Safety Standards</h6>
           <ul class="text-muted">
             <li class="mb-2">
-              <strong>5.1 Designated Drop-Off Zones:</strong> To maintain campus security, pedestrian safety, and an 
-              undisturbed academic atmosphere, all physical exchanges, item hand-offs, and buyer-seller meet-ups for orders 
-              processed via U-Trade must occur strictly within official campus drop-off zones designated by the administration 
+              <strong>5.1 Designated Drop-Off Zones:</strong> To maintain campus security, pedestrian safety, and an
+              undisturbed academic atmosphere, all physical exchanges, item hand-offs, and buyer-seller meet-ups for orders
+              processed via U-Trade must occur strictly within official campus drop-off zones designated by the administration
               (e.g., Student Center Hub or Gazebo areas).
             </li>
             <li class="mb-2">
-              <strong>5.2 Strict Delivery Restrictions:</strong> Unregulated classroom-to-classroom deliveries, 
+              <strong>5.2 Strict Delivery Restrictions:</strong> Unregulated classroom-to-classroom deliveries,
               building-to-building drops, and hallway peddling are strictly prohibited.
             </li>
             <li class="mb-0">
-              <strong>5.3 Prohibited Commodities:</strong> Listing, marketing, or selling weapons, illegal drugs, 
-              alcoholic beverages, tobacco, vape products, or unverified perishable food items is strictly banned. 
+              <strong>5.3 Prohibited Commodities:</strong> Listing, marketing, or selling weapons, illegal drugs,
+              alcoholic beverages, tobacco, vape products, or unverified perishable food items is strictly banned.
               Violations will trigger immediate account freezing.
             </li>
           </ul>
         </section>
 
-        <!-- 6 -->
         <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            6. Seller Violations and Disciplinary Sanctions
-          </h6>
+          <h6 class="terms-section-title">6. Seller Violations and Disciplinary Sanctions</h6>
           <p class="text-muted mb-2">
-            <strong>6.1 Grounds for Penalties:</strong> Failure by the CSG or any student society to secure prior 
-            Business Generating Office price approval, attempting to bypass platform transaction workflows, or defaulting 
+            <strong>6.1 Grounds for Penalties:</strong> Failure by the CSG or any student society to secure prior
+            Business Generating Office price approval, attempting to bypass platform transaction workflows, or defaulting
             on the monthly platform fee settlement deadline will invoke immediate administrative action.
           </p>
           <p class="text-muted mb-2">
@@ -341,32 +340,29 @@ Register {% endblock %} {% block content %} {% block extra_css %}
           </ul>
         </section>
 
-        <hr class="my-4">
+        <hr class="my-4" />
 
-        <!-- Signature Block -->
-        <div class="mt-4" style="font-size: 0.88rem;">
+        <div class="signature-block">
           <p class="mb-1"><strong>Prepared by:</strong></p>
           <p class="mb-3">
-            <strong>DIANA MAE M. BELARMINO, MMPA</strong><br>
+            <strong>DIANA MAE M. BELARMINO, MMPA</strong><br />
             Head, Business and Resource Generation Office
           </p>
-
           <p class="mb-1"><strong>Approved and Adopted by:</strong></p>
           <p class="mb-3">Cavite State University - Bacoor City Campus</p>
-
           <p class="mb-1"><strong>Concurred by:</strong></p>
           <p class="mb-0">
-            Office of the Vice President for Business and Resource Generation (OVPBaRG)<br>
+            Office of the Vice President for Business and Resource Generation (OVPBaRG)<br />
             Cavite State University - Don Severino de las Alas Campus
           </p>
         </div>
-
       </div>
 
       <div class="modal-footer border-0 p-4">
         <button
           type="button"
           class="btn btn-success w-100 fw-bold py-2 shadow-sm"
+          id="agreeTermsBtn"
           data-bs-dismiss="modal"
         >
           I AGREE TO THE TERMS
@@ -375,7 +371,8 @@ Register {% endblock %} {% block content %} {% block extra_css %}
     </div>
   </div>
 </div>
-</section>
+{% endblock %}
+
 {% block extra_js %}
 <script src="{% static 'UTrade_app/js/register.js' %}"></script>
-{% endblock %} {% endblock %}
+{% endblock %}

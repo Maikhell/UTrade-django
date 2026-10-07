@@ -1,104 +1,129 @@
-{% extends 'UTrade_app/base.html' %} {% load static %} {% block title %} Login
-Page {% endblock %} {% block content %} {% block extra_css %}
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}Login{% endblock %}
+
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'UTrade_app/css/login.css' %}" />
 {% endblock %}
 
-<section class="row g-0 vh-100 align-items-center bg-success">
-  <div
-    class="col-md-6 d-flex flex-column justify-content-center align-items-center p-5 text-center"
-  >
-    <div class="glass-bg p-4 mb-4">
-      <img
-        src="{% static 'UTrade_app/img/UTrade.png' %}"
-        alt="Logo"
-        class="img-fluid"
-        style="
-          max-width: 180px;
-          filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.2));
-        "
-      />
+{% block content %}
+<section class="auth-section">
+  <!-- Branding Panel -->
+  <div class="auth-branding d-none d-md-flex">
+    <div class="branding-inner">
+      <div class="glass-bg">
+        <img
+          src="{% static 'UTrade_app/img/UTrade.png' %}"
+          alt="UTrade Logo"
+          class="brand-logo"
+        />
+      </div>
+      <h1 class="brand-title">UTRADE</h1>
+      <p class="brand-tagline">Your gateway to smarter trading.</p>
     </div>
-    <h1 class="display-4 fw-bold text-white tracking-tight mb-0">UTRADE</h1>
-    <p class="text-light opacity-75 fw-medium mt-2">
-      Your gateway to smarter trading.
-    </p>
   </div>
 
-  <div class="col-md-6 d-flex justify-content-center align-items-center p-4">
-    <div
-      class="card border-0 shadow-lg p-4 p-md-5 rounded-3xl w-100"
-      style="max-width: 450px"
-    >
-      <h2 class="fw-bold text-dark mb-1">Welcome Back</h2>
-      <p class="text-muted mb-4">Please enter your details to sign in.</p>
+  <!-- Form Panel -->
+  <div class="auth-form-panel">
+    <!-- Mobile logo -->
+    <div class="mobile-brand d-md-none text-center mb-4">
+      <img
+        src="{% static 'UTrade_app/img/UTrade.png' %}"
+        alt="UTrade Logo"
+        class="mobile-logo"
+      />
+      <h1 class="mobile-title">UTRADE</h1>
+    </div>
+
+    <div class="auth-card">
+      <h2 class="auth-heading">Welcome Back</h2>
+      <p class="auth-subheading">Please enter your details to sign in.</p>
 
       {% if form.non_field_errors %}
-      <div class="alert alert-danger rounded-3 small">
+      <div class="alert alert-danger rounded-3 small mb-3">
         {% for error in form.non_field_errors %}
         <p class="mb-0">{{ error }}</p>
         {% endfor %}
       </div>
       {% endif %}
 
-      <form method="post" action="{% url 'user.login' %}">
+      {% if messages %}
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} rounded-3 small mb-3" role="alert">
+        {{ message }}
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      <form method="post" action="{% url 'user.login' %}" id="loginForm" novalidate>
         {% csrf_token %}
 
         <div class="mb-3">
-          <label class="form-label small fw-bold text-secondary"
-            >Student Number / Username</label
-          >
+          <label class="form-label" for="id_username">Student Number / Username</label>
           <input
             type="text"
             name="username"
+            id="id_username"
             placeholder="Enter student number or username"
-            class="form-control form-control-xl bg-light"
+            class="form-control form-control-lg bg-light"
             required
+            autocomplete="username"
+            value="{{ request.POST.username|default:'' }}"
           />
         </div>
 
-        <div class="mb-4">
-          <label class="form-label small fw-bold text-secondary"
-            >Password</label
-          >
-          <input
-            type="password"
-            name="password"
-            placeholder="••••••••••••"
-            class="form-control form-control-xl bg-light"
-            required
-          />
-        </div>
-
-        <div
-          class="d-flex justify-content-between align-items-center mb-4 small"
-        >
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="rememberMe" />
-            <label class="form-check-label text-muted" for="rememberMe"
-              >Remember me</label
-            >
+        <div class="mb-3">
+          <label class="form-label" for="id_password">Password</label>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              name="password"
+              id="id_password"
+              placeholder="••••••••••••"
+              class="form-control form-control-lg bg-light"
+              required
+              autocomplete="current-password"
+            />
+            <button type="button" class="toggle-password" data-target="id_password" aria-label="Show password">
+              <i class="bi bi-eye"></i>
+            </button>
           </div>
-          <a href="#" class="text-success fw-bold text-decoration-none"
-            >Forgot password?</a
-          >
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+          <div class="form-check">
+            <input
+              type="checkbox"
+              class="form-check-input"
+              id="rememberMe"
+              name="remember_me"
+              value="1"
+            />
+            <label class="form-check-label" for="rememberMe">Remember me</label>
+          </div>
+          <a
+            href="{% url 'password_reset' %}"
+            class="forgot-link"
+          >Forgot password?</a>
         </div>
 
         <button
           type="submit"
-          class="btn btn-success w-100 fw-bold btn-xl shadow-sm transition"
+          class="btn btn-success w-100 fw-bold btn-lg shadow-sm"
+          id="signInBtn"
         >
           Sign In
         </button>
       </form>
-      <div class="d-flex align-items-center my-4">
-        <hr class="flex-grow-1" />
-        <span class="px-3 text-muted small">or</span>
-        <hr class="flex-grow-1" />
+
+      <div class="divider">
+        <span>or</span>
       </div>
 
       <a
         href="{% url 'google_login' %}"
-        class="btn btn-outline-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3"
+        class="btn btn-outline-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3 google-btn"
       >
         <img
           src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -108,15 +133,16 @@ Page {% endblock %} {% block content %} {% block extra_css %}
         />
         Continue with Google
       </a>
-      <p class="text-center text-muted mt-5 mb-0">
+
+      <p class="auth-footer">
         Don't have an account?
-        <a
-          href="{% url 'user.register' %}"
-          class="text-success fw-bold text-decoration-none"
-          >Register</a
-        >
+        <a href="{% url 'user.register' %}" class="text-success fw-bold text-decoration-none">Register</a>
       </p>
     </div>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'UTrade_app/js/login.js' %}"></script>
 {% endblock %}

@@ -25,7 +25,6 @@ urlpatterns = [
     path('product/<int:pk>/', items_views.ProductDetailView.as_view(), name='product.detail'),
     path('cart/add-batch/', items_views.BatchAddToCartView.as_view(), name='cart.add_batch'),
     path('preorder/request-batch/', items_views.BatchPreOrderView.as_view(), name='preorder.request_batch'),
-    path('inventory/', user_views.UserProductsView.as_view(), name='seller_inventory'),
     path('product/<int:pk>/edit/', user_views.ProductUpdateView.as_view(), name='product.edit'),
     path('product/<int:pk>/delete/', user_views.ProductDeleteView.as_view(), name='product.delete'),
     path('wishlist/', items_views.WishlistListView.as_view(), name='wishlist.list'),
@@ -77,7 +76,7 @@ urlpatterns = [
     path('management/update/<str:type>/<int:id>/', management_views.update_status, name='management.update'),
     path('productview/<int:product_id>/', management_views.product_details, name='product.detail.view'),
     path('management/generate-report/', management_views.generate_report_pdf, name='generate.report.pdf'),
-    
+     path('management/dashboard/', user_views.UserProductsView.as_view(), name='dashboard'),
     path('management/cbrgu-products/',management_views.cbrgu_products,name='cbrgu_products'),
     
     # --- Alumni Dashboard & Reports ---

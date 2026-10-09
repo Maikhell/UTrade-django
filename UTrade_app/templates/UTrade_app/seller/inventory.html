@@ -17,30 +17,11 @@
   }
 
   /* On large / ultra-wide screens: fixed narrower sidebar + main content fills remaining space */
-  @media (min-width: 1400px) {
-    .seller-col {
-      flex: 0 0 220px !important;
-      max-width: 220px !important;
-      width: 220px !important;
-    }
-    .main-col {
-      flex: 1 1 auto !important;
-      max-width: none !important;
-      width: auto !important;
-    }
-  }
-
-  @media (min-width: 1920px) {
-    .seller-col {
-      flex: 0 0 240px !important;
-      max-width: 240px !important;
-      width: 240px !important;
-    }
-    .container-fluid {
-      padding-left: 1.75rem;
-      padding-right: 1.75rem;
-    }
-  }
+ .container-fluid {
+  max-width: 1600px;
+  margin-left: auto;
+  margin-right: auto;
+}
 
   .stat-card {
     transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -68,11 +49,7 @@
     color: #0d6efd !important;
     font-weight: 600;
   }
-  .container-fluid {
-  max-width: 1600px;
-  margin-left: auto;
-  margin-right: auto;
-}
+
   .btn-loading {
     pointer-events: none;
     opacity: 0.85;
@@ -110,7 +87,7 @@
     </div>
 
     <!-- ==================== SIDEBAR ==================== -->
-    <div class="col-md-3 col-lg-2 seller-col">
+    <div class="col-md-3 col-lg-2">
       <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm"
            tabindex="-1"
            id="sellerSidebar"
@@ -260,7 +237,8 @@
     </div>
 
     <!-- ==================== MAIN CONTENT ==================== -->
-    <main class="col-md-9 col-lg-10 px-3 px-md-4 main-col">
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
+
       <!-- Header -->
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
@@ -271,7 +249,7 @@
 
       </div>
       <div class="d-flex flex-wrap gap-2">
-    <div class="dropdown">
+  <div class="dropdown">
     <button class="btn btn-outline-success rounded-pill dropdown-toggle"
             type="button" data-bs-toggle="dropdown">
       <i class="bi bi-file-earmark-pdf me-1"></i> Sales Report

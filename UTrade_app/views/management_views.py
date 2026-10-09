@@ -802,8 +802,10 @@ def cbrgu_products(request):
     search_query = request.GET.get('search', '').strip()
     status_filter = request.GET.get('status', '').strip()
 
+    # Only products whose seller has role = management
     base_qs = (
         Product.objects
+        .filter(seller__user_role='management')          # ← key filter
         .select_related('seller', 'category')
         .prefetch_related('variants', 'images')
         .order_by('-created_at')
@@ -820,10 +822,11 @@ def cbrgu_products(request):
             | Q(variants__price__icontains=search_query)
         ).distinct()
 
-    active_count   = Product.objects.filter(status='Approved').count()
-    pending_count  = Product.objects.filter(status='Pending').count()
-    unlisted_count = Product.objects.filter(status='Unlisted').count()
-    rejected_count = Product.objects.filter(status='Rejected').count()
+    # Counts also restricted to management products
+    active_count   = base_qs.filter(status='Approved').count()
+    pending_count  = base_qs.filter(status='Pending').count()
+    unlisted_count = base_qs.filter(status='Unlisted').count()
+    rejected_count = base_qs.filter(status='Rejected').count()
 
     context = {
         'active_products':   base_qs.filter(status='Approved')[:24],

@@ -158,7 +158,7 @@ class ManagementPanelView(LoginRequiredMixin, View):
             'organizations': organizations,
         }
 
-        return render(request, 'UTrade_app/management/dashboard/dashboard.html', context)
+        return render(request, 'UTrade_app/management/management_panel/dashboard.html', context)
 
 class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Product
@@ -850,4 +850,4 @@ def cbrgu_products(request):
         'total_income': 0,          # fill later if you want
         'incoming_preorder_count': 0,
     }
-    return render(request, 'UTrade_app/management/dashboard/cbrgu_products.html', context)
+    return render(request, 'UTrade_app/management/management_panel/cbrgu_products.html', context)

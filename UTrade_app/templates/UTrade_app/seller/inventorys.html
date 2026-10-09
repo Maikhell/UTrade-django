@@ -120,101 +120,73 @@
 
             <!-- Navigation -->
             <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
-
-            <!-- Management Panel -->
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-briefcase"></i> Management Panel
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
-                    <i class="bi bi-check2-square text-success"></i> Active Listings
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
-                    <i class="bi bi-cash-stack text-success"></i> Remittance
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <!-- Dashboard (active / default) -->
-            <div class="mb-3">
-              <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1"
-                 href="#dashboard-stats">
-                <i class="bi bi-speedometer2"></i> Dashboard
-              </a>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#my-products">
-                    <i class="bi bi-box-seam"></i> My Products
-                    <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count }}</span>
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <!-- Orders -->
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-cart-fill"></i> Orders
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="#orders-section">
-                    <i class="bi bi-inbox text-primary"></i> Orders
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="#preorders-section">
-                    <i class="bi bi-calendar-check text-info"></i> Pre-Orders
-                    {% if incoming_preorder_count %}
-                      <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>
-                    {% endif %}
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <!-- Security -->
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-shield-lock"></i> Security
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
-                    <i class="bi bi-journal-text"></i> Logs and Reports
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
-                    <i class="bi bi-exclamation-triangle"></i> Prohibited Items
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
-                    <i class="bi bi-tags"></i> Categories
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
-                    <i class="bi bi-geo-alt"></i> Pickup Spots
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <!-- Remittance (top-level) -->
-            <div class="mb-3">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1" href="#">
-                <i class="bi bi-cash-coin"></i> Remittance
-              </a>
-            </div>
+            <ul class="nav flex-column gap-1">
+              <li class="nav-item">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark" href="#dashboard-stats">
+                  <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link sidebar-link sidebar-tab-link d-flex align-items-center gap-2 rounded-3 text-dark"
+                   href="#incoming-pane" data-bs-target="#incoming-pane">
+                  <i class="bi bi-inbox text-primary"></i> Incoming
+                  {% if incoming_orders.count %}
+                    <span class="badge bg-primary rounded-pill ms-auto">{{ incoming_orders.count }}</span>
+                  {% endif %}
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link sidebar-link sidebar-tab-link d-flex align-items-center gap-2 rounded-3 text-dark"
+                   href="#accepted-pane" data-bs-target="#accepted-pane">
+                  <i class="bi bi-check2-all text-success"></i> Ready for Meetup
+                  {% if accepted_orders.count %}
+                    <span class="badge bg-success rounded-pill ms-auto">{{ accepted_orders.count }}</span>
+                  {% endif %}
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link sidebar-link sidebar-tab-link d-flex align-items-center gap-2 rounded-3 text-dark"
+                   href="#completed-pane" data-bs-target="#completed-pane">
+                  <i class="bi bi-clipboard-check text-secondary"></i> Completed
+                  {% if completed_orders.count %}
+                    <span class="badge bg-secondary rounded-pill ms-auto">{{ completed_orders.count }}</span>
+                  {% endif %}
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark" href="#my-products">
+                  <i class="bi bi-box-seam"></i> My Products
+                  <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count }}</span>
+                </a>
+              </li>
+               <li class="nav-item">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark" href="#my-products">
+                  <i class="bi bi-box-seam"></i> Active Listings
+                  <span class="badge bg-light text-dark border rounded-pill ms-auto"></span>
+                </a>
+                  <li class="nav-item">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark" href="#my-products">
+                  <i class="bi bi-box-seam"></i> Pending Approval
+                  <span class="badge bg-light text-dark border rounded-pill ms-auto"></span>
+                </a>
+              </li>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark" href="#my-products">
+                  <i class="bi bi-box-seam"></i> 
+                  <span class="badge bg-light text-dark border rounded-pill ms-auto"></span>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark"
+                   href="#preorders-section">
+                  <i class="bi bi-calendar-check text-info"></i> Pre-Orders
+                  {% if incoming_preorder_count %}
+                    <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>
+                  {% endif %}
+                </a>
+              </li>
+            </ul>
 
             <hr class="my-3 opacity-25">
 

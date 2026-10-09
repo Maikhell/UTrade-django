@@ -119,20 +119,20 @@
                   </a>
                 </li>
                 <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
                     <i class="bi bi-cash-stack text-success"></i> Remittance
                   </a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
                      href="{% url 'management.panel' %}">
-                    <i class="bi bi-speedometer2"></i> Dashboard
+                    <i class="bi bi-speedometer2 text-success"></i> Dashboard
                   </a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
                      href="{% url 'cbrgu_products' %}">
-                    <i class="bi bi-box-seam"></i> CBRGU Products
+                    <i class="bi bi-box-seam text-success" ></i> CBRGU Products
                     <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count|default:0 }}</span>
                   </a>
                 </li>

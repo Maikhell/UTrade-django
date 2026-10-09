@@ -240,7 +240,7 @@
 
       {% elif user.user_role == 'management' %}
         <div class="col-12">
-          <a href="{% url 'management.panel' %}"
+          <a href="{% url 'dashboard' %}"
              class="card h-100 p-3 p-md-4 rounded-4 bg-light text-dark action-card border-warning-hover text-decoration-none">
             {% if mgmt_pending_count %}
               <span class="notif-bubble">{{ mgmt_pending_count }}</span>

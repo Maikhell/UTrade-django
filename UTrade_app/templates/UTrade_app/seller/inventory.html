@@ -17,12 +17,16 @@
   }
 
   /* On large / ultra-wide screens: fixed narrower sidebar + main content fills remaining space */
- .container-fluid {
-  max-width: 1600px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
+  @media (min-width: 1400px) {
+    .container,
+    .container-sm,
+    .container-md,
+    .container-lg,
+    .container-xl,
+    .container-xxl {
+      max-width: 1600px !important;
+    }
+  }
   .stat-card {
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   }
@@ -242,8 +246,13 @@
       <!-- Header -->
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
-          <h2 class="fw-bold mb-1">My Shop Manager</h2>
+          {% if request.user.user_role == 'management' %}
+          <h2 class="fw-bold mb-1">Management Dashboard</h2>
           <p class="text-muted mb-0">Manage your products, orders and earnings</p>
+          {% else  %}
+            <h2 class="fw-bold mb-1">Organization Dashboard</h2>
+          <p class="text-muted mb-0">Manage your products, orders and earnings</p>
+          {% endif %}
         </div>
         
 

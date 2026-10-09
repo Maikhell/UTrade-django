@@ -795,3 +795,79 @@ def view_remittance_receipt(request, ledger_id):
         'printed_at': timezone.now(),
     }
     return render(request, 'UTrade_app/reports/remittance_receipt.html', context)
+
+@login_required
+@user_passes_test(is_management)
+def cbrgu_products(request):
+    """
+    Campus Business and Resource Generation Unit – Product Management
+    Green-themed inventory view with status tabs.
+    """
+    search_query = request.GET.get('search', '').strip()
+    status_filter = request.GET.get('status', '').strip()  # Approved / Pending / Inactive / Rejected
+
+    base_qs = (
+        Product.objects
+        .select_related('seller', 'category')
+        .prefetch_related('variants', 'images')
+        .order_by('-created_at')
+    )
+
+    if search_query:
+        base_qs = base_qs.filter(
+            Q(name__icontains=search_query)
+            | Q(id__icontains=search_query)
+            | Q(seller__first_name__icontains=search_query)
+            | Q(seller__last_name__icontains=search_query)
+            | Q(seller__username__icontains=search_query)
+            | Q(variants__price__icontains=search_query)
+        ).distinct()
+
+    # Counts (always full counts, independent of current filter)
+    active_count   = Product.objects.filter(status='Approved').count()
+    pending_count  = Product.objects.filter(status='Pending').count()
+    inactive_count = Product.objects.filter(status='Inactive').count()
+    rejected_count = Product.objects.filter(status='Rejected').count()
+
+    # Apply status filter for the main list (used by pagination)
+    if status_filter:
+        products = base_qs.filter(status=status_filter)
+    else:
+        products = base_qs.filter(status='Approved')  # default to Active
+
+    # Pagination
+    paginator = Paginator(products, 12)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    # Separate querysets for each tab (so tabs stay populated)
+    active_products   = base_qs.filter(status='Approved')[:12]
+    pending_products  = base_qs.filter(status='Pending')[:12]
+    inactive_products = base_qs.filter(status='Inactive')[:12]
+    rejected_products = base_qs.filter(status='Rejected')[:12]
+
+    # If a status filter is active, use the paginated page for that tab
+    if status_filter == 'Approved':
+        active_products = page_obj
+    elif status_filter == 'Pending':
+        pending_products = page_obj
+    elif status_filter == 'Inactive':
+        inactive_products = page_obj
+    elif status_filter == 'Rejected':
+        rejected_products = page_obj
+
+    context = {
+        'active_products': active_products,
+        'pending_products': pending_products,
+        'inactive_products': inactive_products,
+        'rejected_products': rejected_products,
+        'active_count': active_count,
+        'pending_count': pending_count,
+        'inactive_count': inactive_count,
+        'rejected_count': rejected_count,
+        'status_filter': status_filter,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+        'org_name': 'Campus Business and Resource Generation Unit',
+    }
+    return render(request, 'UTrade_app/management/dashboard/cbrgu_products.html', context)

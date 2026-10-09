@@ -77,7 +77,9 @@ urlpatterns = [
     path('management/update/<str:type>/<int:id>/', management_views.update_status, name='management.update'),
     path('productview/<int:product_id>/', management_views.product_details, name='product.detail.view'),
     path('management/generate-report/', management_views.generate_report_pdf, name='generate.report.pdf'),
-
+    
+    path('management/cbrgu-products/',management_views.cbrgu_products,name='cbrgu_products'),
+    
     # --- Alumni Dashboard & Reports ---
     path('alumni-association/', alumni_views.alumni_dashboard_view, name='alumni.dashboard'),
     path('alumni-association/alumni/<int:user_id>/', alumni_views.update_alumni_status, name='alumni.update.status'),

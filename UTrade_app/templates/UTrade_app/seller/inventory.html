@@ -1,7 +1,7 @@
 {% extends 'UTrade_app/base.html' %}
 
 {% block title %}
-  My Shop Manager
+    Management Dashboard 
 {% endblock %}
 
 {% block content %}
@@ -160,8 +160,8 @@
               </a>
               <ul class="nav flex-column gap-1 ms-3 mt-1">
                 <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#my-products">
-                    <i class="bi bi-box-seam"></i> My Products
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'cbrgu_products' %}">
+                    <i class="bi bi-box-seam"></i> CBRGU Products
                     <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count }}</span>
                   </a>
                 </li>

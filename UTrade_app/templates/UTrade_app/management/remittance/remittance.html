@@ -8,6 +8,31 @@
 {% endblock %}
 
 {% block content %}
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  Inactive Products
+{% endblock %}
+
+{% block content %}
+{% block extra_css %}
+  <style>
+    @media (min-width: 1400px) {
+    .container,
+    .container-sm,
+    .container-md,
+    .container-lg,
+    .container-xl,
+    .container-xxl {
+      max-width: 1600px !important;
+    }
+  }
+  </style>
+{% endblock %}
+{% csrf_token %}
+
+{% endblock %}
 <div class="container-fluid py-4 px-3 px-lg-4">
 
   <!-- Breadcrumb / Back -->

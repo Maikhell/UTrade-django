@@ -4,6 +4,8 @@
 {% block title %}
   Management Dashboard | {{ org_name }}
 {% endblock %}
+
+{% block content %}
 {% block extra_css %}
   <style>
       @media (min-width: 1400px) {
@@ -18,7 +20,6 @@
   }
   </style>
 {% endblock %}
-{% block content %}
 {% csrf_token %}
 <div class="container py-4">
   <nav aria-label="breadcrumb" class="mb-4">

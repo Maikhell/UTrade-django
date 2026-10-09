@@ -1,0 +1,291 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  CBRGU Products | Management
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Wider container on large screens */
+  @media (min-width: 1400px) {
+    .container, .container-sm, .container-md,
+    .container-lg, .container-xl, .container-xxl {
+      max-width: 1600px !important;
+    }
+  }
+
+  /* Green / Success theme overrides */
+  :root {
+    --success-soft: #e8f5e9;
+    --success-border: #a5d6a7;
+  }
+
+  .nav-tabs .nav-link {
+    color: #198754;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  .nav-tabs .nav-link:hover {
+    color: #146c43;
+    border-bottom-color: #a5d6a7;
+  }
+  .nav-tabs .nav-link.active {
+    color: #146c43 !important;
+    background: transparent !important;
+    border-bottom: 3px solid #198754 !important;
+  }
+
+  .product-card {
+    border: 1px solid #d1e7dd;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .product-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(25, 135, 84, 0.15) !important;
+  }
+
+  .badge-status-approved { background-color: #198754; }
+  .badge-status-pending  { background-color: #ffc107; color: #000; }
+  .badge-status-inactive { background-color: #6c757d; }
+  .badge-status-rejected { background-color: #dc3545; }
+
+  .filter-card {
+    background: linear-gradient(135deg, #f0faf4 0%, #e8f5e9 100%);
+    border: 1px solid var(--success-border);
+  }
+
+  .stat-pill {
+    background: #198754;
+    color: white;
+    border-radius: 50rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div class="d-flex align-items-center">
+          <div class="bg-success text-white rounded-4 p-3 me-3 shadow-sm">
+            <i class="bi bi-box2-fill fs-3"></i>
+          </div>
+          <div>
+            <h2 class="fw-bold mb-0 text-success">Campus Business and Resource Generation Unit</h2>
+            <p class="text-muted mb-0">Manage product listings • Active, Pending, Inactive & Rejected</p>
+          </div>
+        </div>
+        <div>
+          <a href="{% url 'generate_report_pdf' %}?report_type=all_products"
+             class="btn btn-success rounded-pill px-4 shadow-sm">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Generate Report
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats summary -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-body d-flex align-items-center">
+          <div class="bg-success bg-opacity-10 text-success rounded-3 p-3 me-3">
+            <i class="bi bi-check-circle-fill fs-4"></i>
+          </div>
+          <div>
+            <div class="text-muted small">Active</div>
+            <div class="fw-bold fs-4">{{ active_count|default:0 }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-body d-flex align-items-center">
+          <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-3 me-3">
+            <i class="bi bi-hourglass-split fs-4"></i>
+          </div>
+          <div>
+            <div class="text-muted small">Pending</div>
+            <div class="fw-bold fs-4">{{ pending_count|default:0 }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-body d-flex align-items-center">
+          <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-3 me-3">
+            <i class="bi bi-pause-circle-fill fs-4"></i>
+          </div>
+          <div>
+            <div class="text-muted small">Inactive</div>
+            <div class="fw-bold fs-4">{{ inactive_count|default:0 }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card border-0 shadow-sm rounded-4 h-100">
+        <div class="card-body d-flex align-items-center">
+          <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-3 me-3">
+            <i class="bi bi-x-circle-fill fs-4"></i>
+          </div>
+          <div>
+            <div class="text-muted small">Rejected</div>
+            <div class="fw-bold fs-4">{{ rejected_count|default:0 }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs border-0 mb-3" id="productStatusTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if status_filter == 'Approved' or not status_filter %}active{% endif %} px-4"
+              id="active-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#active-pane"
+              type="button" role="tab">
+        Active Products
+        <span class="stat-pill ms-1">{{ active_count|default:0 }}</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if status_filter == 'Pending' %}active{% endif %} px-4"
+              id="pending-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#pending-pane"
+              type="button" role="tab">
+        Pending Products
+        <span class="stat-pill ms-1 bg-warning text-dark">{{ pending_count|default:0 }}</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if status_filter == 'Inactive' %}active{% endif %} px-4"
+              id="inactive-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#inactive-pane"
+              type="button" role="tab">
+        Inactive Products
+        <span class="stat-pill ms-1 bg-secondary">{{ inactive_count|default:0 }}</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if status_filter == 'Rejected' %}active{% endif %} px-4"
+              id="rejected-tab"
+              data-bs-toggle="tab"
+              data-bs-target="#rejected-pane"
+              type="button" role="tab">
+        Rejected Products
+        <span class="stat-pill ms-1 bg-danger">{{ rejected_count|default:0 }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <!-- Search / Filter bar -->
+  <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 filter-card">
+    <form method="GET" class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label small fw-semibold text-success">Search</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white border-end-0 text-success">
+            <i class="bi bi-search"></i>
+          </span>
+          <input type="text"
+                 name="search"
+                 class="form-control border-start-0"
+                 placeholder="Search product name, ID, seller or price..."
+                 value="{{ request.GET.search }}">
+        </div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-success">Status</label>
+        <select name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <option value="Approved" {% if status_filter == 'Approved' %}selected{% endif %}>Active Products</option>
+          <option value="Pending"  {% if status_filter == 'Pending' %}selected{% endif %}>Pending Products</option>
+          <option value="Inactive" {% if status_filter == 'Inactive' %}selected{% endif %}>Inactive Products</option>
+          <option value="Rejected" {% if status_filter == 'Rejected' %}selected{% endif %}>Rejected Products</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-success w-100">
+          <i class="bi bi-funnel me-1"></i> Filter
+        </button>
+      </div>
+      <div class="col-md-2">
+        <a href="{% url 'cbrgu_products' %}" class="btn btn-outline-success w-100">
+          <i class="bi bi-arrow-clockwise me-1"></i> Reset
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tab panes -->
+  <div class="tab-content" id="productStatusTabContent">
+
+    <!-- ACTIVE -->
+    <div class="tab-pane fade {% if status_filter == 'Approved' or not status_filter %}show active{% endif %}"
+         id="active-pane" role="tabpanel">
+      {% include 'UTrade_app/management/partials/product_grid.html' with products=active_products empty_msg="No active products found." %}
+    </div>
+
+    <!-- PENDING -->
+    <div class="tab-pane fade {% if status_filter == 'Pending' %}show active{% endif %}"
+         id="pending-pane" role="tabpanel">
+      {% include 'UTrade_app/management/partials/product_grid.html' with products=pending_products empty_msg="No pending products." %}
+    </div>
+
+    <!-- INACTIVE -->
+    <div class="tab-pane fade {% if status_filter == 'Inactive' %}show active{% endif %}"
+         id="inactive-pane" role="tabpanel">
+      {% include 'UTrade_app/management/partials/product_grid.html' with products=inactive_products empty_msg="No inactive products." %}
+    </div>
+
+    <!-- REJECTED -->
+    <div class="tab-pane fade {% if status_filter == 'Rejected' %}show active{% endif %}"
+         id="rejected-pane" role="tabpanel">
+      {% include 'UTrade_app/management/partials/product_grid.html' with products=rejected_products empty_msg="No rejected products." %}
+    </div>
+
+  </div>
+
+  <!-- Pagination (shared) -->
+  {% if is_paginated %}
+  <nav class="mt-4" aria-label="Product pagination">
+    <ul class="pagination justify-content-center">
+      {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link text-success" href="?page={{ page_obj.previous_page_number }}&search={{ request.GET.search }}&status={{ status_filter }}">
+            Previous
+          </a>
+        </li>
+      {% endif %}
+      <li class="page-item disabled">
+        <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+      </li>
+      {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link text-success" href="?page={{ page_obj.next_page_number }}&search={{ request.GET.search }}&status={{ status_filter }}">
+            Next
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -4,7 +4,20 @@
 {% block title %}
   Management Dashboard | {{ org_name }}
 {% endblock %}
-
+{% block extra_css %}
+  <style>
+      @media (min-width: 1400px) {
+    .container,
+    .container-sm,
+    .container-md,
+    .container-lg,
+    .container-xl,
+    .container-xxl {
+      max-width: 1600px !important;
+    }
+  }
+  </style>
+{% endblock %}
 {% block content %}
 {% csrf_token %}
 <div class="container py-4">

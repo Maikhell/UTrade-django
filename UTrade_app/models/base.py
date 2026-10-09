@@ -16,7 +16,7 @@ class BaseItem(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(
         max_length=10, 
-        choices=[('Pending', 'Pending'), ('Approved', 'Approved'), ('Rejected', 'Rejected')],
+        choices=[('PENDING', 'Pending'), ('APPROVED', 'Approved'), ('REJECTED', 'Rejected'), ('ACTIVE', 'Active'), ('INACTIVE', 'Inactive')],
         default='Pending'
     )
     objects = SearchQuerySet.as_manager()

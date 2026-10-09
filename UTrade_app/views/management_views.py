@@ -158,7 +158,7 @@ class ManagementPanelView(LoginRequiredMixin, View):
             'organizations': organizations,
         }
 
-        return render(request, 'UTrade_app/management/dashboard.html', context)
+        return render(request, 'UTrade_app/management/dashboard/dashboard.html', context)
 
 class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Product

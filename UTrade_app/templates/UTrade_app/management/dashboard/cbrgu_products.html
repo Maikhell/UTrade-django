@@ -239,25 +239,25 @@
     <!-- ACTIVE -->
     <div class="tab-pane fade {% if status_filter == 'Approved' or not status_filter %}show active{% endif %}"
          id="active-pane" role="tabpanel">
-      {% include 'UTrade_app/management/partials/product_grid.html' with products=active_products empty_msg="No active products found." %}
+      {% include 'UTrade_app/partials/product_grid.html' with products=active_products empty_msg="No active products found." %}
     </div>
 
     <!-- PENDING -->
     <div class="tab-pane fade {% if status_filter == 'Pending' %}show active{% endif %}"
          id="pending-pane" role="tabpanel">
-      {% include 'UTrade_app/management/partials/product_grid.html' with products=pending_products empty_msg="No pending products." %}
+      {% include 'UTrade_app/partials/product_grid.html' with products=pending_products empty_msg="No pending products." %}
     </div>
 
     <!-- INACTIVE -->
     <div class="tab-pane fade {% if status_filter == 'Inactive' %}show active{% endif %}"
          id="inactive-pane" role="tabpanel">
-      {% include 'UTrade_app/management/partials/product_grid.html' with products=inactive_products empty_msg="No inactive products." %}
+      {% include 'UTrade_app/partials/product_grid.html' with products=inactive_products empty_msg="No inactive products." %}
     </div>
 
     <!-- REJECTED -->
     <div class="tab-pane fade {% if status_filter == 'Rejected' %}show active{% endif %}"
          id="rejected-pane" role="tabpanel">
-      {% include 'UTrade_app/management/partials/product_grid.html' with products=rejected_products empty_msg="No rejected products." %}
+      {% include 'UTrade_app/partials/product_grid.html' with products=rejected_products empty_msg="No rejected products." %}
     </div>
 
   </div>

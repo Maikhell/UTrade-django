@@ -113,7 +113,7 @@
   <a href="#" onclick="history.back(); return false;"
      class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
     <i class="bi bi-arrow-left" aria-hidden="true"></i>
-    <span>Back to Account</span>
+    <span>Back to Dashboard</span>
   </a>
 </nav>
 
@@ -193,14 +193,14 @@
                 </li>
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="{% url 'management.panel' %}">
-                    <i class="bi bi-speedometer2"></i> Dashboard
+                     href="{% url 'seller_inventory' %}">
+                    <i class="bi bi-speedometer2" text-success></i> Dashboard
                   </a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 py-1"
                      href="{% url 'cbrgu_products' %}">
-                    <i class="bi bi-box-seam"></i> Products
+                    <i class="bi bi-box-seam text-success"></i> Products
                     <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count }}</span>
                   </a>
                 </li>

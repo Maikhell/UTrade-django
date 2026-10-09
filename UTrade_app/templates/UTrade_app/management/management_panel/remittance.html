@@ -80,12 +80,12 @@
           <div class="seller-sidebar p-3">
 
             <!-- Quick Stats -->
-           div class="mb-4">
+            <div class="mb-4">
               <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
               <div class="d-flex flex-column gap-2 small">
                 <div class="d-flex justify-content-between">
                   <span>Products</span>
-                  <strong>{{ products.count }}</strong>
+                  <strong>{{ products.count|default:0 }}</strong>
                 </div>
                 <div class="d-flex justify-content-between">
                   <span>Total Stocks</span>
@@ -132,7 +132,7 @@
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
                      href="{% url 'cbrgu_products' %}">
-                    <i class="bi bi-box-seam text-success" ></i> CBRGU Products
+                    <i class="bi bi-box-seam text-success"></i> CBRGU Products
                     <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count|default:0 }}</span>
                   </a>
                 </li>
@@ -486,4 +486,4 @@
     </main>
   </div>
 </div>
-{% endblock %}
+{% endblock %}  

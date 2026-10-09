@@ -6,12 +6,39 @@
 
 {% block content %}
 <style>
+  /* ===== Responsive layout improvements ===== */
   @media (min-width: 768px) {
     .seller-sidebar {
       position: sticky;
       top: 1rem;
       height: calc(100vh - 2rem);
       overflow-y: auto;
+    }
+  }
+
+  /* On large / ultra-wide screens: fixed narrower sidebar + main content fills remaining space */
+  @media (min-width: 1400px) {
+    .seller-col {
+      flex: 0 0 220px !important;
+      max-width: 220px !important;
+      width: 220px !important;
+    }
+    .main-col {
+      flex: 1 1 auto !important;
+      max-width: none !important;
+      width: auto !important;
+    }
+  }
+
+  @media (min-width: 1920px) {
+    .seller-col {
+      flex: 0 0 240px !important;
+      max-width: 240px !important;
+      width: 240px !important;
+    }
+    .container-fluid {
+      padding-left: 1.75rem;
+      padding-right: 1.75rem;
     }
   }
 

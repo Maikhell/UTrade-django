@@ -92,6 +92,14 @@ urlpatterns = [
     path('management/security/bad-words/add/', management_views.add_bad_word, name='add_bad_word'),
     path('management/security/categories/add/', management_views.add_category, name='add_category'),
     path('management/security/meetups/add/', management_views.add_meetup, name='add_meetup'),
+    path('management/remittance/', management_views.remittance_management, name='remittance_management'),
+    path('management/remittance/notify/<int:ledger_id>/', management_views.notify_org_remittance, name='notify_org_remittance'),
+    path('management/remittance/record/', management_views.record_platform_remittance, name='record_platform_remittance'),
+    # existing receipt view remains:
+    path('management/remittance/receipt/<int:remittance_id>/', management_views.platform_fee_receipt, name='platform_fee_receipt'),
+    path('remittance/logs/', management_views.remittance_logs_view, name='remittance_logs'),
+    # View/download receipt URL endpoint
+    path('remittance/receipt/<int:ledger_id>/', management_views.view_remittance_receipt, name='view_remittance_receipt'),
     
     # Delete Operations
     path('management/security/delete-word/<int:word_id>/', management_views.delete_bad_word, name='delete_bad_word'),
@@ -118,13 +126,6 @@ urlpatterns = [
     path('variant/<int:pk>/delete/', management_views.variant_delete, name='variant.delete'),
     path('product/<int:product_id>/variant/create/',user_views.variant_create,name='variant.create'),
     
-    path('management/remittance/', management_views.remittance_management, name='remittance_management'),
-    path('management/remittance/notify/<int:ledger_id>/', management_views.notify_org_remittance, name='notify_org_remittance'),
-    path('management/remittance/record/', management_views.record_platform_remittance, name='record_platform_remittance'),
-    # existing receipt view remains:
-    path('management/remittance/receipt/<int:remittance_id>/', management_views.platform_fee_receipt, name='platform_fee_receipt'),
-    path('remittance/logs/', management_views.remittance_logs_view, name='remittance_logs'),
-    # View/download receipt URL endpoint
-    path('remittance/receipt/<int:ledger_id>/', management_views.view_remittance_receipt, name='view_remittance_receipt'),
+
     ]
 

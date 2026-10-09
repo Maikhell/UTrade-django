@@ -617,7 +617,7 @@ def remittance_management(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    return render(request, 'UTrade_app/management/remittance.html', {
+    return render(request, 'UTrade_app/management/management_panel/remittance.html', {
         'page_obj': page_obj,
     })
 
@@ -774,7 +774,7 @@ def remittance_logs_view(request):
     context = {
         'paid_ledgers': paid_ledgers
     }
-    return render(request, 'UTrade_app/management/remittance_logs.html', context)
+    return render(request, 'UTrade_app/management/management_panel/remittance_logs.html', context)
 
 @login_required
 def view_remittance_receipt(request, ledger_id):

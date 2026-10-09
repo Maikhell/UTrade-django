@@ -802,12 +802,11 @@ def cbrgu_products(request):
     search_query = request.GET.get('search', '').strip()
     status_filter = request.GET.get('status', '').strip()
 
-    # Only products whose seller has role = management
     base_qs = (
         Product.objects
-        .filter(seller__user_role='management')          # ← key filter
+        .filter(seller__user_role='management')
         .select_related('seller', 'category')
-        .prefetch_related('variants', 'images')
+        .prefetch_related('variants', 'images', 'reviews')
         .order_by('-created_at')
     )
 
@@ -815,28 +814,40 @@ def cbrgu_products(request):
         base_qs = base_qs.filter(
             Q(name__icontains=search_query)
             | Q(id__icontains=search_query)
+            | Q(product_code__icontains=search_query)
             | Q(seller__first_name__icontains=search_query)
             | Q(seller__last_name__icontains=search_query)
             | Q(seller__username__icontains=search_query)
             | Q(seller__display_name__icontains=search_query)
             | Q(variants__price__icontains=search_query)
+            | Q(created_at__icontains=search_query)   # date search (YYYY-MM-DD works)
         ).distinct()
 
-    # Counts also restricted to management products
+    # Counts
     active_count   = base_qs.filter(status='Approved').count()
     pending_count  = base_qs.filter(status='Pending').count()
     unlisted_count = base_qs.filter(status='Unlisted').count()
     rejected_count = base_qs.filter(status='Rejected').count()
 
+    # Sidebar stats
+    total_stocks = sum(p.get_total_stock for p in base_qs)
+    total_products = base_qs.count()
+
     context = {
-        'active_products':   base_qs.filter(status='Approved')[:24],
-        'pending_products':  base_qs.filter(status='Pending')[:24],
-        'unlisted_products': base_qs.filter(status='Unlisted')[:24],
-        'rejected_products': base_qs.filter(status='Rejected')[:24],
+        'active_products':   base_qs.filter(status='Approved')[:48],
+        'pending_products':  base_qs.filter(status='Pending')[:48],
+        'unlisted_products': base_qs.filter(status='Unlisted')[:48],
+        'rejected_products': base_qs.filter(status='Rejected')[:48],
         'active_count': active_count,
         'pending_count': pending_count,
         'unlisted_count': unlisted_count,
         'rejected_count': rejected_count,
         'status_filter': status_filter,
+        # Sidebar
+        'products': base_qs,
+        'total_stocks': total_stocks,
+        'total_orders': 0,          # fill later if you want
+        'total_income': 0,          # fill later if you want
+        'incoming_preorder_count': 0,
     }
     return render(request, 'UTrade_app/management/dashboard/cbrgu_products.html', context)

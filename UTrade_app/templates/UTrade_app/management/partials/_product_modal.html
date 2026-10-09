@@ -1,0 +1,135 @@
+<div class="modal fade" id="productModal{{ product.id }}" tabindex="-1"
+     aria-labelledby="productModalLabel{{ product.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
+
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold" id="productModalLabel{{ product.id }}">
+          {{ product.name }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body p-4">
+        <div class="row g-4">
+
+          <!-- Left: Image gallery -->
+          <div class="col-md-5">
+            {% with img=product.images.first %}
+              {% if img %}
+                <img src="{{ img.image.url }}" class="img-fluid rounded-3 shadow-sm w-100 mb-2"
+                     style="max-height:280px; object-fit:cover;" alt="{{ product.name }}">
+              {% else %}
+                <div class="bg-light rounded-3 d-flex align-items-center justify-content-center"
+                     style="height:220px;">
+                  <i class="bi bi-image fs-1 text-muted"></i>
+                </div>
+              {% endif %}
+            {% endwith %}
+
+            {% if product.images.count > 1 %}
+            <div class="d-flex gap-2 flex-wrap">
+              {% for img in product.images.all %}
+                <img src="{{ img.image.url }}" class="rounded border"
+                     style="width:56px;height:56px;object-fit:cover;" alt="">
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Right: Info -->
+          <div class="col-md-7">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <span class="badge
+                {% if product.status == 'Approved' %}badge-approved
+                {% elif product.status == 'Pending' %}badge-pending
+                {% elif product.status == 'Unlisted' %}badge-unlisted
+                {% else %}badge-rejected{% endif %} rounded-pill">
+                {{ product.status }}
+              </span>
+              {% if product.pre_order %}
+                <span class="badge bg-info text-dark rounded-pill">Pre-Order</span>
+              {% endif %}
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-6">
+                <div class="detail-label">Product Code</div>
+                <div class="fw-semibold">{{ product.product_code|default:"—" }}</div>
+              </div>
+              <div class="col-6">
+                <div class="detail-label">Category</div>
+                <div class="fw-semibold">{{ product.category.name|default:"—" }}</div>
+              </div>
+              <div class="col-6">
+                <div class="detail-label">Seller</div>
+                <div class="fw-semibold">{{ product.seller.get_short_name }}</div>
+              </div>
+              <div class="col-6">
+                <div class="detail-label">Created</div>
+                <div class="fw-semibold">{{ product.created_at|date:"M d, Y" }}</div>
+              </div>
+              <div class="col-6">
+                <div class="detail-label">Total Stock</div>
+                <div class="fw-semibold text-success">{{ product.get_total_stock }}</div>
+              </div>
+              <div class="col-6">
+                <div class="detail-label">Rating</div>
+                <div class="star-rating">
+                  {% with rating=product.average_rating %}
+                    {% for i in "12345" %}
+                      {% if forloop.counter <= rating %}
+                        <i class="bi bi-star-fill"></i>
+                      {% else %}
+                        <i class="bi bi-star empty"></i>
+                      {% endif %}
+                    {% endfor %}
+                    <span class="text-muted small ms-1">{{ rating }}</span>
+                  {% endwith %}
+                </div>
+              </div>
+            </div>
+
+            {% if product.description %}
+            <div class="mb-3">
+              <div class="detail-label">Description</div>
+              <p class="mb-0 small">{{ product.description|truncatewords:40 }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Variants -->
+            <div class="detail-label mb-2">Variants</div>
+            {% for v in product.variants.all %}
+            <div class="variant-row rounded-3 p-2 mb-2 small">
+              <div class="d-flex justify-content-between">
+                <strong>{{ v.variant_name }}</strong>
+                <span class="text-success fw-bold">₱{{ v.price }}</span>
+              </div>
+              <div class="text-muted">
+                Stock: {{ v.stocks }} · {{ v.condition }}
+                {% if v.attribute_value %} · {{ v.attribute_value }}{% endif %}
+              </div>
+            </div>
+            {% empty %}
+            <p class="text-muted small">No variants.</p>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer border-0 bg-light">
+        <a href="{% url 'product.detail.view' product.id %}" class="btn btn-outline-success rounded-pill">
+          <i class="bi bi-box-arrow-up-right me-1"></i> Full Page
+        </a>
+        {% if product.status == 'Pending' %}
+        <a href="{% url 'management.update' 'product' product.id %}?status=Approved"
+           class="btn btn-success rounded-pill"
+           onclick="return confirm('Approve this product?')">
+          <i class="bi bi-check-lg me-1"></i> Approve
+        </a>
+        {% endif %}
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

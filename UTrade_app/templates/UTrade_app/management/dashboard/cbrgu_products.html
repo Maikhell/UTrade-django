@@ -1,24 +1,48 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}
-  CBRGU Products | Management
-{% endblock %}
+{% block title %}CBRGU Products | Management{% endblock %}
 
 {% block extra_css %}
 <style>
-  @media (min-width: 1400px) {
-    .container, .container-sm, .container-md,
-    .container-lg, .container-xl, .container-xxl {
-      max-width: 1600px !important;
-    }
+  :root {
+    --success: #198754;
+    --success-soft: #e8f5e9;
+    --success-border: #a5d6a7;
   }
 
+  @media (min-width: 1400px) {
+    .container-xxl { max-width: 1600px !important; }
+  }
+
+  /* Sidebar */
+  .seller-sidebar {
+    min-height: calc(100vh - 120px);
+  }
+  .sidebar-link {
+    transition: all 0.15s ease;
+    font-size: 0.9rem;
+  }
+  .sidebar-link:hover {
+    background: var(--success-soft);
+    color: var(--success) !important;
+  }
+  .sidebar-link.active {
+    background: var(--success) !important;
+    color: #fff !important;
+  }
+  .sidebar-link.active i,
+  .sidebar-link.active .badge {
+    color: #fff !important;
+  }
+
+  /* Tabs */
   .nav-tabs .nav-link {
     color: #198754;
     border: none;
     border-bottom: 3px solid transparent;
     font-weight: 600;
+    padding: 0.75rem 1.25rem;
   }
   .nav-tabs .nav-link:hover {
     color: #146c43;
@@ -30,13 +54,19 @@
     border-bottom: 3px solid #198754 !important;
   }
 
+  /* Product cards */
   .product-card {
     border: 1px solid #d1e7dd;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    cursor: pointer;
   }
   .product-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 0.5rem 1rem rgba(25, 135, 84, 0.15) !important;
+    transform: translateY(-4px);
+    box-shadow: 0 0.6rem 1.2rem rgba(25, 135, 84, 0.18) !important;
+  }
+  .product-card .card-img-top {
+    height: 180px;
+    object-fit: cover;
   }
 
   .badge-approved { background-color: #198754; }
@@ -46,40 +76,183 @@
 
   .filter-card {
     background: linear-gradient(135deg, #f0faf4 0%, #e8f5e9 100%);
-    border: 1px solid #a5d6a7;
+    border: 1px solid var(--success-border);
   }
 
   .stat-pill {
     background: #198754;
     color: white;
     border-radius: 50rem;
-    padding: 0.2rem 0.65rem;
-    font-size: 0.8rem;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.75rem;
     font-weight: 600;
+  }
+
+  .star-rating {
+    color: #ffc107;
+    font-size: 0.85rem;
+  }
+  .star-rating .empty { color: #dee2e6; }
+
+  /* Modal polish */
+  .modal-header.bg-success {
+    border-bottom: none;
+  }
+  .detail-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+    margin-bottom: 0.15rem;
+  }
+  .variant-row {
+    border-left: 3px solid #198754;
+    background: #f8f9fa;
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
-  <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
-    <i class="bi bi-arrow-left" aria-hidden="true"></i>
-    <span>Back to Dashboard</span>
-  </a>  
-</nav>
-<div class="container-fluid px-4 py-3">
+<div class="container-fluid px-3 px-lg-4 py-3">
 
-  <!-- Header -->
-  <div class="row mb-4">
-    <div class="col-12">
-      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+  <!-- Back button -->
+  <nav aria-label="breadcrumb" class="mb-3">
+    <a href="{% url 'management.panel' %}" class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-2 rounded-pill">
+      <i class="bi bi-arrow-left"></i> Back to Dashboard
+    </a>
+  </nav>
+
+  <div class="row g-4">
+
+    <!-- ==================== SIDEBAR ==================== -->
+    <div class="col-md-3 col-lg-2">
+      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm rounded-4"
+           tabindex="-1" id="sellerSidebar" aria-labelledby="sellerSidebarLabel">
+
+        <div class="offcanvas-header d-md-none">
+          <h5 class="offcanvas-title fw-bold" id="sellerSidebarLabel">Management</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sellerSidebar"></button>
+        </div>
+
+        <div class="offcanvas-body p-0">
+          <div class="seller-sidebar p-3">
+
+            <!-- Quick Stats -->
+            <div class="mb-4">
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div class="d-flex justify-content-between">
+                  <span>Products</span>
+                  <strong>{{ products.count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Total Stocks</span>
+                  <strong>{{ total_stocks|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Orders</span>
+                  <strong>{{ total_orders|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Income</span>
+                  <strong class="text-success">₱{{ total_income|default:0 }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-3 opacity-25">
+
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
+
+            <!-- Management Panel -->
+            <div class="mb-3">
+              <div class="d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-briefcase"></i> Management Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-2 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'management.panel' %}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 py-1"
+                     href="{% url 'cbrgu_products' %}">
+                    <i class="bi bi-box-seam"></i> CBRGU Products
+                    <span class="badge bg-white text-success border rounded-pill ms-auto">{{ products.count }}</span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'remittance_management' %}">
+                    <i class="bi bi-cash-stack text-success"></i> Remittance
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Orders -->
+            <div class="mb-3">
+              <div class="d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-cart-fill"></i> Orders
+              </div>
+              <ul class="nav flex-column gap-1 ms-2 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-inbox text-primary"></i> Orders
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-calendar-check text-info"></i> Pre-Orders
+                    {% if incoming_preorder_count %}
+                      <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>
+                    {% endif %}
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Security -->
+            <div class="mb-3">
+              <div class="d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-shield-lock"></i> Security
+              </div>
+              <ul class="nav flex-column gap-1 ms-2 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'security_admin' %}">
+                    <i class="bi bi-journal-text"></i> Logs & Settings
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <hr class="my-3 opacity-25">
+
+            <div class="d-grid">
+              <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
+                <i class="bi bi-plus-lg me-1"></i> Add New Product
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <div class="col-md-9 col-lg-10">
+
+      <!-- Header -->
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
         <div class="d-flex align-items-center">
           <div class="bg-success text-white rounded-4 p-3 me-3 shadow-sm">
             <i class="bi bi-box2-fill fs-3"></i>
           </div>
           <div>
-            <h2 class="fw-bold mb-0 text-success">Campus Business and Resource Generation Unit</h2>
-            <p class="text-muted mb-0">Manage product listings</p>
+            <h2 class="fw-bold mb-0 text-success">CBRGU Product Listings</h2>
+            <p class="text-muted mb-0 small">Campus Business and Resource Generation Unit</p>
           </div>
         </div>
         <a href="{% url 'generate.report.pdf' %}?report_type=all_products"
@@ -87,321 +260,175 @@
           <i class="bi bi-file-earmark-pdf me-1"></i> Generate Report
         </a>
       </div>
-    </div>
-  </div>
 
-  <!-- Stats -->
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-      <div class="card border-0 shadow-sm rounded-4 h-100">
-        <div class="card-body d-flex align-items-center">
-          <div class="bg-success bg-opacity-10 text-success rounded-3 p-3 me-3">
-            <i class="bi bi-check-circle-fill fs-4"></i>
-          </div>
-          <div>
-            <div class="text-muted small">Active</div>
-            <div class="fw-bold fs-4">{{ active_count }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card border-0 shadow-sm rounded-4 h-100">
-        <div class="card-body d-flex align-items-center">
-          <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-3 me-3">
-            <i class="bi bi-hourglass-split fs-4"></i>
-          </div>
-          <div>
-            <div class="text-muted small">Pending</div>
-            <div class="fw-bold fs-4">{{ pending_count }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card border-0 shadow-sm rounded-4 h-100">
-        <div class="card-body d-flex align-items-center">
-          <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-3 me-3">
-            <i class="bi bi-pause-circle-fill fs-4"></i>
-          </div>
-          <div>
-            <div class="text-muted small">Unlisted</div>
-            <div class="fw-bold fs-4">{{ unlisted_count }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card border-0 shadow-sm rounded-4 h-100">
-        <div class="card-body d-flex align-items-center">
-          <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-3 me-3">
-            <i class="bi bi-x-circle-fill fs-4"></i>
-          </div>
-          <div>
-            <div class="text-muted small">Rejected</div>
-            <div class="fw-bold fs-4">{{ rejected_count }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tabs -->
-  <ul class="nav nav-tabs border-0 mb-3" id="productStatusTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link {% if status_filter == 'Approved' or not status_filter %}active{% endif %} px-4"
-              id="active-tab" data-bs-toggle="tab" data-bs-target="#active-pane" type="button" role="tab">
-        Active <span class="stat-pill ms-1">{{ active_count }}</span>
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link {% if status_filter == 'Pending' %}active{% endif %} px-4"
-              id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab">
-        Pending <span class="stat-pill ms-1 bg-warning text-dark">{{ pending_count }}</span>
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link {% if status_filter == 'Unlisted' %}active{% endif %} px-4"
-              id="unlisted-tab" data-bs-toggle="tab" data-bs-target="#unlisted-pane" type="button" role="tab">
-        Unlisted <span class="stat-pill ms-1 bg-secondary">{{ unlisted_count }}</span>
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link {% if status_filter == 'Rejected' %}active{% endif %} px-4"
-              id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected-pane" type="button" role="tab">
-        Rejected <span class="stat-pill ms-1 bg-danger">{{ rejected_count }}</span>
-      </button>
-    </li>
-  </ul>
-
-  <!-- Filter -->
-  <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 filter-card">
-    <form method="GET" class="row g-3 align-items-end">
-      <div class="col-md-5">
-        <label class="form-label small fw-semibold text-success">Search</label>
-        <div class="input-group">
-          <span class="input-group-text bg-white border-end-0 text-success"><i class="bi bi-search"></i></span>
-          <input type="text" name="search" class="form-control border-start-0"
-                 placeholder="Search product name, ID, seller or price..."
-                 value="{{ request.GET.search }}">
-        </div>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small fw-semibold text-success">Status</label>
-        <select name="status" class="form-select">
-          <option value="">All Statuses</option>
-          <option value="Approved" {% if status_filter == 'Approved' %}selected{% endif %}>Active</option>
-          <option value="Pending"  {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
-          <option value="Unlisted" {% if status_filter == 'Unlisted' %}selected{% endif %}>Unlisted</option>
-          <option value="Rejected" {% if status_filter == 'Rejected' %}selected{% endif %}>Rejected</option>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <button type="submit" class="btn btn-success w-100">
-          <i class="bi bi-funnel me-1"></i> Filter
-        </button>
-      </div>
-      <div class="col-md-2">
-        <a href="{% url 'cbrgu_products' %}" class="btn btn-outline-success w-100">
-          <i class="bi bi-arrow-clockwise me-1"></i> Reset
-        </a>
-      </div>
-    </form>
-  </div>
-
-  <!-- Tab content -->
-  <div class="tab-content">
-
-    <!-- ACTIVE -->
-    <div class="tab-pane fade {% if status_filter == 'Approved' or not status_filter %}show active{% endif %}"
-         id="active-pane" role="tabpanel">
-      {% if active_products %}
-      <div class="row g-3">
-        {% for product in active_products %}
-        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
-          <div class="card product-card h-100 shadow-sm rounded-4 overflow-hidden">
-            <div class="ratio ratio-16x9 bg-light">
-              {% with img=product.images.first %}
-                {% if img %}
-                  <img src="{{ img.image.url }}" class="object-fit-cover" alt="{{ product.name }}">
-                {% else %}
-                  <div class="d-flex align-items-center justify-content-center text-muted">
-                    <i class="bi bi-image fs-1"></i>
-                  </div>
-                {% endif %}
-              {% endwith %}
-            </div>
-            <div class="card-body d-flex flex-column">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="card-title fw-bold mb-0 text-truncate" title="{{ product.name }}">{{ product.name }}</h6>
-                <span class="badge badge-approved rounded-pill">{{ product.status }}</span>
+      <!-- Stats cards -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 me-3">
+                <i class="bi bi-check-circle-fill fs-5"></i>
               </div>
-              <p class="text-muted small mb-1">
-                <i class="bi bi-person me-1"></i>{{ product.seller.get_short_name }}
-              </p>
-              {% if product.category %}
-              <p class="text-muted small mb-2"><i class="bi bi-tag me-1"></i>{{ product.category.name }}</p>
-              {% endif %}
-              <div class="mt-auto">
-                <div class="fw-bold text-success fs-5 mb-2">₱{{ product.get_price_range }}</div>
-                <a href="{% url 'product.detail.view' product.id %}" class="btn btn-sm btn-outline-success w-100">
-                  <i class="bi bi-eye"></i> View
-                </a>
+              <div>
+                <div class="text-muted small">Active</div>
+                <div class="fw-bold fs-4">{{ active_count }}</div>
               </div>
             </div>
           </div>
         </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-2 me-3">
+                <i class="bi bi-hourglass-split fs-5"></i>
+              </div>
+              <div>
+                <div class="text-muted small">Pending</div>
+                <div class="fw-bold fs-4">{{ pending_count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-2 me-3">
+                <i class="bi bi-pause-circle-fill fs-5"></i>
+              </div>
+              <div>
+                <div class="text-muted small">Unlisted</div>
+                <div class="fw-bold fs-4">{{ unlisted_count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-2 me-3">
+                <i class="bi bi-x-circle-fill fs-5"></i>
+              </div>
+              <div>
+                <div class="text-muted small">Rejected</div>
+                <div class="fw-bold fs-4">{{ rejected_count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs (highlighted by status_filter) -->
+      <ul class="nav nav-tabs border-0 mb-3" id="productStatusTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if status_filter == 'Approved' or not status_filter %}active{% endif %}"
+                  id="active-tab" data-bs-toggle="tab" data-bs-target="#active-pane" type="button" role="tab">
+            Active <span class="stat-pill ms-1">{{ active_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if status_filter == 'Pending' %}active{% endif %}"
+                  id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab">
+            Pending <span class="stat-pill ms-1 bg-warning text-dark">{{ pending_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if status_filter == 'Unlisted' %}active{% endif %}"
+                  id="unlisted-tab" data-bs-toggle="tab" data-bs-target="#unlisted-pane" type="button" role="tab">
+            Unlisted <span class="stat-pill ms-1 bg-secondary">{{ unlisted_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if status_filter == 'Rejected' %}active{% endif %}"
+                  id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected-pane" type="button" role="tab">
+            Rejected <span class="stat-pill ms-1 bg-danger">{{ rejected_count }}</span>
+          </button>
+        </li>
+      </ul>
+
+      <!-- Search / Filter -->
+      <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 filter-card">
+        <form method="GET" class="row g-3 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label small fw-semibold text-success mb-1">Search</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 text-success">
+                <i class="bi bi-search"></i>
+              </span>
+              <input type="text" name="search" class="form-control border-start-0"
+                     placeholder="Name, ID, product code, date (YYYY-MM-DD)..."
+                     value="{{ request.GET.search }}">
+            </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small fw-semibold text-success mb-1">Status</label>
+            <select name="status" class="form-select">
+              <option value="">All Statuses</option>
+              <option value="Approved" {% if status_filter == 'Approved' %}selected{% endif %}>Active</option>
+              <option value="Pending"  {% if status_filter == 'Pending' %}selected{% endif %}>Pending</option>
+              <option value="Unlisted" {% if status_filter == 'Unlisted' %}selected{% endif %}>Unlisted</option>
+              <option value="Rejected" {% if status_filter == 'Rejected' %}selected{% endif %}>Rejected</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-success w-100 rounded-pill">
+              <i class="bi bi-funnel me-1"></i> Filter
+            </button>
+          </div>
+          <div class="col-md-2">
+            <a href="{% url 'cbrgu_products' %}" class="btn btn-outline-success w-100 rounded-pill">
+              <i class="bi bi-arrow-clockwise me-1"></i> Reset
+            </a>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab panes -->
+      <div class="tab-content">
+
+        {% for status_key, products, pane_id, badge_class in products_tabs %}
         {% endfor %}
-      </div>
-      {% else %}
-      <div class="text-center py-5 text-muted">
-        <i class="bi bi-inbox fs-1 d-block mb-2"></i>No active products found.
-      </div>
-      {% endif %}
-    </div>
 
-    <!-- PENDING -->
-    <div class="tab-pane fade {% if status_filter == 'Pending' %}show active{% endif %}"
-         id="pending-pane" role="tabpanel">
-      {% if pending_products %}
-      <div class="row g-3">
-        {% for product in pending_products %}
-        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
-          <div class="card product-card h-100 shadow-sm rounded-4 overflow-hidden">
-            <div class="ratio ratio-16x9 bg-light">
-              {% with img=product.images.first %}
-                {% if img %}
-                  <img src="{{ img.image.url }}" class="object-fit-cover" alt="{{ product.name }}">
-                {% else %}
-                  <div class="d-flex align-items-center justify-content-center text-muted">
-                    <i class="bi bi-image fs-1"></i>
-                  </div>
-                {% endif %}
-              {% endwith %}
-            </div>
-            <div class="card-body d-flex flex-column">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="card-title fw-bold mb-0 text-truncate">{{ product.name }}</h6>
-                <span class="badge badge-pending rounded-pill">{{ product.status }}</span>
-              </div>
-              <p class="text-muted small mb-1">
-                <i class="bi bi-person me-1"></i>{{ product.seller.get_short_name }}
-              </p>
-              <div class="mt-auto">
-                <div class="fw-bold text-success fs-5 mb-2">₱{{ product.get_price_range }}</div>
-                <div class="d-flex gap-2">
-                  <a href="{% url 'product.detail.view' product.id %}" class="btn btn-sm btn-outline-success flex-fill">
-                    <i class="bi bi-eye"></i> View
-                  </a>
-                  <a href="{% url 'management.update' 'product' product.id %}?status=Approved"
-                     class="btn btn-sm btn-success flex-fill"
-                     onclick="return confirm('Approve this product?')">
-                    <i class="bi bi-check-lg"></i> Approve
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
+        <!-- ACTIVE -->
+        <div class="tab-pane fade {% if status_filter == 'Approved' or not status_filter %}show active{% endif %}"
+             id="active-pane" role="tabpanel">
+          {% include 'UTrade_app/management/partials/_product_cards.html' with products=active_products empty_msg="No active products found." badge_class="badge-approved" %}
         </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="text-center py-5 text-muted">
-        <i class="bi bi-inbox fs-1 d-block mb-2"></i>No pending products.
-      </div>
-      {% endif %}
-    </div>
 
-    <!-- UNLISTED -->
-    <div class="tab-pane fade {% if status_filter == 'Unlisted' %}show active{% endif %}"
-         id="unlisted-pane" role="tabpanel">
-      {% if unlisted_products %}
-      <div class="row g-3">
-        {% for product in unlisted_products %}
-        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
-          <div class="card product-card h-100 shadow-sm rounded-4 overflow-hidden">
-            <div class="ratio ratio-16x9 bg-light">
-              {% with img=product.images.first %}
-                {% if img %}
-                  <img src="{{ img.image.url }}" class="object-fit-cover" alt="{{ product.name }}">
-                {% else %}
-                  <div class="d-flex align-items-center justify-content-center text-muted">
-                    <i class="bi bi-image fs-1"></i>
-                  </div>
-                {% endif %}
-              {% endwith %}
-            </div>
-            <div class="card-body d-flex flex-column">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="card-title fw-bold mb-0 text-truncate">{{ product.name }}</h6>
-                <span class="badge badge-unlisted rounded-pill">{{ product.status }}</span>
-              </div>
-              <p class="text-muted small mb-1">
-                <i class="bi bi-person me-1"></i>{{ product.seller.get_short_name }}
-              </p>
-              <div class="mt-auto">
-                <div class="fw-bold text-success fs-5 mb-2">₱{{ product.get_price_range }}</div>
-                <a href="{% url 'product.detail.view' product.id %}" class="btn btn-sm btn-outline-success w-100">
-                  <i class="bi bi-eye"></i> View
-                </a>
-              </div>
-            </div>
-          </div>
+        <!-- PENDING -->
+        <div class="tab-pane fade {% if status_filter == 'Pending' %}show active{% endif %}"
+             id="pending-pane" role="tabpanel">
+          {% include 'UTrade_app/management/partials/_product_cards.html' with products=pending_products empty_msg="No pending products." badge_class="badge-pending" show_approve=True %}
         </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="text-center py-5 text-muted">
-        <i class="bi bi-inbox fs-1 d-block mb-2"></i>No unlisted products.
-      </div>
-      {% endif %}
-    </div>
 
-    <!-- REJECTED -->
-    <div class="tab-pane fade {% if status_filter == 'Rejected' %}show active{% endif %}"
-         id="rejected-pane" role="tabpanel">
-      {% if rejected_products %}
-      <div class="row g-3">
-        {% for product in rejected_products %}
-        <div class="col-12 col-md-6 col-xl-4 col-xxl-3">
-          <div class="card product-card h-100 shadow-sm rounded-4 overflow-hidden">
-            <div class="ratio ratio-16x9 bg-light">
-              {% with img=product.images.first %}
-                {% if img %}
-                  <img src="{{ img.image.url }}" class="object-fit-cover" alt="{{ product.name }}">
-                {% else %}
-                  <div class="d-flex align-items-center justify-content-center text-muted">
-                    <i class="bi bi-image fs-1"></i>
-                  </div>
-                {% endif %}
-              {% endwith %}
-            </div>
-            <div class="card-body d-flex flex-column">
-              <div class="d-flex justify-content-between align-items-start mb-2">
-                <h6 class="card-title fw-bold mb-0 text-truncate">{{ product.name }}</h6>
-                <span class="badge badge-rejected rounded-pill">{{ product.status }}</span>
-              </div>
-              <p class="text-muted small mb-1">
-                <i class="bi bi-person me-1"></i>{{ product.seller.get_short_name }}
-              </p>
-              <div class="mt-auto">
-                <div class="fw-bold text-success fs-5 mb-2">₱{{ product.get_price_range }}</div>
-                <a href="{% url 'product.detail.view' product.id %}" class="btn btn-sm btn-outline-success w-100">
-                  <i class="bi bi-eye"></i> View
-                </a>
-              </div>
-            </div>
-          </div>
+        <!-- UNLISTED -->
+        <div class="tab-pane fade {% if status_filter == 'Unlisted' %}show active{% endif %}"
+             id="unlisted-pane" role="tabpanel">
+          {% include 'UTrade_app/management/partials/_product_cards.html' with products=unlisted_products empty_msg="No unlisted products." badge_class="badge-unlisted" %}
         </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <div class="text-center py-5 text-muted">
-        <i class="bi bi-inbox fs-1 d-block mb-2"></i>No rejected products.
-      </div>
-      {% endif %}
-    </div>
 
+        <!-- REJECTED -->
+        <div class="tab-pane fade {% if status_filter == 'Rejected' %}show active{% endif %}"
+             id="rejected-pane" role="tabpanel">
+          {% include 'UTrade_app/management/partials/_product_cards.html' with products=rejected_products empty_msg="No rejected products." badge_class="badge-rejected" %}
+        </div>
+
+      </div>
+    </div>
   </div>
 </div>
+
+<!-- ==================== PRODUCT DETAIL MODALS ==================== -->
+{% for product in active_products %}
+  {% include 'UTrade_app/management/partials/_product_modal.html' with product=product %}
+{% endfor %}
+{% for product in pending_products %}
+  {% include 'UTrade_app/management/partials/_product_modal.html' with product=product %}
+{% endfor %}
+{% for product in unlisted_products %}
+  {% include 'UTrade_app/management/partials/_product_modal.html' with product=product %}
+{% endfor %}
+{% for product in rejected_products %}
+  {% include 'UTrade_app/management/partials/_product_modal.html' with product=product %}
+{% endfor %}
+
 {% endblock %}

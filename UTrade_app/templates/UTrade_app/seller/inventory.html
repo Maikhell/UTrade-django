@@ -149,17 +149,13 @@
                     <i class="bi bi-cash-stack text-success"></i> Remittance
                   </a>
                 </li>
-              </ul>
-            </div>
-
-            <!-- Dashboard (active / default) -->
-            <div class="mb-3">
-              <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1"
+                 <li class="nav-item">
+                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1"
                  href="#dashboard-stats">
                 <i class="bi bi-speedometer2"></i> Dashboard
               </a>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
+                </li>
+                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'cbrgu_products' %}">
                     <i class="bi bi-box-seam"></i>  CBRGU Products
                     <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count }}</span>
@@ -167,7 +163,7 @@
                 </li>
               </ul>
             </div>
-
+          
             <!-- Orders -->
             <div class="mb-3">
               <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">

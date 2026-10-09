@@ -116,11 +116,13 @@
 <div class="container-fluid px-3 px-lg-4 py-3">
 
   <!-- Back button -->
-  <nav aria-label="breadcrumb" class="mb-3">
-    <a href="{% url 'management.panel' %}" class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-2 rounded-pill">
-      <i class="bi bi-arrow-left"></i> Back to Dashboard
-    </a>
-  </nav>
+<nav aria-label="breadcrumb" class="mb-3 mb-md-4 px-2 px-md-0">
+  <a href="#" onclick="history.back(); return false;"
+     class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back Dashboard</span>
+  </a>
+</nav>
 
   <div class="row g-4">
 
@@ -172,7 +174,7 @@
               <ul class="nav flex-column gap-1 ms-2 mt-1">
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="{% url 'management.panel' %}">
+                     {% comment %} href="{% url 'management.panel' %}"> {% endcomment %}
                     <i class="bi bi-speedometer2"></i> Dashboard
                   </a>
                 </li>
@@ -185,7 +187,7 @@
                 </li>
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="{% url 'remittance_management' %}">
+                     {% comment %} href="{% url 'remittance_management' %}"> {% endcomment %}
                     <i class="bi bi-cash-stack text-success"></i> Remittance
                   </a>
                 </li>
@@ -222,7 +224,7 @@
               <ul class="nav flex-column gap-1 ms-2 mt-1">
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="{% url 'security_admin' %}">
+                     {% comment %} href="{% url 'security_admin' %}"> {% endcomment %}
                     <i class="bi bi-journal-text"></i> Logs & Settings
                   </a>
                 </li>

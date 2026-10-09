@@ -602,12 +602,6 @@ def remittance_management(request):
         organization=OuterRef('pk')
     ).order_by('status', '-cycle_start')
     
-    base_qs = (
-        Product.objects
-        .select_related('seller', 'category')
-        .prefetch_related('variants', 'images', 'reviews')
-        .order_by('-created_at')
-    )
     organizations_qs = Organization.objects.annotate(
         latest_ledger_id=Subquery(latest_ledger_qs.values('id')[:1]),
         cycle_start=Subquery(latest_ledger_qs.values('cycle_start')[:1]),
@@ -623,18 +617,8 @@ def remittance_management(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    total_stocks = sum(p.get_total_stock for p in base_qs)
-    total_products = base_qs.count()
-    
-    context={
-    'products': base_qs,
-    'total_stocks': total_stocks,
-    'total_orders': 0,          # fill later if you want
-    'total_income': 0,          # fill later if you want
-    'incoming_preorder_count': 0,
-    }
-    return render(request, 'UTrade_app/management/management_panel/remittance.html', context, {
-        'page_obj': page_obj,
+    return render(request, 'UTrade_app/management/management_panel/remittance.html',  {
+        'page_obj': page_obj, 
     })
 
 

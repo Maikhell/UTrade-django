@@ -851,3 +851,57 @@ def cbrgu_products(request):
         'incoming_preorder_count': 0,
     }
     return render(request, 'UTrade_app/management/management_panel/cbrgu_products.html', context)
+
+@login_required
+@user_passes_test(is_management)
+def active_listings(request):
+    """
+    System-wide product management (all sellers).
+    Tabs: Active (Approved), Pending, Unlisted, Rejected.
+    """
+    search_query = request.GET.get('search', '').strip()
+    pre_order_filter = request.GET.get('pre_order', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+
+    base_qs = (
+        Product.objects
+        .select_related('seller', 'category')
+        .prefetch_related('variants', 'images')
+        .order_by('-created_at')
+    )
+
+    if search_query:
+        base_qs = base_qs.filter(
+            Q(name__icontains=search_query)
+            | Q(id__icontains=search_query)
+            | Q(product_code__icontains=search_query)
+            | Q(seller__first_name__icontains=search_query)
+            | Q(seller__last_name__icontains=search_query)
+            | Q(seller__username__icontains=search_query)
+            | Q(seller__display_name__icontains=search_query)
+            | Q(variants__price__icontains=search_query)
+        ).distinct()
+
+    if pre_order_filter == 'True':
+        base_qs = base_qs.filter(pre_order=True)
+    elif pre_order_filter == 'False':
+        base_qs = base_qs.filter(pre_order=False)
+
+    active_products   = base_qs.filter(status='Approved')
+    pending_products  = base_qs.filter(status='Pending')
+    unlisted_products = base_qs.filter(status='Unlisted')
+    rejected_products = base_qs.filter(status='Rejected')
+
+    context = {
+        'active_products': active_products[:100],
+        'pending_products': pending_products[:100],
+        'unlisted_products': unlisted_products[:100],
+        'rejected_products': rejected_products[:100],
+        'active_count': active_products.count(),
+        'pending_count': pending_products.count(),
+        'unlisted_count': unlisted_products.count(),
+        'rejected_count': rejected_products.count(),
+        'status_filter': status_filter,
+        'org_name': 'UTrade Global Management',
+    }
+    return render(request, 'UTrade_app/management/management_panel/active_listings.html', context)

@@ -127,6 +127,6 @@ urlpatterns = [
     path('remittance/logs/', management_views.remittance_logs_view, name='remittance_logs'),
     # View/download receipt URL endpoint
     path('remittance/receipt/<int:ledger_id>/', management_views.view_remittance_receipt, name='view_remittance_receipt'),
-
+    path('management/active-listings/',management_views.active_listings,name='active_listings'),
     ]
 

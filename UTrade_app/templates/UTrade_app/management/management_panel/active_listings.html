@@ -2,24 +2,1006 @@
 {% load static %}
 
 {% block title %}
-  Active Products
+  Active Listings | Management
 {% endblock %}
 
 {% block content %}
-{% block extra_css %}
-  <style>
-    @media (min-width: 1400px) {
-    .container,
-    .container-sm,
-    .container-md,
-    .container-lg,
-    .container-xl,
-    .container-xxl {
+<style>
+  @media (min-width: 768px) {
+    .seller-sidebar {
+      position: sticky;
+      top: 1rem;
+      height: calc(100vh - 2rem);
+      overflow-y: auto;
+    }
+  }
+  @media (min-width: 1400px) {
+    .container, .container-sm, .container-md,
+    .container-lg, .container-xl, .container-xxl {
       max-width: 1600px !important;
     }
   }
-  </style>
-{% endblock %}
+  .sidebar-link.active {
+    background-color: rgba(25, 135, 84, 0.12) !important;
+    color: #198754 !important;
+    font-weight: 600;
+  }
+  .nav-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    color: #6c757d;
+  }
+  .nav-tabs .nav-link:hover {
+    color: #0d6efd;
+    border-bottom-color: #cfe2ff;
+  }
+  .nav-tabs .nav-link.active {
+    color: #0d6efd !important;
+    background: transparent !important;
+    border-bottom: 3px solid #0d6efd !important;
+  }
+</style>
+
 {% csrf_token %}
 
+<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
+  <a href="#" onclick="history.back(); return false;"
+     class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back to Account</span>
+  </a>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+
+    <!-- Mobile Toggle -->
+    <div class="col-12 d-md-none mb-3">
+      <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
+              type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#sellerSidebar"
+              aria-controls="sellerSidebar">
+        <i class="bi bi-list"></i>
+        Management Menu
+      </button>
+    </div>
+
+    <!-- ==================== SIDEBAR ==================== -->
+    <div class="col-md-3 col-lg-2">
+      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm"
+           tabindex="-1"
+           id="sellerSidebar"
+           aria-labelledby="sellerSidebarLabel">
+
+        <div class="offcanvas-header d-md-none">
+          <h5 class="offcanvas-title fw-bold" id="sellerSidebarLabel">Seller Dashboard</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sellerSidebar"></button>
+        </div>
+
+        <div class="offcanvas-body p-0">
+          <div class="seller-sidebar p-3">
+
+            <div class="mb-4">
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div class="d-flex justify-content-between">
+                  <span>Products</span>
+                  <strong>{{ active_count|add:pending_count|add:unlisted_count|add:rejected_count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Total Stocks</span>
+                  <strong>{{ total_stocks|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Orders</span>
+                  <strong>{{ total_orders|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Income</span>
+                  <strong class="text-success">₱{{ total_income|default:0 }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-3 opacity-25">
+
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-briefcase"></i> Management Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'dashboard' %}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 py-1"
+                     href="{% url 'active_listings' %}">
+                    <i class="bi bi-check2-square text-success"></i> Active Listings
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'remittance_management' %}">
+                    <i class="bi bi-cash-stack text-success"></i> Remittance
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'cbrgu_products' %}">
+                    <i class="bi bi-box-seam"></i> CBRGU Products
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-cart-fill"></i> Orders
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-inbox text-primary"></i> Orders
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-calendar-check text-info"></i> Pre-Orders
+                    {% if incoming_preorder_count %}
+                      <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>
+                    {% endif %}
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-shield-lock"></i> Security
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-journal-text"></i> Logs and Reports
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-exclamation-triangle"></i> Prohibited Items
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-tags"></i> Categories
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-geo-alt"></i> Pickup Spots
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1"
+                 href="{% url 'remittance_management' %}">
+                <i class="bi bi-cash-coin"></i> Remittance
+              </a>
+            </div>
+
+            <hr class="my-3 opacity-25">
+
+            <div class="d-grid gap-2">
+              <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
+                <i class="bi bi-plus-lg me-1"></i> Add New Product
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
+
+      <!-- Header -->
+      <div class="row mb-4">
+        <div class="col-12">
+          <div class="d-flex align-items-center">
+            <div class="bg-primary text-white rounded-4 p-3 me-3">
+              <i class="bi bi-box-seam fs-3"></i>
+            </div>
+            <div>
+              <h2 class="fw-bold mb-0">Active Listings</h2>
+              <p class="text-muted mb-0">
+                Manage all products across the platform by status.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-success border-4">
+            <small class="text-uppercase text-muted fw-bold">Active</small>
+            <h3 class="fw-bold text-success mb-0">{{ active_count }}</h3>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-warning border-4">
+            <small class="text-uppercase text-muted fw-bold">Pending</small>
+            <h3 class="fw-bold text-warning mb-0">{{ pending_count }}</h3>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-secondary border-4">
+            <small class="text-uppercase text-muted fw-bold">Unlisted</small>
+            <h3 class="fw-bold text-secondary mb-0">{{ unlisted_count }}</h3>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 border-start border-danger border-4">
+            <small class="text-uppercase text-muted fw-bold">Rejected</small>
+            <h3 class="fw-bold text-danger mb-0">{{ rejected_count }}</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status tabs -->
+      <ul class="nav nav-tabs border-0 mb-4" id="listingTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if status_filter == 'Approved' or not status_filter %}active{% endif %} px-4"
+                  id="active-tab" data-bs-toggle="tab" data-bs-target="#active-pane"
+                  type="button" role="tab">
+            Active
+            <span class="badge bg-success-subtle text-success ms-1">{{ active_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if status_filter == 'Pending' %}active{% endif %} px-4"
+                  id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane"
+                  type="button" role="tab">
+            Pending
+            {% if pending_count > 0 %}
+              <span class="badge bg-danger text-white ms-1">{{ pending_count }}</span>
+            {% else %}
+              <span class="badge bg-warning-subtle text-warning ms-1">{{ pending_count }}</span>
+            {% endif %}
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if status_filter == 'Unlisted' %}active{% endif %} px-4"
+                  id="unlisted-tab" data-bs-toggle="tab" data-bs-target="#unlisted-pane"
+                  type="button" role="tab">
+            Unlisted
+            <span class="badge bg-secondary-subtle text-secondary ms-1">{{ unlisted_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if status_filter == 'Rejected' %}active{% endif %} px-4"
+                  id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected-pane"
+                  type="button" role="tab">
+            Rejected
+            <span class="badge bg-danger-subtle text-danger ms-1">{{ rejected_count }}</span>
+          </button>
+        </li>
+      </ul>
+
+      <!-- Search / Filter -->
+      <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-light">
+        <form method="GET" class="row g-3">
+          <div class="col-md-5">
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-search"></i></span>
+              <input type="text" name="search" class="form-control border-start-0"
+                     placeholder="Search name, seller, product code, or price..."
+                     value="{{ request.GET.search }}">
+            </div>
+          </div>
+          <div class="col-md-3">
+            <select name="pre_order" class="form-select">
+              <option value="">All Listing Types</option>
+              <option value="False" {% if request.GET.pre_order == 'False' %}selected{% endif %}>On-hand Only</option>
+              <option value="True" {% if request.GET.pre_order == 'True' %}selected{% endif %}>Pre-order Only</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+          </div>
+          <div class="col-md-2">
+            <a href="{% url 'active_listings' %}" class="btn btn-light w-100">Reset</a>
+          </div>
+        </form>
+      </div>
+
+      <div class="tab-content">
+
+        {# ========== ACTIVE ========== #}
+        <div class="tab-pane fade {% if status_filter == 'Approved' or not status_filter %}show active{% endif %}"
+             id="active-pane" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                  <tr>
+                    <th class="ps-4">Item Name</th>
+                    <th>Type</th>
+                    <th>Seller</th>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th class="text-end pe-4">Manage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in active_products %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="fw-bold">{{ item.name }}</div>
+                      <span class="badge bg-success-subtle text-success border-0" style="font-size:0.7rem;">Active</span>
+                      {% if item.product_code %}
+                        <div class="small text-muted">{{ item.product_code }}</div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <span class="text-warning"><i class="bi bi-box-seam me-1"></i>Product</span>
+                      {% if item.pre_order %}
+                        <span class="badge bg-info text-dark ms-1">Pre-order</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ item.seller.get_full_name|default:item.seller.username }}</td>
+                    <td>{{ item.get_total_stock }}</td>
+                    <td class="fw-bold text-dark">₱{{ item.get_price_range }}</td>
+                    <td class="text-end pe-4">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                                data-bs-toggle="modal" data-bs-target="#mgmtProductModal{{ item.id }}">
+                          <i class="bi bi-eye"></i> View Details
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-3"
+                                onclick="unlistProduct('{{ item.id }}', '{{ item.name|escapejs }}')">
+                          <i class="bi bi-eye-slash"></i> Unlist
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">No active listings found.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {% for item in active_products %}
+          <div class="modal fade" id="mgmtProductModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content border-0 rounded-4 shadow">
+                <div class="modal-header">
+                  <div>
+                    <h5 class="modal-title fw-bold">{{ item.name }}</h5>
+                    <small class="text-muted">
+                      {% if item.product_code %}{{ item.product_code }} · {% endif %}
+                      Created {{ item.created_at|date:"M d, Y h:i A" }}
+                    </small>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="row g-4">
+                    <div class="col-md-4">
+                      {% if item.images.first %}
+                        <img src="{{ item.images.first.image.url }}" class="img-fluid rounded-3 w-100"
+                             style="max-height:220px;object-fit:cover;" alt="">
+                      {% else %}
+                        <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height:180px;">
+                          <i class="bi bi-image text-muted fs-1"></i>
+                        </div>
+                      {% endif %}
+                    </div>
+                    <div class="col-md-8">
+                      <div class="row g-2 small">
+                        <div class="col-6">
+                          <span class="text-muted d-block">Seller</span>
+                          <strong>{{ item.seller.get_full_name|default:item.seller.username }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Course / Section</span>
+                          <strong>
+                            {{ item.seller.course|default:"—" }}
+                            {% if item.seller.section %} · {{ item.seller.section }}{% endif %}
+                          </strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Product Code</span>
+                          <strong>{{ item.product_code|default:"—" }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Stock</span>
+                          <strong>{{ item.get_total_stock }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Meetup Location</span>
+                          <strong>{{ item.meetup_location_text|default:"—" }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Pickup Days</span>
+                          <strong>{{ item.available_days|default:"—" }}</strong>
+                        </div>
+                        <div class="col-12">
+                          <span class="text-muted d-block">Time Range</span>
+                          <strong>
+                            {% if item.preferred_meetup_time_from and item.preferred_meetup_time_to %}
+                              {{ item.preferred_meetup_time_from|time:"g:i A" }} – {{ item.preferred_meetup_time_to|time:"g:i A" }}
+                            {% else %}—{% endif %}
+                          </strong>
+                        </div>
+                        <div class="col-12">
+                          <span class="text-muted d-block">Description</span>
+                          <p class="mb-0">{{ item.description|default:"No description." }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <h6 class="fw-bold mt-4 mb-2">Variants</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                      <thead class="table-light">
+                        <tr><th>Name</th><th>Attribute</th><th>Price</th><th>Stock</th><th>Condition</th></tr>
+                      </thead>
+                      <tbody>
+                        {% for v in item.variants.all %}
+                        <tr>
+                          <td>{{ v.variant_name }}</td>
+                          <td>{{ v.attribute_value|default:"—" }}</td>
+                          <td>₱{{ v.price }}</td>
+                          <td>{{ v.stocks }}</td>
+                          <td>{{ v.condition|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-muted">No variants</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="modal-footer justify-content-between flex-wrap gap-2">
+                  <a href="{% url 'start_chat' product_id=item.id %}?from=management&ref=product"
+                     class="btn btn-outline-primary rounded-pill px-4">
+                    <i class="bi bi-chat-dots me-1"></i> Message Seller
+                  </a>
+                  <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        {# ========== PENDING ========== #}
+        <div class="tab-pane fade {% if status_filter == 'Pending' %}show active{% endif %}"
+             id="pending-pane" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                  <tr>
+                    <th class="ps-4">Product</th>
+                    <th>Seller</th>
+                    <th>Type</th>
+                    <th class="text-end pe-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for p in pending_products %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="fw-bold">{{ p.name }}</div>
+                      <small class="text-muted">₱{{ p.get_price_range }}</small>
+                      {% if p.product_code %}
+                        <div class="small text-muted">{{ p.product_code }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ p.seller.get_full_name|default:p.seller.username }}</td>
+                    <td>
+                      {% if p.pre_order %}
+                        <span class="badge bg-info text-dark rounded-pill">Pre-order</span>
+                      {% else %}
+                        <span class="badge bg-light text-dark border rounded-pill">On-hand</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                      <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                                data-bs-toggle="modal" data-bs-target="#pendingProductModal{{ p.id }}">
+                          <i class="bi bi-eye"></i> View Details
+                        </button>
+                        <button class="btn btn-sm btn-success rounded-3"
+                                onclick="confirmAction('product', '{{ p.id }}', 'Approved', '{{ p.name|escapejs }}')">
+                          Approve
+                        </button>
+                        <button class="btn btn-sm btn-danger rounded-3"
+                                onclick="rejectProduct('{{ p.id }}', '{{ p.name|escapejs }}')">
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="4" class="text-center py-5 text-muted">No products pending review.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {% for p in pending_products %}
+          <div class="modal fade" id="pendingProductModal{{ p.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content border-0 rounded-4 shadow">
+                <div class="modal-header">
+                  <div>
+                    <h5 class="modal-title fw-bold">{{ p.name }}</h5>
+                    <small class="text-muted">
+                      {% if p.product_code %}{{ p.product_code }} · {% endif %}
+                      Created {{ p.created_at|date:"M d, Y h:i A" }}
+                    </small>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="row g-4">
+                    <div class="col-md-4">
+                      {% if p.images.first %}
+                        <img src="{{ p.images.first.image.url }}" class="img-fluid rounded-3 w-100"
+                             style="max-height:220px;object-fit:cover;" alt="">
+                      {% else %}
+                        <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height:180px;">
+                          <i class="bi bi-image text-muted fs-1"></i>
+                        </div>
+                      {% endif %}
+                    </div>
+                    <div class="col-md-8">
+                      <div class="row g-2 small">
+                        <div class="col-6">
+                          <span class="text-muted d-block">Seller</span>
+                          <strong>{{ p.seller.get_full_name|default:p.seller.username }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Course / Section</span>
+                          <strong>
+                            {{ p.seller.course|default:"—" }}
+                            {% if p.seller.section %} · {{ p.seller.section }}{% endif %}
+                          </strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Product Code</span>
+                          <strong>{{ p.product_code|default:"—" }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Stock</span>
+                          <strong>{{ p.get_total_stock }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Meetup Location</span>
+                          <strong>{{ p.meetup_location_text|default:"—" }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Pickup Days</span>
+                          <strong>{{ p.available_days|default:"—" }}</strong>
+                        </div>
+                        <div class="col-12">
+                          <span class="text-muted d-block">Time Range</span>
+                          <strong>
+                            {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                              {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                            {% else %}—{% endif %}
+                          </strong>
+                        </div>
+                        <div class="col-12">
+                          <span class="text-muted d-block">Description</span>
+                          <p class="mb-0">{{ p.description|default:"No description." }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <h6 class="fw-bold mt-4 mb-2">Variants</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                      <thead class="table-light">
+                        <tr><th>Name</th><th>Attribute</th><th>Price</th><th>Stock</th><th>Condition</th></tr>
+                      </thead>
+                      <tbody>
+                        {% for v in p.variants.all %}
+                        <tr>
+                          <td>{{ v.variant_name }}</td>
+                          <td>{{ v.attribute_value|default:"—" }}</td>
+                          <td>₱{{ v.price }}</td>
+                          <td>{{ v.stocks }}</td>
+                          <td>{{ v.condition|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-muted">No variants</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="modal-footer justify-content-between flex-wrap gap-2">
+                  <div class="d-flex gap-2 flex-wrap">
+                    <a href="{% url 'start_chat' product_id=p.id %}?from=management&ref=product"
+                       class="btn btn-outline-primary rounded-pill px-3">
+                      <i class="bi bi-chat-dots me-1"></i> Message Seller
+                    </a>
+                  </div>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-success rounded-pill px-3"
+                            onclick="confirmAction('product', '{{ p.id }}', 'Approved', '{{ p.name|escapejs }}')">
+                      Approve
+                    </button>
+                    <button class="btn btn-danger rounded-pill px-3"
+                            onclick="rejectProduct('{{ p.id }}', '{{ p.name|escapejs }}')">
+                      Reject
+                    </button>
+                    <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        {# ========== UNLISTED ========== #}
+        <div class="tab-pane fade {% if status_filter == 'Unlisted' %}show active{% endif %}"
+             id="unlisted-pane" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                  <tr>
+                    <th class="ps-4">Item Name</th>
+                    <th>Seller</th>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th class="text-end pe-4">Manage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in unlisted_products %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="fw-bold">{{ item.name }}</div>
+                      <span class="badge bg-secondary-subtle text-secondary border-0" style="font-size:0.7rem;">Unlisted</span>
+                      {% if item.product_code %}
+                        <div class="small text-muted">{{ item.product_code }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ item.seller.get_full_name|default:item.seller.username }}</td>
+                    <td>{{ item.get_total_stock }}</td>
+                    <td class="fw-bold text-dark">₱{{ item.get_price_range }}</td>
+                    <td class="text-end pe-4">
+                      <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                              data-bs-toggle="modal" data-bs-target="#unlistedProductModal{{ item.id }}">
+                        <i class="bi bi-eye"></i> View Details
+                      </button>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">No unlisted products.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {% for item in unlisted_products %}
+          <div class="modal fade" id="unlistedProductModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content border-0 rounded-4 shadow">
+                <div class="modal-header">
+                  <div>
+                    <h5 class="modal-title fw-bold">{{ item.name }}</h5>
+                    <small class="text-muted">
+                      {% if item.product_code %}{{ item.product_code }} · {% endif %}
+                      Created {{ item.created_at|date:"M d, Y h:i A" }}
+                    </small>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="row g-4">
+                    <div class="col-md-4">
+                      {% if item.images.first %}
+                        <img src="{{ item.images.first.image.url }}" class="img-fluid rounded-3 w-100"
+                             style="max-height:220px;object-fit:cover;" alt="">
+                      {% else %}
+                        <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height:180px;">
+                          <i class="bi bi-image text-muted fs-1"></i>
+                        </div>
+                      {% endif %}
+                    </div>
+                    <div class="col-md-8">
+                      <div class="row g-2 small">
+                        <div class="col-6">
+                          <span class="text-muted d-block">Seller</span>
+                          <strong>{{ item.seller.get_full_name|default:item.seller.username }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Stock</span>
+                          <strong>{{ item.get_total_stock }}</strong>
+                        </div>
+                        <div class="col-12">
+                          <span class="text-muted d-block">Description</span>
+                          <p class="mb-0">{{ item.description|default:"No description." }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <h6 class="fw-bold mt-4 mb-2">Variants</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                      <thead class="table-light">
+                        <tr><th>Name</th><th>Attribute</th><th>Price</th><th>Stock</th><th>Condition</th></tr>
+                      </thead>
+                      <tbody>
+                        {% for v in item.variants.all %}
+                        <tr>
+                          <td>{{ v.variant_name }}</td>
+                          <td>{{ v.attribute_value|default:"—" }}</td>
+                          <td>₱{{ v.price }}</td>
+                          <td>{{ v.stocks }}</td>
+                          <td>{{ v.condition|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-muted">No variants</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="modal-footer justify-content-between flex-wrap gap-2">
+                  <a href="{% url 'start_chat' product_id=item.id %}?from=management&ref=product"
+                     class="btn btn-outline-primary rounded-pill px-4">
+                    <i class="bi bi-chat-dots me-1"></i> Message Seller
+                  </a>
+                  <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        {# ========== REJECTED ========== #}
+        <div class="tab-pane fade {% if status_filter == 'Rejected' %}show active{% endif %}"
+             id="rejected-pane" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                  <tr>
+                    <th class="ps-4">Item Name</th>
+                    <th>Seller</th>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th class="text-end pe-4">Manage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in rejected_products %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="fw-bold">{{ item.name }}</div>
+                      <span class="badge bg-danger-subtle text-danger border-0" style="font-size:0.7rem;">Rejected</span>
+                      {% if item.product_code %}
+                        <div class="small text-muted">{{ item.product_code }}</div>
+                      {% endif %}
+                    </td>
+                    <td>{{ item.seller.get_full_name|default:item.seller.username }}</td>
+                    <td>{{ item.get_total_stock }}</td>
+                    <td class="fw-bold text-dark">₱{{ item.get_price_range }}</td>
+                    <td class="text-end pe-4">
+                      <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
+                              data-bs-toggle="modal" data-bs-target="#rejectedProductModal{{ item.id }}">
+                        <i class="bi bi-eye"></i> View Details
+                      </button>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">No rejected products.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {% for item in rejected_products %}
+          <div class="modal fade" id="rejectedProductModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+              <div class="modal-content border-0 rounded-4 shadow">
+                <div class="modal-header">
+                  <div>
+                    <h5 class="modal-title fw-bold">{{ item.name }}</h5>
+                    <small class="text-muted">
+                      {% if item.product_code %}{{ item.product_code }} · {% endif %}
+                      Created {{ item.created_at|date:"M d, Y h:i A" }}
+                    </small>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <div class="row g-4">
+                    <div class="col-md-4">
+                      {% if item.images.first %}
+                        <img src="{{ item.images.first.image.url }}" class="img-fluid rounded-3 w-100"
+                             style="max-height:220px;object-fit:cover;" alt="">
+                      {% else %}
+                        <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height:180px;">
+                          <i class="bi bi-image text-muted fs-1"></i>
+                        </div>
+                      {% endif %}
+                    </div>
+                    <div class="col-md-8">
+                      <div class="row g-2 small">
+                        <div class="col-6">
+                          <span class="text-muted d-block">Seller</span>
+                          <strong>{{ item.seller.get_full_name|default:item.seller.username }}</strong>
+                        </div>
+                        <div class="col-6">
+                          <span class="text-muted d-block">Stock</span>
+                          <strong>{{ item.get_total_stock }}</strong>
+                        </div>
+                        <div class="col-12">
+                          <span class="text-muted d-block">Description</span>
+                          <p class="mb-0">{{ item.description|default:"No description." }}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <h6 class="fw-bold mt-4 mb-2">Variants</h6>
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                      <thead class="table-light">
+                        <tr><th>Name</th><th>Attribute</th><th>Price</th><th>Stock</th><th>Condition</th></tr>
+                      </thead>
+                      <tbody>
+                        {% for v in item.variants.all %}
+                        <tr>
+                          <td>{{ v.variant_name }}</td>
+                          <td>{{ v.attribute_value|default:"—" }}</td>
+                          <td>₱{{ v.price }}</td>
+                          <td>{{ v.stocks }}</td>
+                          <td>{{ v.condition|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-muted">No variants</td></tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="modal-footer justify-content-between flex-wrap gap-2">
+                  <a href="{% url 'start_chat' product_id=item.id %}?from=management&ref=product"
+                     class="btn btn-outline-primary rounded-pill px-4">
+                    <i class="bi bi-chat-dots me-1"></i> Message Seller
+                  </a>
+                  <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  function confirmAction(type, id, status, name) {
+    Swal.fire({
+      title: `Approve ${type}?`,
+      text: `Proceed with "${name}"?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
+      confirmButtonText: 'Confirm'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        window.location.href = `/management/update/${type}/${id}/?status=${status}`;
+      }
+    });
+  }
+
+  async function rejectProduct(id, name) {
+    const { value: reason } = await Swal.fire({
+      title: 'Reject product?',
+      html: `<p class="mb-2">Product: <strong>${name}</strong></p>`,
+      input: 'select',
+      inputOptions: {
+        'Incomplete details': 'Incomplete details',
+        'Prohibited item': 'Prohibited item',
+        'Poor quality photos': 'Poor quality photos',
+        'Incorrect category': 'Incorrect category',
+        'Duplicate listing': 'Duplicate listing',
+        'Pricing issue': 'Pricing issue',
+        Other: 'Other'
+      },
+      inputPlaceholder: 'Select a reason',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Reject & Notify Seller',
+      inputValidator: (v) => (!v ? 'Please select a reason' : undefined)
+    });
+    if (!reason) return;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const res = await fetch(`/management/product/${id}/reject/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await Swal.fire('Rejected', data.message || 'Seller has been notified.', 'success');
+      location.reload();
+    } else {
+      Swal.fire('Error', data.message || 'Failed', 'error');
+    }
+  }
+
+  async function unlistProduct(id, name) {
+    const { value: reason } = await Swal.fire({
+      title: 'Unlist product?',
+      html: `<p class="mb-2">Product: <strong>${name}</strong></p>
+             <p class="small text-muted">This removes it from the live marketplace.</p>`,
+      input: 'select',
+      inputOptions: {
+        'Policy violation': 'Policy violation',
+        'Reported by users': 'Reported by users',
+        'Misleading information': 'Misleading information',
+        'Prohibited content': 'Prohibited content',
+        'Seller request': 'Seller request',
+        Other: 'Other'
+      },
+      inputPlaceholder: 'Select a reason',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Unlist & Notify',
+      inputValidator: (v) => (!v ? 'Please select a reason' : undefined)
+    });
+    if (!reason) return;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    const res = await fetch(`/management/product/${id}/unlist/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason })
+    });
+    const data = await res.json();
+    if (data.success) {
+      await Swal.fire('Unlisted', data.message || 'Seller notified.', 'success');
+      location.reload();
+    } else {
+      Swal.fire('Error', data.message || 'Failed', 'error');
+    }
+  }
+</script>
 {% endblock %}

@@ -80,6 +80,13 @@ class User(AbstractUser):
     REQUIRED_FIELDS = ['email', 'username']
     
     @property
+    def org_acronym(self):
+        if self.course:
+            return self.course
+        if self.org_link:
+            return self.org_link.course_code or self.org_link.name or "—"
+        return "—"
+    @property
     def profile_pic_url(self):
         try:
             if self.image and self.image.url:

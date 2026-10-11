@@ -11,9 +11,15 @@ def user_profile_path(instance, filename):
 class User(AbstractUser):
     username = models.CharField(max_length=70, blank=True, null=True)
     student_no = models.CharField(
-        max_length=20, 
-        unique=True, 
-        validators=[RegexValidator(r'^\d+$', "Student number must be numeric")]
+        max_length=20,
+        unique=True,
+        validators=[
+            RegexValidator(
+                r'^[A-Za-z0-9\-]+$',
+                "ID may only contain letters, numbers, and hyphens."
+            )
+        ],
+        help_text="Student number (digits) or Staff/Admin ID (alphanumeric)"
     )
     ROLE_CHOICES = [
         ('student', 'Student'),

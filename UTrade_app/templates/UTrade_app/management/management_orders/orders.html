@@ -1,9 +1,7 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}
-  Management Orders
-{% endblock %}
+{% block title %}Management Orders{% endblock %}
 
 {% block content %}
 <style>
@@ -70,6 +68,12 @@
     padding-top: 0.85rem;
     padding-bottom: 0.85rem;
   }
+  .modal-product-img {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+  }
 </style>
 
 {% csrf_token %}
@@ -93,7 +97,7 @@
       </button>
     </div>
 
-    <!-- SIDEBAR -->
+    <!-- SIDEBAR (unchanged) -->
     <div class="col-md-3 col-lg-2">
       <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm"
            tabindex="-1" id="sellerSidebar">
@@ -194,7 +198,7 @@
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
           <h2 class="fw-bold mb-0 text-success">Management Orders</h2>
-          <p class="text-muted mb-0 small">Incoming · Accepted · Ready for Pickup · Completed</p>
+          <p class="text-muted mb-0 small">Incoming · Accepted · Ready · Completed · Rejected</p>
         </div>
       </div>
 
@@ -276,28 +280,54 @@
             Completed <span class="stat-pill ms-1 bg-secondary">{{ completed_count }}</span>
           </button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected-pane" type="button" role="tab">
+            Rejected <span class="stat-pill ms-1 bg-danger">{{ rejected_count }}</span>
+          </button>
+        </li>
       </ul>
 
-      <!-- Search -->
+      <!-- Filters (Search + Date + Organization) -->
       <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 filter-card">
         <form method="GET" class="row g-3 align-items-end">
-          <div class="col-md-8">
+          <div class="col-md-4">
             <label class="form-label small fw-semibold text-success mb-1">Search</label>
             <div class="input-group">
               <span class="input-group-text bg-white border-end-0 text-success"><i class="bi bi-search"></i></span>
               <input type="text" name="search" class="form-control border-start-0"
-                     placeholder="Order ID, buyer name, username..."
-                     value="{{ request.GET.search }}">
+                     placeholder="Order ID, buyer name, student no..."
+                     value="{{ current_filters.search }}">
             </div>
           </div>
           <div class="col-md-2">
-            <button type="submit" class="btn btn-success w-100 rounded-pill">
-              <i class="bi bi-funnel me-1"></i> Filter
-            </button>
+            <label class="form-label small fw-semibold text-success mb-1">From</label>
+            <input type="date" name="date_from" class="form-control"
+                   value="{{ current_filters.date_from }}">
           </div>
           <div class="col-md-2">
+            <label class="form-label small fw-semibold text-success mb-1">To</label>
+            <input type="date" name="date_to" class="form-control"
+                   value="{{ current_filters.date_to }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold text-success mb-1">Organization</label>
+            <select name="organization" class="form-select">
+              <option value="">All</option>
+              {% for org in org_options %}
+                <option value="{{ org }}" {% if current_filters.organization == org %}selected{% endif %}>
+                  {{ org }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-1">
+            <button type="submit" class="btn btn-success w-100 rounded-pill">
+              <i class="bi bi-funnel"></i>
+            </button>
+          </div>
+          <div class="col-md-1">
             <a href="{% url 'management_orders' %}" class="btn btn-outline-success w-100 rounded-pill">
-              <i class="bi bi-arrow-clockwise me-1"></i> Reset
+              <i class="bi bi-arrow-clockwise"></i>
             </a>
           </div>
         </form>
@@ -327,8 +357,8 @@
                     </th>
                     <th>Order</th>
                     <th>Buyer</th>
+                    <th>Organization</th>
                     <th>Amount</th>
-                    <th>Payment</th>
                     <th>Ordered</th>
                     <th class="text-end pe-3">Actions</th>
                   </tr>
@@ -342,14 +372,12 @@
                     </td>
                     <td class="fw-semibold">#{{ order.id }}</td>
                     <td>{{ order.user.get_full_name|default:order.user.username }}</td>
-                    <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
                     <td>
-                      {% if order.payment_method == 'GCASH' %}
-                        <span class="badge bg-success rounded-pill">GCash</span>
-                      {% else %}
-                        <span class="badge bg-info text-dark rounded-pill">{{ order.payment_method }}</span>
-                      {% endif %}
+                      <span class="badge bg-light text-dark border rounded-pill">
+                        {{ order.user.course|default:order.user.org_link.course_code|default:"—" }}
+                      </span>
                     </td>
+                    <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
                     <td class="small text-muted">{{ order.created_at|timesince }} ago</td>
                     <td class="text-end pe-3">
                       <div class="d-flex justify-content-end gap-1 flex-wrap">
@@ -358,13 +386,9 @@
                           <i class="bi bi-eye"></i>
                         </button>
                         <button type="button" class="btn btn-sm btn-success rounded-pill"
-                                onclick="singleAction({{ order.id }}, 'accept')">
-                          Accept
-                        </button>
+                                onclick="singleAction({{ order.id }}, 'accept')">Accept</button>
                         <button type="button" class="btn btn-sm btn-danger rounded-pill"
-                                onclick="singleAction({{ order.id }}, 'reject')">
-                          Reject
-                        </button>
+                                onclick="singleAction({{ order.id }}, 'reject')">Reject</button>
                       </div>
                     </td>
                   </tr>
@@ -421,9 +445,7 @@
                           <i class="bi bi-eye"></i>
                         </button>
                         <button type="button" class="btn btn-sm btn-success rounded-pill"
-                                onclick="singleAction({{ order.id }}, 'ready')">
-                          Ready for Pickup
-                        </button>
+                                onclick="singleAction({{ order.id }}, 'ready')">Ready for Pickup</button>
                       </div>
                     </td>
                   </tr>
@@ -480,9 +502,7 @@
                           <i class="bi bi-eye"></i>
                         </button>
                         <button type="button" class="btn btn-sm btn-success rounded-pill"
-                                onclick="singleAction({{ order.id }}, 'complete')">
-                          Picked Up
-                        </button>
+                                onclick="singleAction({{ order.id }}, 'complete')">Picked Up</button>
                       </div>
                     </td>
                   </tr>
@@ -519,10 +539,16 @@
                     <td class="fw-bold">₱{{ order.total_amount }}</td>
                     <td class="small text-muted">{{ order.updated_at|date:"M d, Y" }}</td>
                     <td class="text-end pe-3">
-                      <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
-                              data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
-                        <i class="bi bi-eye"></i> View
-                      </button>
+                      <div class="d-flex justify-content-end gap-1 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
+                                data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                          <i class="bi bi-eye"></i> View
+                        </button>
+                        <a href="{% url 'generate_receipt' order.id %}"
+                           class="btn btn-sm btn-outline-dark rounded-pill" target="_blank">
+                          <i class="bi bi-receipt"></i> E-Receipt
+                        </a>
+                      </div>
                     </td>
                   </tr>
                   {% empty %}
@@ -536,37 +562,86 @@
           </div>
         </div>
 
+        {# ========== REJECTED (new read-only tab) ========== #}
+        <div class="tab-pane fade" id="rejected-pane" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3">Order</th>
+                    <th>Buyer</th>
+                    <th>Organization</th>
+                    <th>Amount</th>
+                    <th>Rejection Reason</th>
+                    <th>Rejected On</th>
+                    <th class="text-end pe-3">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for order in rejected_orders %}
+                  <tr>
+                    <td class="ps-3 fw-semibold">#{{ order.id }}</td>
+                    <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td>
+                      <span class="badge bg-light text-dark border rounded-pill">
+                        {{ order.user.course|default:order.user.org_link.course_code|default:"—" }}
+                      </span>
+                    </td>
+                    <td class="fw-bold">₱{{ order.total_amount }}</td>
+                    <td><span class="text-danger small">{{ order.rejection_reason|default:"—" }}</span></td>
+                    <td class="small text-muted">{{ order.updated_at|date:"M d, Y H:i" }}</td>
+                    <td class="text-end pe-3">
+                      <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                              data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">No rejected orders.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
       </div>
     </main>
   </div>
 </div>
 
-{# Order detail modals #}
+{# ========== EXPANDED ORDER DETAIL MODALS ========== #}
 {% for order in all_orders_for_modals %}
 <div class="modal fade" id="orderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
     <div class="modal-content border-0 rounded-4 shadow">
       <div class="modal-header bg-success text-white">
         <h5 class="modal-title fw-bold">Order #{{ order.id }}</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body p-4">
-        <div class="row g-3 mb-3 small">
-          <div class="col-6">
-            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Buyer</div>
-            <strong>{{ order.user.get_full_name|default:order.user.username }}</strong>
-          </div>
-          <div class="col-6">
+
+        <!-- Order meta -->
+        <div class="row g-3 mb-4 small">
+          <div class="col-6 col-md-3">
             <div class="text-muted text-uppercase" style="font-size:0.7rem;">Status</div>
             <strong>{{ order.status }}</strong>
           </div>
-          <div class="col-6">
+          <div class="col-6 col-md-3">
             <div class="text-muted text-uppercase" style="font-size:0.7rem;">Payment</div>
             <strong>{{ order.payment_method }}</strong>
           </div>
-          <div class="col-6">
+          <div class="col-6 col-md-3">
             <div class="text-muted text-uppercase" style="font-size:0.7rem;">Total</div>
             <strong class="text-success">₱{{ order.total_amount }}</strong>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Ordered</div>
+            <strong>{{ order.created_at|date:"M d, Y H:i" }}</strong>
           </div>
           {% if order.buyer_note %}
           <div class="col-12">
@@ -587,22 +662,100 @@
           </div>
           {% endif %}
         </div>
-        <h6 class="fw-bold mb-2">Items</h6>
+
+        <!-- Buyer info -->
+        <h6 class="fw-bold mb-2"><i class="bi bi-person me-1"></i> Buyer</h6>
+        <div class="row g-2 small mb-4 border rounded-3 p-3 bg-light">
+          <div class="col-md-6">
+            <span class="text-muted d-block">Full name</span>
+            <strong>{{ order.user.get_full_name|default:order.user.username }}</strong>
+            {% if order.user.suffix %}<span class="text-muted"> {{ order.user.suffix }}</span>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <span class="text-muted d-block">Gender</span>
+            <strong>{{ order.user.gender|default:"—" }}</strong>
+          </div>
+          <div class="col-md-3">
+            <span class="text-muted d-block">Student No.</span>
+            <strong>{{ order.user.student_no|default:"—" }}</strong>
+          </div>
+          <div class="col-md-4">
+            <span class="text-muted d-block">Course / Section</span>
+            <strong>
+              {{ order.user.course|default:"—" }}
+              {% if order.user.section %} · {{ order.user.section }}{% endif %}
+            </strong>
+          </div>
+          <div class="col-md-4">
+            <span class="text-muted d-block">Contact</span>
+            <strong>{{ order.user.contact_number|default:order.user.phone|default:"—" }}</strong>
+          </div>
+          <div class="col-md-4">
+            <span class="text-muted d-block">Email</span>
+            <strong class="text-break">{{ order.user.email|default:"—" }}</strong>
+          </div>
+        </div>
+
+        <!-- Seller (Management) info -->
+        <h6 class="fw-bold mb-2"><i class="bi bi-shop me-1"></i> Seller (Management)</h6>
+        <div class="row g-2 small mb-4 border rounded-3 p-3 bg-light">
+          <div class="col-md-6">
+            <span class="text-muted d-block">Name</span>
+            <strong>{{ order.seller.get_full_name|default:order.seller.username }}</strong>
+            {% if order.seller.suffix %}<span class="text-muted"> {{ order.seller.suffix }}</span>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <span class="text-muted d-block">Gender</span>
+            <strong>{{ order.seller.gender|default:"—" }}</strong>
+          </div>
+          <div class="col-md-3">
+            <span class="text-muted d-block">Student No.</span>
+            <strong>{{ order.seller.student_no|default:"—" }}</strong>
+          </div>
+          <div class="col-md-4">
+            <span class="text-muted d-block">Course / Section</span>
+            <strong>
+              {{ order.seller.course|default:"—" }}
+              {% if order.seller.section %} · {{ order.seller.section }}{% endif %}
+            </strong>
+          </div>
+          <div class="col-md-4">
+            <span class="text-muted d-block">Contact</span>
+            <strong>{{ order.seller.contact_number|default:order.seller.phone|default:"—" }}</strong>
+          </div>
+          <div class="col-md-4">
+            <span class="text-muted d-block">Email</span>
+            <strong class="text-break">{{ order.seller.email|default:"—" }}</strong>
+          </div>
+        </div>
+
+        <!-- Items with images & quantities -->
+        <h6 class="fw-bold mb-2"><i class="bi bi-box-seam me-1"></i> Items</h6>
         <div class="list-group list-group-flush border rounded-3">
           {% for item in order.items.all %}
-          <div class="list-group-item d-flex justify-content-between align-items-center small">
-            <span>
-              {{ item.quantity }}×
-              {% if item.product_variant and item.product_variant.product %}
-                {{ item.product_variant.product.name }}
-                {% if item.product_variant.variant_name %}
-                  <span class="text-muted">({{ item.product_variant.variant_name }})</span>
+          <div class="list-group-item d-flex align-items-center gap-3 small py-3">
+            {% if item.product_variant and item.product_variant.product %}
+              {% with imgs=item.product_variant.product.images.all %}
+                {% if imgs %}
+                  <img src="{{ imgs.0.image.url }}" class="modal-product-img" alt="">
+                {% else %}
+                  <div class="modal-product-img bg-light d-flex align-items-center justify-content-center">
+                    <i class="bi bi-image text-muted"></i>
+                  </div>
                 {% endif %}
-              {% else %}
-                Deleted product
-              {% endif %}
-            </span>
-            <span class="fw-bold">₱{{ item.price }}</span>
+              {% endwith %}
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ item.product_variant.product.name }}</div>
+                {% if item.product_variant.variant_name %}
+                  <div class="text-muted">{{ item.product_variant.variant_name }}</div>
+                {% endif %}
+                <div class="text-muted">Qty: {{ item.quantity }}</div>
+              </div>
+              <div class="fw-bold text-end">₱{{ item.price }}</div>
+            {% else %}
+              <div class="text-muted">Deleted product × {{ item.quantity }}</div>
+              <div class="fw-bold ms-auto">₱{{ item.price }}</div>
+            {% endif %}
           </div>
           {% empty %}
           <div class="list-group-item text-muted">No items</div>
@@ -614,6 +767,11 @@
         </div>
       </div>
       <div class="modal-footer border-0">
+        {% if order.status == 'Completed' %}
+          <a href="{% url 'generate_receipt' order.id %}" class="btn btn-outline-dark rounded-pill" target="_blank">
+            <i class="bi bi-receipt me-1"></i> View E-Receipt
+          </a>
+        {% endif %}
         <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
@@ -681,7 +839,7 @@
     }
 
     const labels = {
-      accept: { title: 'Accept this order?', text: 'Order will move to Accepted.', confirm: 'Accept' },
+      accept: { title: 'Accept this order?', text: 'Order will move to Accepted. Buyer will be emailed.', confirm: 'Accept' },
       ready: { title: 'Mark Ready for Pickup?', text: 'Buyer will be notified.', confirm: 'Confirm' },
       complete: { title: 'Mark as Picked Up?', text: 'Order will move to Completed.', confirm: 'Confirm' },
     };

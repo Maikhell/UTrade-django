@@ -2,7 +2,10 @@ import json
 import uuid
 from datetime import timedelta
 from itertools import chain
-
+from django.core.mail import send_mail
+from django.conf import settings
+import logging
+logger = logging.getLogger(__name__)
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
@@ -20,6 +23,8 @@ from django.db import transaction
 from decimal import Decimal
 from django.db.models import Subquery, OuterRef, Value, DecimalField
 from django.db.models.functions import Coalesce
+from django.db.models import Prefetch
+from django.utils.dateparse import parse_date
 
 from xhtml2pdf import pisa
 
@@ -905,26 +910,111 @@ def active_listings(request):
         'org_name': 'UTrade Global Management',
     }
     return render(request, 'UTrade_app/management/management_panel/active_listings.html', context)
+def _buyer_org_acronym(user):
+    """Return BSIT / BSCS style acronym for a buyer."""
+    if not user:
+        return "—"
+    if getattr(user, "course", None):
+        return user.course
+    org = getattr(user, "org_link", None)
+    if org:
+        return org.course_code or org.name or "—"
+    return "—"
+
+
+def _notify_seller_chat(admin_user, order, message_text):
+    """Send a system chat message to the order's seller about this order."""
+    from ..models import Conversation, ChatMessage  # adjust import path if needed
+
+    # Prefer a product from the order items so the conversation is contextual
+    product = None
+    first_item = order.items.select_related("product_variant__product").first()
+    if first_item and first_item.product_variant:
+        product = first_item.product_variant.product
+
+    conversation, _ = Conversation.objects.get_or_create(
+        product=product,
+        buyer=admin_user,
+        seller=order.seller,
+        defaults={},
+    )
+    ChatMessage.objects.create(
+        conversation=conversation,
+        user=admin_user,
+        content=message_text,
+        is_read=False,
+    )
+
+
+def _send_buyer_order_email(order, action, reason=None):
+    """
+    Email the buyer (only @cvsu.edu.ph addresses) when an order is accepted or rejected.
+    Silently fails if email settings are missing or the address is not campus.
+    """
+    buyer = order.user
+    email = (getattr(buyer, "email", "") or "").strip().lower()
+    if not email.endswith("@cvsu.edu.ph"):
+        return
+
+    if action == "accept":
+        subject = f"UTrade – Order #{order.id} Accepted"
+        body = (
+            f"Hi {buyer.get_full_name() or buyer.username},\n\n"
+            f"Your order #{order.id} (₱{order.total_amount}) has been accepted by Management.\n"
+            f"You will be notified when it is ready for pickup.\n\n"
+            f"Thank you for using UTrade."
+        )
+    else:  # reject
+        subject = f"UTrade – Order #{order.id} Rejected"
+        body = (
+            f"Hi {buyer.get_full_name() or buyer.username},\n\n"
+            f"Unfortunately your order #{order.id} (₱{order.total_amount}) was rejected.\n"
+            f"Reason: {reason or 'Not specified'}\n\n"
+            f"You may place a new order or contact Management for clarification.\n\n"
+            f"Thank you for using UTrade."
+        )
+
+    try:
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except Exception:
+        logger.exception("Failed to send order email to %s for order %s", email, order.id)
+
+
 @login_required
 @user_passes_test(is_management)
 def management_orders(request):
     """
-    Management orders board.
+    Management orders board with filters, Rejected tab, and expanded modals.
     Incoming  = Pending | Paid
     Accepted  = Accepted
     Ready     = Delivered
     Completed = Completed
-    Scoped to orders where seller has role management (CBRGU / management listings).
-    Change filter to Order.objects.all() if you want platform-wide.
+    Rejected  = Rejected
     """
-    search = request.GET.get('search', '').strip()
+    search = request.GET.get("search", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    org_filter = request.GET.get("organization", "").strip()
 
     base = (
         Order.objects
-        .filter(seller__user_role='management')  # or remove for all orders
-        .select_related('user', 'seller')
-        .prefetch_related('items__product_variant__product')
-        .order_by('-created_at')
+        .filter(seller__user_role="management")
+        .select_related("user", "user__org_link", "seller")
+        .prefetch_related(
+            Prefetch(
+                "items",
+                queryset=OrderItem.objects.select_related(
+                    "product_variant__product"
+                ).prefetch_related("product_variant__product__images"),
+            )
+        )
+        .order_by("-created_at")
     )
 
     if search:
@@ -934,34 +1024,81 @@ def management_orders(request):
             | Q(user__first_name__icontains=search)
             | Q(user__last_name__icontains=search)
             | Q(user__display_name__icontains=search)
+            | Q(user__student_no__icontains=search)
         )
 
-    incoming_orders = base.filter(status__in=['Pending', 'Paid'])
-    accepted_orders = base.filter(status='Accepted')
-    ready_orders = base.filter(status='Delivered')
-    completed_orders = base.filter(status='Completed')
+    if date_from:
+        d = parse_date(date_from)
+        if d:
+            base = base.filter(created_at__date__gte=d)
+    if date_to:
+        d = parse_date(date_to)
+        if d:
+            base = base.filter(created_at__date__lte=d)
 
-    # Modals need a combined list (cap for performance)
+    if org_filter:
+        base = base.filter(
+            Q(user__course__iexact=org_filter)
+            | Q(user__org_link__course_code__iexact=org_filter)
+            | Q(user__org_link__name__iexact=org_filter)
+        )
+
+    incoming_orders = base.filter(status__in=["Pending", "Paid"])
+    accepted_orders = base.filter(status="Accepted")
+    ready_orders = base.filter(status="Delivered")
+    completed_orders = base.filter(status="Completed")
+    rejected_orders = base.filter(status="Rejected")
+
+    # Combined list for modals (capped)
     all_for_modals = list(
-        list(incoming_orders[:50])
-        + list(accepted_orders[:50])
-        + list(ready_orders[:50])
-        + list(completed_orders[:50])
+        list(incoming_orders[:40])
+        + list(accepted_orders[:40])
+        + list(ready_orders[:40])
+        + list(completed_orders[:40])
+        + list(rejected_orders[:40])
+    )
+
+    # Distinct organization options for the filter dropdown
+    org_options = sorted(
+        set(
+            filter(
+                None,
+                list(
+                    Order.objects.filter(seller__user_role="management")
+                    .values_list("user__course", flat=True)
+                    .distinct()
+                )
+                + list(
+                    Order.objects.filter(seller__user_role="management")
+                    .values_list("user__org_link__course_code", flat=True)
+                    .distinct()
+                ),
+            )
+        )
     )
 
     context = {
-        'incoming_orders': incoming_orders[:100],
-        'accepted_orders': accepted_orders[:100],
-        'ready_orders': ready_orders[:100],
-        'completed_orders': completed_orders[:100],
-        'all_orders_for_modals': all_for_modals,
-        'incoming_count': incoming_orders.count(),
-        'accepted_count': accepted_orders.count(),
-        'ready_count': ready_orders.count(),
-        'completed_count': completed_orders.count(),
-        'total_orders': base.count(),
+        "incoming_orders": incoming_orders[:100],
+        "accepted_orders": accepted_orders[:100],
+        "ready_orders": ready_orders[:100],
+        "completed_orders": completed_orders[:100],
+        "rejected_orders": rejected_orders[:100],
+        "all_orders_for_modals": all_for_modals,
+        "incoming_count": incoming_orders.count(),
+        "accepted_count": accepted_orders.count(),
+        "ready_count": ready_orders.count(),
+        "completed_count": completed_orders.count(),
+        "rejected_count": rejected_orders.count(),
+        "total_orders": base.count(),
+        "org_options": org_options,
+        "current_filters": {
+            "search": search,
+            "date_from": date_from,
+            "date_to": date_to,
+            "organization": org_filter,
+        },
     }
-    return render(request, 'UTrade_app/management/management_orders/orders.html', context)
+    return render(request, "UTrade_app/management/management_orders/orders.html", context)
 
 
 @login_required
@@ -969,69 +1106,89 @@ def management_orders(request):
 @require_POST
 def management_orders_batch(request):
     """
-    Batch / single order status updates for management.
-    Actions: accept | reject | ready | complete
-    Max 20 order_ids per request.
+    Batch / single order status updates.
+    On accept / reject → email buyer (@cvsu.edu.ph).
+    On reject → also chat-notify the seller with the reason.
     """
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+        return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
 
-    action = (data.get('action') or '').strip().lower()
-    order_ids = data.get('order_ids') or []
-    reason = (data.get('reason') or '').strip()
+    action = (data.get("action") or "").strip().lower()
+    order_ids = data.get("order_ids") or []
+    reason = (data.get("reason") or "").strip()
 
     if not isinstance(order_ids, list) or not order_ids:
-        return JsonResponse({'success': False, 'message': 'No orders selected'}, status=400)
-
+        return JsonResponse({"success": False, "message": "No orders selected"}, status=400)
     if len(order_ids) > 20:
-        return JsonResponse({'success': False, 'message': 'Maximum 20 orders per batch'}, status=400)
+        return JsonResponse({"success": False, "message": "Maximum 20 orders per batch"}, status=400)
 
     allowed = {
-        'accept': ('Accepted', ['Pending', 'Paid']),
-        'reject': ('Rejected', ['Pending', 'Paid']),
-        'ready': ('Delivered', ['Accepted']),
-        'complete': ('Completed', ['Delivered']),
+        "accept": ("Accepted", ["Pending", "Paid"]),
+        "reject": ("Rejected", ["Pending", "Paid"]),
+        "ready": ("Delivered", ["Accepted"]),
+        "complete": ("Completed", ["Delivered"]),
     }
     if action not in allowed:
-        return JsonResponse({'success': False, 'message': 'Invalid action'}, status=400)
+        return JsonResponse({"success": False, "message": "Invalid action"}, status=400)
 
     new_status, from_statuses = allowed[action]
-
-    if action == 'reject' and not reason:
-        return JsonResponse({'success': False, 'message': 'Rejection reason required'}, status=400)
+    if action == "reject" and not reason:
+        return JsonResponse({"success": False, "message": "Rejection reason required"}, status=400)
 
     qs = Order.objects.filter(
         id__in=order_ids,
         status__in=from_statuses,
-        seller__user_role='management',  # match list view scope
-    )
+        seller__user_role="management",
+    ).select_related("user", "seller").prefetch_related("items__product_variant__product")
 
     updated = 0
     with transaction.atomic():
         for order in qs.select_for_update():
             order.status = new_status
-            if action == 'reject':
+            if action == "reject":
                 order.rejection_reason = reason[:100]
-            order.save(update_fields=['status', 'rejection_reason', 'updated_at'] if action == 'reject' else ['status', 'updated_at'])
+            order.save(
+                update_fields=["status", "rejection_reason", "updated_at"]
+                if action == "reject"
+                else ["status", "updated_at"]
+            )
             updated += 1
+
             log_action(
                 user=request.user,
-                action=f'Order {action.title()}',
-                item_type='Order',
-                item_name=f'Order #{order.id}',
-                details=f'Status → {new_status}' + (f'; reason={reason}' if reason else ''),
+                action=f"Order {action.title()}",
+                item_type="Order",
+                item_name=f"Order #{order.id}",
+                details=f"Status → {new_status}" + (f"; reason={reason}" if reason else ""),
             )
+
+            # Email buyer
+            if action in ("accept", "reject"):
+                _send_buyer_order_email(order, action, reason=reason if action == "reject" else None)
+
+            # Chat-notify seller on reject
+            if action == "reject":
+                msg = (
+                    f"🚨 SYSTEM (Management): Order #{order.id} from "
+                    f"{order.user.get_full_name() or order.user.username} was rejected.\n"
+                    f"Reason: {reason}\n"
+                    f"Amount: ₱{order.total_amount}"
+                )
+                try:
+                    _notify_seller_chat(request.user, order, msg)
+                except Exception:
+                    logger.exception("Failed to send chat notification for order %s", order.id)
 
     if updated == 0:
         return JsonResponse({
-            'success': False,
-            'message': 'No matching orders updated (wrong status or already processed).',
+            "success": False,
+            "message": "No matching orders updated (wrong status or already processed).",
         })
 
     return JsonResponse({
-        'success': True,
-        'message': f'{updated} order(s) updated to {new_status}.',
-        'updated': updated,
+        "success": True,
+        "message": f"{updated} order(s) updated to {new_status}.",
+        "updated": updated,
     })

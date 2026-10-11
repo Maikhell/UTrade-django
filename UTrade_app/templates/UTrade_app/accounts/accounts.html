@@ -3,7 +3,6 @@
 
 {% block title %}User Account{% endblock %}
 
-{% block content %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'UTrade_app/css/accounts.css' %}" />
   <style>
@@ -68,6 +67,9 @@
     }
   </style>
 {% endblock %}
+
+{% block content %}
+
 
 <nav aria-label="breadcrumb" class="mb-3 mb-md-4 px-2 px-md-0">
   <a href="#" onclick="history.back(); return false;"

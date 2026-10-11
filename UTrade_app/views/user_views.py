@@ -174,13 +174,13 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
             org_map = {
                 "ITS": "Information Technology Society",
                 "CSG": "Central Student Government",
-                "ACS": "Alliance of Computer Scientists",
-                "HMS": "Hospitality Management Society",
-                "LLP": "La Liga Psicologia",
-                "LCDCS": "La Ciencia de Crimines Sociedad",
-                "LMS-JMA": "Le Manager's Societe - Junior Marketing Association",
-                "SHR": "Societas Humana Resource",
-                "TES": "Teacher Education Society",
+                "BSCS - ACS": "Alliance of Computer Scientists",
+                "BSHM - HMS": "Hospitality Management Society",
+                "BSPsych - LLP": "La Liga Psicologia",
+                "BSCrim - LCDCS": "La Ciencia de Crimines Sociedad",
+                "BSBA-MM - LMS-JMA": "Le Manager's Societe - Junior Marketing Association",
+                "BSBA-HR - SHR": "Societas Humana Resource",
+                "BSED - English&Math - TES": "Teacher Education Society",
             }
 
             # get_or_create ensures the Org exists in your PostgreSQL database

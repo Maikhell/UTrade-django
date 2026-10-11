@@ -544,10 +544,10 @@
                                 data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
                           <i class="bi bi-eye"></i> View
                         </button>
-                        <a href="{% url 'generate_receipt' order.id %}"
+                        {% comment %} <a href="{% url 'generate_receipt' order.id %}"
                            class="btn btn-sm btn-outline-dark rounded-pill" target="_blank">
                           <i class="bi bi-receipt"></i> E-Receipt
-                        </a>
+                        </a> {% endcomment %}
                       </div>
                     </td>
                   </tr>

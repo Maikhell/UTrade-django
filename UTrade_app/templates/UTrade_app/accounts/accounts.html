@@ -3,6 +3,7 @@
 
 {% block title %}User Account{% endblock %}
 
+{% block content %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'UTrade_app/css/accounts.css' %}" />
   <style>
@@ -67,9 +68,6 @@
     }
   </style>
 {% endblock %}
-
-{% block content %}
-
 
 <nav aria-label="breadcrumb" class="mb-3 mb-md-4 px-2 px-md-0">
   <a href="#" onclick="history.back(); return false;"
@@ -242,7 +240,7 @@
 
       {% elif user.user_role == 'management' %}
         <div class="col-12">
-          <a href="{% url 'inbox' %}"
+          <a href="{% url 'dashboard' %}"
              class="card h-100 p-3 p-md-4 rounded-4 bg-light text-dark action-card border-warning-hover text-decoration-none">
             {% if mgmt_pending_count %}
               <span class="notif-bubble">{{ mgmt_pending_count }}</span>

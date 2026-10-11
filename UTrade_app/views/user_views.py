@@ -18,6 +18,8 @@ from django.utils import timezone
 from django.shortcuts import render
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models.functions import TruncDate
+import logging
+logger = logging.getLogger(__name__)
 from ..utils import send_otp_email, get_seller_owner_type_filter
 from django.views.generic import (
     CreateView,
@@ -83,55 +85,59 @@ class UserCreateView(CreateView):
         print(f"Form Validation Errors: {form.errors}")
         return super().form_invalid(form)
     
-class UserAccountView(TemplateView):
+class UserAccountView(LoginRequiredMixin, TemplateView):
     template_name = 'UTrade_app/accounts/accounts.html'
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        user = self.request.user
+        try:
+            context = super().get_context_data(**kwargs)
+            user = self.request.user
 
-        context['incoming_orders_count'] = 0
-        context['unread_messages_count'] = 0
-        context['mgmt_pending_count'] = 0
-        context['org_pending_count'] = 0
+            context['incoming_orders_count'] = 0
+            context['unread_messages_count'] = 0
+            context['mgmt_pending_count'] = 0
+            context['org_pending_count'] = 0
 
-        if not user.is_authenticated:
+            if not user.is_authenticated:
+                return context
+
+            # --- existing queries ---
+            context['incoming_orders_count'] = (
+                Order.objects.filter(
+                    items__product_variant__product__seller=user,
+                    status__iexact='Pending',
+                ).distinct().count()
+            )
+
+            context['unread_messages_count'] = ChatMessage.objects.filter(
+                Q(conversation__buyer=user) | Q(conversation__seller=user),
+                is_read=False,
+            ).exclude(user=user).count()
+
+            if getattr(user, 'user_role', None) == 'management':
+                pending_products = Product.objects.filter(status__iexact='Pending').count()
+                pending_pre = PreOrderRequest.objects.filter(
+                    status__iexact='PENDING',
+                    product_variant__product__owner_type='MANAGEMENT',
+                ).count()
+                context['mgmt_pending_count'] = pending_products + pending_pre
+
+            if getattr(user, 'is_officer', False) or getattr(user, 'user_role', None) == 'org_officer':
+                org = getattr(user, 'org_link', None)
+                if org:
+                    context['org_pending_count'] = PreOrderRequest.objects.filter(
+                        status__iexact='PENDING',
+                        product_variant__product__related_org=org,
+                    ).count()
+                else:
+                    context['org_pending_count'] = context['incoming_orders_count']
+
             return context
 
-        context['incoming_orders_count'] = (
-            Order.objects.filter(
-                items__product_variant__product__seller=user,
-                status__iexact='Pending',
-            )
-            .distinct()
-            .count()
-        )
-
-        # Unread chats: messages in your conversations not sent by you
-        context['unread_messages_count'] = ChatMessage.objects.filter(
-            Q(conversation__buyer=user) | Q(conversation__seller=user),
-            is_read=False,
-        ).exclude(user=user).count()
-
-        if user.user_role == 'management':
-            pending_products = Product.objects.filter(status__iexact='Pending').count()
-            pending_pre = PreOrderRequest.objects.filter(
-                status__iexact='PENDING',
-                product_variant__product__owner_type='MANAGEMENT',
-            ).count()
-            context['mgmt_pending_count'] = pending_products + pending_pre
-
-        if user.is_officer or user.user_role == 'org_officer':
-            org = getattr(user, 'org_link', None)
-            if org:
-                context['org_pending_count'] = PreOrderRequest.objects.filter(
-                    status__iexact='PENDING',
-                    product_variant__product__related_org=org,
-                ).count()
-            else:
-                context['org_pending_count'] = context['incoming_orders_count']
-
-        return context
+        except Exception as e:
+            logger.exception("CRASH in UserAccountView.get_context_data for user %s", self.request.user)
+            raise   # re-raise so Railway still shows the 500, but now with a clear log line
+        
 class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = User
     form_class = UserProfileForm

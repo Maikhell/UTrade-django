@@ -9,6 +9,7 @@ class Order(models.Model):
         ('Accepted', 'Accepted'),
         ('Completed', 'Completed'),
         ('Cancelled', 'Cancelled'),
+        ('Rejected', 'Rejected'),
     ]
 
     PAYMENT_METHODS = [
@@ -28,7 +29,17 @@ class Order(models.Model):
         ('Seller not responding', 'Seller is not responding'),
         ('Other', 'Other'),
     ]
-
+    REJECTION_CHOICES = [
+    ('Out of stock', 'Item(s) out of stock'),
+    ('Pricing/Listing error', 'Pricing or product listing error'),
+    ('Other', 'Other'),
+]
+    rejection_reason = models.CharField(
+        max_length=100, 
+        choices=REJECTION_CHOICES, 
+        null=True, 
+        blank=True
+    )
     cancellation_reason = models.CharField(
         max_length=100, 
         choices=CANCELLATION_CHOICES, 

@@ -233,7 +233,7 @@ def update_status(request, type, id):
     )
 
     messages.success(request, f"{type.capitalize()} updated successfully!")
-    return redirect('management.panel')
+    return redirect('active_listings')
 
 
 def product_details(request, product_id):
@@ -905,3 +905,133 @@ def active_listings(request):
         'org_name': 'UTrade Global Management',
     }
     return render(request, 'UTrade_app/management/management_panel/active_listings.html', context)
+@login_required
+@user_passes_test(is_management)
+def management_orders(request):
+    """
+    Management orders board.
+    Incoming  = Pending | Paid
+    Accepted  = Accepted
+    Ready     = Delivered
+    Completed = Completed
+    Scoped to orders where seller has role management (CBRGU / management listings).
+    Change filter to Order.objects.all() if you want platform-wide.
+    """
+    search = request.GET.get('search', '').strip()
+
+    base = (
+        Order.objects
+        .filter(seller__user_role='management')  # or remove for all orders
+        .select_related('user', 'seller')
+        .prefetch_related('items__product_variant__product')
+        .order_by('-created_at')
+    )
+
+    if search:
+        base = base.filter(
+            Q(id__icontains=search)
+            | Q(user__username__icontains=search)
+            | Q(user__first_name__icontains=search)
+            | Q(user__last_name__icontains=search)
+            | Q(user__display_name__icontains=search)
+        )
+
+    incoming_orders = base.filter(status__in=['Pending', 'Paid'])
+    accepted_orders = base.filter(status='Accepted')
+    ready_orders = base.filter(status='Delivered')
+    completed_orders = base.filter(status='Completed')
+
+    # Modals need a combined list (cap for performance)
+    all_for_modals = list(
+        list(incoming_orders[:50])
+        + list(accepted_orders[:50])
+        + list(ready_orders[:50])
+        + list(completed_orders[:50])
+    )
+
+    context = {
+        'incoming_orders': incoming_orders[:100],
+        'accepted_orders': accepted_orders[:100],
+        'ready_orders': ready_orders[:100],
+        'completed_orders': completed_orders[:100],
+        'all_orders_for_modals': all_for_modals,
+        'incoming_count': incoming_orders.count(),
+        'accepted_count': accepted_orders.count(),
+        'ready_count': ready_orders.count(),
+        'completed_count': completed_orders.count(),
+        'total_orders': base.count(),
+    }
+    return render(request, 'UTrade_app/management/management_orders/orders.html', context)
+
+
+@login_required
+@user_passes_test(is_management)
+@require_POST
+def management_orders_batch(request):
+    """
+    Batch / single order status updates for management.
+    Actions: accept | reject | ready | complete
+    Max 20 order_ids per request.
+    """
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+
+    action = (data.get('action') or '').strip().lower()
+    order_ids = data.get('order_ids') or []
+    reason = (data.get('reason') or '').strip()
+
+    if not isinstance(order_ids, list) or not order_ids:
+        return JsonResponse({'success': False, 'message': 'No orders selected'}, status=400)
+
+    if len(order_ids) > 20:
+        return JsonResponse({'success': False, 'message': 'Maximum 20 orders per batch'}, status=400)
+
+    allowed = {
+        'accept': ('Accepted', ['Pending', 'Paid']),
+        'reject': ('Rejected', ['Pending', 'Paid']),
+        'ready': ('Delivered', ['Accepted']),
+        'complete': ('Completed', ['Delivered']),
+    }
+    if action not in allowed:
+        return JsonResponse({'success': False, 'message': 'Invalid action'}, status=400)
+
+    new_status, from_statuses = allowed[action]
+
+    if action == 'reject' and not reason:
+        return JsonResponse({'success': False, 'message': 'Rejection reason required'}, status=400)
+
+    qs = Order.objects.filter(
+        id__in=order_ids,
+        status__in=from_statuses,
+        seller__user_role='management',  # match list view scope
+    )
+
+    updated = 0
+    with transaction.atomic():
+        for order in qs.select_for_update():
+            order.status = new_status
+            if action == 'reject':
+                order.rejection_reason = reason[:100]
+            order.save(update_fields=['status', 'rejection_reason', 'updated_at'] if action == 'reject' else ['status', 'updated_at'])
+            updated += 1
+            log_action(
+                user=request.user,
+                action=f'Order {action.title()}',
+                item_type='Order',
+                item_name=f'Order #{order.id}',
+                details=f'Status → {new_status}' + (f'; reason={reason}' if reason else ''),
+            )
+
+    if updated == 0:
+        return JsonResponse({
+            'success': False,
+            'message': 'No matching orders updated (wrong status or already processed).',
+        })
+
+    return JsonResponse({
+        'success': True,
+        'message': f'{updated} order(s) updated to {new_status}.',
+        'updated': updated,
+    })

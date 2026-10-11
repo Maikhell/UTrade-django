@@ -1,0 +1,754 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  Management Orders
+{% endblock %}
+
+{% block content %}
+<style>
+  @media (min-width: 768px) {
+    .seller-sidebar {
+      position: sticky;
+      top: 1rem;
+      height: calc(100vh - 2rem);
+      overflow-y: auto;
+    }
+  }
+  @media (min-width: 1400px) {
+    .container, .container-sm, .container-md,
+    .container-lg, .container-xl, .container-xxl {
+      max-width: 1600px !important;
+    }
+  }
+  .stat-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
+  }
+  .sidebar-link.active {
+    background-color: rgba(25, 135, 84, 0.12) !important;
+    color: #198754 !important;
+    font-weight: 600;
+  }
+  .nav-tabs .nav-link {
+    color: #198754;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-weight: 600;
+    padding: 0.75rem 1.25rem;
+  }
+  .nav-tabs .nav-link:hover {
+    color: #146c43;
+    border-bottom-color: #a5d6a7;
+  }
+  .nav-tabs .nav-link.active {
+    color: #146c43 !important;
+    background: transparent !important;
+    border-bottom: 3px solid #198754 !important;
+  }
+  .filter-card {
+    background: linear-gradient(135deg, #f0faf4 0%, #e8f5e9 100%);
+    border: 1px solid #a5d6a7;
+  }
+  .stat-pill {
+    background: #198754;
+    color: white;
+    border-radius: 50rem;
+    padding: 0.15rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .batch-bar {
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 0.75rem;
+  }
+  .table > :not(caption) > * > * {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+  }
+</style>
+
+{% csrf_token %}
+
+<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
+  <a href="#" onclick="history.back(); return false;"
+     class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back to Dashboard</span>
+  </a>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+
+    <!-- Mobile Toggle -->
+    <div class="col-12 d-md-none mb-3">
+      <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
+              type="button" data-bs-toggle="offcanvas" data-bs-target="#sellerSidebar">
+        <i class="bi bi-list"></i> Management Menu
+      </button>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="col-md-3 col-lg-2">
+      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm"
+           tabindex="-1" id="sellerSidebar">
+        <div class="offcanvas-header d-md-none">
+          <h5 class="offcanvas-title fw-bold">Management</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+          <div class="seller-sidebar p-3">
+            <div class="mb-4">
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div class="d-flex justify-content-between">
+                  <span>Orders</span>
+                  <strong>{{ total_orders|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Incoming</span>
+                  <strong>{{ incoming_count }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Completed</span>
+                  <strong>{{ completed_count }}</strong>
+                </div>
+              </div>
+            </div>
+            <hr class="my-3 opacity-25">
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-briefcase"></i> Management Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'management.panel' %}">
+                    <i class="bi bi-speedometer2 text-success"></i> Dashboard
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'active_listings' %}">
+                    <i class="bi bi-check2-square text-success"></i> Active Listings
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'remittance_management' %}">
+                    <i class="bi bi-cash-stack text-success"></i> Remittance
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'cbrgu_products' %}">
+                    <i class="bi bi-box-seam text-success"></i> Products
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-cart-fill"></i> Orders
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 py-1"
+                     href="{% url 'management_orders' %}">
+                    <i class="bi bi-inbox text-primary"></i> Orders
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-calendar-check text-info"></i> Pre-Orders
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-shield-lock"></i> Security
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-journal-text"></i> Logs and Reports
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <hr class="my-3 opacity-25">
+            <div class="d-grid gap-2">
+              <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
+                <i class="bi bi-plus-lg me-1"></i> Add New Product
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
+
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+          <h2 class="fw-bold mb-0 text-success">Management Orders</h2>
+          <p class="text-muted mb-0 small">Incoming · Accepted · Ready for Pickup · Completed</p>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-2 me-3">
+                <i class="bi bi-inbox fs-5"></i>
+              </div>
+              <div>
+                <div class="text-muted small">Incoming</div>
+                <div class="fw-bold fs-4">{{ incoming_count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 me-3">
+                <i class="bi bi-check2-all fs-5"></i>
+              </div>
+              <div>
+                <div class="text-muted small">Accepted</div>
+                <div class="fw-bold fs-4">{{ accepted_count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-info bg-opacity-10 text-info rounded-3 p-2 me-3">
+                <i class="bi bi-bag-check fs-5"></i>
+              </div>
+              <div>
+                <div class="text-muted small">Ready</div>
+                <div class="fw-bold fs-4">{{ ready_count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-2 me-3">
+                <i class="bi bi-clipboard-check fs-5"></i>
+              </div>
+              <div>
+                <div class="text-muted small">Completed</div>
+                <div class="fw-bold fs-4">{{ completed_count }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <ul class="nav nav-tabs border-0 mb-3" id="orderTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="incoming-tab" data-bs-toggle="tab" data-bs-target="#incoming-pane" type="button" role="tab">
+            Incoming <span class="stat-pill ms-1 bg-primary">{{ incoming_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="accepted-tab" data-bs-toggle="tab" data-bs-target="#accepted-pane" type="button" role="tab">
+            Accepted <span class="stat-pill ms-1">{{ accepted_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="ready-tab" data-bs-toggle="tab" data-bs-target="#ready-pane" type="button" role="tab">
+            Ready for Pickup <span class="stat-pill ms-1 bg-info">{{ ready_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed-pane" type="button" role="tab">
+            Completed <span class="stat-pill ms-1 bg-secondary">{{ completed_count }}</span>
+          </button>
+        </li>
+      </ul>
+
+      <!-- Search -->
+      <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 filter-card">
+        <form method="GET" class="row g-3 align-items-end">
+          <div class="col-md-8">
+            <label class="form-label small fw-semibold text-success mb-1">Search</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 text-success"><i class="bi bi-search"></i></span>
+              <input type="text" name="search" class="form-control border-start-0"
+                     placeholder="Order ID, buyer name, username..."
+                     value="{{ request.GET.search }}">
+            </div>
+          </div>
+          <div class="col-md-2">
+            <button type="submit" class="btn btn-success w-100 rounded-pill">
+              <i class="bi bi-funnel me-1"></i> Filter
+            </button>
+          </div>
+          <div class="col-md-2">
+            <a href="{% url 'management_orders' %}" class="btn btn-outline-success w-100 rounded-pill">
+              <i class="bi bi-arrow-clockwise me-1"></i> Reset
+            </a>
+          </div>
+        </form>
+      </div>
+
+      <div class="tab-content">
+
+        {# ========== INCOMING ========== #}
+        <div class="tab-pane fade show active" id="incoming-pane" role="tabpanel">
+          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+            <span class="small text-muted me-auto">Select up to 20 orders</span>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('incoming', 'accept')">
+              <i class="bi bi-check-lg me-1"></i> Accept selected
+            </button>
+            <button type="button" class="btn btn-sm btn-danger rounded-pill" onclick="batchAction('incoming', 'reject')">
+              <i class="bi bi-x-lg me-1"></i> Reject selected
+            </button>
+          </div>
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3" style="width:40px;">
+                      <input type="checkbox" class="form-check-input" id="checkAllIncoming"
+                             onchange="toggleAll('incoming', this.checked)">
+                    </th>
+                    <th>Order</th>
+                    <th>Buyer</th>
+                    <th>Amount</th>
+                    <th>Payment</th>
+                    <th>Ordered</th>
+                    <th class="text-end pe-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for order in incoming_orders %}
+                  <tr>
+                    <td class="ps-3">
+                      <input type="checkbox" class="form-check-input order-check incoming-check"
+                             value="{{ order.id }}" data-group="incoming">
+                    </td>
+                    <td class="fw-semibold">#{{ order.id }}</td>
+                    <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
+                    <td>
+                      {% if order.payment_method == 'GCASH' %}
+                        <span class="badge bg-success rounded-pill">GCash</span>
+                      {% else %}
+                        <span class="badge bg-info text-dark rounded-pill">{{ order.payment_method }}</span>
+                      {% endif %}
+                    </td>
+                    <td class="small text-muted">{{ order.created_at|timesince }} ago</td>
+                    <td class="text-end pe-3">
+                      <div class="d-flex justify-content-end gap-1 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
+                                data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                          <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success rounded-pill"
+                                onclick="singleAction({{ order.id }}, 'accept')">
+                          Accept
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger rounded-pill"
+                                onclick="singleAction({{ order.id }}, 'reject')">
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">No incoming orders.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {# ========== ACCEPTED ========== #}
+        <div class="tab-pane fade" id="accepted-pane" role="tabpanel">
+          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+            <span class="small text-muted me-auto">Select up to 20 orders</span>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('accepted', 'ready')">
+              <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
+            </button>
+          </div>
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3" style="width:40px;">
+                      <input type="checkbox" class="form-check-input"
+                             onchange="toggleAll('accepted', this.checked)">
+                    </th>
+                    <th>Order</th>
+                    <th>Buyer</th>
+                    <th>Note to Buyer</th>
+                    <th>Status</th>
+                    <th class="text-end pe-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for order in accepted_orders %}
+                  <tr>
+                    <td class="ps-3">
+                      <input type="checkbox" class="form-check-input order-check accepted-check"
+                             value="{{ order.id }}" data-group="accepted">
+                    </td>
+                    <td class="fw-semibold">#{{ order.id }}</td>
+                    <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td><small class="text-muted">{{ order.seller_note|default:"—" }}</small></td>
+                    <td><span class="badge bg-success rounded-pill">Accepted</span></td>
+                    <td class="text-end pe-3">
+                      <div class="d-flex justify-content-end gap-1 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
+                                data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                          <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success rounded-pill"
+                                onclick="singleAction({{ order.id }}, 'ready')">
+                          Ready for Pickup
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">No accepted orders.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {# ========== READY ========== #}
+        <div class="tab-pane fade" id="ready-pane" role="tabpanel">
+          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+            <span class="small text-muted me-auto">Select up to 20 orders</span>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('ready', 'complete')">
+              <i class="bi bi-clipboard-check me-1"></i> Mark Picked Up
+            </button>
+          </div>
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3" style="width:40px;">
+                      <input type="checkbox" class="form-check-input"
+                             onchange="toggleAll('ready', this.checked)">
+                    </th>
+                    <th>Order</th>
+                    <th>Buyer</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th class="text-end pe-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for order in ready_orders %}
+                  <tr>
+                    <td class="ps-3">
+                      <input type="checkbox" class="form-check-input order-check ready-check"
+                             value="{{ order.id }}" data-group="ready">
+                    </td>
+                    <td class="fw-semibold">#{{ order.id }}</td>
+                    <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
+                    <td><span class="badge bg-info text-dark rounded-pill">Ready for Pickup</span></td>
+                    <td class="text-end pe-3">
+                      <div class="d-flex justify-content-end gap-1 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
+                                data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                          <i class="bi bi-eye"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-success rounded-pill"
+                                onclick="singleAction({{ order.id }}, 'complete')">
+                          Picked Up
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="6" class="text-center py-5 text-muted">No orders ready for pickup.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {# ========== COMPLETED ========== #}
+        <div class="tab-pane fade" id="completed-pane" role="tabpanel">
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3">Order</th>
+                    <th>Buyer</th>
+                    <th>Amount</th>
+                    <th>Completed</th>
+                    <th class="text-end pe-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for order in completed_orders %}
+                  <tr>
+                    <td class="ps-3 fw-semibold">#{{ order.id }}</td>
+                    <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td class="fw-bold">₱{{ order.total_amount }}</td>
+                    <td class="small text-muted">{{ order.updated_at|date:"M d, Y" }}</td>
+                    <td class="text-end pe-3">
+                      <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
+                              data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+                        <i class="bi bi-eye"></i> View
+                      </button>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">No completed orders.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+{# Order detail modals #}
+{% for order in all_orders_for_modals %}
+<div class="modal fade" id="orderModal{{ order.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold">Order #{{ order.id }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3 mb-3 small">
+          <div class="col-6">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Buyer</div>
+            <strong>{{ order.user.get_full_name|default:order.user.username }}</strong>
+          </div>
+          <div class="col-6">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Status</div>
+            <strong>{{ order.status }}</strong>
+          </div>
+          <div class="col-6">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Payment</div>
+            <strong>{{ order.payment_method }}</strong>
+          </div>
+          <div class="col-6">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Total</div>
+            <strong class="text-success">₱{{ order.total_amount }}</strong>
+          </div>
+          {% if order.buyer_note %}
+          <div class="col-12">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Buyer note</div>
+            <p class="mb-0">{{ order.buyer_note }}</p>
+          </div>
+          {% endif %}
+          {% if order.seller_note %}
+          <div class="col-12">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Seller note</div>
+            <p class="mb-0">{{ order.seller_note }}</p>
+          </div>
+          {% endif %}
+          {% if order.rejection_reason %}
+          <div class="col-12">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Rejection reason</div>
+            <p class="mb-0 text-danger">{{ order.rejection_reason }}</p>
+          </div>
+          {% endif %}
+        </div>
+        <h6 class="fw-bold mb-2">Items</h6>
+        <div class="list-group list-group-flush border rounded-3">
+          {% for item in order.items.all %}
+          <div class="list-group-item d-flex justify-content-between align-items-center small">
+            <span>
+              {{ item.quantity }}×
+              {% if item.product_variant and item.product_variant.product %}
+                {{ item.product_variant.product.name }}
+                {% if item.product_variant.variant_name %}
+                  <span class="text-muted">({{ item.product_variant.variant_name }})</span>
+                {% endif %}
+              {% else %}
+                Deleted product
+              {% endif %}
+            </span>
+            <span class="fw-bold">₱{{ item.price }}</span>
+          </div>
+          {% empty %}
+          <div class="list-group-item text-muted">No items</div>
+          {% endfor %}
+          <div class="list-group-item bg-light d-flex justify-content-between">
+            <strong>Total</strong>
+            <strong class="text-success">₱{{ order.total_amount }}</strong>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<script>
+  const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+  const MAX_BATCH = 20;
+
+  function getChecked(group) {
+    return Array.from(document.querySelectorAll(`.${group}-check:checked`)).map(el => el.value);
+  }
+
+  function toggleAll(group, checked) {
+    document.querySelectorAll(`.${group}-check`).forEach(el => { el.checked = checked; });
+  }
+
+  async function postBatch(action, orderIds, extra = {}) {
+    if (!orderIds.length) {
+      Swal.fire('No selection', 'Select at least one order.', 'info');
+      return;
+    }
+    if (orderIds.length > MAX_BATCH) {
+      Swal.fire('Limit exceeded', `You can process at most ${MAX_BATCH} orders at a time.`, 'warning');
+      return;
+    }
+    const res = await fetch('{% url "management_orders_batch" %}', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': CSRF,
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({ action, order_ids: orderIds, ...extra }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      await Swal.fire('Done', data.message || 'Updated.', 'success');
+      location.reload();
+    } else {
+      Swal.fire('Error', data.message || 'Failed.', 'error');
+    }
+  }
+
+  async function singleAction(orderId, action) {
+    if (action === 'reject') {
+      const { value: reason } = await Swal.fire({
+        title: 'Reject order?',
+        input: 'select',
+        inputOptions: {
+          'Out of stock': 'Item(s) out of stock',
+          'Pricing/Listing error': 'Pricing or product listing error',
+          'Other': 'Other',
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Reject',
+        inputValidator: (v) => (!v ? 'Please select a reason' : undefined),
+      });
+      if (!reason) return;
+      return postBatch(action, [String(orderId)], { reason });
+    }
+
+    const labels = {
+      accept: { title: 'Accept this order?', text: 'Order will move to Accepted.', confirm: 'Accept' },
+      ready: { title: 'Mark Ready for Pickup?', text: 'Buyer will be notified.', confirm: 'Confirm' },
+      complete: { title: 'Mark as Picked Up?', text: 'Order will move to Completed.', confirm: 'Confirm' },
+    };
+    const L = labels[action] || { title: 'Confirm?', text: '', confirm: 'OK' };
+    const result = await Swal.fire({
+      title: L.title,
+      text: L.text,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
+      confirmButtonText: L.confirm,
+    });
+    if (!result.isConfirmed) return;
+    return postBatch(action, [String(orderId)]);
+  }
+
+  async function batchAction(group, action) {
+    const ids = getChecked(group);
+    if (!ids.length) {
+      Swal.fire('No selection', 'Select at least one order.', 'info');
+      return;
+    }
+    if (ids.length > MAX_BATCH) {
+      Swal.fire('Limit exceeded', `Max ${MAX_BATCH} orders per batch.`, 'warning');
+      return;
+    }
+
+    if (action === 'reject') {
+      const { value: reason } = await Swal.fire({
+        title: `Reject ${ids.length} order(s)?`,
+        input: 'select',
+        inputOptions: {
+          'Out of stock': 'Item(s) out of stock',
+          'Pricing/Listing error': 'Pricing or product listing error',
+          'Other': 'Other',
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Reject all',
+        inputValidator: (v) => (!v ? 'Please select a reason' : undefined),
+      });
+      if (!reason) return;
+      return postBatch(action, ids, { reason });
+    }
+
+    const labels = {
+      accept: { title: `Accept ${ids.length} order(s)?`, confirm: 'Accept all' },
+      ready: { title: `Mark ${ids.length} as Ready for Pickup?`, confirm: 'Confirm' },
+      complete: { title: `Mark ${ids.length} as Picked Up?`, confirm: 'Confirm' },
+    };
+    const L = labels[action] || { title: 'Confirm batch?', confirm: 'OK' };
+    const result = await Swal.fire({
+      title: L.title,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
+      confirmButtonText: L.confirm,
+    });
+    if (!result.isConfirmed) return;
+    return postBatch(action, ids);
+  }
+</script>
+{% endblock %}

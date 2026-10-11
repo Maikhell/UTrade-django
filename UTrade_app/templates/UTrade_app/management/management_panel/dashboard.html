@@ -173,28 +173,8 @@
                     {{ item.owner_name|default:"—" }}
                   {% endif %}
                 </td>
-                <td>
-                  {% if item.is_service %}—{% else %}{{ item.get_total_stock }}{% endif %}
-                </td>
-                <td class="fw-bold text-dark">₱{{ item.get_price_range }}</td>
-                <td class="text-end pe-4">
-                  <div class="d-flex justify-content-end gap-2 flex-wrap">
-                    {% if not item.is_service %}
-                      <button type="button" class="btn btn-sm btn-outline-primary rounded-3"
-                              data-bs-toggle="modal" data-bs-target="#mgmtProductModal{{ item.id }}">
-                        <i class="bi bi-eye"></i> View Details
-                      </button>
-                      <button type="button" class="btn btn-sm btn-outline-danger rounded-3"
-                              onclick="unlistProduct('{{ item.id }}', '{{ item.name|escapejs }}')">
-                        <i class="bi bi-eye-slash"></i> Unlist
-                      </button>
-                    {% else %}
-                      {% comment %} <a href="{% url 'service.details' item.id %}" class="btn btn-sm btn-light rounded-3">
-                        <i class="bi bi-eye"></i> View
-                      </a> {% endcomment %}
-                    {% endif %}
-                  </div>
-                </td>
+              
+        
               </tr>
               {% empty %}
               <tr>

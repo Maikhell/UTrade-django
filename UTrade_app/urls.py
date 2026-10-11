@@ -76,8 +76,7 @@ urlpatterns = [
     path('management/update/<str:type>/<int:id>/', management_views.update_status, name='management.update'),
     path('productview/<int:product_id>/', management_views.product_details, name='product.detail.view'),
     path('management/generate-report/', management_views.generate_report_pdf, name='generate.report.pdf'),
-    path('management/dashboard/', user_views.UserProductsView.as_view(), name='dashboard'),
-    path('management/cbrgu-products/',management_views.cbrgu_products,name='cbrgu_products'),
+
     
     # --- Alumni Dashboard & Reports ---
     path('alumni-association/', alumni_views.alumni_dashboard_view, name='alumni.dashboard'),
@@ -130,5 +129,7 @@ urlpatterns = [
     path('management/active-listings/',management_views.active_listings,name='active_listings'),
     path('management/orders/',management_views.management_orders,name='management_orders'),
     path('management/orders/batch/',management_views.management_orders_batch,name='management_orders_batch'),
+    path('management/dashboard/', user_views.UserProductsView.as_view(), name='dashboard'),
+    path('management/cbrgu-products/',management_views.cbrgu_products,name='cbrgu_products'),
     ]
 

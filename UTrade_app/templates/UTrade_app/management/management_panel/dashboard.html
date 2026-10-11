@@ -189,9 +189,9 @@
                         <i class="bi bi-eye-slash"></i> Unlist
                       </button>
                     {% else %}
-                      <a href="{% url 'service.details' item.id %}" class="btn btn-sm btn-light rounded-3">
+                      {% comment %} <a href="{% url 'service.details' item.id %}" class="btn btn-sm btn-light rounded-3">
                         <i class="bi bi-eye"></i> View
-                      </a>
+                      </a> {% endcomment %}
                     {% endif %}
                   </div>
                 </td>

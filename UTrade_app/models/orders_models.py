@@ -33,7 +33,7 @@ class Order(models.Model):
     ('Out of stock', 'Item(s) out of stock'),
     ('Pricing/Listing error', 'Pricing or product listing error'),
     ('Other', 'Other'),
-]
+    ]
     rejection_reason = models.CharField(
         max_length=100, 
         choices=REJECTION_CHOICES, 

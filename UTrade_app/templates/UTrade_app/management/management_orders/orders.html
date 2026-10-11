@@ -374,7 +374,7 @@
                     <td>{{ order.user.get_full_name|default:order.user.username }}</td>
                     <td>
                       <span class="badge bg-light text-dark border rounded-pill">
-                        {{ order.user.course.org_acronym }}
+                        {{ order.user.org_acronym }}
                       </span>
                     </td>
                     <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
@@ -585,7 +585,7 @@
                     <td>{{ order.user.get_full_name|default:order.user.username }}</td>
                     <td>
                       <span class="badge bg-light text-dark border rounded-pill">
-                        {{ order.user.course.org_acronym }}
+                        {{ order.user.org_acronym }}
                       </span>
                     </td>
                     <td class="fw-bold">₱{{ order.total_amount }}</td>

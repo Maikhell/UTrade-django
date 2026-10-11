@@ -139,74 +139,90 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     form_class = UserProfileForm
     template_name = 'UTrade_app/accounts/profile.html'
     success_url = reverse_lazy('user.profile')
-    success_message = "Your profile has been updated successfully!" 
-    
+    success_message = "Your profile has been updated successfully!"
+
     def get_object(self):
         return self.request.user
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['org'] = getattr(self.request.user, 'org_link', None)
+        return context
+
     def post(self, request, *args, **kwargs):
-        """
-        Explicitly handle the POST request to ensure manual HTML 
-        inputs are captured by the form.
-        """
         self.object = self.get_object()
         form = self.get_form()
-        
         if form.is_valid():
             return self.form_valid(form)
-        else:
-            # Debugging: This will show you EXACTLY why it didn't save in your terminal
-            print("Form Errors:", form.errors)
-            messages.error(self.request, "Validation failed. Please check your inputs.")
-            return self.form_invalid(form)
+        print("Form Errors:", form.errors)
+        messages.error(self.request, "Validation failed. Please check your inputs.")
+        return self.form_invalid(form)
 
     def form_valid(self, form):
-        # Handle profile image upload
+        user = form.instance
+        role = user.user_role
+
+        # Profile picture
         if 'image' in self.request.FILES:
-            form.instance.image = self.request.FILES['image']
+            user.image = self.request.FILES['image']
 
-        # Process Organization string (e.g., "ITS-BSIT")
-        org_raw_text = form.cleaned_data.get('organization') 
-        
-        if org_raw_text:
-            parts = [p.strip() for p in org_raw_text.split('-')]
-            name_acronym = parts[0]
-            course_code = parts[1] if len(parts) > 1 else ""
+        # Manual fields that may not be in the ModelForm
+        user.suffix = self.request.POST.get('suffix', '') or None
+        user.gender = self.request.POST.get('gender', '') or None
 
-            org_map = {
-                "ITS": "Information Technology Society",
-                "CSG": "Central Student Government",
-                "BSCS - ACS": "Alliance of Computer Scientists",
-                "BSHM - HMS": "Hospitality Management Society",
-                "BSPsych - LLP": "La Liga Psicologia",
-                "BSCrim - LCDCS": "La Ciencia de Crimines Sociedad",
-                "BSBA-MM - LMS-JMA": "Le Manager's Societe - Junior Marketing Association",
-                "BSBA-HR - SHR": "Societas Humana Resource",
-                "BSED - English&Math - TES": "Teacher Education Society",
-            }
+        if role not in ('management', 'campus_admin'):
+            user.phone_number = self.request.POST.get('phone_number', '').strip() or None
+            user.course = self.request.POST.get('course', '').strip() or None
+            user.section = self.request.POST.get('section', '').strip() or None
 
-            # get_or_create ensures the Org exists in your PostgreSQL database
-            org_obj, created = Organization.objects.get_or_create(
-                name=name_acronym,
-                defaults={
-                    'full_name': org_map.get(name_acronym, name_acronym),
-                    'course_code': course_code
-                }
-            )
-            
-            # Explicitly link the organization object to the user instance
-            form.instance.org_link = org_obj
-
-        # Handle Display Name / Username change
-        display_name = form.cleaned_data.get('display_name')
-        if display_name:
-            if User.objects.filter(username=display_name).exclude(pk=self.request.user.pk).exists():
-                messages.error(self.request, "This display name is already taken by another student.")
+            # Simple required-field checks
+            if not user.phone_number:
+                messages.error(self.request, "Contact number is required.")
                 return self.form_invalid(form)
-            form.instance.username = display_name
+            if not user.course:
+                messages.error(self.request, "Course is required.")
+                return self.form_invalid(form)
+            if not user.section:
+                messages.error(self.request, "Section is required.")
+                return self.form_invalid(form)
+        else:
+            # Management / Campus Admin – clear student-only fields if desired
+            # (comment out if you want to keep historical data)
+            # user.phone_number = None
+            # user.course = None
+            # user.section = None
+            pass
 
-        # The super().form_valid(form) call saves the form.instance (the User) 
-        # and includes the new org_link relationship.
+        # Organization fields (officers / alumni association)
+        if role in ('org_officer', 'alumni_assoc') or user.is_officer:
+            org = user.org_link
+            org_name = self.request.POST.get('org_name', '').strip()
+            org_full_name = self.request.POST.get('org_full_name', '').strip()
+            org_description = self.request.POST.get('org_description', '').strip()
+
+            if org:
+                if org_name:
+                    org.name = org_name
+                if org_full_name:
+                    org.full_name = org_full_name
+                org.description = org_description
+                if 'approval_letter' in self.request.FILES:
+                    org.approval_letter = self.request.FILES['approval_letter']
+                org.save()
+            elif org_name:
+                # Create a new Organization and link it
+                org = Organization.objects.create(
+                    name=org_name,
+                    full_name=org_full_name or org_name,
+                    description=org_description,
+                    course_code=user.course or '',
+                )
+                if 'approval_letter' in self.request.FILES:
+                    org.approval_letter = self.request.FILES['approval_letter']
+                    org.save()
+                user.org_link = org
+                user.organization = org_name
+
         return super().form_valid(form)
             
 

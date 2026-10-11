@@ -1,295 +1,372 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}
-  Edit Profile
+{% block title %}Edit Profile{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/profile.css' %}" />
 {% endblock %}
 
 {% block content %}
-  {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'UTrade_app/css/profile.css' %}" />
-  {% endblock %}
+<nav aria-label="breadcrumb" class="mb-4">
+  <a href="#" onclick="history.back(); return false;"
+     class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back to Account</span>
+  </a>
+</nav>
 
-  <div>
-  <nav aria-label="breadcrumb" class="mb-4">
-    <a href="#" onclick="history.back(); return false;" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
-      <i class="bi bi-arrow-left" aria-hidden="true"></i>
-      <span>Back to Account</span>
-    </a>
-  </nav>
-  </div>
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="row g-0">
 
-  <div class="container py-5">
-    <div class="row justify-content-center">
-      <div class="col-lg-10">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
-          <div class="row g-0">
-            <div class="col-md-4 bg-light border-end p-4 text-center">
-              <h6 class="fw-bold text-muted mb-4 text-uppercase small">Profile Photo</h6>
-              <div class="position-relative d-inline-block mb-3">
-                <img id="profile_preview" src="{{ user.profile_pic_url }}" class="rounded-circle shadow-sm border border-4 border-white" style="width: 150px; height: 150px; object-fit: cover;" />
-                <label for="id_profile_picture" class="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 shadow">
-                  <i class="bi bi-camera"></i>
-                </label>
-              </div>
-              <p class="small text-muted">Click the camera icon to upload a new photo.</p>
+          <!-- LEFT: Photo + Role badge -->
+          <div class="col-md-4 bg-light border-end p-4 text-center">
+            <h6 class="fw-bold text-muted mb-4 text-uppercase small">Profile Photo</h6>
+            <div class="position-relative d-inline-block mb-3">
+              <img id="profile_preview"
+                   src="{{ user.profile_pic_url }}"
+                   class="rounded-circle shadow-sm border border-4 border-white"
+                   style="width:150px; height:150px; object-fit:cover;" />
+              <label for="id_profile_picture"
+                     class="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 shadow">
+                <i class="bi bi-camera"></i>
+              </label>
             </div>
+            <p class="small text-muted">Click the camera icon to upload a new photo.</p>
 
-            <div class="col-md-8 p-4 p-md-5">
-              <h4 class="fw-bold mb-1">Account Settings</h4>
-              <p class="text-muted small mb-4">Update your university identity and contact information.</p>
+            <div class="mt-3 d-flex flex-wrap justify-content-center gap-2">
+              {% if user.user_role == 'management' %}
+                <span class="badge bg-warning text-dark rounded-pill px-3 py-2 text-uppercase fw-bold"
+                      style="font-size:0.65rem; letter-spacing:1px;">Staff</span>
+              {% elif user.user_role == 'campus_admin' %}
+                <span class="badge bg-primary rounded-pill px-3 py-2 text-uppercase fw-bold"
+                      style="font-size:0.65rem; letter-spacing:1px;">Campus Admin</span>
+              {% elif user.user_role == 'org_officer' or user.is_officer %}
+                <span class="badge bg-info text-dark rounded-pill px-3 py-2 text-uppercase fw-bold"
+                      style="font-size:0.65rem; letter-spacing:1px;">
+                  {{ user.org_link.name|default:user.organization|default:"Organization" }} Officer
+                </span>
+              {% elif user.user_role == 'alumni_assoc' %}
+                <span class="badge bg-danger rounded-pill px-3 py-2 text-uppercase fw-bold"
+                      style="font-size:0.65rem; letter-spacing:1px;">Alumni Association</span>
+              {% else %}
+                {% if user.course %}
+                  <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold badge-{{ user.course|lower }}"
+                        style="font-size:0.65rem; letter-spacing:1px;">{{ user.course }}</span>
+                {% endif %}
+                {% if user.section %}
+                  <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold badge-{{ user.course|lower }}"
+                        style="font-size:0.65rem; letter-spacing:1px;">{{ user.section }}</span>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
 
-              <form method="POST" enctype="multipart/form-data" id="profileForm">
-                {% csrf_token %}
-                <input type="hidden" id="user_role_type" value="{{ user.user_role }}">
+          <!-- RIGHT: Form -->
+          <div class="col-md-8 p-4 p-md-5">
+            <h4 class="fw-bold mb-1">Account Settings</h4>
+            <p class="text-muted small mb-4">Update your university identity and contact information.</p>
 
-                <input type="file" name="image" id="id_profile_picture" class="d-none" onchange="previewAvatar(event)" />
+            <form method="POST" enctype="multipart/form-data" id="profileForm">
+              {% csrf_token %}
+              <input type="file" name="image" id="id_profile_picture" class="d-none" onchange="previewAvatar(event)" />
 
-                <div class="row g-3">
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-secondary">First Name</label>
-                    <input type="text" name="first_name" class="form-control rounded-3" value="{{ user.first_name }}" required />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-secondary">Last Name</label>
-                    <input type="text" name="last_name" class="form-control rounded-3" value="{{ user.last_name }}" required />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-secondary">Suffix</label>
-                    <select name="suffix" class="form-select rounded-3">
-                      <option value="" {% if not profile.suffix %}selected{% endif %}>None</option>
-                      <option value="Jr." {% if profile.suffix == "Jr." %}selected{% endif %}>Jr.</option>
-                      <option value="Sr." {% if profile.suffix == "Sr." %}selected{% endif %}>Sr.</option>
-                      <option value="II" {% if profile.suffix == "II" %}selected{% endif %}>II</option>
-                      <option value="III" {% if profile.suffix == "III" %}selected{% endif %}>III</option>
-                      <option value="IV" {% if profile.suffix == "IV" %}selected{% endif %}>IV</option>
-                    </select>
-                  </div>
+              <div class="row g-3">
 
-                  <div class="col-md-6">
-                    <label class="form-label small fw-bold text-secondary">Gender</label>
-                    <select name="gender" class="form-select rounded-3" required>
-                      <option value="" disabled {% if not profile.gender %}selected{% endif %}>Select Gender</option>
-                      <option value="Male" {% if profile.gender == "Male" %}selected{% endif %}>Male</option>
-                      <option value="Female" {% if profile.gender == "Female" %}selected{% endif %}>Female</option>
-                      <option value="Other" {% if profile.gender == "Other" %}selected{% endif %}>Prefer not to say</option>
-                    </select>
-                  </div>
+                <!-- First / Last Name -->
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-secondary">First Name <span class="text-danger">*</span></label>
+                  <input type="text" name="first_name" class="form-control rounded-3"
+                         value="{{ user.first_name }}" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-secondary">Last Name <span class="text-danger">*</span></label>
+                  <input type="text" name="last_name" class="form-control rounded-3"
+                         value="{{ user.last_name }}" required />
+                </div>
 
-                  <div class="col-md-6">
+                <!-- Suffix (optional for everyone) -->
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-secondary">Suffix</label>
+                  <select name="suffix" class="form-select rounded-3">
+                    <option value="" {% if not user.suffix %}selected{% endif %}>None</option>
+                    <option value="Jr." {% if user.suffix == "Jr." %}selected{% endif %}>Jr.</option>
+                    <option value="Sr." {% if user.suffix == "Sr." %}selected{% endif %}>Sr.</option>
+                    <option value="II"  {% if user.suffix == "II" %}selected{% endif %}>II</option>
+                    <option value="III" {% if user.suffix == "III" %}selected{% endif %}>III</option>
+                    <option value="IV"  {% if user.suffix == "IV" %}selected{% endif %}>IV</option>
+                  </select>
+                </div>
+
+                <!-- Gender -->
+                <div class="col-md-6">
+                  <label class="form-label small fw-bold text-secondary">Gender <span class="text-danger">*</span></label>
+                  <select name="gender" class="form-select rounded-3" required>
+                    <option value="" disabled {% if not user.gender %}selected{% endif %}>Select Gender</option>
+                    <option value="Male"   {% if user.gender == "Male" %}selected{% endif %}>Male</option>
+                    <option value="Female" {% if user.gender == "Female" %}selected{% endif %}>Female</option>
+                    <option value="Other"  {% if user.gender == "Other" %}selected{% endif %}>Prefer not to say</option>
+                  </select>
+                </div>
+
+                <!-- ID field (label changes by role) -->
+                <div class="col-md-6">
+                  {% if user.user_role == 'management' %}
+                    <label class="form-label small fw-bold text-secondary">Staff ID</label>
+                  {% elif user.user_role == 'campus_admin' %}
+                    <label class="form-label small fw-bold text-secondary">Campus Admin ID</label>
+                  {% else %}
                     <label class="form-label small fw-bold text-secondary">Student Number</label>
-                    <input type="text" name="student_no" class="form-control rounded-3 bg-light" value="{{ user.student_no }}" placeholder="202X-XXXXX-XX"readonly />
-                  </div>
+                  {% endif %}
+                  <input type="text" name="student_no"
+                         class="form-control rounded-3 bg-light"
+                         value="{{ user.student_no }}" readonly />
+                </div>
 
+                <!-- Contact / Course / Section – hidden for management & campus_admin -->
+                {% if user.user_role != 'management' and user.user_role != 'campus_admin' %}
                   <div class="col-md-6">
-                    <label class="form-label small fw-bold text-secondary">Contact Number</label>
-                    <input type="text" name="phone_number" class="form-control rounded-3" value="{{ user.phone_number }}" placeholder="09XXXXXXXXX" />
+                    <label class="form-label small fw-bold text-secondary">
+                      Contact Number <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" name="phone_number" class="form-control rounded-3"
+                           value="{{ user.phone_number|default:'' }}"
+                           placeholder="09XXXXXXXXX" required />
                   </div>
 
                   <div class="col-md-10">
-                    <label class="form-label small fw-bold text-secondary">Course</label>
-                    <select name="course" class="form-select rounded-3">
+                    <label class="form-label small fw-bold text-secondary">
+                      Course <span class="text-danger">*</span>
+                    </label>
+                    <select name="course" class="form-select rounded-3" required>
                       <option value="" disabled {% if not user.course %}selected{% endif %}>Select your course</option>
                       <option value="BSIT" {% if user.course == 'BSIT' %}selected{% endif %}>BSIT | Bachelor of Science in Information Technology</option>
                       <option value="BSHM" {% if user.course == 'BSHM' %}selected{% endif %}>BSHM | Bachelor of Science in Hospitality Management</option>
                       <option value="BSCS" {% if user.course == 'BSCS' %}selected{% endif %}>BSCS | Bachelor of Science in Computer Science</option>
-                      <option value="BSE" {% if user.course == 'BSE' %}selected{% endif %}>BSE | Bachelor of Science in Education</option>
+                      <option value="BSE"  {% if user.course == 'BSE' %}selected{% endif %}>BSE | Bachelor of Science in Education</option>
                       <option value="BSBM" {% if user.course == 'BSBM' %}selected{% endif %}>BSBM | Bachelor of Science in Business Management</option>
-                      <option value="BSP" {% if user.course == 'BSP' %}selected{% endif %}>BSP | Bachelor of Science in Psychology</option>
-                      <option value="BSC" {% if user.course == 'BSC' %}selected{% endif %}>BSC | Bachelor of Science in Criminology</option>
+                      <option value="BSP"  {% if user.course == 'BSP' %}selected{% endif %}>BSP | Bachelor of Science in Psychology</option>
+                      <option value="BSC"  {% if user.course == 'BSC' %}selected{% endif %}>BSC | Bachelor of Science in Criminology</option>
                     </select>
                   </div>
                   <div class="col-md-2">
-                    <label class="form-label small fw-bold text-secondary">Section</label>
-                    <input type="text" name="section" class="form-control rounded-3" 
-                           value="{{ user.section|default:'' }}" 
-                           placeholder="3-1" 
-                           maxlength="3" />
+                    <label class="form-label small fw-bold text-secondary">
+                      Section <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" name="section" class="form-control rounded-3"
+                           value="{{ user.section|default:'' }}"
+                           placeholder="3-1" maxlength="10" required />
                   </div>
-                  
+                {% endif %}
+
+                <!-- Email (always read-only) -->
+                <div class="col-12">
+                  <label class="form-label small fw-bold text-secondary">Email Address</label>
+                  <input type="email" name="email" class="form-control rounded-3 bg-light"
+                         value="{{ user.email }}" readonly />
+                  <div class="form-text mt-1" style="font-size:0.75rem;">University email cannot be changed.</div>
+                </div>
+
+                <!-- ========== ORGANIZATION EXTRA FIELDS ========== -->
+                {% if user.user_role == 'org_officer' or user.is_officer or user.user_role == 'alumni_assoc' %}
+                  <div class="col-12"><hr class="my-2"></div>
                   <div class="col-12">
-                    <label class="form-label small fw-bold text-secondary">Email Address</label>
-                    <input type="email" name="email" class="form-control rounded-3 bg-light" value="{{ user.email }}" readonly />
-                    <div class="form-text mt-1" style="font-size: 0.75rem;">University email cannot be changed.</div>
+                    <h6 class="fw-bold text-uppercase text-muted small mb-3">Organization Details</h6>
                   </div>
 
-                  <div class="col-12 d-flex flex-wrap gap-2 align-items-center mt-3">
-                    {% if user.is_staff %}
-                      <span class="badge bg-info rounded-pill px-3 py-2 text-uppercase fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Admin</span>
-                    {% endif %}
-                    {% if user.course %}
-                      <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold badge-{{ user.course|lower }}" style="font-size: 0.65rem; letter-spacing: 1px;">
-                        {{ user.course }}
-                      </span>
-                      {% if user.section %}
-                        <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold badge-{{ user.course|lower }}" style="font-size: 0.65rem; letter-spacing: 1px;">
-                          {{ user.section }}
-                        </span>
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold text-secondary">Acronym / Name</label>
+                    <input type="text" name="org_name" class="form-control rounded-3"
+                           value="{{ org.name|default:user.organization|default:'' }}"
+                           placeholder="ITS" />
+                  </div>
+                  <div class="col-md-8">
+                    <label class="form-label small fw-bold text-secondary">Full Organization Name</label>
+                    <input type="text" name="org_full_name" class="form-control rounded-3"
+                           value="{{ org.full_name|default:'' }}"
+                           placeholder="Information Technology Society" />
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small fw-bold text-secondary">Description</label>
+                    <textarea name="org_description" class="form-control rounded-3" rows="3"
+                              placeholder="Short description of the organization">{{ org.description|default:'' }}</textarea>
+                  </div>
+
+                  <!-- Approval Letter -->
+                  <div class="col-12">
+                    <div class="card border-0 bg-light rounded-4 p-3">
+                      <h6 class="fw-bold mb-2">Approval Letter</h6>
+                      {% if org and org.approval_letter %}
+                        <div class="mb-3 text-center">
+                          <img src="{{ org.approval_letter.url }}"
+                               class="img-fluid rounded border shadow-sm"
+                               style="max-height:180px; object-fit:contain;"
+                               alt="Approval Letter">
+                        </div>
+                      {% else %}
+                        <p class="small text-muted mb-2">No approval letter uploaded yet.</p>
                       {% endif %}
-                    {% endif %}
-                  </div>
-
-                  <div class="card border-0 shadow-sm rounded-4 mt-4 bg-light">
-                    <div class="card-body p-4">
-                      <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="fw-bold mb-0">Verification Status</h5>
-                        {% if user.status == 'verified' %}
-                          <span class="badge bg-success rounded-pill px-3">Verified</span>
-                        {% elif user.status == 'pending' %}
-                          <span class="badge bg-warning text-dark rounded-pill px-3">Pending Review</span>
-                        {% else %}
-                          <span class="badge bg-danger rounded-pill px-3">Unverified</span>
-                        {% endif %}
-                      </div>
-                      <p class="text-muted small">
-                        Please upload your Certificate of Registration (COR) or Alumni ID to maintain selling privileges.
-                      </p>
-                      <button type="button" 
-                              class="btn {% if user.status == 'unverified' %}btn-danger{% else %}btn-outline-primary{% endif %} w-100 rounded-pill fw-bold py-2" 
-                              data-bs-toggle="modal" 
-                              data-bs-target="#updateCorModal">
-                        <i class="bi bi-file-earmark-person me-2"></i> 
-                        {% if user.status == 'unverified' %}Get Verified Now{% else %}View or Update Document{% endif %}
-                      </button>
+                      <label class="form-label small fw-bold text-secondary">Upload / Replace</label>
+                      <input type="file" name="approval_letter" class="form-control rounded-3"
+                             accept="image/*,.pdf">
+                      <div class="form-text" style="font-size:0.7rem;">JPG / PNG / PDF · max 10 MB</div>
                     </div>
                   </div>
+                {% endif %}
 
-                  <div class="mt-5 d-flex gap-2">
-                    <button type="submit" class="btn btn-success px-4 fw-bold rounded-3">Save Changes</button>
-                    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary px-4 rounded-3">Cancel</a>
+                <!-- ========== VERIFICATION (students / alumni only) ========== -->
+                {% if user.user_role == 'student' or user.user_role == 'alumni' %}
+                  <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-4 mt-3 bg-light">
+                      <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                          <h5 class="fw-bold mb-0">Verification Status</h5>
+                          {% if user.status == 'verified' %}
+                            <span class="badge bg-success rounded-pill px-3">Verified</span>
+                          {% elif user.status == 'pending' or user.status == 'Pending' %}
+                            <span class="badge bg-warning text-dark rounded-pill px-3">Pending Review</span>
+                          {% else %}
+                            <span class="badge bg-danger rounded-pill px-3">Unverified</span>
+                          {% endif %}
+                        </div>
+                        <p class="text-muted small">
+                          Please upload your Certificate of Registration (COR) or Alumni ID to maintain selling privileges.
+                        </p>
+                        <button type="button"
+                                class="btn {% if user.status == 'unverified' %}btn-danger{% else %}btn-outline-primary{% endif %} w-100 rounded-pill fw-bold py-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#updateCorModal">
+                          <i class="bi bi-file-earmark-person me-2"></i>
+                          {% if user.status == 'unverified' %}Get Verified Now{% else %}View or Update Document{% endif %}
+                        </button>
+                      </div>
+                    </div>
                   </div>
+                {% endif %}
+
+                <!-- Save / Cancel -->
+                <div class="mt-4 d-flex gap-2">
+                  <button type="submit" class="btn btn-success px-4 fw-bold rounded-3">Save Changes</button>
+                  <a href="{% url 'user.account' %}" class="btn btn-outline-secondary px-4 rounded-3">Cancel</a>
                 </div>
-              </form> 
-              </div> 
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="updateCorModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content rounded-4 border-0 shadow">
-        <div class="modal-header border-0 pb-0">
-          <h5 class="fw-bold">Document Verification</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div id="error-message" class="d-none mb-3"></div>
-          <div class="alert alert-warning border-0 small mb-4">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i>
-            <strong>Important:</strong> Ensure your Profile names are saved before uploading.
-          </div>
-          {% if user.cor_file %}
-            <div class="mb-4 text-center">
-              <label class="small fw-bold text-uppercase text-muted d-block mb-2">Current Document on File</label>
-              <div class="bg-light rounded-3 p-2">
-                <img src="{{ user.cor_file.url }}" class="img-fluid rounded border shadow-sm" style="max-height: 200px;">
               </div>
-            </div>
-          {% endif %}
-          <form id="verificationForm" action="{% url 'update_cor' %}" method="POST" enctype="multipart/form-data">
-            {% csrf_token %}
-            <div class="mb-3">
-              <label for="new_cor" class="form-label small fw-bold text-uppercase text-muted">Upload Document</label>
-              <input type="file" name="cor_file" id="new_cor" class="form-control rounded-3" accept="image/*,.pdf" required>
-            </div>
-            <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold py-2">Submit for Verification</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="officerRegistrationModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content rounded-4 border-0 shadow">
-        <div class="modal-header border-0 pb-0">
-          <h5 class="fw-bold">Officer Application</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="alert alert-danger border-0 small mb-4">
-            <i class="bi bi-exclamation-octagon-fill me-2"></i>
-            <strong>STRICT WARNING:</strong> Only elected or officially appointed student officers shall sign up. Providing false information may lead to account suspension.
+            </form>
           </div>
-          
-          <form id="officerRegistrationForm" action="{% url 'register_officer' %}" method="POST" enctype="multipart/form-data">
-            {% csrf_token %}
-            
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-uppercase text-muted">Organization</label>
-              <select name="organization" class="form-select rounded-3" required>
-                <option value="" selected disabled>Select Organization</option>
-                <option value="CSG">CSG</option>
-                <option value="ITS - BSIT">ITS - BSIT</option>
-                <option value="ACS - BSCS">ACS - BSCS</option>
-                <option value="BSHMS - BSHM">BSHMS - BSHM</option>
-                <option value="TES - BSED">TES - BSED</option>
-                <option value="LCDCS - BSCRIM">LCDCS - BSCRIM</option>
-                <option value="LLP - BSP">LLP - BSP</option>
-                <option value="LMS-JMA - BSBA-MM">LMS-JMA - BSBA-MM</option>
-                <option value="SHR - BSBA-HR">SHR - BSBA-HR</option>
-              </select>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-uppercase text-muted">Position</label>
-              <select name="position" class="form-select rounded-3" required>
-                <option value="" selected disabled>Select Position</option>
-                <option value="President">President</option>
-                <option value="Vice President">Vice President</option>
-                <option value="Secretary">Secretary</option>
-                <option value="Assistant Secretary">Assistant Secretary</option>
-                <option value="Treasurer">Treasurer</option>
-                <option value="Assistant Treasurer">Assistant Treasurer</option>
-                <option value="Auditor">Auditor</option>
-                <option value="Business Manager">Business Manager</option>
-                <option value="P.R.O">P.R.O</option>
-                <option value="Gad Rep">Gad Rep</option>
-                <option value="Senator">Senator</option>
-                <option value="Committees">Committees</option>
-              </select>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label small fw-bold text-uppercase text-muted">Officer ID / Proof of Appointment</label>
-              <input type="file" name="officer_id_image" class="form-control rounded-3" accept="image/*" required>
-              <div class="form-text mt-1" style="font-size: 0.7rem;">Please upload a clear photo of your Officer ID or appointment letter.</div>
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold py-2 mt-2">
-              Submit Application
-            </button>
-          </form>
         </div>
       </div>
     </div>
   </div>
+</div>
 
-  {% if messages %}
-    {% for message in messages %}
-      <div id="django-messages" 
-           data-message="{{ message }}" 
-           data-tags="{{ message.tags }}" 
-           style="display: none;">
+{# COR modal – students / alumni only #}
+{% if user.user_role == 'student' or user.user_role == 'alumni' %}
+<div class="modal fade" id="updateCorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="fw-bold">Document Verification</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-    {% endfor %}
-  {% endif %}
+      <div class="modal-body">
+        <div class="alert alert-warning border-0 small mb-4">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          <strong>Important:</strong> Ensure your profile names are saved before uploading.
+        </div>
+        {% if user.cor_file %}
+          <div class="mb-4 text-center">
+            <label class="small fw-bold text-uppercase text-muted d-block mb-2">Current Document on File</label>
+            <div class="bg-light rounded-3 p-2">
+              <img src="{{ user.cor_file.url }}" class="img-fluid rounded border shadow-sm" style="max-height:200px;">
+            </div>
+          </div>
+        {% endif %}
+        <form action="{% url 'update_cor' %}" method="POST" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-muted">Upload Document</label>
+            <input type="file" name="cor_file" class="form-control rounded-3" accept="image/*,.pdf" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold py-2">Submit for Verification</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 
-  {% block extra_js %}
-    <script src="{% static 'UTrade_app/js/profile.js' %}"></script>
-    <script>
-      function previewAvatar(event) {
-        const reader = new FileReader();
-        reader.onload = function() {
-          const output = document.getElementById('profile_preview');
-          output.src = reader.result;
-        };
-        if (event.target.files[0]) {
-          reader.readAsDataURL(event.target.files[0]);
-        }
-      }
-    </script>
-  {% endblock %}
+{# Officer registration modal kept as-is #}
+<div class="modal fade" id="officerRegistrationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="fw-bold">Officer Application</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-danger border-0 small mb-4">
+          <i class="bi bi-exclamation-octagon-fill me-2"></i>
+          <strong>STRICT WARNING:</strong> Only elected or officially appointed student officers shall sign up.
+        </div>
+        <form action="{% url 'register_officer' %}" method="POST" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-muted">Organization</label>
+            <select name="organization" class="form-select rounded-3" required>
+              <option value="" selected disabled>Select Organization</option>
+              <option value="CSG">CSG</option>
+              <option value="ITS - BSIT">ITS - BSIT</option>
+              <option value="ACS - BSCS">ACS - BSCS</option>
+              <option value="BSHMS - BSHM">BSHMS - BSHM</option>
+              <option value="TES - BSED">TES - BSED</option>
+              <option value="LCDCS - BSCRIM">LCDCS - BSCRIM</option>
+              <option value="LLP - BSP">LLP - BSP</option>
+              <option value="LMS-JMA - BSBA-MM">LMS-JMA - BSBA-MM</option>
+              <option value="SHR - BSBA-HR">SHR - BSBA-HR</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-muted">Position</label>
+            <select name="position" class="form-select rounded-3" required>
+              <option value="" selected disabled>Select Position</option>
+              <option value="President">President</option>
+              <option value="Vice President">Vice President</option>
+              <option value="Secretary">Secretary</option>
+              <option value="Treasurer">Treasurer</option>
+              <option value="Auditor">Auditor</option>
+              <option value="P.R.O">P.R.O</option>
+              <option value="Senator">Senator</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-muted">Officer ID / Proof</label>
+            <input type="file" name="officer_id_image" class="form-control rounded-3" accept="image/*" required>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 rounded-pill fw-bold py-2">Submit Application</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if messages %}
+  {% for message in messages %}
+    <div id="django-messages" data-message="{{ message }}" data-tags="{{ message.tags }}" style="display:none;"></div>
+  {% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% static 'UTrade_app/js/profile.js' %}"></script>
+  <script>
+    function previewAvatar(event) {
+      const reader = new FileReader();
+      reader.onload = function () {
+        document.getElementById('profile_preview').src = reader.result;
+      };
+      if (event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
+    }
+  </script>
 {% endblock %}

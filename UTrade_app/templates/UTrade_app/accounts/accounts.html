@@ -122,19 +122,13 @@
             {% elif user.user_role == 'management' %}
               <span class="badge bg-warning text-dark rounded-pill px-3 py-2 text-uppercase fw-bold"
                     style="font-size: 0.65rem; letter-spacing: 1px">
-                <i class="bi bi-person-workspace me-1"></i> Management
+                <i class="bi bi-person-workspace me-1"></i> Staff
               </span>
 
             {% elif user.user_role == 'alumni' %}
               <span class="badge bg-danger rounded-pill px-3 py-2 text-uppercase fw-bold"
                     style="font-size: 0.65rem; letter-spacing: 1px">
                 <i class="bi bi-mortarboard me-1"></i> Alumni
-              </span>
-
-            {% elif user.user_role == 'alumni_assoc' %}
-              <span class="badge bg-danger rounded-pill px-3 py-2 text-uppercase fw-bold"
-                    style="font-size: 0.65rem; letter-spacing: 1px">
-                <i class="bi bi-mortarboard me-1"></i> Alumni Association
               </span>
 
             {% elif user.is_officer or user.user_role == 'org_officer' %}

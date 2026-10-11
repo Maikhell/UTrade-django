@@ -185,6 +185,21 @@
                     <i class="bi bi-journal-text"></i> Logs and Reports
                   </a>
                 </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-exclamation-triangle"></i> Prohibited Items
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-tags"></i> Categories
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-geo-alt"></i> Pickup Spots
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
@@ -688,7 +703,7 @@
           </div>
           <div class="col-md-4">
             <span class="text-muted d-block">Contact</span>
-            <strong>{{ order.user.contact_number|default:"—" }}</strong>
+            <strong>{{ order.user.phone_number|default:"—" }}</strong>
           </div>
           <div class="col-md-4">
             <span class="text-muted d-block">Email</span>
@@ -721,7 +736,7 @@
           </div>
           <div class="col-md-4">
             <span class="text-muted d-block">Contact</span>
-            <strong>{{ order.seller.contact_number|default:"—" }}</strong>
+            <strong>{{ order.seller.phone_number|default:"—" }}</strong>
           </div>
           <div class="col-md-4">
             <span class="text-muted d-block">Email</span>

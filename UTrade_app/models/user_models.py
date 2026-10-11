@@ -33,7 +33,13 @@ class User(AbstractUser):
     email = models.EmailField(
         unique=True, 
     ) 
-
+    GENDER_CHOICES = [
+    ('Male', 'Male'),
+    ('Female', 'Female'),
+    ('Other', 'Prefer not to say'),
+    ]
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, blank=True, null=True)
+    suffix = models.CharField(max_length=10, blank=True, null=True)
     is_email_verified = models.BooleanField(default=False)
     otp_code = models.CharField(max_length=6, blank=True, null=True)
     otp_expiry = models.DateTimeField(blank=True, null=True)

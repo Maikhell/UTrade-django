@@ -514,11 +514,6 @@
                               data-bs-toggle="modal" data-bs-target="#productModal{{ product.id }}">
                         <i class="bi bi-eye"></i>
                       </button>
-                      <a href="{% url 'management.update' 'product' product.id %}?status=Approved"
-                         class="btn btn-sm btn-success flex-fill rounded-pill"
-                         onclick="return confirm('Approve this product?')">
-                        <i class="bi bi-check-lg"></i> Approve
-                      </a>
                     </div>
                   </div>
                 </div>

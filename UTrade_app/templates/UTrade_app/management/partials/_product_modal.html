@@ -122,11 +122,6 @@
           <i class="bi bi-box-arrow-up-right me-1"></i> Full Page
         </a>
         {% if product.status == 'Pending' %}
-        <a href="{% url 'management.update' 'product' product.id %}?status=Approved"
-           class="btn btn-success rounded-pill"
-           onclick="return confirm('Approve this product?')">
-          <i class="bi bi-check-lg me-1"></i> Approve
-        </a>
         {% endif %}
         <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
       </div>

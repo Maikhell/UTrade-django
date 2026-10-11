@@ -69,7 +69,9 @@
           <div class="col-md-8 p-4 p-md-5">
             <h4 class="fw-bold mb-1">Account Settings</h4>
             <p class="text-muted small mb-4">Update your university identity and contact information.</p>
-
+                  <div class="col-12">
+                    <h6 class="fw-bold text-uppercase text-muted small mb-3">Representative Details</h6>
+                  </div>
             <form method="POST" enctype="multipart/form-data" id="profileForm">
               {% csrf_token %}
               <input type="file" name="image" id="id_profile_picture" class="d-none" onchange="previewAvatar(event)" />
@@ -124,6 +126,7 @@
                   <input type="text" name="student_no"
                          class="form-control rounded-3 bg-light"
                          value="{{ user.student_no }}" readonly />
+                         <div class="form-text mt-1" style="font-size:0.75rem;">Contact staff to ask to change.</div>
                 </div>
 
                 <!-- Contact / Course / Section – hidden for management & campus_admin -->

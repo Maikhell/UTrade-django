@@ -255,27 +255,48 @@ class CartItem(models.Model):
         return f"{self.variant.product.name} ({self.variant.variant_name})"
 class PreOrderRequest(models.Model):
     STATUS_CHOICES = [
-        ('PENDING', 'Pending Approval'),
-        ('APPROVED', 'Approved'),
-        ('PREPARING', 'Seller Preparing Item'), 
-        ('READY', 'Ready for Pickup'),          
-        ('DECLINED', 'Declined'),
+        ('PENDING', 'Incoming'),
+        ('ACCEPTED', 'Accepted'),
+        ('PROCESSING', 'Processing'),
+        ('AWAITING_PAYMENT', 'Awaiting Payment'),
+        ('WAITING_STOCKS', 'Waiting for Stocks'),
+        ('READY', 'Ready for Pickup'),
         ('COMPLETED', 'Completed'),
+        ('REJECTED', 'Rejected'),
+        # keep old values for backward compatibility if needed
+        ('APPROVED', 'Approved (legacy)'),
+        ('PREPARING', 'Preparing (legacy)'),
+        ('DECLINED', 'Declined (legacy)'),
         ('CANCELLED', 'Cancelled'),
+    ]
+
+    REJECTION_CHOICES = [
+        ('Out of stock', 'Item(s) out of stock'),
+        ('Pricing/Listing error', 'Pricing or product listing error'),
+        ('Buyer request', 'Buyer requested cancellation'),
+        ('Unable to fulfill', 'Unable to fulfill order'),
+        ('Other', 'Other'),
     ]
 
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='preorder_requests')
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_preorders')
     product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name='preorders')
-    
+
     quantity = models.PositiveIntegerField(default=1)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    
+
+    rejection_reason = models.CharField(
+        max_length=100, choices=REJECTION_CHOICES, null=True, blank=True
+    )
+    rejection_note = models.TextField(blank=True, null=True)  # for "Other"
+
     full_name_at_time = models.CharField(max_length=255)
     student_no_at_time = models.CharField(max_length=50)
     course_at_time = models.CharField(max_length=100)
     section_at_time = models.CharField(max_length=50)
-    
+
+    seller_note = models.TextField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -284,8 +305,6 @@ class PreOrderRequest(models.Model):
 
     def __str__(self):
         return f"Pre-order: {self.product_variant.product.name} by {self.buyer.username} ({self.status})"
-    def get_total_price(self):
-        return self.product_variant.price * self.quantity
 
     def get_total_price(self):
         return self.product_variant.price * self.quantity

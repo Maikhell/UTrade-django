@@ -1,0 +1,558 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}Pre-Order Management{% endblock %}
+
+{% block content %}
+<style>
+  @media (min-width: 768px) {
+    .seller-sidebar { position: sticky; top: 1rem; height: calc(100vh - 2rem); overflow-y: auto; }
+  }
+  @media (min-width: 1400px) {
+    .container, .container-sm, .container-md, .container-lg, .container-xl, .container-xxl {
+      max-width: 1600px !important;
+    }
+  }
+  .stat-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.08) !important; }
+  .sidebar-link.active {
+    background-color: rgba(25,135,84,0.12) !important; color: #198754 !important; font-weight: 600;
+  }
+  .nav-tabs .nav-link {
+    color: #198754; border: none; border-bottom: 3px solid transparent;
+    font-weight: 600; padding: 0.75rem 1.25rem;
+  }
+  .nav-tabs .nav-link:hover { color: #146c43; border-bottom-color: #a5d6a7; }
+  .nav-tabs .nav-link.active {
+    color: #146c43 !important; background: transparent !important; border-bottom: 3px solid #198754 !important;
+  }
+  .filter-card {
+    background: linear-gradient(135deg, #f0faf4 0%, #e8f5e9 100%); border: 1px solid #a5d6a7;
+  }
+  .stat-pill {
+    background: #198754; color: white; border-radius: 50rem;
+    padding: 0.15rem 0.6rem; font-size: 0.75rem; font-weight: 600;
+  }
+  .batch-bar {
+    background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 0.75rem;
+  }
+  .table > :not(caption) > * > * { padding-top: 0.85rem; padding-bottom: 0.85rem; }
+  .modal-product-img { width: 56px; height: 56px; object-fit: cover; border-radius: 0.5rem; }
+</style>
+
+{% csrf_token %}
+
+<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
+  <a href="#" onclick="history.back(); return false;"
+     class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back to Dashboard</span>
+  </a>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+
+    <!-- Mobile Toggle -->
+    <div class="col-12 d-md-none mb-3">
+      <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
+              type="button" data-bs-toggle="offcanvas" data-bs-target="#sellerSidebar">
+        <i class="bi bi-list"></i> Management Menu
+      </button>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="col-md-3 col-lg-2">
+      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm" tabindex="-1" id="sellerSidebar">
+        <div class="offcanvas-header d-md-none">
+          <h5 class="offcanvas-title fw-bold">Management</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+          <div class="seller-sidebar p-3">
+            <div class="mb-4">
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div class="d-flex justify-content-between"><span>Pre-Orders</span><strong>{{ total_preorders|default:0 }}</strong></div>
+                <div class="d-flex justify-content-between"><span>Incoming</span><strong>{{ incoming_count }}</strong></div>
+                <div class="d-flex justify-content-between"><span>Completed</span><strong>{{ completed_count }}</strong></div>
+              </div>
+            </div>
+            <hr class="my-3 opacity-25">
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-briefcase"></i> Management Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'dashboard' %}">
+                    <i class="bi bi-speedometer2 text-success"></i> Dashboard
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'active_listings' %}">
+                    <i class="bi bi-check2-square text-success"></i> Active Listings
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'remittance_management' %}">
+                    <i class="bi bi-cash-stack text-success"></i> Remittance
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'cbrgu_products' %}">
+                    <i class="bi bi-box-seam text-success"></i> Products
+                  </a>
+                </li>
+              </ul>
+            </div>
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-cart-fill"></i> Orders
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'management_orders' %}">
+                    <i class="bi bi-inbox text-primary"></i> Orders
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 py-1" href="{% url 'management_preorders' %}">
+                    <i class="bi bi-calendar-check text-info"></i> Pre-Orders
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
+
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+          <h2 class="fw-bold mb-0 text-success">Pre-Order Management</h2>
+          <p class="text-muted mb-0 small">Incoming → Accepted → Processing / Payment / Stocks → Ready → Completed</p>
+        </div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-2 me-3"><i class="bi bi-inbox fs-5"></i></div>
+              <div><div class="text-muted small">Incoming</div><div class="fw-bold fs-4">{{ incoming_count }}</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 me-3"><i class="bi bi-check2-all fs-5"></i></div>
+              <div><div class="text-muted small">Accepted</div><div class="fw-bold fs-4">{{ accepted_count }}</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-info bg-opacity-10 text-info rounded-3 p-2 me-3"><i class="bi bi-bag-check fs-5"></i></div>
+              <div><div class="text-muted small">Ready</div><div class="fw-bold fs-4">{{ ready_count }}</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card-body d-flex align-items-center py-3">
+              <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-2 me-3"><i class="bi bi-clipboard-check fs-5"></i></div>
+              <div><div class="text-muted small">Completed</div><div class="fw-bold fs-4">{{ completed_count }}</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <ul class="nav nav-tabs border-0 mb-3 flex-nowrap overflow-auto" id="preorderTabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#incoming-pane" type="button">Incoming <span class="stat-pill ms-1 bg-primary">{{ incoming_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#accepted-pane" type="button">Accepted <span class="stat-pill ms-1">{{ accepted_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#processing-pane" type="button">Processing <span class="stat-pill ms-1 bg-warning text-dark">{{ processing_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#awaiting-pane" type="button">Awaiting Payment <span class="stat-pill ms-1 bg-info">{{ awaiting_payment_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#stocks-pane" type="button">Waiting Stocks <span class="stat-pill ms-1 bg-secondary">{{ waiting_stocks_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ready-pane" type="button">Ready <span class="stat-pill ms-1 bg-info">{{ ready_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#completed-pane" type="button">Completed <span class="stat-pill ms-1 bg-secondary">{{ completed_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#rejected-pane" type="button">Rejected <span class="stat-pill ms-1 bg-danger">{{ rejected_count }}</span></button></li>
+      </ul>
+
+      <!-- Filters -->
+      <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 filter-card">
+        <form method="GET" class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold text-success mb-1">Search</label>
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0 text-success"><i class="bi bi-search"></i></span>
+              <input type="text" name="search" class="form-control border-start-0"
+                     placeholder="ID, buyer, product, student no..."
+                     value="{{ current_filters.search }}">
+            </div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold text-success mb-1">From</label>
+            <input type="date" name="date_from" class="form-control" value="{{ current_filters.date_from }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold text-success mb-1">To</label>
+            <input type="date" name="date_to" class="form-control" value="{{ current_filters.date_to }}">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label small fw-semibold text-success mb-1">Organization</label>
+            <select name="organization" class="form-select">
+              <option value="">All</option>
+              {% for org in org_options %}
+                <option value="{{ org }}" {% if current_filters.organization == org %}selected{% endif %}>{{ org }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-1">
+            <button type="submit" class="btn btn-success w-100 rounded-pill"><i class="bi bi-funnel"></i></button>
+          </div>
+          <div class="col-md-1">
+            <a href="{% url 'management_preorders' %}" class="btn btn-outline-success w-100 rounded-pill"><i class="bi bi-arrow-clockwise"></i></a>
+          </div>
+        </form>
+      </div>
+
+      <div class="tab-content">
+
+        {# ===== INCOMING ===== #}
+        <div class="tab-pane fade show active" id="incoming-pane">
+          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+            <span class="small text-muted me-auto">Select up to 20</span>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('incoming','accept')">
+              <i class="bi bi-check-lg me-1"></i> Accept selected
+            </button>
+            <button type="button" class="btn btn-sm btn-danger rounded-pill" onclick="batchAction('incoming','reject')">
+              <i class="bi bi-x-lg me-1"></i> Reject selected
+            </button>
+          </div>
+          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=incoming_preorders group="incoming" show_actions=True %}
+        </div>
+
+        {# ===== ACCEPTED – can move to Processing / Awaiting Payment / Waiting Stocks ===== #}
+        <div class="tab-pane fade" id="accepted-pane">
+          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+            <span class="small text-muted me-auto">Select up to 20</span>
+            <button type="button" class="btn btn-sm btn-warning rounded-pill" onclick="batchAction('accepted','processing')">Processing</button>
+            <button type="button" class="btn btn-sm btn-info rounded-pill" onclick="batchAction('accepted','awaiting_payment')">Awaiting Payment</button>
+            <button type="button" class="btn btn-sm btn-secondary rounded-pill" onclick="batchAction('accepted','waiting_stocks')">Waiting Stocks</button>
+          </div>
+          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=accepted_preorders group="accepted" show_actions=True %}
+        </div>
+
+        {# ===== PROCESSING / AWAITING / STOCKS → Ready ===== #}
+        <div class="tab-pane fade" id="processing-pane">
+          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+            <span class="small text-muted me-auto">Select up to 20</span>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','ready')">
+              <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
+            </button>
+          </div>
+          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=processing_preorders group="processing" show_actions=True %}
+        </div>
+
+        <div class="tab-pane fade" id="awaiting-pane">
+          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+            <span class="small text-muted me-auto">Select up to 20</span>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('awaiting','ready')">
+              <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
+            </button>
+          </div>
+          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=awaiting_payment_preorders group="awaiting" show_actions=True %}
+        </div>
+
+        <div class="tab-pane fade" id="stocks-pane">
+          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+            <span class="small text-muted me-auto">Select up to 20</span>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('stocks','ready')">
+              <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
+            </button>
+          </div>
+          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=waiting_stocks_preorders group="stocks" show_actions=True %}
+        </div>
+
+        {# ===== READY → Complete ===== #}
+        <div class="tab-pane fade" id="ready-pane">
+          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+            <span class="small text-muted me-auto">Select up to 20</span>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('ready','complete')">
+              <i class="bi bi-clipboard-check me-1"></i> Mark Completed
+            </button>
+          </div>
+          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=ready_preorders group="ready" show_actions=True %}
+        </div>
+
+        {# ===== COMPLETED (read-only) ===== #}
+        <div class="tab-pane fade" id="completed-pane">
+          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=completed_preorders group="completed" show_actions=False %}
+        </div>
+
+        {# ===== REJECTED (read-only) ===== #}
+        <div class="tab-pane fade" id="rejected-pane">
+          <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th class="ps-3">ID</th>
+                    <th>Buyer</th>
+                    <th>Product</th>
+                    <th>Qty</th>
+                    <th>Reason</th>
+                    <th>Rejected</th>
+                    <th class="text-end pe-3">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for po in rejected_preorders %}
+                  <tr>
+                    <td class="ps-3 fw-semibold">#{{ po.id }}</td>
+                    <td>{{ po.buyer.get_full_name|default:po.full_name_at_time }}</td>
+                    <td>{{ po.product_variant.product.name }}</td>
+                    <td>{{ po.quantity }}</td>
+                    <td class="text-danger small">{{ po.rejection_reason|default:"—" }}{% if po.rejection_note %} – {{ po.rejection_note }}{% endif %}</td>
+                    <td class="small text-muted">{{ po.updated_at|date:"M d, Y H:i" }}</td>
+                    <td class="text-end pe-3">
+                      <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill"
+                              data-bs-toggle="modal" data-bs-target="#poModal{{ po.id }}">
+                        <i class="bi bi-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="7" class="text-center py-5 text-muted">No rejected pre-orders.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+{# ===== Detail Modals ===== #}
+{% for po in all_preorders_for_modals %}
+<div class="modal fade" id="poModal{{ po.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold">Pre-Order #{{ po.id }}</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="row g-3 mb-4 small">
+          <div class="col-6 col-md-3">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Status</div>
+            <strong>{{ po.get_status_display }}</strong>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Quantity</div>
+            <strong>{{ po.quantity }}</strong>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Total</div>
+            <strong class="text-success">₱{{ po.get_total_price }}</strong>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Requested</div>
+            <strong>{{ po.created_at|date:"M d, Y H:i" }}</strong>
+          </div>
+          {% if po.rejection_reason %}
+          <div class="col-12">
+            <div class="text-muted text-uppercase" style="font-size:0.7rem;">Rejection reason</div>
+            <p class="mb-0 text-danger">{{ po.rejection_reason }}{% if po.rejection_note %} – {{ po.rejection_note }}{% endif %}</p>
+          </div>
+          {% endif %}
+        </div>
+
+        <h6 class="fw-bold mb-2"><i class="bi bi-person me-1"></i> Buyer</h6>
+        <div class="row g-2 small mb-4 border rounded-3 p-3 bg-light">
+          <div class="col-md-6">
+            <span class="text-muted d-block">Name</span>
+            <strong>{{ po.full_name_at_time|default:po.buyer.get_full_name }}</strong>
+          </div>
+          <div class="col-md-3">
+            <span class="text-muted d-block">Student No.</span>
+            <strong>{{ po.student_no_at_time|default:po.buyer.student_no }}</strong>
+          </div>
+          <div class="col-md-3">
+            <span class="text-muted d-block">Course / Section</span>
+            <strong>{{ po.course_at_time|default:po.buyer.course }} {% if po.section_at_time %}· {{ po.section_at_time }}{% endif %}</strong>
+          </div>
+          <div class="col-md-6">
+            <span class="text-muted d-block">Email</span>
+            <strong class="text-break">{{ po.buyer.email|default:"—" }}</strong>
+          </div>
+          <div class="col-md-6">
+            <span class="text-muted d-block">Contact</span>
+            <strong>{{ po.buyer.phone_number|default:"—" }}</strong>
+          </div>
+        </div>
+
+        <h6 class="fw-bold mb-2"><i class="bi bi-box-seam me-1"></i> Product</h6>
+        <div class="d-flex align-items-center gap-3 border rounded-3 p-3">
+          {% with imgs=po.product_variant.product.images.all %}
+            {% if imgs %}
+              <img src="{{ imgs.0.image.url }}" class="modal-product-img" alt="">
+            {% else %}
+              <div class="modal-product-img bg-light d-flex align-items-center justify-content-center">
+                <i class="bi bi-image text-muted"></i>
+              </div>
+            {% endif %}
+          {% endwith %}
+          <div class="flex-grow-1">
+            <div class="fw-semibold">{{ po.product_variant.product.name }}</div>
+            {% if po.product_variant.variant_name %}
+              <div class="text-muted small">{{ po.product_variant.variant_name }}</div>
+            {% endif %}
+            <div class="text-muted small">Qty: {{ po.quantity }} · ₱{{ po.product_variant.price }} each</div>
+          </div>
+          <div class="fw-bold text-success">₱{{ po.get_total_price }}</div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<script>
+  const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+  const MAX_BATCH = 20;
+  const BATCH_URL = '{% url "management_preorders_batch" %}';
+
+  function getChecked(group) {
+    return Array.from(document.querySelectorAll(`.${group}-check:checked`)).map(el => el.value);
+  }
+  function toggleAll(group, checked) {
+    document.querySelectorAll(`.${group}-check`).forEach(el => el.checked = checked);
+  }
+
+  async function postBatch(action, ids, extra = {}) {
+    if (!ids.length) { Swal.fire('No selection', 'Select at least one pre-order.', 'info'); return; }
+    if (ids.length > MAX_BATCH) { Swal.fire('Limit', `Max ${MAX_BATCH} at a time.`, 'warning'); return; }
+
+    const res = await fetch(BATCH_URL, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ action, order_ids: ids, ...extra }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      await Swal.fire('Done', data.message || 'Updated.', 'success');
+      location.reload();
+    } else {
+      Swal.fire('Error', data.message || 'Failed.', 'error');
+    }
+  }
+
+  async function singleAction(id, action) {
+    if (action === 'reject') {
+      const { value: reason } = await Swal.fire({
+        title: 'Reject pre-order?',
+        input: 'select',
+        inputOptions: {
+          'Out of stock': 'Item(s) out of stock',
+          'Pricing/Listing error': 'Pricing or product listing error',
+          'Buyer request': 'Buyer requested cancellation',
+          'Unable to fulfill': 'Unable to fulfill order',
+          'Other': 'Other',
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Reject',
+        inputValidator: v => !v && 'Please select a reason',
+      });
+      if (!reason) return;
+
+      let note = '';
+      if (reason === 'Other') {
+        const { value } = await Swal.fire({
+          title: 'Please specify',
+          input: 'text',
+          inputPlaceholder: 'Rejection details…',
+          showCancelButton: true,
+          inputValidator: v => !v && 'Required',
+        });
+        if (!value) return;
+        note = value;
+      }
+      return postBatch('reject', [String(id)], { reason, note });
+    }
+
+    const labels = {
+      accept: { title: 'Accept this pre-order?', confirm: 'Accept' },
+      processing: { title: 'Move to Processing?', confirm: 'Confirm' },
+      awaiting_payment: { title: 'Mark as Awaiting Payment?', confirm: 'Confirm' },
+      waiting_stocks: { title: 'Mark as Waiting for Stocks?', confirm: 'Confirm' },
+      ready: { title: 'Mark Ready for Pickup?', confirm: 'Confirm' },
+      complete: { title: 'Mark as Completed?', confirm: 'Confirm' },
+    };
+    const L = labels[action] || { title: 'Confirm?', confirm: 'OK' };
+    const result = await Swal.fire({
+      title: L.title, icon: 'question', showCancelButton: true,
+      confirmButtonColor: '#198754', confirmButtonText: L.confirm,
+    });
+    if (!result.isConfirmed) return;
+    return postBatch(action, [String(id)]);
+  }
+
+  async function batchAction(group, action) {
+    const ids = getChecked(group);
+    if (!ids.length) { Swal.fire('No selection', 'Select at least one.', 'info'); return; }
+
+    if (action === 'reject') {
+      const { value: reason } = await Swal.fire({
+        title: `Reject ${ids.length} pre-order(s)?`,
+        input: 'select',
+        inputOptions: {
+          'Out of stock': 'Item(s) out of stock',
+          'Pricing/Listing error': 'Pricing or product listing error',
+          'Buyer request': 'Buyer requested cancellation',
+          'Unable to fulfill': 'Unable to fulfill order',
+          'Other': 'Other',
+        },
+        inputPlaceholder: 'Select a reason',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Reject all',
+        inputValidator: v => !v && 'Please select a reason',
+      });
+      if (!reason) return;
+      let note = '';
+      if (reason === 'Other') {
+        const { value } = await Swal.fire({ title: 'Please specify', input: 'text', showCancelButton: true });
+        if (!value) return;
+        note = value;
+      }
+      return postBatch('reject', ids, { reason, note });
+    }
+
+    const result = await Swal.fire({
+      title: `Update ${ids.length} pre-order(s)?`,
+      icon: 'question', showCancelButton: true,
+      confirmButtonColor: '#198754', confirmButtonText: 'Confirm',
+    });
+    if (!result.isConfirmed) return;
+    return postBatch(action, ids);
+  }
+</script>
+{% endblock %}

@@ -131,5 +131,7 @@ urlpatterns = [
     path('management/orders/batch/',management_views.management_orders_batch,name='management_orders_batch'),
     path('management/dashboard/', user_views.UserProductsView.as_view(), name='dashboard'),
     path('management/cbrgu-products/',management_views.cbrgu_products,name='cbrgu_products'),
+    path('management/preorders/', management_views.management_preorders, name='management_preorders'),
+    path('management/preorders/batch/', management_views.management_preorders_batch, name='management_preorders_batch'),
     ]
 

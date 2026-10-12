@@ -1192,3 +1192,198 @@ def management_orders_batch(request):
         "message": f"{updated} order(s) updated to {new_status}.",
         "updated": updated,
     })
+
+    
+    #Pre orders functions --------------
+@login_required
+@user_passes_test(is_management)
+def management_preorders(request):
+    """
+    Pre-Order Management board.
+    Tabs: Incoming → Accepted → Processing / Awaiting Payment / Waiting for Stocks
+          → Ready for Pickup → Completed | Rejected
+    """
+    search = request.GET.get("search", "").strip()
+    date_from = request.GET.get("date_from", "").strip()
+    date_to = request.GET.get("date_to", "").strip()
+    org_filter = request.GET.get("organization", "").strip()
+
+    base = (
+        PreOrderRequest.objects
+        .filter(seller__user_role="management")
+        .select_related(
+            "buyer", "buyer__org_link",
+            "seller",
+            "product_variant", "product_variant__product",
+        )
+        .prefetch_related("product_variant__product__images")
+        .order_by("-created_at")
+    )
+
+    if search:
+        base = base.filter(
+            Q(id__icontains=search)
+            | Q(buyer__username__icontains=search)
+            | Q(buyer__first_name__icontains=search)
+            | Q(buyer__last_name__icontains=search)
+            | Q(buyer__student_no__icontains=search)
+            | Q(product_variant__product__name__icontains=search)
+            | Q(full_name_at_time__icontains=search)
+        )
+
+    if date_from:
+        d = parse_date(date_from)
+        if d:
+            base = base.filter(created_at__date__gte=d)
+    if date_to:
+        d = parse_date(date_to)
+        if d:
+            base = base.filter(created_at__date__lte=d)
+
+    if org_filter:
+        base = base.filter(
+            Q(buyer__course__iexact=org_filter)
+            | Q(buyer__org_link__course_code__iexact=org_filter)
+            | Q(course_at_time__iexact=org_filter)
+        )
+
+    incoming = base.filter(status="PENDING")
+    accepted = base.filter(status="ACCEPTED")
+    processing = base.filter(status="PROCESSING")
+    awaiting_payment = base.filter(status="AWAITING_PAYMENT")
+    waiting_stocks = base.filter(status="WAITING_STOCKS")
+    ready = base.filter(status="READY")
+    completed = base.filter(status="COMPLETED")
+    rejected = base.filter(status="REJECTED")
+
+    all_for_modals = list(
+        list(incoming[:30])
+        + list(accepted[:30])
+        + list(processing[:30])
+        + list(awaiting_payment[:30])
+        + list(waiting_stocks[:30])
+        + list(ready[:30])
+        + list(completed[:30])
+        + list(rejected[:30])
+    )
+
+    org_options = sorted(
+        set(
+            filter(
+                None,
+                list(base.values_list("buyer__course", flat=True).distinct())
+                + list(base.values_list("course_at_time", flat=True).distinct())
+                + list(base.values_list("buyer__org_link__course_code", flat=True).distinct()),
+            )
+        )
+    )
+
+    context = {
+        "incoming_preorders": incoming[:100],
+        "accepted_preorders": accepted[:100],
+        "processing_preorders": processing[:100],
+        "awaiting_payment_preorders": awaiting_payment[:100],
+        "waiting_stocks_preorders": waiting_stocks[:100],
+        "ready_preorders": ready[:100],
+        "completed_preorders": completed[:100],
+        "rejected_preorders": rejected[:100],
+        "all_preorders_for_modals": all_for_modals,
+        "incoming_count": incoming.count(),
+        "accepted_count": accepted.count(),
+        "processing_count": processing.count(),
+        "awaiting_payment_count": awaiting_payment.count(),
+        "waiting_stocks_count": waiting_stocks.count(),
+        "ready_count": ready.count(),
+        "completed_count": completed.count(),
+        "rejected_count": rejected.count(),
+        "total_preorders": base.count(),
+        "org_options": org_options,
+        "current_filters": {
+            "search": search,
+            "date_from": date_from,
+            "date_to": date_to,
+            "organization": org_filter,
+        },
+    }
+    return render(
+        request,
+        "UTrade_app/management/management_orders/pre_orders.html",
+        context,
+    )
+
+
+@login_required
+@user_passes_test(is_management)
+@require_POST
+def management_preorders_batch(request):
+    """
+    Batch / single status updates for pre-orders.
+    Actions: accept | reject | processing | awaiting_payment | waiting_stocks | ready | complete
+    """
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
+
+    action = (data.get("action") or "").strip().lower()
+    preorder_ids = data.get("order_ids") or data.get("preorder_ids") or []
+    reason = (data.get("reason") or "").strip()
+    note = (data.get("note") or "").strip()
+
+    if not isinstance(preorder_ids, list) or not preorder_ids:
+        return JsonResponse({"success": False, "message": "No pre-orders selected"}, status=400)
+    if len(preorder_ids) > 20:
+        return JsonResponse({"success": False, "message": "Maximum 20 pre-orders per batch"}, status=400)
+
+    allowed = {
+        "accept": ("ACCEPTED", ["PENDING"]),
+        "reject": ("REJECTED", ["PENDING"]),
+        "processing": ("PROCESSING", ["ACCEPTED"]),
+        "awaiting_payment": ("AWAITING_PAYMENT", ["ACCEPTED"]),
+        "waiting_stocks": ("WAITING_STOCKS", ["ACCEPTED"]),
+        "ready": ("READY", ["PROCESSING", "AWAITING_PAYMENT", "WAITING_STOCKS"]),
+        "complete": ("COMPLETED", ["READY"]),
+    }
+    if action not in allowed:
+        return JsonResponse({"success": False, "message": "Invalid action"}, status=400)
+
+    new_status, from_statuses = allowed[action]
+    if action == "reject" and not reason:
+        return JsonResponse({"success": False, "message": "Rejection reason required"}, status=400)
+
+    qs = PreOrderRequest.objects.filter(
+        id__in=preorder_ids,
+        status__in=from_statuses,
+        seller__user_role="management",
+    ).select_related("buyer", "seller", "product_variant__product")
+
+    updated = 0
+    with transaction.atomic():
+        for po in qs.select_for_update():
+            po.status = new_status
+            if action == "reject":
+                po.rejection_reason = reason[:100]
+                if reason == "Other" and note:
+                    po.rejection_note = note[:500]
+            po.save()
+            updated += 1
+
+            log_action(
+                user=request.user,
+                action=f"PreOrder {action.title()}",
+                item_type="PreOrder",
+                item_name=f"PreOrder #{po.id}",
+                details=f"Status → {new_status}" + (f"; reason={reason}" if reason else ""),
+            )
+
+    if updated == 0:
+        return JsonResponse({
+            "success": False,
+            "message": "No matching pre-orders updated (wrong status or already processed).",
+        })
+
+    return JsonResponse({
+        "success": True,
+        "message": f"{updated} pre-order(s) updated to {new_status}.",
+        "updated": updated,
+    })

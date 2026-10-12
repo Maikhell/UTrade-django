@@ -1,6 +1,6 @@
 from .user_models import User, ChatMessage, Conversation,UserReport, user_profile_path
 from .base import BaseItem, ProhibitedWord, MeetupLocation 
-from .orders_models import Order, OrderItem, SystemLog, Payout 
+from .orders_models import Order, OrderItem, SystemLog
 from .organization_models import Organization, OrganizationPlatformLedger, PlatformFeeLine, PlatformFeeRemittance
 from .product_models import (
     Category,

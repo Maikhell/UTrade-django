@@ -605,6 +605,7 @@
                   <tr>
                     <th class="ps-3">Order</th>
                     <th>Buyer</th>
+                    <th>Product</th>
                     <th>Organization</th>
                     <th>Amount</th>
                     <th>Rejection Reason</th>
@@ -617,6 +618,7 @@
                   <tr>
                     <td class="ps-3 fw-semibold">#{{ order.id }}</td>
                     <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td>{{ order.product_variant.product.name }}</td>
                     <td>
                       <span class="badge bg-light text-dark border rounded-pill">
                         {{ order.user.org_acronym }}

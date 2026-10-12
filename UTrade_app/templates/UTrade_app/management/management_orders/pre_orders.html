@@ -181,50 +181,50 @@
       <!-- Stats row -->
       <div class="row g-3 mb-4">
         <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
             <div class="card-body d-flex align-items-center py-3">
-              <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-2 me-3"><i class="bi bi-inbox fs-5"></i></div>
-              <div><div class="text-muted small">Incoming</div><div class="fw-bold fs-4">{{ incoming_count }}</div></div>
+                <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 me-3"><i class="bi bi-inbox fs-5"></i></div>
+                <div><div class="text-muted small">Incoming</div><div class="fw-bold fs-4">{{ incoming_count }}</div></div>
             </div>
-          </div>
+            </div>
         </div>
         <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
             <div class="card-body d-flex align-items-center py-3">
-              <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 me-3"><i class="bi bi-check2-all fs-5"></i></div>
-              <div><div class="text-muted small">Accepted</div><div class="fw-bold fs-4">{{ accepted_count }}</div></div>
+                <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 me-3"><i class="bi bi-check2-all fs-5"></i></div>
+                <div><div class="text-muted small">Accepted</div><div class="fw-bold fs-4">{{ accepted_count }}</div></div>
             </div>
-          </div>
+            </div>
         </div>
         <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
             <div class="card-body d-flex align-items-center py-3">
-              <div class="bg-info bg-opacity-10 text-info rounded-3 p-2 me-3"><i class="bi bi-bag-check fs-5"></i></div>
-              <div><div class="text-muted small">Ready</div><div class="fw-bold fs-4">{{ ready_count }}</div></div>
+                <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 me-3"><i class="bi bi-bag-check fs-5"></i></div>
+                <div><div class="text-muted small">Ready</div><div class="fw-bold fs-4">{{ ready_count }}</div></div>
             </div>
-          </div>
+            </div>
         </div>
         <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
+            <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
             <div class="card-body d-flex align-items-center py-3">
-              <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-2 me-3"><i class="bi bi-clipboard-check fs-5"></i></div>
-              <div><div class="text-muted small">Completed</div><div class="fw-bold fs-4">{{ completed_count }}</div></div>
+                <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 me-3"><i class="bi bi-clipboard-check fs-5"></i></div>
+                <div><div class="text-muted small">Completed</div><div class="fw-bold fs-4">{{ completed_count }}</div></div>
             </div>
-          </div>
+            </div>
         </div>
-      </div>
+        </div>
 
       <!-- Tabs -->
-      <ul class="nav nav-tabs border-0 mb-3 flex-nowrap overflow-auto" id="preorderTabs" role="tablist">
-        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#incoming-pane" type="button">Incoming <span class="stat-pill ms-1 bg-primary">{{ incoming_count }}</span></button></li>
+        <ul class="nav nav-tabs border-0 mb-3 flex-nowrap overflow-auto" id="preorderTabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#incoming-pane" type="button">Incoming <span class="stat-pill ms-1">{{ incoming_count }}</span></button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#accepted-pane" type="button">Accepted <span class="stat-pill ms-1">{{ accepted_count }}</span></button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#processing-pane" type="button">Processing <span class="stat-pill ms-1 bg-warning text-dark">{{ processing_count }}</span></button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#awaiting-pane" type="button">Awaiting Payment <span class="stat-pill ms-1 bg-info">{{ awaiting_payment_count }}</span></button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#stocks-pane" type="button">Waiting Stocks <span class="stat-pill ms-1 bg-secondary">{{ waiting_stocks_count }}</span></button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ready-pane" type="button">Ready <span class="stat-pill ms-1 bg-info">{{ ready_count }}</span></button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#completed-pane" type="button">Completed <span class="stat-pill ms-1 bg-secondary">{{ completed_count }}</span></button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#rejected-pane" type="button">Rejected <span class="stat-pill ms-1 bg-danger">{{ rejected_count }}</span></button></li>
-      </ul>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#processing-pane" type="button">Processing <span class="stat-pill ms-1">{{ processing_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#awaiting-pane" type="button">Awaiting Payment <span class="stat-pill ms-1">{{ awaiting_payment_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#stocks-pane" type="button">Waiting Stocks <span class="stat-pill ms-1">{{ waiting_stocks_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#ready-pane" type="button">Ready <span class="stat-pill ms-1">{{ ready_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#completed-pane" type="button">Completed <span class="stat-pill ms-1">{{ completed_count }}</span></button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#rejected-pane" type="button">Rejected <span class="stat-pill ms-1">{{ rejected_count }}</span></button></li>
+        </ul>
 
       <!-- Filters -->
       <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 filter-card">
@@ -283,10 +283,12 @@
         {# ===== ACCEPTED – can move to Processing / Awaiting Payment / Waiting Stocks ===== #}
         <div class="tab-pane fade" id="accepted-pane">
           <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
-            <span class="small text-muted me-auto">Select up to 20</span>
-            <button type="button" class="btn btn-sm btn-warning rounded-pill" onclick="batchAction('accepted','processing')">Processing</button>
-            <button type="button" class="btn btn-sm btn-info rounded-pill" onclick="batchAction('accepted','awaiting_payment')">Awaiting Payment</button>
-            <button type="button" class="btn btn-sm btn-secondary rounded-pill" onclick="batchAction('accepted','waiting_stocks')">Waiting Stocks</button>
+                <span class="small text-muted me-auto">Select up to 20</span>
+                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchSetEstimate('accepted')">Set Est. Pickup</button>
+                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('accepted','processing')">Processing</button>
+                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('accepted','awaiting_payment')">Awaiting Payment</button>
+                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('accepted','waiting_stocks')">Waiting Stocks</button>
+                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('accepted','ready')">Ready</button>
           </div>
           {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=accepted_preorders group="accepted" show_actions=True %}
         </div>
@@ -295,30 +297,36 @@
         <div class="tab-pane fade" id="processing-pane">
           <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
             <span class="small text-muted me-auto">Select up to 20</span>
-            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','ready')">
-              <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
-            </button>
-          </div>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchSetEstimate('processing')">Set Est. Pickup</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','processing')">Processing</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','awaiting_payment')">Awaiting Payment</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','waiting_stocks')">Waiting Stocks</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','ready')">Mark Ready</button>
+         </div>
           {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=processing_preorders group="processing" show_actions=True %}
         </div>
 
         <div class="tab-pane fade" id="awaiting-pane">
-          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+         <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
             <span class="small text-muted me-auto">Select up to 20</span>
-            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('awaiting','ready')">
-              <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
-            </button>
-          </div>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchSetEstimate('processing')">Set Est. Pickup</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','processing')">Processing</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','awaiting_payment')">Awaiting Payment</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','waiting_stocks')">Waiting Stocks</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','ready')">Mark Ready</button>
+         </div>
           {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=awaiting_payment_preorders group="awaiting" show_actions=True %}
         </div>
 
         <div class="tab-pane fade" id="stocks-pane">
-          <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
+         <div class="batch-bar d-flex flex-wrap align-items-center gap-2 p-3 mb-3">
             <span class="small text-muted me-auto">Select up to 20</span>
-            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('stocks','ready')">
-              <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
-            </button>
-          </div>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchSetEstimate('processing')">Set Est. Pickup</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','processing')">Processing</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','awaiting_payment')">Awaiting Payment</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','waiting_stocks')">Waiting Stocks</button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="batchAction('processing','ready')">Mark Ready</button>
+         </div>
           {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=waiting_stocks_preorders group="stocks" show_actions=True %}
         </div>
 
@@ -456,6 +464,12 @@
           {% endwith %}
           <div class="flex-grow-1">
             <div class="fw-semibold">{{ po.product_variant.product.name }}</div>
+            {% if po.estimated_pickup %}
+                <div class="col-12">
+                <div class="text-muted text-uppercase" style="font-size:0.7rem;">Estimated pickup</div>
+                <p class="mb-0 text-success fw-semibold">{{ po.estimated_pickup }}</p>
+                </div>
+            {% endif %}
             {% if po.product_variant.variant_name %}
               <div class="text-muted small">{{ po.product_variant.variant_name }}</div>
             {% endif %}
@@ -474,124 +488,204 @@
 
 <script>
   const CSRF = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-  const MAX_BATCH = 20;
-  const BATCH_URL = '{% url "management_preorders_batch" %}';
+const MAX_BATCH = 20;
+const BATCH_URL = '{% url "management_preorders_batch" %}';
 
-  function getChecked(group) {
-    return Array.from(document.querySelectorAll(`.${group}-check:checked`)).map(el => el.value);
+const ESTIMATE_OPTIONS = {
+  '1 day': '1 day',
+  '1-2 days': '1–2 days',
+  '1-3 days': '1–3 days',
+  '3-4 days': '3–4 days',
+  'Custom': 'Custom…',
+};
+
+function getChecked(group) {
+  return Array.from(document.querySelectorAll(`.${group}-check:checked`)).map(el => el.value);
+}
+function toggleAll(group, checked) {
+  document.querySelectorAll(`.${group}-check`).forEach(el => el.checked = checked);
+}
+
+async function postBatch(action, ids, extra = {}) {
+  if (!ids.length) { Swal.fire('No selection', 'Select at least one pre-order.', 'info'); return; }
+  if (ids.length > MAX_BATCH) { Swal.fire('Limit', `Max ${MAX_BATCH} at a time.`, 'warning'); return; }
+
+  const res = await fetch(BATCH_URL, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': CSRF,
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+    },
+    body: JSON.stringify({ action, order_ids: ids, ...extra }),
+  });
+  const data = await res.json();
+  if (data.success) {
+    await Swal.fire({ title: 'Done', text: data.message || 'Updated.', icon: 'success', confirmButtonColor: '#198754' });
+    location.reload();
+  } else {
+    Swal.fire({ title: 'Error', text: data.message || 'Failed.', icon: 'error', confirmButtonColor: '#198754' });
   }
-  function toggleAll(group, checked) {
-    document.querySelectorAll(`.${group}-check`).forEach(el => el.checked = checked);
-  }
+}
 
-  async function postBatch(action, ids, extra = {}) {
-    if (!ids.length) { Swal.fire('No selection', 'Select at least one pre-order.', 'info'); return; }
-    if (ids.length > MAX_BATCH) { Swal.fire('Limit', `Max ${MAX_BATCH} at a time.`, 'warning'); return; }
+async function promptEstimate() {
+  const { value: choice } = await Swal.fire({
+    title: 'Estimated pickup time',
+    input: 'select',
+    inputOptions: ESTIMATE_OPTIONS,
+    inputPlaceholder: 'Select estimate',
+    showCancelButton: true,
+    confirmButtonColor: '#198754',
+    confirmButtonText: 'Set',
+    inputValidator: v => !v && 'Please select an option',
+  });
+  if (!choice) return null;
 
-    const res = await fetch(BATCH_URL, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-      body: JSON.stringify({ action, order_ids: ids, ...extra }),
+  if (choice === 'Custom') {
+    const { value: custom } = await Swal.fire({
+      title: 'Custom estimate',
+      input: 'text',
+      inputPlaceholder: 'e.g. 5 days, by Friday…',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
+      inputValidator: v => !v && 'Required',
     });
-    const data = await res.json();
-    if (data.success) {
-      await Swal.fire('Done', data.message || 'Updated.', 'success');
-      location.reload();
-    } else {
-      Swal.fire('Error', data.message || 'Failed.', 'error');
-    }
+    return custom || null;
   }
+  return choice;
+}
 
-  async function singleAction(id, action) {
-    if (action === 'reject') {
-      const { value: reason } = await Swal.fire({
-        title: 'Reject pre-order?',
-        input: 'select',
-        inputOptions: {
-          'Out of stock': 'Item(s) out of stock',
-          'Pricing/Listing error': 'Pricing or product listing error',
-          'Buyer request': 'Buyer requested cancellation',
-          'Unable to fulfill': 'Unable to fulfill order',
-          'Other': 'Other',
-        },
-        inputPlaceholder: 'Select a reason',
+async function setEstimate(id) {
+  const est = await promptEstimate();
+  if (!est) return;
+  return postBatch('set_estimate', [String(id)], { estimated_pickup: est });
+}
+
+async function batchSetEstimate(group) {
+  const ids = getChecked(group);
+  if (!ids.length) { Swal.fire('No selection', 'Select at least one.', 'info'); return; }
+  const est = await promptEstimate();
+  if (!est) return;
+  return postBatch('set_estimate', ids, { estimated_pickup: est });
+}
+
+async function singleAction(id, action) {
+  if (action === 'reject') {
+    const { value: reason } = await Swal.fire({
+      title: 'Reject pre-order?',
+      input: 'select',
+      inputOptions: {
+        'Out of stock': 'Item(s) out of stock',
+        'Pricing/Listing error': 'Pricing or product listing error',
+        'Buyer request': 'Buyer requested cancellation',
+        'Unable to fulfill': 'Unable to fulfill order',
+        'Other': 'Other',
+      },
+      inputPlaceholder: 'Select a reason',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
+      confirmButtonText: 'Reject',
+      inputValidator: v => !v && 'Please select a reason',
+    });
+    if (!reason) return;
+
+    let note = '';
+    if (reason === 'Other') {
+      const { value } = await Swal.fire({
+        title: 'Please specify the reason',
+        input: 'text',
+        inputPlaceholder: 'Rejection details…',
         showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'Reject',
-        inputValidator: v => !v && 'Please select a reason',
+        confirmButtonColor: '#198754',
+        inputValidator: v => !v && 'Required',
       });
-      if (!reason) return;
-
-      let note = '';
-      if (reason === 'Other') {
-        const { value } = await Swal.fire({
-          title: 'Please specify',
-          input: 'text',
-          inputPlaceholder: 'Rejection details…',
-          showCancelButton: true,
-          inputValidator: v => !v && 'Required',
-        });
-        if (!value) return;
-        note = value;
-      }
-      return postBatch('reject', [String(id)], { reason, note });
+      if (!value) return;
+      note = value;
     }
-
-    const labels = {
-      accept: { title: 'Accept this pre-order?', confirm: 'Accept' },
-      processing: { title: 'Move to Processing?', confirm: 'Confirm' },
-      awaiting_payment: { title: 'Mark as Awaiting Payment?', confirm: 'Confirm' },
-      waiting_stocks: { title: 'Mark as Waiting for Stocks?', confirm: 'Confirm' },
-      ready: { title: 'Mark Ready for Pickup?', confirm: 'Confirm' },
-      complete: { title: 'Mark as Completed?', confirm: 'Confirm' },
-    };
-    const L = labels[action] || { title: 'Confirm?', confirm: 'OK' };
-    const result = await Swal.fire({
-      title: L.title, icon: 'question', showCancelButton: true,
-      confirmButtonColor: '#198754', confirmButtonText: L.confirm,
-    });
-    if (!result.isConfirmed) return;
-    return postBatch(action, [String(id)]);
+    return postBatch('reject', [String(id)], { reason, note });
   }
 
-  async function batchAction(group, action) {
-    const ids = getChecked(group);
-    if (!ids.length) { Swal.fire('No selection', 'Select at least one.', 'info'); return; }
+  let estimated_pickup = null;
+  if (action === 'accept') {
+    estimated_pickup = await promptEstimate();
+    // optional: allow accept without estimate
+  }
 
-    if (action === 'reject') {
-      const { value: reason } = await Swal.fire({
-        title: `Reject ${ids.length} pre-order(s)?`,
-        input: 'select',
-        inputOptions: {
-          'Out of stock': 'Item(s) out of stock',
-          'Pricing/Listing error': 'Pricing or product listing error',
-          'Buyer request': 'Buyer requested cancellation',
-          'Unable to fulfill': 'Unable to fulfill order',
-          'Other': 'Other',
-        },
-        inputPlaceholder: 'Select a reason',
+  const labels = {
+    accept: { title: 'Accept this pre-order?', confirm: 'Accept' },
+    processing: { title: 'Move to Processing?', confirm: 'Confirm' },
+    awaiting_payment: { title: 'Mark as Awaiting Payment?', confirm: 'Confirm' },
+    waiting_stocks: { title: 'Mark as Waiting for Stocks?', confirm: 'Confirm' },
+    ready: { title: 'Mark Ready for Pickup?', confirm: 'Confirm' },
+    complete: { title: 'Mark as Completed?', confirm: 'Confirm' },
+  };
+  const L = labels[action] || { title: 'Confirm?', confirm: 'OK' };
+  const result = await Swal.fire({
+    title: L.title,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#198754',
+    confirmButtonText: L.confirm,
+  });
+  if (!result.isConfirmed) return;
+
+  const extra = estimated_pickup ? { estimated_pickup } : {};
+  return postBatch(action, [String(id)], extra);
+}
+
+async function batchAction(group, action) {
+  const ids = getChecked(group);
+  if (!ids.length) { Swal.fire('No selection', 'Select at least one.', 'info'); return; }
+
+  if (action === 'reject') {
+    const { value: reason } = await Swal.fire({
+      title: `Reject ${ids.length} pre-order(s)?`,
+      input: 'select',
+      inputOptions: {
+        'Out of stock': 'Item(s) out of stock',
+        'Pricing/Listing error': 'Pricing or product listing error',
+        'Buyer request': 'Buyer requested cancellation',
+        'Unable to fulfill': 'Unable to fulfill order',
+        'Other': 'Other',
+      },
+      inputPlaceholder: 'Select a reason',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
+      confirmButtonText: 'Reject all',
+      inputValidator: v => !v && 'Please select a reason',
+    });
+    if (!reason) return;
+    let note = '';
+    if (reason === 'Other') {
+      const { value } = await Swal.fire({
+        title: 'Please specify the reason',
+        input: 'text',
         showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'Reject all',
-        inputValidator: v => !v && 'Please select a reason',
+        confirmButtonColor: '#198754',
+        inputValidator: v => !v && 'Required',
       });
-      if (!reason) return;
-      let note = '';
-      if (reason === 'Other') {
-        const { value } = await Swal.fire({ title: 'Please specify', input: 'text', showCancelButton: true });
-        if (!value) return;
-        note = value;
-      }
-      return postBatch('reject', ids, { reason, note });
+      if (!value) return;
+      note = value;
     }
-
-    const result = await Swal.fire({
-      title: `Update ${ids.length} pre-order(s)?`,
-      icon: 'question', showCancelButton: true,
-      confirmButtonColor: '#198754', confirmButtonText: 'Confirm',
-    });
-    if (!result.isConfirmed) return;
-    return postBatch(action, ids);
+    return postBatch('reject', ids, { reason, note });
   }
+
+  let estimated_pickup = null;
+  if (action === 'accept') {
+    estimated_pickup = await promptEstimate();
+  }
+
+  const result = await Swal.fire({
+    title: `Update ${ids.length} pre-order(s)?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#198754',
+    confirmButtonText: 'Confirm',
+  });
+  if (!result.isConfirmed) return;
+
+  const extra = estimated_pickup ? { estimated_pickup } : {};
+  return postBatch(action, ids, extra);
+}
 </script>
 {% endblock %}

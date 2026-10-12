@@ -13,6 +13,9 @@
           <th>Product</th>
           <th>Qty</th>
           <th>Amount</th>
+          {% if group != 'incoming' and group != 'completed' and group != 'rejected' %}
+          <th>Est. Pickup</th>
+          {% endif %}
           <th>Requested</th>
           <th class="text-end pe-3">Actions</th>
         </tr>
@@ -36,6 +39,17 @@
           </td>
           <td>{{ po.quantity }}</td>
           <td class="fw-bold text-success">₱{{ po.get_total_price }}</td>
+          {% if group != 'incoming' and group != 'completed' and group != 'rejected' %}
+          <td>
+            {% if po.estimated_pickup %}
+              <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 rounded-pill">
+                {{ po.estimated_pickup }}
+              </span>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+          {% endif %}
           <td class="small text-muted">{{ po.created_at|timesince }} ago</td>
           <td class="text-end pe-3">
             <div class="d-flex justify-content-end gap-1 flex-wrap">
@@ -43,26 +57,47 @@
                       data-bs-toggle="modal" data-bs-target="#poModal{{ po.id }}">
                 <i class="bi bi-eye"></i>
               </button>
+
               {% if group == 'incoming' %}
-                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="singleAction({{ po.id }}, 'accept')">Accept</button>
-                <button type="button" class="btn btn-sm btn-danger rounded-pill" onclick="singleAction({{ po.id }}, 'reject')">Reject</button>
-              {% elif group == 'accepted' %}
-                <button type="button" class="btn btn-sm btn-warning rounded-pill" onclick="singleAction({{ po.id }}, 'processing')">Processing</button>
-                <button type="button" class="btn btn-sm btn-info rounded-pill" onclick="singleAction({{ po.id }}, 'awaiting_payment')">Payment</button>
-                <button type="button" class="btn btn-sm btn-secondary rounded-pill" onclick="singleAction({{ po.id }}, 'waiting_stocks')">Stocks</button>
-              {% elif group == 'processing' or group == 'awaiting' or group == 'stocks' %}
-                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="singleAction({{ po.id }}, 'ready')">Ready</button>
+                <button type="button" class="btn btn-sm btn-success rounded-pill"
+                        onclick="singleAction({{ po.id }}, 'accept')">Accept</button>
+                <button type="button" class="btn btn-sm btn-outline-danger rounded-pill"
+                        onclick="singleAction({{ po.id }}, 'reject')">Reject</button>
+
+              {% elif group == 'accepted' or group == 'processing' or group == 'awaiting' or group == 'stocks' %}
+                <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
+                        onclick="setEstimate({{ po.id }})" title="Set estimate">
+                  <i class="bi bi-clock"></i>
+                </button>
+                {% if group != 'processing' %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill"
+                        onclick="singleAction({{ po.id }}, 'processing')">Processing</button>
+                {% endif %}
+                {% if group != 'awaiting' %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill"
+                        onclick="singleAction({{ po.id }}, 'awaiting_payment')">Payment</button>
+                {% endif %}
+                {% if group != 'stocks' %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill"
+                        onclick="singleAction({{ po.id }}, 'waiting_stocks')">Stocks</button>
+                {% endif %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill"
+                        onclick="singleAction({{ po.id }}, 'ready')">Ready</button>
+
               {% elif group == 'ready' %}
-                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="singleAction({{ po.id }}, 'complete')">Complete</button>
+                <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
+                        onclick="setEstimate({{ po.id }})" title="Set estimate">
+                  <i class="bi bi-clock"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-success rounded-pill"
+                        onclick="singleAction({{ po.id }}, 'complete')">Complete</button>
               {% endif %}
             </div>
           </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="{% if show_actions %}8{% else %}7{% endif %}" class="text-center py-5 text-muted">
-            No pre-orders in this status.
-          </td>
+          <td colspan="9" class="text-center py-5 text-muted">No pre-orders in this status.</td>
         </tr>
         {% endfor %}
       </tbody>

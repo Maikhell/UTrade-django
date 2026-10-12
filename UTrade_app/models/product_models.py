@@ -281,7 +281,13 @@ class PreOrderRequest(models.Model):
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='preorder_requests')
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_preorders')
     product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name='preorders')
-
+    
+    estimated_pickup = models.CharField(
+    max_length=50,
+    blank=True,
+    null=True,
+    help_text="e.g. 1 day, 1-2 days, or custom text",
+)
     quantity = models.PositiveIntegerField(default=1)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
 

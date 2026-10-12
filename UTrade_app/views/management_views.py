@@ -1325,54 +1325,49 @@ def management_preorders_batch(request):
     preorder_ids = data.get("order_ids") or data.get("preorder_ids") or []
     reason = (data.get("reason") or "").strip()
     note = (data.get("note") or "").strip()
+    estimated_pickup = (data.get("estimated_pickup") or "").strip()
 
     if not isinstance(preorder_ids, list) or not preorder_ids:
         return JsonResponse({"success": False, "message": "No pre-orders selected"}, status=400)
     if len(preorder_ids) > 20:
         return JsonResponse({"success": False, "message": "Maximum 20 pre-orders per batch"}, status=400)
 
-    # Accept both new and legacy status values
+    # Flexible mid-pipeline statuses can move among each other
+    MID = [
+        "ACCEPTED", "APPROVED", "Accepted", "Approved",
+        "PROCESSING", "PREPARING", "Processing", "Preparing",
+        "AWAITING_PAYMENT", "Awaiting Payment",
+        "WAITING_STOCKS", "Waiting for Stocks",
+    ]
+
     allowed = {
-        "accept": (
-            "ACCEPTED",
-            ["PENDING", "Pending", "pending"],
-        ),
-        "reject": (
-            "REJECTED",
-            ["PENDING", "Pending", "pending"],
-        ),
-        "processing": (
-            "PROCESSING",
-            ["ACCEPTED", "APPROVED", "Accepted", "Approved"],
-        ),
-        "awaiting_payment": (
-            "AWAITING_PAYMENT",
-            ["ACCEPTED", "APPROVED", "Accepted", "Approved"],
-        ),
-        "waiting_stocks": (
-            "WAITING_STOCKS",
-            ["ACCEPTED", "APPROVED", "Accepted", "Approved"],
-        ),
+        "accept": ("ACCEPTED", ["PENDING", "Pending", "pending"]),
+        "reject": ("REJECTED", ["PENDING", "Pending", "pending"]),
+        "processing": ("PROCESSING", MID),
+        "awaiting_payment": ("AWAITING_PAYMENT", MID),
+        "waiting_stocks": ("WAITING_STOCKS", MID),
         "ready": (
             "READY",
             [
                 "PROCESSING", "PREPARING", "Processing", "Preparing",
                 "AWAITING_PAYMENT", "Awaiting Payment",
                 "WAITING_STOCKS", "Waiting for Stocks",
+                "ACCEPTED", "APPROVED", "Accepted", "Approved",
             ],
         ),
-        "complete": (
-            "COMPLETED",
-            ["READY", "Ready", "Ready for Pickup"],
-        ),
+        "complete": ("COMPLETED", ["READY", "Ready", "Ready for Pickup"]),
+        "set_estimate": (None, MID + ["READY", "Ready", "Ready for Pickup"]),  # status unchanged
     }
 
     if action not in allowed:
         return JsonResponse({"success": False, "message": "Invalid action"}, status=400)
 
     new_status, from_statuses = allowed[action]
+
     if action == "reject" and not reason:
         return JsonResponse({"success": False, "message": "Rejection reason required"}, status=400)
+    if action == "set_estimate" and not estimated_pickup:
+        return JsonResponse({"success": False, "message": "Estimated pickup required"}, status=400)
 
     qs = PreOrderRequest.objects.filter(
         id__in=preorder_ids,
@@ -1383,12 +1378,23 @@ def management_preorders_batch(request):
     updated = 0
     with transaction.atomic():
         for po in qs.select_for_update():
-            po.status = new_status
-            if action == "reject":
-                po.rejection_reason = reason[:100]
-                if reason == "Other" and note:
-                    po.rejection_note = note[:500]
-            po.save()
+            if action == "set_estimate":
+                po.estimated_pickup = estimated_pickup[:50]
+                po.save(update_fields=["estimated_pickup", "updated_at"])
+            else:
+                po.status = new_status
+                fields = ["status", "updated_at"]
+                if action == "reject":
+                    po.rejection_reason = reason[:100]
+                    fields.append("rejection_reason")
+                    if reason == "Other" and note:
+                        po.rejection_note = note[:500]
+                        fields.append("rejection_note")
+                if action == "accept" and estimated_pickup:
+                    po.estimated_pickup = estimated_pickup[:50]
+                    fields.append("estimated_pickup")
+                po.save(update_fields=fields)
+
             updated += 1
 
             log_action(
@@ -1396,8 +1402,32 @@ def management_preorders_batch(request):
                 action=f"PreOrder {action.title()}",
                 item_type="PreOrder",
                 item_name=f"PreOrder #{po.id}",
-                details=f"Status → {new_status}" + (f"; reason={reason}" if reason else ""),
+                details=(
+                    f"Status → {new_status or po.status}"
+                    + (f"; reason={reason}" if reason else "")
+                    + (f"; estimate={estimated_pickup}" if estimated_pickup else "")
+                ),
             )
+
+            # Notifications
+            try:
+                if action == "accept":
+                    est = estimated_pickup or po.estimated_pickup or "to be confirmed"
+                    msg = (
+                        f"✅ SYSTEM: Your pre-order #{po.id} has been accepted.\n"
+                        f"Estimated ready for pickup: {est}."
+                    )
+                    _notify_buyer_chat(request.user, po, msg)
+                    _send_buyer_preorder_email(po, "accept", extra=est)
+                elif action == "ready":
+                    msg = (
+                        f"📦 SYSTEM: Your pre-order #{po.id} is ready for pickup.\n"
+                        f"Please proceed to the designated meetup location."
+                    )
+                    _notify_buyer_chat(request.user, po, msg)
+                    _send_buyer_preorder_email(po, "ready")
+            except Exception:
+                logger.exception("Notify failed for preorder %s", po.id)
 
     if updated == 0:
         return JsonResponse({
@@ -1407,6 +1437,72 @@ def management_preorders_batch(request):
 
     return JsonResponse({
         "success": True,
-        "message": f"{updated} pre-order(s) updated to {new_status}.",
+        "message": f"{updated} pre-order(s) updated.",
         "updated": updated,
     })
+    
+def _notify_buyer_chat(admin_user, preorder, message_text):
+    """System chat to the buyer about this pre-order."""
+    product = None
+    if preorder.product_variant_id:
+        product = preorder.product_variant.product
+
+    conversation, _ = Conversation.objects.get_or_create(
+        product=product,
+        buyer=preorder.buyer,
+        seller=admin_user,
+    )
+    ChatMessage.objects.create(
+        conversation=conversation,
+        user=admin_user,
+        content=message_text,
+        is_read=False,
+    )
+
+
+def _send_buyer_preorder_email(preorder, event, extra=None):
+    """Email buyer (@cvsu.edu.ph) on accept / ready."""
+    buyer = preorder.buyer
+    email = (getattr(buyer, "email", "") or "").strip().lower()
+    if not email.endswith("@cvsu.edu.ph"):
+        return
+
+    name = buyer.get_full_name() or buyer.username
+    product_name = (
+        preorder.product_variant.product.name
+        if preorder.product_variant_id and preorder.product_variant.product_id
+        else "your item"
+    )
+    total = preorder.get_total_price()
+
+    if event == "accept":
+        subject = f"UTrade – Pre-Order #{preorder.id} Accepted"
+        est = extra or preorder.estimated_pickup or "to be confirmed"
+        body = (
+            f"Hi {name},\n\n"
+            f"Your pre-order #{preorder.id} for {product_name} (₱{total}) has been accepted.\n"
+            f"Estimated ready for pickup: {est}.\n\n"
+            f"You will be notified when it is ready.\n\n"
+            f"Thank you for using UTrade."
+        )
+    elif event == "ready":
+        subject = f"UTrade – Pre-Order #{preorder.id} Ready for Pickup"
+        body = (
+            f"Hi {name},\n\n"
+            f"Your pre-order #{preorder.id} for {product_name} (₱{total}) is ready for pickup.\n"
+            f"Please proceed to the designated meetup location.\n\n"
+            f"Thank you for using UTrade."
+        )
+    else:
+        return
+
+    try:
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except Exception:
+        logger.exception("Failed preorder email to %s for #%s", email, preorder.id)

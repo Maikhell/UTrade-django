@@ -178,7 +178,7 @@
                 </li>
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="#preorders-section">
+                     href="{% url 'management_preorders' %}">
                     <i class="bi bi-calendar-check text-info"></i> Pre-Orders
                     {% if incoming_preorder_count %}
                       <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>

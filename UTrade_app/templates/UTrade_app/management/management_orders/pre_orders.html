@@ -176,6 +176,10 @@
           <h2 class="fw-bold mb-0 text-success">CBRGU Pre-Orders </h2>
           <p class="text-muted mb-0 small">Incoming → Accepted → Processing / Payment / Stocks → Ready → Completed</p>
         </div>
+                <a href="{% url 'generate.report.pdf' %}?report_type=all_products"
+           class="btn btn-success rounded-pill px-4 shadow-sm">
+          <i class="bi bi-file-earmark-pdf me-1"></i> Generate Report
+        </a>
       </div>
 
       <!-- Stats row -->

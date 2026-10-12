@@ -1247,14 +1247,14 @@ def management_preorders(request):
             | Q(course_at_time__iexact=org_filter)
         )
 
-    incoming = base.filter(status="PENDING")
-    accepted = base.filter(status="ACCEPTED")
-    processing = base.filter(status="PROCESSING")
-    awaiting_payment = base.filter(status="AWAITING_PAYMENT")
-    waiting_stocks = base.filter(status="WAITING_STOCKS")
-    ready = base.filter(status="READY")
-    completed = base.filter(status="COMPLETED")
-    rejected = base.filter(status="REJECTED")
+    incoming = base.filter(status__in=["PENDING", "Pending", "pending"])
+    accepted = base.filter(status__in=["ACCEPTED", "APPROVED", "Accepted", "Approved"])
+    processing = base.filter(status__in=["PROCESSING", "PREPARING", "Processing", "Preparing"])
+    awaiting_payment = base.filter(status__in=["AWAITING_PAYMENT", "Awaiting Payment"])
+    waiting_stocks = base.filter(status__in=["WAITING_STOCKS", "Waiting for Stocks"])
+    ready = base.filter(status__in=["READY", "Ready", "Ready for Pickup"])
+    completed = base.filter(status__in=["COMPLETED", "Completed"])
+    rejected = base.filter(status__in=["REJECTED", "DECLINED", "Rejected", "Declined"])
 
     all_for_modals = list(
         list(incoming[:30])

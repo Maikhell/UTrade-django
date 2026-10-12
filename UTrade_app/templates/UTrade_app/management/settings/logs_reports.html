@@ -1,0 +1,851 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+{% load humanize %}
+{% load custom_filters %}
+
+{% block title %}
+  Logs and Reports – UTrade Management
+{% endblock %}
+
+{% block content %}
+<style>
+  /* ===== Same sidebar styles as Management Dashboard ===== */
+  @media (min-width: 768px) {
+    .seller-sidebar {
+      position: sticky;
+      top: 1rem;
+      height: calc(100vh - 2rem);
+      overflow-y: auto;
+    }
+  }
+
+  @media (min-width: 1400px) {
+    .container,
+    .container-sm,
+    .container-md,
+    .container-lg,
+    .container-xl,
+    .container-xxl {
+      max-width: 1600px !important;
+    }
+  }
+
+  .sidebar-link.active {
+    background-color: rgba(25, 135, 84, 0.12) !important;
+    color: #198754 !important;
+    font-weight: 600;
+  }
+
+  .hover-text-dark:hover { color: #212529 !important; }
+  .table > :not(caption) > * > * { padding-top: 0.9rem; padding-bottom: 0.9rem; }
+  .nav-link { transition: color 0.15s ease; }
+
+  .log-action-badge {
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+  }
+  .report-status-badge {
+    min-width: 80px;
+    text-align: center;
+  }
+  .tab-pane { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
+  <a href="#" onclick="history.back(); return false;"
+     class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back to Account</span>
+  </a>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+
+    <!-- Mobile Toggle -->
+    <div class="col-12 d-md-none mb-3">
+      <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
+              type="button"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#sellerSidebar"
+              aria-controls="sellerSidebar">
+        <i class="bi bi-list"></i>
+        Staff Menu
+      </button>
+    </div>
+
+    <!-- ==================== SIDEBAR ==================== -->
+    <div class="col-md-3 col-lg-2">
+      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm"
+           tabindex="-1"
+           id="sellerSidebar"
+           aria-labelledby="sellerSidebarLabel">
+
+        <div class="offcanvas-header d-md-none">
+          <h5 class="offcanvas-title fw-bold" id="sellerSidebarLabel">Seller Dashboard</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sellerSidebar"></button>
+        </div>
+
+        <div class="offcanvas-body p-0">
+          <div class="seller-sidebar p-3">
+
+            <!-- Quick Stats -->
+            <div class="mb-4">
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div class="d-flex justify-content-between">
+                  <span>Products</span>
+                  <strong>{{ products.count|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Total Stocks</span>
+                  <strong>{{ total_stocks|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Orders</span>
+                  <strong>{{ total_orders|default:0 }}</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <span>Income</span>
+                  <strong class="text-success">₱{{ total_income|default:0 }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <hr class="my-3 opacity-25">
+
+            <!-- Navigation -->
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
+
+            <!-- Management Panel -->
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-briefcase"></i> CBRGU Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'dashboard' %}">
+                    <i class="bi bi-speedometer2 text-success"></i> Dashboard
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'active_listings' %}">
+                    <i class="bi bi-check2-square text-success"></i> Active Listings
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'remittance_management' %}">
+                    <i class="bi bi-cash-stack text-success"></i> Remittance
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'cbrgu_products' %}">
+                    <i class="bi bi-box-seam text-success"></i> Products
+                    <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count|default:0 }}</span>
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Orders -->
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-cart-fill"></i> Orders
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'management_orders' %}">
+                    <i class="bi bi-inbox text-success"></i> Orders
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'management_preorders' %}">
+                    <i class="bi bi-calendar-check text-success"></i> Pre-Orders
+                    {% if incoming_preorder_count %}
+                      <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>
+                    {% endif %}
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <!-- Settings -->
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-shield-lock"></i> Settings
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'logs_reports' %}">
+                    <i class="bi bi-journal-text text-success"></i> Logs and Reports
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'security_admin' %}">
+                    <i class="bi bi-exclamation-triangle"></i> Prohibited Items
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'security_admin' %}">
+                    <i class="bi bi-tags"></i> Categories
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'security_admin' %}">
+                    <i class="bi bi-geo-alt"></i> Pickup Spots
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
+                    <i class="bi bi-person"></i> Add Accounts
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <hr class="my-3 opacity-25">
+            <div class="d-grid gap-2">
+              <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
+                <i class="bi bi-plus-lg me-1"></i> Add New Product
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
+
+      <!-- Header -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+          <h1 class="h3 fw-bold mb-1 text-dark">Logs &amp; Reports</h1>
+          <p class="text-muted mb-0 small">
+            System activity audit trail · User &amp; product reports · Moderation actions
+          </p>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-medium">
+            <i class="bi bi-journal-text me-1"></i>
+            {{ logs_count|default:0 }} Log{{ logs_count|pluralize }}
+          </span>
+          <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2 fw-medium">
+            <i class="bi bi-flag me-1"></i>
+            {{ reports_count|default:0 }} Report{{ reports_count|pluralize }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0 rounded-3 mb-4" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Sub Navigation Tabs -->
+      <div class="d-flex border-bottom mb-4 gap-1 overflow-auto">
+        <a href="?tab=logs{% if search %}&search={{ search }}{% endif %}"
+           class="nav-link px-4 py-3 border-bottom border-3 {% if active_tab == 'logs' %}border-success text-success fw-semibold{% else %}border-transparent text-muted fw-medium hover-text-dark{% endif %} text-nowrap">
+          <i class="bi bi-clock-history me-1"></i> System Logs
+        </a>
+        <a href="?tab=reports{% if search %}&search={{ search }}{% endif %}"
+           class="nav-link px-4 py-3 border-bottom border-3 {% if active_tab == 'reports' %}border-success text-success fw-semibold{% else %}border-transparent text-muted fw-medium hover-text-dark{% endif %} text-nowrap">
+          <i class="bi bi-flag me-1"></i> User Reports
+          {% if pending_reports_count %}
+            <span class="badge bg-danger rounded-pill ms-1">{{ pending_reports_count }}</span>
+          {% endif %}
+        </a>
+      </div>
+
+      <!-- ==================== LOGS TAB ==================== -->
+      {% if active_tab == 'logs' %}
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+              <h2 class="h5 fw-bold mb-1">System Activity Logs</h2>
+              <p class="text-muted small mb-0">Transactions, listings, edits, approvals, rejections &amp; status changes</p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <form method="get" class="d-flex gap-2">
+                <input type="hidden" name="tab" value="logs">
+                <input type="text" name="search" value="{{ search }}"
+                       class="form-control form-control-sm rounded-pill"
+                       placeholder="Search logs…" style="min-width: 180px;">
+                <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill">
+                  <i class="bi bi-search"></i>
+                </button>
+              </form>
+              <a href="{% url 'generate_logs_report' %}?{% if search %}search={{ search }}&{% endif %}days=30"
+                 class="btn btn-sm btn-success rounded-pill px-3">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Generate Report
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body p-0 mt-3">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr class="text-uppercase small text-muted fw-semibold">
+                  <th class="ps-4 py-3" style="min-width: 160px;">Timestamp</th>
+                  <th class="py-3" style="min-width: 140px;">Performed By</th>
+                  <th class="py-3">Action</th>
+                  <th class="py-3">Item Type</th>
+                  <th class="py-3" style="min-width: 180px;">Affected Item / User</th>
+                  <th class="text-center pe-4 py-3" style="min-width: 100px;">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in page_obj %}
+                  <tr class="border-bottom">
+                    <td class="ps-4 py-3">
+                      <div class="fw-medium small">{{ log.timestamp|date:"M d, Y" }}</div>
+                      <div class="text-muted" style="font-size: 0.75rem;">{{ log.timestamp|date:"g:i A" }}</div>
+                    </td>
+                    <td class="py-3">
+                      {% if log.user %}
+                        <div class="fw-semibold text-dark small">{{ log.user.get_short_name }}</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">{{ log.user.user_role|default:"—" }}</div>
+                      {% else %}
+                        <span class="text-muted small">System</span>
+                      {% endif %}
+                    </td>
+                    <td class="py-3">
+                      {% if "Reject" in log.action or "Unlist" in log.action or "Suspend" in log.action %}
+                        <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle log-action-badge">
+                          {{ log.action }}
+                        </span>
+                      {% elif "Approv" in log.action or "Accept" in log.action or "Complete" in log.action or "Paid" in log.action %}
+                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle log-action-badge">
+                          {{ log.action }}
+                        </span>
+                      {% elif "Warn" in log.action or "Notif" in log.action %}
+                        <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle log-action-badge">
+                          {{ log.action }}
+                        </span>
+                      {% else %}
+                        <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle log-action-badge">
+                          {{ log.action }}
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td class="py-3">
+                      <span class="small fw-medium">{{ log.item_type }}</span>
+                    </td>
+                    <td class="py-3">
+                      <div class="fw-semibold text-dark small text-truncate" style="max-width: 220px;" title="{{ log.item_name }}">
+                        {{ log.item_name }}
+                      </div>
+                    </td>
+                    <td class="text-center pe-4 py-3">
+                      <button type="button"
+                              class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                              data-bs-toggle="modal"
+                              data-bs-target="#logDetailModal{{ log.id }}"
+                              title="View full details">
+                        <i class="bi bi-eye me-1"></i> View
+                      </button>
+                    </td>
+                  </tr>
+
+                  <!-- Log Detail Modal -->
+                  <div class="modal fade" id="logDetailModal{{ log.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content border-0 shadow-lg rounded-4">
+                        <div class="modal-header border-0 pb-0">
+                          <h5 class="modal-title fw-bold">
+                            Log Entry #{{ log.id }}
+                            <span class="d-block small fw-normal text-muted mt-1">{{ log.action }} · {{ log.item_type }}</span>
+                          </h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body pt-3">
+                          <dl class="row mb-0 small">
+                            <dt class="col-4 text-muted">Timestamp</dt>
+                            <dd class="col-8">{{ log.timestamp|date:"F d, Y · g:i:s A" }}</dd>
+
+                            <dt class="col-4 text-muted">Performed by</dt>
+                            <dd class="col-8">
+                              {% if log.user %}
+                                {{ log.user.get_short_name }}
+                                <span class="text-muted">({{ log.user.user_role }})</span>
+                              {% else %}
+                                System
+                              {% endif %}
+                            </dd>
+
+                            <dt class="col-4 text-muted">Action</dt>
+                            <dd class="col-8 fw-semibold">{{ log.action }}</dd>
+
+                            <dt class="col-4 text-muted">Item type</dt>
+                            <dd class="col-8">{{ log.item_type }}</dd>
+
+                            <dt class="col-4 text-muted">Item / User</dt>
+                            <dd class="col-8">{{ log.item_name }}</dd>
+
+                            <dt class="col-4 text-muted">Details</dt>
+                            <dd class="col-8">
+                              {% if log.details %}
+                                <div class="bg-light rounded-3 p-2 mt-1" style="white-space: pre-wrap;">{{ log.details }}</div>
+                              {% else %}
+                                <span class="text-muted">—</span>
+                              {% endif %}
+                            </dd>
+                          </dl>
+                        </div>
+                        <div class="modal-footer border-0 pt-0">
+                          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                {% empty %}
+                  <tr>
+                    <td colspan="6" class="text-center py-5">
+                      <div class="text-muted">
+                        <i class="bi bi-journal-x display-6 d-block mb-3 opacity-50"></i>
+                        <div class="fw-medium">No system logs found</div>
+                        <div class="small">Activity will appear here as actions are performed.</div>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logs Pagination -->
+      {% if page_obj.has_other_pages %}
+        <nav aria-label="Logs pagination" class="mt-4 d-flex justify-content-center">
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link rounded-start-pill" href="?tab=logs&page=1{% if search %}&search={{ search }}{% endif %}">&laquo; First</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?tab=logs&page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">Previous</a>
+              </li>
+            {% endif %}
+            <li class="page-item disabled">
+              <span class="page-link px-3">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+              </span>
+            </li>
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?tab=logs&page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link rounded-end-pill" href="?tab=logs&page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}">Last &raquo;</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+
+      {% else %}
+      <!-- ==================== REPORTS TAB ==================== -->
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+              <h2 class="h5 fw-bold mb-1">User &amp; Content Reports</h2>
+              <p class="text-muted small mb-0">Reported users, products and conversations requiring moderation</p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <form method="get" class="d-flex gap-2">
+                <input type="hidden" name="tab" value="reports">
+                <input type="text" name="search" value="{{ search }}"
+                       class="form-control form-control-sm rounded-pill"
+                       placeholder="Search reports…" style="min-width: 180px;">
+                <select name="status" class="form-select form-select-sm rounded-pill" style="min-width: 120px;" onchange="this.form.submit()">
+                  <option value="">All statuses</option>
+                  <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                  <option value="reviewed" {% if status_filter == 'reviewed' %}selected{% endif %}>Reviewed</option>
+                  <option value="resolved" {% if status_filter == 'resolved' %}selected{% endif %}>Resolved</option>
+                  <option value="dismissed" {% if status_filter == 'dismissed' %}selected{% endif %}>Dismissed</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill">
+                  <i class="bi bi-search"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body p-0 mt-3">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr class="text-uppercase small text-muted fw-semibold">
+                  <th class="ps-4 py-3" style="min-width: 140px;">Reported</th>
+                  <th class="py-3">Reporter</th>
+                  <th class="py-3">Reason</th>
+                  <th class="py-3">Context</th>
+                  <th class="py-3">Status</th>
+                  <th class="py-3" style="min-width: 120px;">Date</th>
+                  <th class="text-center pe-4 py-3" style="min-width: 220px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for report in page_obj %}
+                  <tr class="border-bottom {% if report.status == 'pending' %}table-warning{% endif %}">
+                    <td class="ps-4 py-3">
+                      <div class="fw-semibold text-dark small">{{ report.reported_user.get_short_name }}</div>
+                      <div class="text-muted" style="font-size: 0.75rem;">
+                        {{ report.reported_user.user_role|default:"—" }}
+                        {% if report.reported_user.is_suspended %}
+                          <span class="badge bg-danger-subtle text-danger border border-danger-subtle ms-1">Suspended</span>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td class="py-3">
+                      <div class="small">{{ report.reporter.get_short_name }}</div>
+                    </td>
+                    <td class="py-3">
+                      <span class="badge rounded-pill bg-light text-dark border">{{ report.reason }}</span>
+                    </td>
+                    <td class="py-3">
+                      {% if report.conversation and report.conversation.product %}
+                        <div class="small text-truncate" style="max-width: 160px;" title="{{ report.conversation.product.name }}">
+                          <i class="bi bi-box-seam me-1 text-muted"></i>{{ report.conversation.product.name }}
+                        </div>
+                      {% elif report.conversation %}
+                        <div class="small text-muted"><i class="bi bi-chat-dots me-1"></i>Conversation #{{ report.conversation.id }}</div>
+                      {% else %}
+                        <span class="text-muted small">—</span>
+                      {% endif %}
+                    </td>
+                    <td class="py-3">
+                      {% if report.status == 'pending' %}
+                        <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle report-status-badge">Pending</span>
+                      {% elif report.status == 'reviewed' %}
+                        <span class="badge rounded-pill bg-info-subtle text-info border border-info-subtle report-status-badge">Reviewed</span>
+                      {% elif report.status == 'resolved' %}
+                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle report-status-badge">Resolved</span>
+                      {% else %}
+                        <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle report-status-badge">Dismissed</span>
+                      {% endif %}
+                    </td>
+                    <td class="py-3">
+                      <div class="small">{{ report.created_at|date:"M d, Y" }}</div>
+                      <div class="text-muted" style="font-size: 0.75rem;">{{ report.created_at|date:"g:i A" }}</div>
+                    </td>
+                    <td class="text-center pe-4 py-3">
+                      <div class="d-flex flex-wrap justify-content-center gap-1">
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary rounded-pill px-2"
+                                data-bs-toggle="modal"
+                                data-bs-target="#reportDetailModal{{ report.id }}"
+                                title="View details">
+                          <i class="bi bi-eye"></i>
+                        </button>
+
+                        {% if report.status == 'pending' or report.status == 'reviewed' %}
+                          {% if not report.reported_user.is_suspended %}
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-danger rounded-pill px-2"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#suspendModal{{ report.id }}"
+                                    title="Suspend user">
+                              <i class="bi bi-person-x"></i>
+                            </button>
+                          {% endif %}
+
+                          {% if report.conversation and report.conversation.product and report.conversation.product.status == 'Approved' %}
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-warning rounded-pill px-2"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#unlistModal{{ report.id }}"
+                                    title="Unlist product">
+                              <i class="bi bi-eye-slash"></i>
+                            </button>
+                          {% endif %}
+
+                          <button type="button"
+                                  class="btn btn-sm btn-outline-info rounded-pill px-2"
+                                  data-bs-toggle="modal"
+                                  data-bs-target="#warnModal{{ report.id }}"
+                                  title="Send warning message">
+                            <i class="bi bi-exclamation-triangle"></i>
+                          </button>
+
+                          <form method="post" action="{% url 'report_action' report.id %}" class="d-inline"
+                                onsubmit="return confirm('Dismiss this report?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="dismiss">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill px-2" title="Dismiss report">
+                              <i class="bi bi-x-lg"></i>
+                            </button>
+                          </form>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+
+                  <!-- Report Detail Modal -->
+                  <div class="modal fade" id="reportDetailModal{{ report.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                      <div class="modal-content border-0 shadow-lg rounded-4">
+                        <div class="modal-header border-0 pb-0">
+                          <h5 class="modal-title fw-bold">
+                            Report #{{ report.id }}
+                            <span class="d-block small fw-normal text-muted mt-1">{{ report.reason }} · {{ report.created_at|date:"M d, Y g:i A" }}</span>
+                          </h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body pt-3">
+                          <div class="row g-3">
+                            <div class="col-md-6">
+                              <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="text-muted small mb-1">Reported user</div>
+                                <div class="fw-semibold">{{ report.reported_user.get_short_name }}</div>
+                                <div class="small text-muted">
+                                  {{ report.reported_user.email|default:"—" }} · {{ report.reported_user.user_role }}
+                                  {% if report.reported_user.is_suspended %}
+                                    <br><span class="text-danger">Currently suspended</span>
+                                    {% if report.reported_user.suspension_reason %}
+                                      <br>Reason: {{ report.reported_user.suspension_reason }}
+                                    {% endif %}
+                                  {% endif %}
+                                </div>
+                              </div>
+                            </div>
+                            <div class="col-md-6">
+                              <div class="bg-light rounded-3 p-3 h-100">
+                                <div class="text-muted small mb-1">Reporter</div>
+                                <div class="fw-semibold">{{ report.reporter.get_short_name }}</div>
+                                <div class="small text-muted">{{ report.reporter.email|default:"—" }}</div>
+                              </div>
+                            </div>
+                            <div class="col-12">
+                              <div class="text-muted small mb-1">Details / Description</div>
+                              <div class="bg-light rounded-3 p-3" style="white-space: pre-wrap;">
+                                {% if report.details %}{{ report.details }}{% else %}<span class="text-muted">No additional details provided.</span>{% endif %}
+                              </div>
+                            </div>
+                            {% if report.conversation %}
+                              <div class="col-12">
+                                <div class="text-muted small mb-1">Conversation context</div>
+                                <div class="small">
+                                  Conversation #{{ report.conversation.id }}
+                                  {% if report.conversation.product %}
+                                    · Product: <strong>{{ report.conversation.product.name }}</strong>
+                                    (status: {{ report.conversation.product.status }})
+                                  {% endif %}
+                                </div>
+                              </div>
+                            {% endif %}
+                            <div class="col-12">
+                              <div class="text-muted small mb-1">Status</div>
+                              <span class="badge rounded-pill
+                                {% if report.status == 'pending' %}bg-warning-subtle text-warning-emphasis
+                                {% elif report.status == 'resolved' %}bg-success-subtle text-success
+                                {% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                {{ report.get_status_display|default:report.status|title }}
+                              </span>
+                              {% if report.reviewed_by %}
+                                <span class="small text-muted ms-2">Reviewed by {{ report.reviewed_by.get_short_name }}</span>
+                              {% endif %}
+                            </div>
+                          </div>
+                        </div>
+                        <div class="modal-footer border-0 pt-0">
+                          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Close</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Suspend User Modal -->
+                  <div class="modal fade" id="suspendModal{{ report.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content border-0 shadow-lg rounded-4">
+                        <form method="post" action="{% url 'report_action' report.id %}">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="suspend">
+                          <div class="modal-header border-0 pb-0">
+                            <h5 class="modal-title fw-bold text-danger">
+                              Suspend User
+                              <span class="d-block small fw-normal text-muted mt-1">{{ report.reported_user.get_short_name }}</span>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body pt-3">
+                            <div class="alert alert-warning border-0 rounded-3 small mb-3">
+                              This will suspend the account. The user will be unable to log in or list products until unsuspended.
+                            </div>
+                            <div class="mb-3">
+                              <label class="form-label fw-medium">Reason for suspension <span class="text-danger">*</span></label>
+                              <textarea name="reason" class="form-control rounded-3" rows="3" required
+                                        placeholder="Explain why this account is being suspended…"></textarea>
+                            </div>
+                            <div class="mb-0">
+                              <label class="form-label fw-medium">Duration (optional)</label>
+                              <select name="duration_days" class="form-select rounded-3">
+                                <option value="">Indefinite</option>
+                                <option value="7">7 days</option>
+                                <option value="14">14 days</option>
+                                <option value="30">30 days</option>
+                                <option value="90">90 days</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div class="modal-footer border-0 pt-0">
+                            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-danger rounded-pill px-4"
+                                    onclick="return confirm('Confirm suspension of this user?');">
+                              <i class="bi bi-person-x me-1"></i> Suspend User
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Unlist Product Modal -->
+                  {% if report.conversation and report.conversation.product %}
+                  <div class="modal fade" id="unlistModal{{ report.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content border-0 shadow-lg rounded-4">
+                        <form method="post" action="{% url 'report_action' report.id %}">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="unlist">
+                          <div class="modal-header border-0 pb-0">
+                            <h5 class="modal-title fw-bold text-warning">
+                              Unlist Product
+                              <span class="d-block small fw-normal text-muted mt-1">{{ report.conversation.product.name }}</span>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body pt-3">
+                            <div class="alert alert-warning border-0 rounded-3 small mb-3">
+                              The product will be removed from the marketplace and the seller will be notified.
+                            </div>
+                            <div class="mb-0">
+                              <label class="form-label fw-medium">Reason <span class="text-danger">*</span></label>
+                              <textarea name="reason" class="form-control rounded-3" rows="3" required
+                                        placeholder="Reason for unlisting this product…"></textarea>
+                            </div>
+                          </div>
+                          <div class="modal-footer border-0 pt-0">
+                            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-warning rounded-pill px-4"
+                                    onclick="return confirm('Confirm unlisting this product?');">
+                              <i class="bi bi-eye-slash me-1"></i> Unlist Product
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  {% endif %}
+
+                  <!-- Warn User Modal -->
+                  <div class="modal fade" id="warnModal{{ report.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content border-0 shadow-lg rounded-4">
+                        <form method="post" action="{% url 'report_action' report.id %}">
+                          {% csrf_token %}
+                          <input type="hidden" name="action" value="warn">
+                          <div class="modal-header border-0 pb-0">
+                            <h5 class="modal-title fw-bold text-info">
+                              Send Warning
+                              <span class="d-block small fw-normal text-muted mt-1">to {{ report.reported_user.get_short_name }}</span>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body pt-3">
+                            <div class="alert alert-info border-0 rounded-3 small mb-3">
+                              A system chat message will be sent. Repeated violations may result in suspension.
+                            </div>
+                            <div class="mb-0">
+                              <label class="form-label fw-medium">Warning message <span class="text-danger">*</span></label>
+                              <textarea name="reason" class="form-control rounded-3" rows="4" required
+                                        placeholder="Explain the violation and that repeated offences may lead to account suspension…">⚠️ SYSTEM WARNING: Your recent activity has been reported for {{ report.reason }}.
+
+Please review the community guidelines. Repeated violations may result in temporary or permanent suspension of your account.
+
+If you believe this is an error, contact Management.</textarea>
+                            </div>
+                          </div>
+                          <div class="modal-footer border-0 pt-0">
+                            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-info rounded-pill px-4"
+                                    onclick="return confirm('Send this warning message?');">
+                              <i class="bi bi-exclamation-triangle me-1"></i> Send Warning
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                {% empty %}
+                  <tr>
+                    <td colspan="7" class="text-center py-5">
+                      <div class="text-muted">
+                        <i class="bi bi-flag display-6 d-block mb-3 opacity-50"></i>
+                        <div class="fw-medium">No reports found</div>
+                        <div class="small">User and content reports will appear here.</div>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports Pagination -->
+      {% if page_obj.has_other_pages %}
+        <nav aria-label="Reports pagination" class="mt-4 d-flex justify-content-center">
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link rounded-start-pill" href="?tab=reports&page=1{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">&laquo; First</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?tab=reports&page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+              </li>
+            {% endif %}
+            <li class="page-item disabled">
+              <span class="page-link px-3">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+              </span>
+            </li>
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?tab=reports&page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link rounded-end-pill" href="?tab=reports&page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last &raquo;</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+      {% endif %}
+
+    </main>
+  </div>
+</div>
+{% endblock %}

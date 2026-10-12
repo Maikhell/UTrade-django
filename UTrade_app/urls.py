@@ -133,5 +133,8 @@ urlpatterns = [
     path('management/cbrgu-products/',management_views.cbrgu_products,name='cbrgu_products'),
     path('management/preorders/', management_views.management_preorders, name='management_preorders'),
     path('management/preorders/batch/', management_views.management_preorders_batch, name='management_preorders_batch'),
+    path('logs-reports/', management_views.logs_reports, name='logs_reports'),
+    path('logs-reports/generate/', management_views.generate_logs_report, name='generate_logs_report'),
+    path('logs-reports/action/<int:report_id>/', management_views.report_action, name='report_action'),
     ]
 

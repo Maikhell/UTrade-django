@@ -1506,3 +1506,386 @@ def _send_buyer_preorder_email(preorder, event, extra=None):
         )
     except Exception:
         logger.exception("Failed preorder email to %s for #%s", email, preorder.id)
+        
+@login_required
+@user_passes_test(is_management)
+def logs_reports(request):
+    """
+    Combined Logs & Reports management board.
+    Tabs: logs (SystemLog) | reports (UserReport)
+    """
+    active_tab = request.GET.get('tab', 'logs').strip().lower()
+    if active_tab not in ('logs', 'reports'):
+        active_tab = 'logs'
+
+    search = request.GET.get('search', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    page_number = request.GET.get('page', 1)
+
+    # ---- System Logs ----
+    logs_qs = (
+        SystemLog.objects
+        .select_related('user')
+        .order_by('-timestamp')
+    )
+    if search and active_tab == 'logs':
+        logs_qs = logs_qs.filter(
+            Q(action__icontains=search)
+            | Q(item_type__icontains=search)
+            | Q(item_name__icontains=search)
+            | Q(details__icontains=search)
+            | Q(user__username__icontains=search)
+            | Q(user__first_name__icontains=search)
+            | Q(user__last_name__icontains=search)
+            | Q(user__display_name__icontains=search)
+            | Q(user__student_no__icontains=search)
+        )
+
+    # ---- User Reports ----
+    reports_qs = (
+        UserReport.objects
+        .select_related(
+            'reporter',
+            'reported_user',
+            'reviewed_by',
+            'conversation',
+            'conversation__product',
+            'conversation__buyer',
+            'conversation__seller',
+        )
+        .order_by('-created_at')
+    )
+    if search and active_tab == 'reports':
+        reports_qs = reports_qs.filter(
+            Q(reason__icontains=search)
+            | Q(details__icontains=search)
+            | Q(reporter__username__icontains=search)
+            | Q(reporter__first_name__icontains=search)
+            | Q(reporter__last_name__icontains=search)
+            | Q(reporter__display_name__icontains=search)
+            | Q(reported_user__username__icontains=search)
+            | Q(reported_user__first_name__icontains=search)
+            | Q(reported_user__last_name__icontains=search)
+            | Q(reported_user__display_name__icontains=search)
+            | Q(conversation__product__name__icontains=search)
+        )
+    if status_filter and active_tab == 'reports':
+        reports_qs = reports_qs.filter(status=status_filter)
+
+    # Paginate the active tab (20 per page)
+    if active_tab == 'logs':
+        paginator = Paginator(logs_qs, 20)
+        page_obj = paginator.get_page(page_number)
+    else:
+        paginator = Paginator(reports_qs, 20)
+        page_obj = paginator.get_page(page_number)
+
+    context = {
+        'active_tab': active_tab,
+        'page_obj': page_obj,
+        'search': search,
+        'status_filter': status_filter,
+        'logs_count': SystemLog.objects.count(),
+        'reports_count': UserReport.objects.count(),
+        'pending_reports_count': UserReport.objects.filter(status='pending').count(),
+        # Sidebar placeholders
+        'products': Product.objects.none(),
+        'total_stocks': 0,
+        'total_orders': 0,
+        'total_income': 0,
+        'incoming_preorder_count': 0,
+    }
+    return render(
+        request,
+        'UTrade_app/management/settings/logs_reports.html',
+        context,
+    )
+
+
+@login_required
+@user_passes_test(is_management)
+def generate_logs_report(request):
+    """Generate and download a PDF of recent system activity logs."""
+    days = int(request.GET.get('days', 30))
+    search = request.GET.get('search', '').strip()
+    since = timezone.now() - timedelta(days=days)
+
+    logs = (
+        SystemLog.objects
+        .select_related('user')
+        .filter(timestamp__gte=since)
+        .order_by('-timestamp')
+    )
+    if search:
+        logs = logs.filter(
+            Q(action__icontains=search)
+            | Q(item_type__icontains=search)
+            | Q(item_name__icontains=search)
+            | Q(details__icontains=search)
+        )
+
+    logs = logs[:500]  # Cap for PDF size
+
+    today = timezone.now()
+    context = {
+        'title': f'System Activity Report (Last {days} Days)',
+        'data': logs,
+        'report_type': 'user_logs',
+        'today': today,
+        'generated_by': request.user.get_full_name() or request.user.username,
+        'search': search,
+        'days': days,
+    }
+
+    template_path = 'UTrade_app/management/report_pdf.html'
+    try:
+        template = get_template(template_path)
+        html = template.render(context)
+    except Exception:
+        html = _fallback_logs_html(context)
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'attachment; filename="system_logs_{today.strftime("%Y%m%d")}.pdf"'
+    )
+    pisa_status = pisa.CreatePDF(html, dest=response, encoding='utf-8')
+    if pisa_status.err:
+        return HttpResponse('We had some errors <pre>' + html + '</pre>')
+    return response
+
+
+def _fallback_logs_html(context):
+    """Minimal HTML for PDF when the shared template is unavailable."""
+    rows = ''
+    for log in context['data']:
+        user_str = (
+            log.user.get_short_name if log.user and hasattr(log.user, 'get_short_name')
+            else (str(log.user) if log.user else 'System')
+        )
+        rows += (
+            f'<tr>'
+            f'<td>{log.timestamp.strftime("%Y-%m-%d %H:%M")}</td>'
+            f'<td>{user_str}</td>'
+            f'<td>{log.action}</td>'
+            f'<td>{log.item_type}</td>'
+            f'<td>{log.item_name}</td>'
+            f'<td>{(log.details or "")[:120]}</td>'
+            f'</tr>'
+        )
+    return f'''
+    <html><head><meta charset="utf-8">
+    <style>
+      body {{ font-family: Helvetica, Arial, sans-serif; font-size: 10px; }}
+      h1 {{ font-size: 16px; }}
+      table {{ width: 100%; border-collapse: collapse; }}
+      th, td {{ border: 1px solid #ccc; padding: 4px; text-align: left; }}
+      th {{ background: #f0f0f0; }}
+    </style></head><body>
+    <h1>{context["title"]}</h1>
+    <p>Generated by {context["generated_by"]} on {context["today"].strftime("%Y-%m-%d %H:%M")}</p>
+    <table>
+      <thead>
+        <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Type</th><th>Item</th><th>Details</th></tr>
+      </thead>
+      <tbody>{rows}</tbody>
+    </table>
+    </body></html>
+    '''
+
+
+@login_required
+@user_passes_test(is_management)
+@require_POST
+@transaction.atomic
+def report_action(request, report_id):
+    """
+    Handle moderation actions on a UserReport:
+      - suspend  : suspend the reported user
+      - unlist   : unlist the linked product (if any)
+      - warn     : send a warning chat message to the reported user
+      - dismiss  : mark report as dismissed
+      - resolve  : mark report as resolved
+    All actions are written to SystemLog.
+    """
+    report = get_object_or_404(
+        UserReport.objects.select_related(
+            'reported_user',
+            'reporter',
+            'conversation',
+            'conversation__product',
+        ),
+        id=report_id,
+    )
+    action = (request.POST.get('action') or '').strip().lower()
+    reason = (request.POST.get('reason') or '').strip()
+
+    if action not in ('suspend', 'unlist', 'warn', 'dismiss', 'resolve'):
+        messages.error(request, 'Invalid action.')
+        return redirect('logs_reports')
+
+    reported = report.reported_user
+    admin = request.user
+
+    # ---------- SUSPEND ----------
+    if action == 'suspend':
+        if not reason:
+            messages.error(request, 'Suspension reason is required.')
+            return redirect('logs_reports')
+
+        duration_days = request.POST.get('duration_days', '').strip()
+        reported.is_suspended = True
+        reported.suspension_reason = reason[:500]
+        if duration_days.isdigit():
+            reported.suspension_until = timezone.now() + timedelta(days=int(duration_days))
+        else:
+            reported.suspension_until = None  # indefinite
+        reported.save(update_fields=['is_suspended', 'suspension_reason', 'suspension_until'])
+
+        _send_system_chat(
+            admin,
+            reported,
+            product=getattr(report.conversation, 'product', None) if report.conversation_id else None,
+            message=(
+                f"🚨 SYSTEM: Your account has been suspended.\n"
+                f"Reason: {reason}\n"
+                f"{'Until: ' + reported.suspension_until.strftime('%Y-%m-%d') if reported.suspension_until else 'Duration: Indefinite'}\n"
+                f"Contact Management if you believe this is an error."
+            ),
+        )
+
+        report.status = 'resolved'
+        report.reviewed_by = admin
+        report.save(update_fields=['status', 'reviewed_by', 'updated_at'])
+
+        log_action(
+            user=admin,
+            action='User Suspended',
+            item_type='User',
+            item_name=str(reported.get_short_name),
+            details=(
+                f"Suspended via Report #{report.id}. Reason: {reason}. "
+                f"Duration: {duration_days or 'indefinite'} days."
+            ),
+        )
+        messages.success(request, f'User “{reported.get_short_name}” has been suspended.')
+
+    # ---------- UNLIST PRODUCT ----------
+    elif action == 'unlist':
+        if not reason:
+            messages.error(request, 'Unlist reason is required.')
+            return redirect('logs_reports')
+
+        product = None
+        if report.conversation_id and report.conversation.product_id:
+            product = report.conversation.product
+
+        if not product:
+            messages.error(request, 'No product is linked to this report.')
+            return redirect('logs_reports')
+
+        if product.status != 'Approved':
+            messages.warning(request, f'Product is already “{product.status}”.')
+        else:
+            product.status = 'Unlisted'
+            product.save(update_fields=['status'])
+
+            _send_system_chat(
+                admin,
+                product.seller,
+                product=product,
+                message=(
+                    f"🚨 SYSTEM (Management): Your product “{product.name}” was unlisted "
+                    f"from the marketplace following a user report.\n"
+                    f"Reason: {reason}\n"
+                    f"Contact Management if you have questions."
+                ),
+            )
+
+            log_action(
+                user=admin,
+                action='Product Unlisted',
+                item_type='Product',
+                item_name=product.name,
+                details=f"Unlisted via Report #{report.id}. Reason: {reason}",
+            )
+
+        report.status = 'resolved'
+        report.reviewed_by = admin
+        report.save(update_fields=['status', 'reviewed_by', 'updated_at'])
+        messages.success(request, f'Product “{product.name}” has been unlisted.')
+
+    # ---------- WARN ----------
+    elif action == 'warn':
+        if not reason:
+            messages.error(request, 'Warning message is required.')
+            return redirect('logs_reports')
+
+        product = (
+            report.conversation.product
+            if report.conversation_id and report.conversation.product_id
+            else None
+        )
+        _send_system_chat(admin, reported, product=product, message=reason)
+
+        report.status = 'reviewed'
+        report.reviewed_by = admin
+        report.save(update_fields=['status', 'reviewed_by', 'updated_at'])
+
+        log_action(
+            user=admin,
+            action='Warning Sent',
+            item_type='User',
+            item_name=str(reported.get_short_name),
+            details=f"Warning via Report #{report.id}. Message: {reason[:200]}",
+        )
+        messages.success(request, f'Warning sent to “{reported.get_short_name}”.')
+
+    # ---------- DISMISS ----------
+    elif action == 'dismiss':
+        report.status = 'dismissed'
+        report.reviewed_by = admin
+        report.save(update_fields=['status', 'reviewed_by', 'updated_at'])
+
+        log_action(
+            user=admin,
+            action='Report Dismissed',
+            item_type='UserReport',
+            item_name=f'Report #{report.id}',
+            details=f'Dismissed report against {reported.get_short_name}. Reason was: {report.reason}',
+        )
+        messages.success(request, f'Report #{report.id} dismissed.')
+
+    # ---------- RESOLVE ----------
+    elif action == 'resolve':
+        report.status = 'resolved'
+        report.reviewed_by = admin
+        report.save(update_fields=['status', 'reviewed_by', 'updated_at'])
+
+        log_action(
+            user=admin,
+            action='Report Resolved',
+            item_type='UserReport',
+            item_name=f'Report #{report.id}',
+            details=f'Resolved report against {reported.get_short_name}.',
+        )
+        messages.success(request, f'Report #{report.id} marked as resolved.')
+
+    return redirect('/management/logs-reports/?tab=reports')
+
+
+def _send_system_chat(admin_user, target_user, message, product=None):
+    """
+    Open/reuse a conversation (management as buyer side) and post a system message.
+    """
+    conversation, _ = Conversation.objects.get_or_create(
+        product=product,
+        buyer=admin_user,
+        seller=target_user,
+    )
+    ChatMessage.objects.create(
+        conversation=conversation,
+        user=admin_user,
+        content=message,
+        is_read=False,
+    )
+    return conversation

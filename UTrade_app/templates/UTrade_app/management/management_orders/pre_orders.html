@@ -238,7 +238,7 @@
               <i class="bi bi-x-lg me-1"></i> Reject selected
             </button>
           </div>
-          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=incoming_preorders group="incoming" show_actions=True %}
+          {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=incoming_preorders group="incoming" show_actions=True %}
         </div>
 
         {# ===== ACCEPTED – can move to Processing / Awaiting Payment / Waiting Stocks ===== #}
@@ -249,7 +249,7 @@
             <button type="button" class="btn btn-sm btn-info rounded-pill" onclick="batchAction('accepted','awaiting_payment')">Awaiting Payment</button>
             <button type="button" class="btn btn-sm btn-secondary rounded-pill" onclick="batchAction('accepted','waiting_stocks')">Waiting Stocks</button>
           </div>
-          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=accepted_preorders group="accepted" show_actions=True %}
+          {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=accepted_preorders group="accepted" show_actions=True %}
         </div>
 
         {# ===== PROCESSING / AWAITING / STOCKS → Ready ===== #}
@@ -260,7 +260,7 @@
               <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
             </button>
           </div>
-          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=processing_preorders group="processing" show_actions=True %}
+          {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=processing_preorders group="processing" show_actions=True %}
         </div>
 
         <div class="tab-pane fade" id="awaiting-pane">
@@ -270,7 +270,7 @@
               <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
             </button>
           </div>
-          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=awaiting_payment_preorders group="awaiting" show_actions=True %}
+          {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=awaiting_payment_preorders group="awaiting" show_actions=True %}
         </div>
 
         <div class="tab-pane fade" id="stocks-pane">
@@ -280,7 +280,7 @@
               <i class="bi bi-bag-check me-1"></i> Mark Ready for Pickup
             </button>
           </div>
-          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=waiting_stocks_preorders group="stocks" show_actions=True %}
+          {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=waiting_stocks_preorders group="stocks" show_actions=True %}
         </div>
 
         {# ===== READY → Complete ===== #}
@@ -291,12 +291,12 @@
               <i class="bi bi-clipboard-check me-1"></i> Mark Completed
             </button>
           </div>
-          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=ready_preorders group="ready" show_actions=True %}
+          {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=ready_preorders group="ready" show_actions=True %}
         </div>
 
         {# ===== COMPLETED (read-only) ===== #}
         <div class="tab-pane fade" id="completed-pane">
-          {% include "UTrade_app/management/management_orders/_preorder_table.html" with preorders=completed_preorders group="completed" show_actions=False %}
+          {% include "UTrade_app/management/partials/_preorder_table.html" with preorders=completed_preorders group="completed" show_actions=False %}
         </div>
 
         {# ===== REJECTED (read-only) ===== #}

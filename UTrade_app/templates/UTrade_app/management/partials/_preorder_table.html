@@ -1,0 +1,71 @@
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          {% if show_actions %}
+          <th class="ps-3" style="width:40px;">
+            <input type="checkbox" class="form-check-input" onchange="toggleAll('{{ group }}', this.checked)">
+          </th>
+          {% endif %}
+          <th>ID</th>
+          <th>Buyer</th>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Amount</th>
+          <th>Requested</th>
+          <th class="text-end pe-3">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for po in preorders %}
+        <tr>
+          {% if show_actions %}
+          <td class="ps-3">
+            <input type="checkbox" class="form-check-input order-check {{ group }}-check"
+                   value="{{ po.id }}" data-group="{{ group }}">
+          </td>
+          {% endif %}
+          <td class="fw-semibold">#{{ po.id }}</td>
+          <td>{{ po.buyer.get_full_name|default:po.full_name_at_time }}</td>
+          <td>
+            <div class="fw-semibold">{{ po.product_variant.product.name }}</div>
+            {% if po.product_variant.variant_name %}
+              <small class="text-muted">{{ po.product_variant.variant_name }}</small>
+            {% endif %}
+          </td>
+          <td>{{ po.quantity }}</td>
+          <td class="fw-bold text-success">₱{{ po.get_total_price }}</td>
+          <td class="small text-muted">{{ po.created_at|timesince }} ago</td>
+          <td class="text-end pe-3">
+            <div class="d-flex justify-content-end gap-1 flex-wrap">
+              <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
+                      data-bs-toggle="modal" data-bs-target="#poModal{{ po.id }}">
+                <i class="bi bi-eye"></i>
+              </button>
+              {% if group == 'incoming' %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="singleAction({{ po.id }}, 'accept')">Accept</button>
+                <button type="button" class="btn btn-sm btn-danger rounded-pill" onclick="singleAction({{ po.id }}, 'reject')">Reject</button>
+              {% elif group == 'accepted' %}
+                <button type="button" class="btn btn-sm btn-warning rounded-pill" onclick="singleAction({{ po.id }}, 'processing')">Processing</button>
+                <button type="button" class="btn btn-sm btn-info rounded-pill" onclick="singleAction({{ po.id }}, 'awaiting_payment')">Payment</button>
+                <button type="button" class="btn btn-sm btn-secondary rounded-pill" onclick="singleAction({{ po.id }}, 'waiting_stocks')">Stocks</button>
+              {% elif group == 'processing' or group == 'awaiting' or group == 'stocks' %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="singleAction({{ po.id }}, 'ready')">Ready</button>
+              {% elif group == 'ready' %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="singleAction({{ po.id }}, 'complete')">Complete</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="{% if show_actions %}8{% else %}7{% endif %}" class="text-center py-5 text-muted">
+            No pre-orders in this status.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

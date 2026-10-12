@@ -1316,10 +1316,6 @@ def management_preorders(request):
 @user_passes_test(is_management)
 @require_POST
 def management_preorders_batch(request):
-    """
-    Batch / single status updates for pre-orders.
-    Actions: accept | reject | processing | awaiting_payment | waiting_stocks | ready | complete
-    """
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
@@ -1335,15 +1331,42 @@ def management_preorders_batch(request):
     if len(preorder_ids) > 20:
         return JsonResponse({"success": False, "message": "Maximum 20 pre-orders per batch"}, status=400)
 
+    # Accept both new and legacy status values
     allowed = {
-        "accept": ("ACCEPTED", ["PENDING"]),
-        "reject": ("REJECTED", ["PENDING"]),
-        "processing": ("PROCESSING", ["ACCEPTED"]),
-        "awaiting_payment": ("AWAITING_PAYMENT", ["ACCEPTED"]),
-        "waiting_stocks": ("WAITING_STOCKS", ["ACCEPTED"]),
-        "ready": ("READY", ["PROCESSING", "AWAITING_PAYMENT", "WAITING_STOCKS"]),
-        "complete": ("COMPLETED", ["READY"]),
+        "accept": (
+            "ACCEPTED",
+            ["PENDING", "Pending", "pending"],
+        ),
+        "reject": (
+            "REJECTED",
+            ["PENDING", "Pending", "pending"],
+        ),
+        "processing": (
+            "PROCESSING",
+            ["ACCEPTED", "APPROVED", "Accepted", "Approved"],
+        ),
+        "awaiting_payment": (
+            "AWAITING_PAYMENT",
+            ["ACCEPTED", "APPROVED", "Accepted", "Approved"],
+        ),
+        "waiting_stocks": (
+            "WAITING_STOCKS",
+            ["ACCEPTED", "APPROVED", "Accepted", "Approved"],
+        ),
+        "ready": (
+            "READY",
+            [
+                "PROCESSING", "PREPARING", "Processing", "Preparing",
+                "AWAITING_PAYMENT", "Awaiting Payment",
+                "WAITING_STOCKS", "Waiting for Stocks",
+            ],
+        ),
+        "complete": (
+            "COMPLETED",
+            ["READY", "Ready", "Ready for Pickup"],
+        ),
     }
+
     if action not in allowed:
         return JsonResponse({"success": False, "message": "Invalid action"}, status=400)
 

@@ -383,6 +383,7 @@
                     </th>
                     <th>Order</th>
                     <th>Buyer</th>
+                    <th>Product</th>
                     <th>Organization</th>
                     <th>Amount</th>
                     <th>Ordered</th>
@@ -398,6 +399,7 @@
                     </td>
                     <td class="fw-semibold">#{{ order.id }}</td>
                     <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td>{{ order.product_variant.product.name }}</td>
                     <td>
                       <span class="badge bg-light text-dark border rounded-pill">
                         {{ order.user.org_acronym }}
@@ -448,6 +450,7 @@
                     </th>
                     <th>Order</th>
                     <th>Buyer</th>
+                    <th>Product</th>
                     <th>Note to Buyer</th>
                     <th>Status</th>
                     <th class="text-end pe-3">Actions</th>
@@ -462,6 +465,7 @@
                     </td>
                     <td class="fw-semibold">#{{ order.id }}</td>
                     <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td>{{ order.product_variant.product.name }}</td>
                     <td><small class="text-muted">{{ order.seller_note|default:"—" }}</small></td>
                     <td><span class="badge bg-success rounded-pill">Accepted</span></td>
                     <td class="text-end pe-3">
@@ -505,6 +509,7 @@
                     </th>
                     <th>Order</th>
                     <th>Buyer</th>
+                    <th>Product</th>
                     <th>Amount</th>
                     <th>Status</th>
                     <th class="text-end pe-3">Actions</th>
@@ -519,6 +524,7 @@
                     </td>
                     <td class="fw-semibold">#{{ order.id }}</td>
                     <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td>{{ order.product_variant.product.name }}</td>
                     <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
                     <td><span class="badge bg-info text-dark rounded-pill">Ready for Pickup</span></td>
                     <td class="text-end pe-3">
@@ -552,6 +558,7 @@
                   <tr>
                     <th class="ps-3">Order</th>
                     <th>Buyer</th>
+                    <th>Product</th>
                     <th>Amount</th>
                     <th>Completed</th>
                     <th class="text-end pe-3">Actions</th>
@@ -562,6 +569,7 @@
                   <tr>
                     <td class="ps-3 fw-semibold">#{{ order.id }}</td>
                     <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+                    <td>{{ order.product_variant.product.name }}</td>
                     <td class="fw-bold">₱{{ order.total_amount }}</td>
                     <td class="small text-muted">{{ order.updated_at|date:"M d, Y" }}</td>
                     <td class="text-end pe-3">

@@ -288,7 +288,7 @@
       <ul class="nav nav-tabs border-0 mb-3" id="orderTabs" role="tablist">
         <li class="nav-item" role="presentation">
           <button class="nav-link active" id="incoming-tab" data-bs-toggle="tab" data-bs-target="#incoming-pane" type="button" role="tab">
-            Incoming <span class="stat-pill ms-1 bg-primary">{{ incoming_count }}</span>
+            Incoming <span class="stat-pill ms-1 bg-success">{{ incoming_count }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -384,6 +384,7 @@
                     <th>Order</th>
                     <th>Buyer</th>
                     <th>Product</th>
+                    <th>Qty</th>
                     <th>Organization</th>
                     <th>Amount</th>
                     <th>Ordered</th>
@@ -409,9 +410,7 @@
                                 {% if item.product_variant.variant_name %}
                                   <small class="text-muted d-block">{{ item.product_variant.variant_name }}</small>
                                 {% endif %}
-                                {% if item.quantity > 1 %}
-                                  <small class="text-muted">×{{ item.quantity }}</small>
-                                {% endif %}
+
                               </div>
                             {% else %}
                               <span class="text-muted">Deleted product</span>
@@ -420,6 +419,15 @@
                         {% else %}
                           <span class="text-muted">—</span>
                         {% endif %}
+                      {% endwith %}
+                    </td>
+                    <td>
+                      {% with items=order.items.all %}
+                        {% if items %}
+                          {% for item in items %}
+                            <div class="{% if not forloop.first %}mt-1{% endif %}">{{ item.quantity }}</div>
+                          {% endfor %}
+                        {% else %}—{% endif %}
                       {% endwith %}
                     </td>
                     <td>
@@ -473,6 +481,7 @@
                     <th>Order</th>
                     <th>Buyer</th>
                     <th>Product</th>
+                    <th>Qty</th>
                     <th>Note to Buyer</th>
                     <th>Status</th>
                     <th class="text-end pe-3">Actions</th>
@@ -497,9 +506,7 @@
                                 {% if item.product_variant.variant_name %}
                                   <small class="text-muted d-block">{{ item.product_variant.variant_name }}</small>
                                 {% endif %}
-                                {% if item.quantity > 1 %}
-                                  <small class="text-muted">×{{ item.quantity }}</small>
-                                {% endif %}
+
                               </div>
                             {% else %}
                               <span class="text-muted">Deleted product</span>
@@ -508,6 +515,15 @@
                         {% else %}
                           <span class="text-muted">—</span>
                         {% endif %}
+                      {% endwith %}
+                    </td>
+                     <td>
+                      {% with items=order.items.all %}
+                        {% if items %}
+                          {% for item in items %}
+                            <div class="{% if not forloop.first %}mt-1{% endif %}">{{ item.quantity }}</div>
+                          {% endfor %}
+                        {% else %}—{% endif %}
                       {% endwith %}
                     </td>
                     <td><small class="text-muted">{{ order.seller_note|default:"—" }}</small></td>
@@ -554,6 +570,7 @@
                     <th>Order</th>
                     <th>Buyer</th>
                     <th>Product</th>
+                    <th>Qty</th>
                     <th>Amount</th>
                     <th>Status</th>
                     <th class="text-end pe-3">Actions</th>
@@ -578,9 +595,7 @@
                                 {% if item.product_variant.variant_name %}
                                   <small class="text-muted d-block">{{ item.product_variant.variant_name }}</small>
                                 {% endif %}
-                                {% if item.quantity > 1 %}
-                                  <small class="text-muted">×{{ item.quantity }}</small>
-                                {% endif %}
+
                               </div>
                             {% else %}
                               <span class="text-muted">Deleted product</span>
@@ -591,8 +606,17 @@
                         {% endif %}
                       {% endwith %}
                     </td>
+                    <td>
+                      {% with items=order.items.all %}
+                        {% if items %}
+                          {% for item in items %}
+                            <div class="{% if not forloop.first %}mt-1{% endif %}">{{ item.quantity }}</div>
+                          {% endfor %}
+                        {% else %}—{% endif %}
+                      {% endwith %}
+                    </td>
                     <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
-                    <td><span class="badge bg-info text-dark rounded-pill">Ready for Pickup</span></td>
+                    <td><span class="badge bg-success text-dark rounded-pill">Ready for Pickup</span></td>
                     <td class="text-end pe-3">
                       <div class="d-flex justify-content-end gap-1 flex-wrap">
                         <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
@@ -625,6 +649,7 @@
                     <th class="ps-3">Order</th>
                     <th>Buyer</th>
                     <th>Product</th>
+                    <th>Qty</th>
                     <th>Amount</th>
                     <th>Completed</th>
                     <th class="text-end pe-3">Actions</th>
@@ -645,9 +670,7 @@
                                 {% if item.product_variant.variant_name %}
                                   <small class="text-muted d-block">{{ item.product_variant.variant_name }}</small>
                                 {% endif %}
-                                {% if item.quantity > 1 %}
-                                  <small class="text-muted">×{{ item.quantity }}</small>
-                                {% endif %}
+
                               </div>
                             {% else %}
                               <span class="text-muted">Deleted product</span>
@@ -656,6 +679,15 @@
                         {% else %}
                           <span class="text-muted">—</span>
                         {% endif %}
+                      {% endwith %}
+                    </td>
+                    <td>
+                      {% with items=order.items.all %}
+                        {% if items %}
+                          {% for item in items %}
+                            <div class="{% if not forloop.first %}mt-1{% endif %}">{{ item.quantity }}</div>
+                          {% endfor %}
+                        {% else %}—{% endif %}
                       {% endwith %}
                     </td>
                     <td class="fw-bold">₱{{ order.total_amount }}</td>
@@ -694,6 +726,7 @@
                     <th class="ps-3">Order</th>
                     <th>Buyer</th>
                     <th>Product</th>
+                    <th>Qty</th>
                     <th>Organization</th>
                     <th>Amount</th>
                     <th>Rejection Reason</th>
@@ -716,9 +749,7 @@
                                 {% if item.product_variant.variant_name %}
                                   <small class="text-muted d-block">{{ item.product_variant.variant_name }}</small>
                                 {% endif %}
-                                {% if item.quantity > 1 %}
-                                  <small class="text-muted">×{{ item.quantity }}</small>
-                                {% endif %}
+
                               </div>
                             {% else %}
                               <span class="text-muted">Deleted product</span>
@@ -727,6 +758,15 @@
                         {% else %}
                           <span class="text-muted">—</span>
                         {% endif %}
+                      {% endwith %}
+                    </td>
+                    <td>
+                      {% with items=order.items.all %}
+                        {% if items %}
+                          {% for item in items %}
+                            <div class="{% if not forloop.first %}mt-1{% endif %}">{{ item.quantity }}</div>
+                          {% endfor %}
+                        {% else %}—{% endif %}
                       {% endwith %}
                     </td>
                     <td>

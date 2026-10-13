@@ -1,5 +1,6 @@
 import json
 import uuid
+import re
 from datetime import timedelta
 from itertools import chain
 from django.core.mail import send_mail
@@ -21,6 +22,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import UpdateView
 from django.db import transaction
 from decimal import Decimal
+from django.utils.crypto import get_random_string
 from django.db.models import Subquery, OuterRef, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.db.models import Prefetch

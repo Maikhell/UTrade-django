@@ -171,4 +171,7 @@ urlpatterns = [
     path('management/product/<int:product_id>/reject/', management_views.management_reject_product, name='management.product_reject'),
     path('management/product/<int:product_id>/unlist/', management_views.management_unlist_product, name='management.product_unlist'),
     path('management/suspend-user/', chat_views.management_suspend_user, name='management.suspend_user'),
+    
+    path('management/admin/add-accounts/', management_views.add_accounts, name='add_accounts'),
+    path('management/admin/all-users/', management_views.all_users, name='all_users'),
 ]

@@ -1,0 +1,298 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}
+  All Users – UTrade Management
+{% endblock %}
+
+{% block content %}
+<style>
+  @media (min-width: 768px) {
+    .seller-sidebar {
+      position: sticky;
+      top: 1rem;
+      height: calc(100vh - 2rem);
+      overflow-y: auto;
+    }
+  }
+  @media (min-width: 1400px) {
+    .container, .container-sm, .container-md, .container-lg, .container-xl, .container-xxl {
+      max-width: 1600px !important;
+    }
+  }
+  .sidebar-link.active {
+    background-color: rgba(25, 135, 84, 0.12) !important;
+    color: #198754 !important;
+    font-weight: 600;
+  }
+  .hover-text-dark:hover { color: #212529 !important; }
+  .table > :not(caption) > * > * { padding-top: 0.9rem; padding-bottom: 0.9rem; }
+  .nav-link { transition: color 0.15s ease; }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
+  <a href="#" onclick="history.back(); return false;"
+     class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back to Account</span>
+  </a>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+
+    <div class="col-12 d-md-none mb-3">
+      <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
+              type="button" data-bs-toggle="offcanvas" data-bs-target="#sellerSidebar" aria-controls="sellerSidebar">
+        <i class="bi bi-list"></i> Staff Menu
+      </button>
+    </div>
+
+    <!-- ==================== SIDEBAR ==================== -->
+    <div class="col-md-3 col-lg-2">
+      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm"
+           tabindex="-1" id="sellerSidebar" aria-labelledby="sellerSidebarLabel">
+        <div class="offcanvas-header d-md-none">
+          <h5 class="offcanvas-title fw-bold" id="sellerSidebarLabel">Seller Dashboard</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sellerSidebar"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+          <div class="seller-sidebar p-3">
+            <div class="mb-4">
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div class="d-flex justify-content-between"><span>Products</span><strong>{{ products.count|default:0 }}</strong></div>
+                <div class="d-flex justify-content-between"><span>Total Stocks</span><strong>{{ total_stocks|default:0 }}</strong></div>
+                <div class="d-flex justify-content-between"><span>Orders</span><strong>{{ total_orders|default:0 }}</strong></div>
+                <div class="d-flex justify-content-between"><span>Income</span><strong class="text-success">₱{{ total_income|default:0 }}</strong></div>
+              </div>
+            </div>
+            <hr class="my-3 opacity-25">
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-briefcase"></i> CBRGU Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'dashboard' %}">
+                    <i class="bi bi-speedometer2 text-success"></i> Dashboard
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'active_listings' %}">
+                    <i class="bi bi-check2-square text-success"></i> Active Listings
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'remittance_management' %}">
+                    <i class="bi bi-cash-stack text-success"></i> Remittance
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'cbrgu_products' %}">
+                    <i class="bi bi-box-seam text-success"></i> Products
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-cart-fill"></i> Orders
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'management_orders' %}">
+                    <i class="bi bi-inbox text-success"></i> Orders
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'management_preorders' %}">
+                    <i class="bi bi-calendar-check text-success"></i> Pre-Orders
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-gear"></i> Settings
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'logs_reports' %}">
+                    <i class="bi bi-journal-text"></i> Logs and Reports
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_prohibited_words' %}">
+                    <i class="bi bi-exclamation-triangle"></i> Prohibited Items
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_categories' %}">
+                    <i class="bi bi-tags"></i> Categories
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_pickup_spots' %}">
+                    <i class="bi bi-geo-alt"></i> Pickup Spots
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-shield-lock"></i> Admin Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_accounts' %}">
+                    <i class="bi bi-person-add"></i> Add Accounts
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'all_users' %}">
+                    <i class="bi bi-people text-success"></i> All Users
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <hr class="my-3 opacity-25">
+            <div class="d-grid gap-2">
+              <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
+                <i class="bi bi-plus-lg me-1"></i> Add New Product
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+          <h1 class="h3 fw-bold mb-1 text-dark">All Users</h1>
+          <p class="text-muted mb-0 small">Browse and search registered accounts</p>
+        </div>
+        <div class="d-flex gap-2">
+          <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-medium">
+            <i class="bi bi-people me-1"></i> {{ total_users }} user{{ total_users|pluralize }}
+          </span>
+          <a href="{% url 'add_accounts' %}" class="btn btn-success btn-sm rounded-pill">
+            <i class="bi bi-person-plus me-1"></i> Add Account
+          </a>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-body p-3">
+          <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-5">
+              <input type="text" name="search" value="{{ search }}" class="form-control form-control-sm rounded-pill"
+                     placeholder="Search name, email, ID…">
+            </div>
+            <div class="col-md-3">
+              <select name="role" class="form-select form-select-sm rounded-pill">
+                <option value="">All roles</option>
+                <option value="student" {% if role_filter == 'student' %}selected{% endif %}>Student</option>
+                <option value="org_officer" {% if role_filter == 'org_officer' %}selected{% endif %}>Organization</option>
+                <option value="campus_admin" {% if role_filter == 'campus_admin' %}selected{% endif %}>Campus Admin</option>
+                <option value="osas_sds" {% if role_filter == 'osas_sds' %}selected{% endif %}>OSAS / SDS</option>
+                <option value="management" {% if role_filter == 'management' %}selected{% endif %}>Management</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-sm btn-outline-success rounded-pill w-100">
+                <i class="bi bi-search me-1"></i> Filter
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr class="text-uppercase small text-muted fw-semibold">
+                <th class="ps-4 py-3">Name</th>
+                <th class="py-3">ID</th>
+                <th class="py-3">Email</th>
+                <th class="py-3">Role</th>
+                <th class="py-3">Status</th>
+                <th class="py-3">Joined</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in page_obj %}
+                <tr class="border-bottom">
+                  <td class="ps-4 py-3">
+                    <div class="fw-semibold">{{ u.get_full_name|default:u.get_short_name }}</div>
+                    {% if u.is_suspended %}
+                      <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Suspended</span>
+                    {% endif %}
+                  </td>
+                  <td class="py-3 small">{{ u.student_no }}</td>
+                  <td class="py-3 small">{{ u.email }}</td>
+                  <td class="py-3">
+                    <span class="badge rounded-pill bg-light text-dark border">{{ u.user_role }}</span>
+                  </td>
+                  <td class="py-3">
+                    {% if u.status == 'verified' %}
+                      <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle">Verified</span>
+                    {% elif u.status == 'pending' or u.status == 'Pending' %}
+                      <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle">Pending</span>
+                    {% else %}
+                      <span class="badge rounded-pill bg-secondary-subtle text-secondary border">{{ u.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="py-3 small text-muted">{{ u.date_joined|date:"M d, Y" }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="6" class="text-center py-5 text-muted">
+                    <i class="bi bi-people display-6 d-block mb-2 opacity-50"></i>
+                    No users found.
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {% if page_obj.has_other_pages %}
+        <nav class="mt-4 d-flex justify-content-center">
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link rounded-start-pill" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&laquo;</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">Prev</a>
+              </li>
+            {% endif %}
+            <li class="page-item disabled">
+              <span class="page-link px-3">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link rounded-end-pill" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">&raquo;</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+    </main>
+  </div>
+</div>
+{% endblock %}

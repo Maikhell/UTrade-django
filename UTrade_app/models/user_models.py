@@ -21,13 +21,12 @@ class User(AbstractUser):
         ],
         help_text="Student number (digits) or Staff/Admin ID (alphanumeric)"
     )
+    alumni = models.CharField(max_length=70, blank=True, null=True)
     ROLE_CHOICES = [
         ('student', 'Student'),
-        ('alumni', 'Alumni'),
-        ('system_admin', 'System Admin'), 
         ('campus_admin', 'Campus Admin'),
         ('org_officer', 'Organization Officer'),
-        ('alumni_assoc', 'Alumni Association'),
+        ('osas_sds', 'OSAS SDS'),
         ('management', 'Management'),
     ]
     

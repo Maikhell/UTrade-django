@@ -1924,3 +1924,279 @@ def add_pickup_spots(request):
         'meetups': MeetupLocation.objects.all().order_by('name'),
     }
     return render(request, 'UTrade_app/management/settings/add_pickup_spots.html', context)
+
+ACCOUNT_TYPE_MAP = {
+    'student': 'student',
+    'organization': 'org_officer',
+    'campus_admin': 'campus_admin',
+    'osas_sds': 'osas_sds',
+    'management': 'management',
+}
+
+ACCOUNT_TYPES = [
+    # (value, label, bootstrap-icon, short description)
+    ('student', 'Student', 'bi-mortarboard', 'Regular student account'),
+    ('organization', 'Organization', 'bi-building', 'Org officer + org record'),
+    ('campus_admin', 'Campus Admin', 'bi-shield-check', 'Campus administration'),
+    ('osas_sds', 'OSAS / SDS', 'bi-people', 'Student Affairs & Development'),
+    ('management', 'Management', 'bi-briefcase', 'CBRGU Management'),
+]
+
+
+def _generate_staff_id(prefix='STF'):
+    """Unique staff ID e.g. MGT-A3K9M2 stored in User.student_no."""
+    for _ in range(50):
+        code = get_random_string(6, 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789')
+        staff_id = f'{prefix}-{code}'
+        if not User.objects.filter(student_no=staff_id).exists():
+            return staff_id
+    return f'{prefix}-{get_random_string(10)}'
+
+
+def _staff_prefix(account_type):
+    return {
+        'campus_admin': 'ADM',
+        'osas_sds': 'OSAS',
+        'management': 'MGT',
+    }.get(account_type, 'STF')
+
+
+def _sidebar_context():
+    return {
+        'products': Product.objects.none(),
+        'total_stocks': 0,
+        'total_orders': 0,
+        'total_income': 0,
+        'incoming_preorder_count': 0,
+    }
+
+
+@login_required
+@user_passes_test(is_management)
+def add_accounts(request):
+    """GET: form · POST: create account."""
+    if request.method == 'POST':
+        return _handle_create_account(request)
+
+    context = {
+        **_sidebar_context(),
+        'account_types': ACCOUNT_TYPES,
+        'preview_staff_id': _generate_staff_id('STF'),
+        'form_data': {},
+    }
+    return render(
+        request,
+        'UTrade_app/management/settings/add_accounts.html',
+        context,
+    )
+
+
+def _handle_create_account(request):
+    data = request.POST
+    account_type = (data.get('account_type') or '').strip().lower()
+    first_name = (data.get('first_name') or '').strip()
+    last_name = (data.get('last_name') or '').strip()
+    suffix = (data.get('suffix') or '').strip() or None
+    gender = (data.get('gender') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    phone = (data.get('phone_number') or '').strip() or None
+    course = (data.get('course') or '').strip() or None
+    section = (data.get('section') or '').strip() or None
+    position = (data.get('position') or '').strip() or None
+    password = data.get('password') or ''
+    password_confirm = data.get('password_confirm') or ''
+    student_no_raw = (data.get('student_no') or '').strip()
+    mark_verified = data.get('mark_verified') == '1'
+    is_email_verified = data.get('is_email_verified') == '1'
+
+    errors = []
+
+    if account_type not in ACCOUNT_TYPE_MAP:
+        errors.append('Invalid account type.')
+    if not first_name:
+        errors.append('First name is required.')
+    if not last_name:
+        errors.append('Last name is required.')
+    if not gender:
+        errors.append('Gender is required.')
+    if not email:
+        errors.append('Email is required.')
+    elif User.objects.filter(email__iexact=email).exists():
+        errors.append('An account with this email already exists.')
+    if not password or len(password) < 8:
+        errors.append('Password must be at least 8 characters.')
+    if password != password_confirm:
+        errors.append('Passwords do not match.')
+
+    user_role = ACCOUNT_TYPE_MAP.get(account_type)
+    is_staff_role = account_type in ('campus_admin', 'osas_sds', 'management')
+    is_org = account_type == 'organization'
+    is_student_like = account_type in ('student', 'organization')
+
+    # --- ID assignment ---
+    if is_staff_role:
+        student_no = _generate_staff_id(_staff_prefix(account_type))
+        if not position:
+            position = {
+                'campus_admin': 'Campus Admin',
+                'osas_sds': 'OSAS / SDS',
+                'management': 'Management',
+            }.get(account_type, 'Staff')
+    else:
+        student_no = student_no_raw
+        if not student_no:
+            errors.append('Student number is required.')
+        elif not re.match(r'^[A-Za-z0-9\-]+$', student_no):
+            errors.append('Student number may only contain letters, numbers, and hyphens.')
+        elif User.objects.filter(student_no__iexact=student_no).exists():
+            errors.append('An account with this student number already exists.')
+        if not phone:
+            errors.append('Contact number is required.')
+        if not course:
+            errors.append('Course is required.')
+        if not section:
+            errors.append('Section is required.')
+
+    # --- Organization ---
+    org = None
+    if is_org and not errors:
+        org_name = (data.get('org_name') or '').strip()
+        org_full_name = (data.get('org_full_name') or '').strip()
+        org_course_code = (data.get('org_course_code') or '').strip() or (course or '')
+        org_position = (data.get('org_position') or '').strip()
+        org_description = (data.get('org_description') or '').strip()
+
+        if not org_name:
+            errors.append('Organization acronym / short name is required.')
+        if not org_full_name:
+            errors.append('Full organization name is required.')
+        if not org_course_code:
+            errors.append('Organization course code is required.')
+        if not org_position:
+            errors.append('Officer position is required.')
+
+        if not errors:
+            org = Organization.objects.filter(name__iexact=org_name).first()
+            if not org:
+                org = Organization(
+                    name=org_name,
+                    full_name=org_full_name,
+                    course_code=org_course_code,
+                    description=org_description or None,
+                )
+                if 'approval_letter' in request.FILES:
+                    org.approval_letter = request.FILES['approval_letter']
+                org.save()
+            position = org_position
+
+    if errors:
+        for e in errors:
+            messages.error(request, e)
+        context = {
+            **_sidebar_context(),
+            'account_types': ACCOUNT_TYPES,
+            'preview_staff_id': _generate_staff_id(
+                _staff_prefix(account_type) if is_staff_role else 'STF'
+            ),
+            'form_data': {
+                'first_name': first_name,
+                'last_name': last_name,
+                'email': email,
+                'student_no': student_no_raw,
+                'phone_number': phone or '',
+            },
+        }
+        return render(
+            request,
+            'UTrade_app/management/admin/add_accounts.html',
+            context,
+        )
+
+    try:
+        with transaction.atomic():
+            user = User(
+                student_no=student_no,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                suffix=suffix,
+                gender=gender,
+                user_role=user_role,
+                phone_number=phone,
+                course=course if is_student_like else None,
+                section=section if is_student_like else None,
+                position=position,
+                status='verified' if mark_verified else 'unverified',
+                is_email_verified=is_email_verified,
+                has_agreed_to_terms=True,
+            )
+            if is_org:
+                user.is_officer = True
+                user.officer_status = 'verified' if mark_verified else 'pending'
+                user.organization = org.name if org else None
+                user.org_link = org
+            if is_staff_role:
+                user.is_staff = True
+
+            user.set_password(password)
+            user.username = (email.split('@')[0] if email else student_no)[:70]
+            user.save()
+
+            log_action(
+                user=request.user,
+                action='Account Created',
+                item_type='User',
+                item_name=str(user.get_short_name),
+                details=(
+                    f'Created {account_type} account · ID={student_no} · '
+                    f'email={email} · role={user_role}'
+                    + (f' · org={org.name}' if org else '')
+                ),
+            )
+
+        messages.success(
+            request,
+            f'Account created for {user.get_full_name() or user.student_no} '
+            f'({student_no}). Role: {user.get_user_role_display()}.'
+        )
+        return redirect('add_accounts')
+
+    except Exception as exc:
+        messages.error(request, f'Failed to create account: {exc}')
+        return redirect('add_accounts')
+
+
+@login_required
+@user_passes_test(is_management)
+def all_users(request):
+    """Paginated user list with search + role filter."""
+    search = request.GET.get('search', '').strip()
+    role = request.GET.get('role', '').strip()
+
+    qs = User.objects.all().order_by('-date_joined')
+    if search:
+        qs = qs.filter(
+            Q(first_name__icontains=search)
+            | Q(last_name__icontains=search)
+            | Q(email__icontains=search)
+            | Q(student_no__icontains=search)
+            | Q(display_name__icontains=search)
+        )
+    if role:
+        qs = qs.filter(user_role=role)
+
+    paginator = Paginator(qs, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        **_sidebar_context(),
+        'page_obj': page_obj,
+        'search': search,
+        'role_filter': role,
+        'total_users': qs.count(),
+    }
+    return render(
+        request,
+        'UTrade_app/management/admin/all_users.html',
+        context,
+    )

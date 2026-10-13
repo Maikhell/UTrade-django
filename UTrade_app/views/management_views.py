@@ -1988,7 +1988,7 @@ def add_accounts(request):
     }
     return render(
         request,
-        'UTrade_app/management/settings/add_accounts.html',
+        'UTrade_app/management/admin/add_accounts.html',
         context,
     )
 

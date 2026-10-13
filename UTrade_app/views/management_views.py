@@ -1574,10 +1574,10 @@ def logs_reports(request):
 
     # Paginate the active tab (20 per page)
     if active_tab == 'logs':
-        paginator = Paginator(logs_qs, 20)
+        paginator = Paginator(logs_qs, 12)
         page_obj = paginator.get_page(page_number)
     else:
-        paginator = Paginator(reports_qs, 20)
+        paginator = Paginator(reports_qs, 12)
         page_obj = paginator.get_page(page_number)
 
     context = {
@@ -1889,3 +1889,38 @@ def _send_system_chat(admin_user, target_user, message, product=None):
         is_read=False,
     )
     return conversation
+
+@login_required
+@user_passes_test(is_management)
+def add_prohibited_words(request):
+    context = {
+        'products': Product.objects.none(),
+        'total_stocks': 0, 'total_orders': 0, 'total_income': 0,
+        'incoming_preorder_count': 0,
+        'prohibited_words': ProhibitedWord.objects.all().order_by('-created_at'),
+    }
+    return render(request, 'UTrade_app/management/settings/add_prohibited_words.html', context)
+
+
+@login_required
+@user_passes_test(is_management)
+def add_categories(request):
+    context = {
+        'products': Product.objects.none(),
+        'total_stocks': 0, 'total_orders': 0, 'total_income': 0,
+        'incoming_preorder_count': 0,
+        'categories': Category.objects.all().order_by('name'),
+    }
+    return render(request, 'UTrade_app/management/settings/add_categories.html', context)
+
+
+@login_required
+@user_passes_test(is_management)
+def add_pickup_spots(request):
+    context = {
+        'products': Product.objects.none(),
+        'total_stocks': 0, 'total_orders': 0, 'total_income': 0,
+        'incoming_preorder_count': 0,
+        'meetups': MeetupLocation.objects.all().order_by('name'),
+    }
+    return render(request, 'UTrade_app/management/settings/add_pickup_spots.html', context)

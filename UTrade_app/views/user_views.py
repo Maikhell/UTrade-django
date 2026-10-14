@@ -252,23 +252,23 @@ def order_delivered(request, order_id):
 
     return redirect('seller.inventory')  # change to your actual dashboard url name
 
+def get_seller_owner_type_filter(user):
+    """Return owner_type filter for org sellers, or None for management."""
+    if getattr(user, 'user_role', None) == 'management':
+        return None
+    return getattr(user, 'organization', None) or None
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product
-    template_name = 'UTrade_app/seller/inventory.html'
+    template_name = 'UTrade_app/seller/inventory.html'  # change if your path differs
     context_object_name = 'products'
-    paginate_by = 10  # Main product list pagination
-
-    def paginate_queryset_custom(self, queryset, param_name, page_size=5):
-        """Helper to safely paginate individual querysets on multi-table pages."""
-        paginator = Paginator(queryset, page_size)
-        page_number = self.request.GET.get(param_name, 1)
-        try:
-            return paginator.page(page_number)
-        except (PageNotAnInteger, EmptyPage):
-            return paginator.page(1)
+    paginate_by = 10
 
     def get_queryset(self):
-        return Product.objects.filter(seller=self.request.user).order_by('-created_at')
+        return (
+            Product.objects
+            .filter(seller=self.request.user)
+            .order_by('-created_at')
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -276,17 +276,16 @@ class UserProductsView(LoginRequiredMixin, ListView):
         now = timezone.now()
         seven_days_ago = now - timezone.timedelta(days=7)
 
-        # ==========================================
-        # 1. PRE-ORDERS & REPORT FILTERS
-        # ==========================================
-        seller_preorders = PreOrderRequest.objects.filter(
-            seller=user
-        ).select_related(
-            'buyer',
-            'product_variant',
-            'product_variant__product',
-        ).order_by('-id')
+        default_days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        default_zeros = [0, 0, 0, 0, 0, 0, 0]
 
+        # ---------- Pre-orders ----------
+        seller_preorders = (
+            PreOrderRequest.objects
+            .filter(seller=user)
+            .select_related('buyer', 'product_variant', 'product_variant__product')
+            .order_by('-id')
+        )
         owner_type = get_seller_owner_type_filter(user)
         if owner_type:
             seller_preorders = seller_preorders.filter(
@@ -300,162 +299,132 @@ class UserProductsView(LoginRequiredMixin, ListView):
             Q(status__iexact='Accepted')
             | Q(status__iexact='Ready')
             | Q(status__iexact='Ready for Pickup')
+            | Q(status__iexact='ACCEPTED')
+            | Q(status__iexact='READY')
         )
         completed_preorders_qs = seller_preorders.filter(
             status__iexact='Completed'
         )
 
-        course_options = (
+        preorders_daily = (
             seller_preorders
-            .exclude(buyer__course__isnull=True)
-            .exclude(buyer__course='')
-            .values_list('buyer__course', flat=True)
-            .distinct()
-            .order_by('buyer__course')
-        )
-        section_options = (
-            seller_preorders
-            .exclude(buyer__section__isnull=True)
-            .exclude(buyer__section='')
-            .values_list('buyer__section', flat=True)
-            .distinct()
-            .order_by('buyer__section')
-        )
-
-        # ==========================================
-        # 2. PRODUCT BADGE COUNTS & ORDERS QUERYSETS
-        # ==========================================
-        counts = Product.objects.filter(seller=user).aggregate(
-            approved=Count('id', filter=Q(status__iexact='Approved')),
-            pending=Count('id', filter=Q(status__iexact='Pending')),
-            rejected=Count('id', filter=Q(status__iexact='Rejected'))
-        )
-
-        seller_orders = Order.objects.filter(
-            items__product_variant__product__seller=user
-        ).distinct()
-
-        incoming_orders_qs = seller_orders.filter(
-            Q(status__iexact='Pending') | Q(status__iexact='Paid')
-        ).order_by('-created_at')
-
-        accepted_orders_qs = seller_orders.filter(
-            status__iexact='Accepted'
-        ).order_by('-created_at')
-
-        completed_orders_qs = seller_orders.filter(
-            status__iexact='Completed'
-        ).order_by('-updated_at')
-
-        # Items belonging specifically to this seller from completed orders
-        completed_items = OrderItem.objects.filter(
-            order__in=completed_orders_qs,
-            product_variant__product__seller=user
-        )
-
-        # ==========================================
-        # 3. STAT CARDS CALCULATIONS
-        # ==========================================
-        try:
-            total_stocks = ProductVariant.objects.filter(
-                product__seller=user
-            ).aggregate(total=Sum('stock'))['total'] or 0
-        except Exception:
-            total_stocks = ProductVariant.objects.filter(
-                product__seller=user
-            ).aggregate(total=Sum('stocks'))['total'] or 0
-
-        total_orders = seller_orders.count()
-
-        total_income = completed_items.aggregate(
-            total=Sum(F('price') * F('quantity'))
-        )['total'] or Decimal('0.00')
-
-        # ==========================================
-        # 4. CHART DATA PREPARATION (JSON SAFE)
-        # ==========================================
-        # Revenue Over Time (Last 7 Days)
-        revenue_daily = (
-            completed_items.filter(order__created_at__gte=seven_days_ago)
-            .annotate(date=TruncDate('order__created_at'))
-            .values('date')
-            .annotate(daily_revenue=Sum(F('price') * F('quantity')))
-            .order_by('date')
-        )
-        revenue_labels = [r['date'].strftime('%a') for r in revenue_daily]
-        revenue_data = [float(r['daily_revenue'] or 0) for r in revenue_daily]
-
-        # Top Selling Products (Top 5 by units sold)
-        top_products_qs = (
-            completed_items.values('product_variant__product__name')
-            .annotate(total_units=Sum('quantity'))
-            .order_by('-total_units')[:5]
-        )
-        top_products_labels = [p['product_variant__product__name'] or 'Unknown' for p in top_products_qs]
-        top_products_data = [p['total_units'] or 0 for p in top_products_qs]
-
-        # Orders Over Time (Last 7 Days)
-        orders_daily = (
-            seller_orders.filter(created_at__gte=seven_days_ago)
+            .filter(created_at__gte=seven_days_ago)
             .annotate(date=TruncDate('created_at'))
             .values('date')
             .annotate(order_count=Count('id'))
             .order_by('date')
         )
-        orders_over_time_labels = [o['date'].strftime('%a') for o in orders_daily]
+        preorders_over_time_labels = [
+            o['date'].strftime('%a') for o in preorders_daily if o['date']
+        ]
+        preorders_over_time_data = [o['order_count'] for o in preorders_daily]
+
+        # ---------- Orders ----------
+        seller_orders = (
+            Order.objects
+            .filter(items__product_variant__product__seller=user)
+            .distinct()
+        )
+        incoming_orders_qs = seller_orders.filter(
+            Q(status__iexact='Pending') | Q(status__iexact='Paid')
+        )
+        accepted_orders_qs = seller_orders.filter(status__iexact='Accepted')
+        completed_orders_qs = seller_orders.filter(status__iexact='Completed')
+
+        completed_items = OrderItem.objects.filter(
+            order__in=completed_orders_qs,
+            product_variant__product__seller=user,
+        )
+
+        # ---------- Stat cards ----------
+        try:
+            total_stocks = (
+                ProductVariant.objects
+                .filter(product__seller=user)
+                .aggregate(total=Sum('stocks'))['total']
+            ) or 0
+        except Exception:
+            total_stocks = (
+                ProductVariant.objects
+                .filter(product__seller=user)
+                .aggregate(total=Sum('stock'))['total']
+            ) or 0
+
+        total_orders = seller_orders.count()
+        total_preorders = seller_preorders.count()
+        total_income = completed_items.aggregate(
+            total=Sum(F('price') * F('quantity'))
+        )['total'] or Decimal('0.00')
+
+        # ---------- Chart data ----------
+        revenue_daily = (
+            completed_items
+            .filter(order__created_at__gte=seven_days_ago)
+            .annotate(date=TruncDate('order__created_at'))
+            .values('date')
+            .annotate(daily_revenue=Sum(F('price') * F('quantity')))
+            .order_by('date')
+        )
+        revenue_labels = [r['date'].strftime('%a') for r in revenue_daily if r['date']]
+        revenue_data = [float(r['daily_revenue'] or 0) for r in revenue_daily]
+
+        top_products_qs = (
+            completed_items
+            .values('product_variant__product__name')
+            .annotate(total_units=Sum('quantity'))
+            .order_by('-total_units')[:5]
+        )
+        top_products_labels = [
+            p['product_variant__product__name'] or 'Unknown' for p in top_products_qs
+        ]
+        top_products_data = [p['total_units'] or 0 for p in top_products_qs]
+
+        orders_daily = (
+            seller_orders
+            .filter(created_at__gte=seven_days_ago)
+            .annotate(date=TruncDate('created_at'))
+            .values('date')
+            .annotate(order_count=Count('id'))
+            .order_by('date')
+        )
+        orders_over_time_labels = [
+            o['date'].strftime('%a') for o in orders_daily if o['date']
+        ]
         orders_over_time_data = [o['order_count'] for o in orders_daily]
 
-        default_days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        default_zeros = [0, 0, 0, 0, 0, 0, 0]
-
-        # ==========================================
-        # 5. CONTEXT UPDATE
-        # ==========================================
         context.update({
-            # Product status badges
-            'approved_count': counts['approved'] or 0,
-            'pending_count': counts['pending'] or 0,
-            'rejected_count': counts['rejected'] or 0,
+            'total_stocks': total_stocks,
+            'total_orders': total_orders,
+            'total_preorders': total_preorders,
+            'total_income': f'{total_income:,.2f}',
 
-            # Paginated Order Tables (5 items/page for lightweight RAM consumption)
-            'incoming_orders': self.paginate_queryset_custom(incoming_orders_qs, 'page_inc', 5),
-            'accepted_orders': self.paginate_queryset_custom(accepted_orders_qs, 'page_acc', 5),
-            'completed_orders': self.paginate_queryset_custom(completed_orders_qs, 'page_comp', 5),
-
-            # Order Badge Counts
             'incoming_orders_count': incoming_orders_qs.count(),
             'accepted_orders_count': accepted_orders_qs.count(),
             'completed_orders_count': completed_orders_qs.count(),
 
-            # Dashboard Stat Cards
-            'total_stocks': total_stocks,
-            'total_orders': total_orders,
-            'total_income': f"{total_income:,.2f}",
-
-            # Paginated Pre-Orders
-            'incoming_preorders': self.paginate_queryset_custom(incoming_preorders_qs, 'page_pre_inc', 5),
-            'ready_preorders': self.paginate_queryset_custom(ready_preorders_qs, 'page_pre_ready', 5),
-            'completed_preorders': self.paginate_queryset_custom(completed_preorders_qs, 'page_pre_comp', 5),
-
-            # Pre-order Badge Counts
             'incoming_preorder_count': incoming_preorders_qs.count(),
             'ready_preorder_count': ready_preorders_qs.count(),
             'completed_preorder_count': completed_preorders_qs.count(),
 
-            # Filters & Analytics
-            'course_options': list(course_options),
-            'section_options': list(section_options),
-            'owner_type_filter': owner_type,
-
-            # Safe JSON Chart Data
-            'revenue_labels_json': json.dumps(revenue_labels if revenue_labels else default_days),
-            'revenue_data_json': json.dumps(revenue_data if revenue_data else default_zeros),
-            'top_products_labels_json': json.dumps(top_products_labels if top_products_labels else ["No Sales Yet"]),
-            'top_products_data_json': json.dumps(top_products_data if top_products_data else [0]),
-            'orders_over_time_labels_json': json.dumps(orders_over_time_labels if orders_over_time_labels else default_days),
-            'orders_over_time_data_json': json.dumps(orders_over_time_data if orders_over_time_data else default_zeros),
+            'revenue_labels_json': json.dumps(revenue_labels or default_days),
+            'revenue_data_json': json.dumps(revenue_data or default_zeros),
+            'top_products_labels_json': json.dumps(
+                top_products_labels or ['No Sales Yet']
+            ),
+            'top_products_data_json': json.dumps(top_products_data or [0]),
+            'orders_over_time_labels_json': json.dumps(
+                orders_over_time_labels or default_days
+            ),
+            'orders_over_time_data_json': json.dumps(
+                orders_over_time_data or default_zeros
+            ),
+            'preorders_over_time_labels_json': json.dumps(
+                preorders_over_time_labels or default_days
+            ),
+            'preorders_over_time_data_json': json.dumps(
+                preorders_over_time_data or default_zeros
+            ),
         })
-
         return context
 
 class ProductUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):

@@ -171,11 +171,27 @@ class ManagementPanelView(LoginRequiredMixin, View):
 class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Product
     form_class = ProductForm
-    template_name = 'UTrade_app/products/edit_product.html'
+    template_name = 'UTrade_app/management/actions/edit_product.html'  # ← fix this
 
     def test_func(self):
         return self.get_object().seller_id == self.request.user.id
-
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        product = self.object
+        selected_days = [
+            d.strip() for d in (product.available_days or '').split(',') if d.strip()
+        ]
+        context.update({
+            'product': product,
+            'categories': Category.objects.all().order_by('name'),
+            'meetup_locations': MeetupLocation.objects.all().order_by('name'),
+            'selected_days': selected_days,
+            'days_choices': [
+                ('Monday', 'Mon'), ('Tuesday', 'Tue'), ('Wednesday', 'Wed'),
+                ('Thursday', 'Thu'), ('Friday', 'Fri'), ('Saturday', 'Sat'),
+            ],
+        })
+        return context
     def form_valid(self, form):
         product = form.save(commit=False)
         product.status = 'Pending'  # force re-review after edit
@@ -219,6 +235,7 @@ class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             f'It is hidden from the marketplace until approved again.'
         )
         return redirect('seller_inventory')
+    
 def update_status(request, type, id):
     new_status = request.GET.get('status')
     

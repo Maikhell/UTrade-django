@@ -45,6 +45,7 @@ from ..models import (
     ProductVariant,
     ProhibitedWord,
     Review,
+    ProductImage,
     Organization,
     SystemLog,
     User,
@@ -897,6 +898,128 @@ def management_list_product(request, product_id):
     )
     messages.success(request, f'“{product.name}” is now active on the marketplace.')
     return redirect('cbrgu_products')
+
+@login_required
+def product_edit(request, pk):
+    """Edit all product fields; sets status to Pending after save."""
+    product = get_object_or_404(
+        Product.objects.select_related('category', 'seller')
+        .prefetch_related('variants', 'images'),
+        pk=pk,
+    )
+    # Owner or management
+    if product.seller_id != request.user.id and request.user.user_role != 'management':
+        messages.error(request, 'You cannot edit this product.')
+        return redirect('cbrgu_products')
+
+    if request.method == 'POST':
+        return _save_product_edit(request, product)
+
+    selected_days = [
+        d.strip() for d in (product.available_days or '').split(',') if d.strip()
+    ]
+    context = {
+        'product': product,
+        'categories': Category.objects.all().order_by('name'),
+        'meetup_locations': MeetupLocation.objects.all().order_by('name'),
+        'selected_days': selected_days,
+        'days_choices': [
+            ('Monday', 'Mon'), ('Tuesday', 'Tue'), ('Wednesday', 'Wed'),
+            ('Thursday', 'Thu'), ('Friday', 'Fri'), ('Saturday', 'Sat'),
+        ],
+    }
+    return render(request, 'UTrade_app/products/edit_product.html', context)
+
+
+@transaction.atomic
+def _save_product_edit(request, product):
+    data = request.POST
+
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    if not name or not description:
+        messages.error(request, 'Name and description are required.')
+        return redirect('product.edit', pk=product.pk)
+
+    product.name = name
+    product.description = description
+
+    cat_id = data.get('category')
+    if cat_id:
+        product.category_id = cat_id
+
+    product.meetup_location_text = (data.get('meetup_location_text') or '').strip()
+    days = data.getlist('available_days')
+    product.available_days = ','.join(days) if days else ''
+
+    from_t = data.get('preferred_meetup_time_from') or None
+    to_t = data.get('preferred_meetup_time_to') or None
+    product.preferred_meetup_time_from = from_t or None
+    product.preferred_meetup_time_to = to_t or None
+
+    product.owner_type = data.get('owner_type') or product.owner_type
+    product.accepted_payments = data.get('accepted_payments') or product.accepted_payments
+    product.pre_order = data.get('is_pre_order') == 'on'
+
+    # Force re-review
+    product.status = 'Pending'
+    product.save()
+
+    # Delete images
+    delete_ids = [
+        x for x in (data.get('delete_image_ids') or '').split(',') if x.isdigit()
+    ]
+    if delete_ids:
+        ProductImage.objects.filter(product=product, id__in=delete_ids).delete()
+
+    # New images
+    for f in request.FILES.getlist('images'):
+        ProductImage.objects.create(product=product, image=f)
+
+    # Variants: replace from JSON
+    raw = data.get('variants_json') or '[]'
+    try:
+        variants = json.loads(raw)
+    except json.JSONDecodeError:
+        variants = []
+
+    keep_ids = []
+    for v in variants:
+        vid = v.get('id')
+        payload = {
+            'variant_name': (v.get('name') or '')[:100],
+            'attribute_value': (v.get('attribute') or '')[:100],
+            'price': v.get('price') or 0,
+            'stocks': int(v.get('stock') or 0),
+            'condition': v.get('condition') or 'Brand New',
+            'flaws_description': v.get('flaws') or '',
+        }
+        if vid:
+            updated = ProductVariant.objects.filter(id=vid, product=product).update(**payload)
+            if updated:
+                keep_ids.append(int(vid))
+        else:
+            obj = ProductVariant.objects.create(product=product, **payload)
+            keep_ids.append(obj.id)
+
+    # Remove variants not in the submitted list
+    ProductVariant.objects.filter(product=product).exclude(id__in=keep_ids).delete()
+
+    log_action(
+        user=request.user,
+        action='Product Updated',
+        item_type='Product',
+        item_name=product.name,
+        details=f'Edited ID:{product.id}; status set to Pending for re-review.',
+    )
+    messages.warning(
+        request,
+        f'“{product.name}” was updated and sent back for approval. '
+        f'It is hidden until approved again.'
+    )
+    if request.user.user_role == 'management':
+        return redirect('cbrgu_products')
+    return redirect('dashboard')
 
 @login_required
 @user_passes_test(is_management)

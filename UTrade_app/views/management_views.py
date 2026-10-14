@@ -57,117 +57,6 @@ from ..models import (
 )
 from ..utils import log_action
 
-class ManagementPanelView(LoginRequiredMixin, View):
-    def get(self, request, *args, **kwargs):
-        search_query = request.GET.get('search', '')
-        status_filter = request.GET.get('status_filter', '')
-        pre_order_filter = request.GET.get('pre_order', '')
-        sort_param = request.GET.get('sort', '-date_joined')
-
-        users = User.objects.all().exclude(id=request.user.id)
-
-        if search_query:
-            users = users.filter(
-                Q(username__icontains=search_query)
-                | Q(first_name__icontains=search_query)
-                | Q(last_name__icontains=search_query)
-                | Q(student_no__icontains=search_query)
-            )
-
-        if status_filter:
-            users = users.filter(status=status_filter)
-
-        users = users.order_by(sort_param)[:50]
-
-        # Live inventory (Approved products)
-        approved_products = (
-            Product.objects.filter(status='Approved')
-            .select_related('seller', 'category')
-            .prefetch_related('variants', 'images')
-            .order_by('-created_at')
-        )
-
-        if search_query:
-            approved_products = approved_products.filter(
-                Q(name__icontains=search_query)
-                | Q(seller__first_name__icontains=search_query)
-                | Q(seller__last_name__icontains=search_query)
-                | Q(variants__price__icontains=search_query)
-            ).distinct()
-
-        if pre_order_filter:
-            is_pre = pre_order_filter == 'True'
-            approved_products = approved_products.filter(pre_order=is_pre)
-
-        page_number = request.GET.get('page', 1)
-        paginator = Paginator(approved_products, 15)
-        page_obj = paginator.get_page(page_number)
-
-        reported_items = (
-            UserReport.objects.select_related(
-                'reporter',
-                'reported_user',
-                'conversation',
-                'conversation__product',
-                'conversation__buyer',
-                'conversation__seller',
-            )
-            .order_by('-created_at')[:50]
-        )
-
-        pending_products = (
-            Product.objects.filter(status='Pending')
-            .select_related('seller', 'category')
-            .prefetch_related('variants', 'images')
-            .order_by('-created_at')[:50]
-        )
-
-        incoming_preorders = (
-            PreOrderRequest.objects.filter(seller__user_role='management')
-            .select_related('buyer', 'product_variant__product')
-            .order_by('-created_at')[:50]
-        )
-
-        completed_orders = Order.objects.filter(status='Completed')[:50]
-
-        # ---------- Platform fees (3% org cycles) ----------
-        fee_ledgers = (
-            OrganizationPlatformLedger.objects.filter(status__in=['OPEN', 'DUE'])
-            .select_related('organization')
-            .order_by('cycle_due')
-        )
-        fee_warnings = [L for L in fee_ledgers if L.is_warning or L.is_overdue]
-        organizations = Organization.objects.all().order_by('name')
-        
-        
-        context = {
-            'org_name': 'UTrade Global Management',
-            'target_course': 'campus',
-            'org': request.user.org_link,
-            'users': users,
-            'verified_count': User.objects.filter(status='verified').count(),
-            # Inventory
-            'approved_items': page_obj,
-            'approved_count': paginator.count,
-            'active_products_count': paginator.count,
-            'page_obj': page_obj,
-            'is_paginated': page_obj.has_other_pages(),
-            # Pending
-            'pending_products': pending_products,
-            'pending_products_count': Product.objects.filter(status='Pending').count(),
-            # Reports / logs / orders
-            'reported_items': reported_items,
-            'logs': SystemLog.objects.all()[:30],
-            'incoming_orders': incoming_preorders,
-            'completed_orders': completed_orders,
-            # Platform fees
-            'fee_ledgers': fee_ledgers,
-            'fee_warnings': fee_warnings,
-            'organizations': organizations,
-        }
-
-        return render(request, 'UTrade_app/management/management_panel/dashboard.html', context)
-
 class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Product
     form_class = ProductForm
@@ -293,7 +182,7 @@ def product_details(request, product_id):
 
     return render(
         request,
-        'UTrade_app/management/product_view.html',
+        'UTrade_app/management/management_panel/product_view.html',
         {
             'product': product,
 
@@ -358,7 +247,7 @@ def generate_report_pdf(request):
     return response
 
 def is_management(user):
-    return user.is_authenticated and user.user_role == 'management'
+    return user.is_authenticated and getattr(user, 'user_role', None) == 'management'
 
 @login_required
 @user_passes_test(is_management)
@@ -460,9 +349,6 @@ def delete_meetup(request, loc_id):
 def get_prohibited_words(request):
     words = list(ProhibitedWord.objects.values_list('word', flat=True))
     return JsonResponse({'prohibited_words': words})
-
-def is_management(user):
-    return user.is_authenticated and user.user_role == 'management'
 
 
 def _notify_seller(admin_user, product, message_text):
@@ -583,17 +469,6 @@ def seller_sales_chart_data(request):
         'units': units,
     })
     
-@login_required
-@require_POST
-def product_delete(request, pk):
-    product = get_object_or_404(Product, pk=pk, seller=request.user)
-    name = product.name
-    product.delete()
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({'status': 'success', 'message': f'{name} removed.'})
-    messages.success(request, f'“{name}” was removed.')
-    return redirect('seller_inventory')
-
 @login_required
 @require_POST
 def variant_delete(request, pk):
@@ -2124,8 +1999,32 @@ ACCOUNT_TYPES = [
 ]
 
 
+ACCOUNT_TYPE_MAP = {
+    'student': 'student',
+    'organization': 'org_officer',
+    # Staff roles chosen via staff_role dropdown:
+    'campus_admin': 'campus_admin',
+    'osas_sds': 'osas_sds',
+    'management': 'management',
+    'cbrgu_staff': 'cbrgu_staff',
+}
+
+ACCOUNT_TYPES = [
+    # (value, label, bootstrap-icon, short description)
+    ('student', 'Student', 'bi-mortarboard', 'Regular student account'),
+    ('organization', 'Organization', 'bi-building', 'Organization account'),
+    ('staff', 'Staff', 'bi-briefcase', 'Management / OSAS / Campus Admin / CBRGU Staff'),
+]
+
+STAFF_ROLE_CHOICES = [
+    ('management', 'Management'),
+    ('osas_sds', 'OSAS / SDS'),
+    ('campus_admin', 'Campus Admin'),
+    ('cbrgu_staff', 'CBRGU Staff'),
+]
+
+
 def _generate_staff_id(prefix='STF'):
-    """Unique staff ID e.g. MGT-A3K9M2 stored in User.student_no."""
     for _ in range(50):
         code = get_random_string(6, 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789')
         staff_id = f'{prefix}-{code}'
@@ -2134,12 +2033,13 @@ def _generate_staff_id(prefix='STF'):
     return f'{prefix}-{get_random_string(10)}'
 
 
-def _staff_prefix(account_type):
+def _staff_prefix(role):
     return {
         'campus_admin': 'ADM',
         'osas_sds': 'OSAS',
         'management': 'MGT',
-    }.get(account_type, 'STF')
+        'cbrgu_staff': 'CBR',
+    }.get(role, 'STF')
 
 
 def _sidebar_context():
@@ -2155,13 +2055,13 @@ def _sidebar_context():
 @login_required
 @user_passes_test(is_management)
 def add_accounts(request):
-    """GET: form · POST: create account."""
     if request.method == 'POST':
         return _handle_create_account(request)
 
     context = {
         **_sidebar_context(),
         'account_types': ACCOUNT_TYPES,
+        'staff_role_choices': STAFF_ROLE_CHOICES,
         'preview_staff_id': _generate_staff_id('STF'),
         'form_data': {},
     }
@@ -2174,7 +2074,9 @@ def add_accounts(request):
 
 def _handle_create_account(request):
     data = request.POST
-    account_type = (data.get('account_type') or '').strip().lower()
+    account_type = (data.get('account_type') or '').strip().lower()  # student | organization | staff
+    staff_role = (data.get('staff_role') or '').strip().lower()
+
     first_name = (data.get('first_name') or '').strip()
     last_name = (data.get('last_name') or '').strip()
     suffix = (data.get('suffix') or '').strip() or None
@@ -2183,17 +2085,37 @@ def _handle_create_account(request):
     phone = (data.get('phone_number') or '').strip() or None
     course = (data.get('course') or '').strip() or None
     section = (data.get('section') or '').strip() or None
-    position = (data.get('position') or '').strip() or None
     password = data.get('password') or ''
     password_confirm = data.get('password_confirm') or ''
     student_no_raw = (data.get('student_no') or '').strip()
     mark_verified = data.get('mark_verified') == '1'
-    is_email_verified = data.get('is_email_verified') == '1'
+    is_email_verified = data.get('is_email_verified') == '1'  # Skip OTP
 
     errors = []
 
-    if account_type not in ACCOUNT_TYPE_MAP:
+    # Resolve user_role
+    if account_type == 'staff':
+        if staff_role not in ('management', 'osas_sds', 'campus_admin', 'cbrgu_staff'):
+            errors.append('Please select a staff role.')
+        user_role = staff_role
+        is_staff_role = True
+        is_org = False
+        is_student_like = False
+    elif account_type == 'organization':
+        user_role = 'org_officer'
+        is_staff_role = False
+        is_org = True
+        is_student_like = True
+    elif account_type == 'student':
+        user_role = 'student'
+        is_staff_role = False
+        is_org = False
+        is_student_like = True
+    else:
         errors.append('Invalid account type.')
+        user_role = None
+        is_staff_role = is_org = is_student_like = False
+
     if not first_name:
         errors.append('First name is required.')
     if not last_name:
@@ -2209,20 +2131,10 @@ def _handle_create_account(request):
     if password != password_confirm:
         errors.append('Passwords do not match.')
 
-    user_role = ACCOUNT_TYPE_MAP.get(account_type)
-    is_staff_role = account_type in ('campus_admin', 'osas_sds', 'management')
-    is_org = account_type == 'organization'
-    is_student_like = account_type in ('student', 'organization')
-
-    # --- ID assignment ---
+    # ID assignment
     if is_staff_role:
-        student_no = _generate_staff_id(_staff_prefix(account_type))
-        if not position:
-            position = {
-                'campus_admin': 'Campus Admin',
-                'osas_sds': 'OSAS / SDS',
-                'management': 'Management',
-            }.get(account_type, 'Staff')
+        student_no = _generate_staff_id(_staff_prefix(user_role))
+        position = None  # no position field for staff
     else:
         student_no = student_no_raw
         if not student_no:
@@ -2237,38 +2149,55 @@ def _handle_create_account(request):
             errors.append('Course is required.')
         if not section:
             errors.append('Section is required.')
+        position = None
 
-    # --- Organization ---
+    # Organization
     org = None
     if is_org and not errors:
         org_name = (data.get('org_name') or '').strip()
         org_full_name = (data.get('org_full_name') or '').strip()
-        org_course_code = (data.get('org_course_code') or '').strip() or (course or '')
-        org_position = (data.get('org_position') or '').strip()
+        org_type = (data.get('org_type') or 'academic').strip().lower()
+        org_course_code = (data.get('org_course_code') or '').strip() or None
         org_description = (data.get('org_description') or '').strip()
 
+        if org_type not in ('academic', 'non_academic'):
+            errors.append('Invalid organization type.')
         if not org_name:
             errors.append('Organization acronym / short name is required.')
         if not org_full_name:
             errors.append('Full organization name is required.')
-        if not org_course_code:
-            errors.append('Organization course code is required.')
-        if not org_position:
-            errors.append('Officer position is required.')
+
+        # Course code: required for academic orgs except CSG
+        is_csg = org_name.upper() == 'CSG'
+        if org_type == 'academic' and not is_csg and not org_course_code:
+            errors.append('Course code is required for academic organizations (except CSG).')
+        if org_type == 'non_academic' or is_csg:
+            org_course_code = None  # not tied to a course
 
         if not errors:
             org = Organization.objects.filter(name__iexact=org_name).first()
             if not org:
-                org = Organization(
+                org = Organization.objects.create(
                     name=org_name,
                     full_name=org_full_name,
                     course_code=org_course_code,
                     description=org_description or None,
+                    org_type=org_type,
                 )
-                if 'approval_letter' in request.FILES:
-                    org.approval_letter = request.FILES['approval_letter']
-                org.save()
-            position = org_position
+            else:
+                # keep existing; optionally update type/description if blank
+                updates = []
+                if org_description and not org.description:
+                    org.description = org_description
+                    updates.append('description')
+                if org_type and org.org_type != org_type:
+                    org.org_type = org_type
+                    updates.append('org_type')
+                if org_course_code and not org.course_code:
+                    org.course_code = org_course_code
+                    updates.append('course_code')
+                if updates:
+                    org.save(update_fields=updates + ['date_created'] if False else updates)
 
     if errors:
         for e in errors:
@@ -2276,8 +2205,9 @@ def _handle_create_account(request):
         context = {
             **_sidebar_context(),
             'account_types': ACCOUNT_TYPES,
+            'staff_role_choices': STAFF_ROLE_CHOICES,
             'preview_staff_id': _generate_staff_id(
-                _staff_prefix(account_type) if is_staff_role else 'STF'
+                _staff_prefix(user_role) if is_staff_role and user_role else 'STF'
             ),
             'form_data': {
                 'first_name': first_name,
@@ -2311,11 +2241,18 @@ def _handle_create_account(request):
                 is_email_verified=is_email_verified,
                 has_agreed_to_terms=True,
             )
+
+            # Skip OTP checked → still store a random OTP for future auth use
+            if is_email_verified:
+                user.otp_code = get_random_string(6, '0123456789')
+                user.otp_expiry = timezone.now() + timedelta(days=365)
+
             if is_org:
                 user.is_officer = True
                 user.officer_status = 'verified' if mark_verified else 'pending'
                 user.organization = org.name if org else None
                 user.org_link = org
+
             if is_staff_role:
                 user.is_staff = True
 
@@ -2332,6 +2269,7 @@ def _handle_create_account(request):
                     f'Created {account_type} account · ID={student_no} · '
                     f'email={email} · role={user_role}'
                     + (f' · org={org.name}' if org else '')
+                    + (f' · otp_assigned={bool(user.otp_code)}' if is_email_verified else '')
                 ),
             )
 

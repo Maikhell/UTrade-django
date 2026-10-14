@@ -252,8 +252,6 @@
               <label class="form-label small fw-bold text-secondary">Accepted Payment</label>
               <select name="accepted_payments" class="form-select">
                 <option value="COP" {% if product.accepted_payments == 'COP' %}selected{% endif %}>Cash on Pickup</option>
-                <option value="GCASH" {% if product.accepted_payments == 'GCASH' %}selected{% endif %}>GCash</option>
-                <option value="BOTH" {% if product.accepted_payments == 'BOTH' %}selected{% endif %}>Both</option>
               </select>
             </div>
           </div>

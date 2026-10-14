@@ -7,21 +7,31 @@ from datetime import timedelta
 PLATFORM_FEE_RATE = Decimal('0.03') 
 
 class Organization(models.Model):
-    name = models.CharField(max_length=50, unique=True) #"ITS"
-    full_name = models.CharField(max_length=150)        #"Information Technology Society"
-    course_code = models.CharField(max_length=20)       #"BSIT"
-    description = models.TextField(blank=True, null=True)
-    logo = models.ImageField(upload_to='org_logos/', blank=True, null=True)
-    approval_letter = models.ImageField(                 # ← new field
-        upload_to='org_approval_letters/',
+    class OrgType(models.TextChoices):
+        ACADEMIC = 'academic', 'Academic'
+        NON_ACADEMIC = 'non_academic', 'Non-Academic'
+
+    name = models.CharField(max_length=50, unique=True)  # e.g. "ITS", "CSG"
+    full_name = models.CharField(max_length=150)
+    course_code = models.CharField(
+        max_length=20,
         blank=True,
         null=True,
-        help_text='JPG/PNG only, max 10 MB'
+        help_text='Required for academic orgs except CSG',
     )
+    description = models.TextField(blank=True, null=True)
+    org_type = models.CharField(
+        max_length=20,
+        choices=OrgType.choices,
+        default=OrgType.ACADEMIC,
+    )
+    logo = models.ImageField(upload_to='org_logos/', blank=True, null=True)
     date_created = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} ({self.course_code})" 
+        if self.course_code:
+            return f"{self.name} ({self.course_code})"
+        return self.name
 
 class OrganizationPlatformLedger(models.Model):
     """One open cycle per organization (30 days from first completed sale in cycle)."""

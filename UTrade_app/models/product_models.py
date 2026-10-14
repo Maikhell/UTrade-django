@@ -43,6 +43,12 @@ class Product(BaseItem):
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_listings')
     sold = models.IntegerField(default=0)
     pre_order = models.BooleanField(default=False)
+    approval_letter = models.ImageField(                 # ← new field
+        upload_to='org_approval_letters/',
+        blank=True,
+        null=True,
+        help_text='JPG/PNG only, max 10 MB'
+    )
     product_code = models.CharField(
     max_length=32,
     unique=True,

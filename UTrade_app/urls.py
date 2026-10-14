@@ -3,7 +3,7 @@ from .views import (
     items_views, user_views, authenticate,
     admin_views, cart_views, order_views, chat_views,
     organization_views, management_views, alumni_views,
-    otplink_views
+    otplink_views, reports_views
 )
 
 urlpatterns = [
@@ -97,9 +97,8 @@ urlpatterns = [
     # =========================================================================
     # Organization Management
     # =========================================================================
-    path('organization/dashboard/', organization_views.organization_panel, name='organization.panel'),
     path('organization/update/<str:item_type>/<int:item_id>/', organization_views.update_status_org, name='org.update_status'),
-    path('organization/generate-pdf/', organization_views.generate_pdf_orgs, name='generate.pdf.orgs'),
+    path('organization/generate-pdf/', reports_views.generate_pdf_orgs, name='generate.pdf.orgs'),
 
     # =========================================================================
     # Alumni Dashboard & Reports
@@ -111,7 +110,6 @@ urlpatterns = [
     # =========================================================================
     # Management – Dashboard & Core
     # =========================================================================
-    path('management/panel/', management_views.ManagementPanelView.as_view(), name='management.panel'),
     path('management/dashboard/', user_views.UserProductsView.as_view(), name='dashboard'),
     path('management/update/<str:type>/<int:id>/', management_views.update_status, name='management.update'),
     path('productview/<int:product_id>/', management_views.product_details, name='product.detail.view'),

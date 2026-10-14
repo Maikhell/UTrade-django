@@ -27,7 +27,8 @@ class User(AbstractUser):
         ('campus_admin', 'Campus Admin'),
         ('org_officer', 'Organization Officer'),
         ('osas_sds', 'OSAS SDS'),
-        ('management', 'Management'),
+        ('cbrgu_staff', 'CBRGU Staff'),
+        ('management', 'Management')
     ]
     
     user_role = models.CharField(

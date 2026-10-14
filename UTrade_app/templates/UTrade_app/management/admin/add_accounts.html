@@ -217,7 +217,7 @@
             <h2 class="h5 fw-bold mb-3">1. Select Account Type</h2>
             <div class="row g-3">
               {% for value, label, icon, desc in account_types %}
-              <div class="col-6 col-md-4 col-lg-3">
+              <div class="col-6 col-md-4">
                 <label class="role-card card h-100 rounded-3 p-3 text-center {% if forloop.first %}active{% endif %}"
                        data-role="{{ value }}">
                   <input type="radio" name="account_type" value="{{ value }}"
@@ -228,6 +228,19 @@
                 </label>
               </div>
               {% endfor %}
+            </div>
+
+            <!-- Staff role dropdown -->
+            <div class="row g-3 mt-2 form-section staff-field" id="staffRoleSection">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Staff Role <span class="text-danger">*</span></label>
+                <select name="staff_role" id="staffRoleSelect" class="form-select rounded-3">
+                  <option value="" disabled selected>Select role</option>
+                  {% for value, label in staff_role_choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -317,12 +330,6 @@
                 <input type="text" name="section" class="form-control rounded-3" placeholder="3-1" maxlength="10" />
               </div>
 
-              <div class="col-md-6 form-section staff-field" id="positionField">
-                <label class="form-label small fw-bold text-secondary">Position / Department</label>
-                <input type="text" name="position" class="form-control rounded-3"
-                       placeholder="e.g. Campus Admin, OSAS Officer" />
-              </div>
-
               <div class="col-md-6">
                 <label class="form-label small fw-bold text-secondary">Temporary Password <span class="text-danger">*</span></label>
                 <input type="password" name="password" class="form-control rounded-3" required
@@ -344,42 +351,33 @@
           <div class="card-body p-4">
             <h2 class="h5 fw-bold mb-3">3. Organization Details</h2>
             <div class="row g-3">
-              <div class="col-md-4">
-                <label class="form-label small fw-bold text-secondary">Acronym / Short Name <span class="text-danger">*</span></label>
-                <input type="text" name="org_name" class="form-control rounded-3" placeholder="ITS" />
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Organization Type <span class="text-danger">*</span></label>
+                <select name="org_type" id="orgTypeSelect" class="form-select rounded-3">
+                  <option value="academic" selected>Academic</option>
+                  <option value="non_academic">Non-Academic</option>
+                </select>
               </div>
-              <div class="col-md-8">
+              <div class="col-md-6">
+                <label class="form-label small fw-bold text-secondary">Acronym / Short Name <span class="text-danger">*</span></label>
+                <input type="text" name="org_name" id="orgNameInput" class="form-control rounded-3" placeholder="ITS or CSG" />
+              </div>
+              <div class="col-md-12">
                 <label class="form-label small fw-bold text-secondary">Full Organization Name <span class="text-danger">*</span></label>
                 <input type="text" name="org_full_name" class="form-control rounded-3"
                        placeholder="Information Technology Society" />
               </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Course Code <span class="text-danger">*</span></label>
-                <input type="text" name="org_course_code" class="form-control rounded-3" placeholder="BSIT" />
-              </div>
-              <div class="col-md-6">
-                <label class="form-label small fw-bold text-secondary">Officer Position <span class="text-danger">*</span></label>
-                <select name="org_position" class="form-select rounded-3">
-                  <option value="" disabled selected>Select position</option>
-                  <option value="President">President</option>
-                  <option value="Vice President">Vice President</option>
-                  <option value="Secretary">Secretary</option>
-                  <option value="Treasurer">Treasurer</option>
-                  <option value="Auditor">Auditor</option>
-                  <option value="P.R.O">P.R.O</option>
-                  <option value="Senator">Senator</option>
-                  <option value="Representative">Representative</option>
-                </select>
+              <div class="col-md-6" id="orgCourseCodeField">
+                <label class="form-label small fw-bold text-secondary">
+                  Course Code <span class="text-danger" id="courseCodeRequired">*</span>
+                </label>
+                <input type="text" name="org_course_code" id="orgCourseCodeInput" class="form-control rounded-3" placeholder="BSIT" />
+                <div class="form-text" style="font-size:0.75rem;">Not required for CSG or Non-Academic organizations.</div>
               </div>
               <div class="col-12">
                 <label class="form-label small fw-bold text-secondary">Description</label>
                 <textarea name="org_description" class="form-control rounded-3" rows="3"
                           placeholder="Short description of the organization"></textarea>
-              </div>
-              <div class="col-12">
-                <label class="form-label small fw-bold text-secondary">Approval Letter (optional)</label>
-                <input type="file" name="approval_letter" class="form-control rounded-3" accept="image/*,.pdf" />
-                <div class="form-text" style="font-size:0.7rem;">JPG / PNG / PDF · max 10 MB</div>
               </div>
             </div>
           </div>
@@ -398,7 +396,7 @@
             <div class="form-check">
               <input class="form-check-input" type="checkbox" name="is_email_verified" id="emailVerified" value="1" checked>
               <label class="form-check-label" for="emailVerified">
-                Mark email as verified (skip OTP)
+                Skip OTP (mark email verified; a random OTP is still stored for future use)
               </label>
             </div>
           </div>
@@ -418,23 +416,40 @@
 
 <script>
 (function () {
-  const STAFF_ROLES = new Set(['campus_admin', 'osas_sds', 'management']);
-  const STUDENT_ROLES = new Set(['student']);
-  const ORG_ROLES = new Set(['organization']);
+  const STAFF = new Set(['staff']);
+  const STUDENT = new Set(['student']);
+  const ORG = new Set(['organization']);
+
+  function updateOrgCourseCodeVisibility() {
+    const orgType = document.getElementById('orgTypeSelect')?.value || 'academic';
+    const orgName = (document.getElementById('orgNameInput')?.value || '').trim().toUpperCase();
+    const isCsg = orgName === 'CSG';
+    const showCourseCode = orgType === 'academic' && !isCsg;
+    const field = document.getElementById('orgCourseCodeField');
+    const input = document.getElementById('orgCourseCodeInput');
+    const req = document.getElementById('courseCodeRequired');
+    if (!field) return;
+    field.style.display = showCourseCode ? '' : 'none';
+    if (input) {
+      input.required = showCourseCode;
+      if (!showCourseCode) input.value = '';
+    }
+    if (req) req.style.display = showCourseCode ? '' : 'none';
+  }
 
   function updateForm(role) {
     document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
     const active = document.querySelector('.role-card[data-role="' + role + '"]');
     if (active) active.classList.add('active');
 
-    const showStudent = STUDENT_ROLES.has(role) || ORG_ROLES.has(role);
-    const showOrg = ORG_ROLES.has(role);
-    const showStaff = STAFF_ROLES.has(role);
+    const showStudent = STUDENT.has(role) || ORG.has(role);
+    const showOrg = ORG.has(role);
+    const showStaff = STAFF.has(role);
 
     document.querySelectorAll('.student-field').forEach(el => {
       el.classList.toggle('active', showStudent);
       el.querySelectorAll('input, select').forEach(i => {
-        if (showStudent && (i.name === 'student_no' || i.name === 'phone_number' || i.name === 'course' || i.name === 'section')) {
+        if (showStudent && ['student_no', 'phone_number', 'course', 'section'].includes(i.name)) {
           i.required = true;
         } else if (!showStudent) {
           i.required = false;
@@ -452,11 +467,18 @@
     const sid = document.getElementById('staffIdField');
     if (sno) sno.classList.toggle('active', showStudent);
     if (sid) sid.classList.toggle('active', showStaff);
+
+    const staffRole = document.getElementById('staffRoleSelect');
+    if (staffRole) staffRole.required = showStaff;
+
+    if (showOrg) updateOrgCourseCodeVisibility();
   }
 
   document.querySelectorAll('input[name="account_type"]').forEach(radio => {
     radio.addEventListener('change', () => updateForm(radio.value));
   });
+  document.getElementById('orgTypeSelect')?.addEventListener('change', updateOrgCourseCodeVisibility);
+  document.getElementById('orgNameInput')?.addEventListener('input', updateOrgCourseCodeVisibility);
 
   const checked = document.querySelector('input[name="account_type"]:checked');
   if (checked) updateForm(checked.value);

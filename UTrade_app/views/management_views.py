@@ -858,6 +858,45 @@ def cbrgu_products(request):
         'incoming_preorder_count': 0,
     }
     return render(request, 'UTrade_app/management/management_panel/cbrgu_products.html', context)
+@login_required
+@user_passes_test(is_management)
+@require_POST
+def management_unlist_product_form(request, product_id):
+    product = get_object_or_404(
+        Product, id=product_id, seller__user_role='management', status='Approved'
+    )
+    reason = (request.POST.get('reason') or 'Unlisted by management').strip()
+    product.status = 'Unlisted'
+    product.save(update_fields=['status'])
+    log_action(
+        user=request.user,
+        action='Product Unlisted',
+        item_type='Product',
+        item_name=product.name,
+        details=f'Unlisted ID:{product.id}. Reason: {reason}',
+    )
+    messages.success(request, f'“{product.name}” has been unlisted.')
+    return redirect('cbrgu_products')
+
+
+@login_required
+@user_passes_test(is_management)
+@require_POST
+def management_list_product(request, product_id):
+    product = get_object_or_404(
+        Product, id=product_id, seller__user_role='management', status='Unlisted'
+    )
+    product.status = 'Approved'
+    product.save(update_fields=['status'])
+    log_action(
+        user=request.user,
+        action='Product Listed',
+        item_type='Product',
+        item_name=product.name,
+        details=f'Re-listed ID:{product.id} as Approved.',
+    )
+    messages.success(request, f'“{product.name}” is now active on the marketplace.')
+    return redirect('cbrgu_products')
 
 @login_required
 @user_passes_test(is_management)

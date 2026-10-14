@@ -174,4 +174,6 @@ urlpatterns = [
     
     path('management/admin/add-accounts/', management_views.add_accounts, name='add_accounts'),
     path('management/admin/all-users/', management_views.all_users, name='all_users'),
+    path('management/product/<int:product_id>/unlist-form/', management_views.management_unlist_product_form, name='management.product_unlist_form'),
+    path('management/product/<int:product_id>/list/', management_views.management_list_product, name='management.product_list'),
 ]

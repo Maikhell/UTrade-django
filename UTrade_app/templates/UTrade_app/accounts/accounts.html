@@ -292,7 +292,7 @@
 
       {% elif user.is_officer or user.user_role == 'org_officer' %}
         <div class="col-12">
-          <a href="#"
+          <a href="{% url 'organization_panel' %}"
              class="card h-100 p-3 p-md-4 rounded-4 bg-light text-dark action-card border-warning-hover text-decoration-none">
             {% if org_pending_count %}
               <span class="notif-bubble">{{ org_pending_count }}</span>

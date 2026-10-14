@@ -99,6 +99,24 @@ urlpatterns = [
     # =========================================================================
     path('organization/update/<str:item_type>/<int:item_id>/', organization_views.update_status_org, name='org.update_status'),
     path('organization/generate-pdf/', reports_views.generate_pdf_orgs, name='generate.pdf.orgs'),
+    path('organization/panel/', organization_views.organization_panel, name='organization.panel'),
+    path('organization/sales-chart/', organization_views.org_sales_chart_data, name='org_sales_chart'),
+    path('organization/products/', organization_views.org_products, name='org_products'),
+    path('organization/product/<int:product_id>/', organization_views.org_product_details, name='org_product_details'),
+    path('organization/product/<int:pk>/edit/', organization_views.org_product_edit, name='org_product_edit'),
+    path('organization/product/<int:product_id>/unlist/', organization_views.org_unlist_product, name='org_unlist_product'),
+    path('organization/product/<int:product_id>/list/', organization_views.org_list_product, name='org_list_product'),
+    path('organization/variant/<int:pk>/delete/', organization_views.org_variant_delete, name='org_variant_delete'),
+    path('organization/product/<int:pk>/update/', organization_views.OrgProductUpdateView.as_view(), name='org_product_update'),
+    path('organization/orders/', organization_views.organization_orders, name='organization_orders'),
+    path('organization/orders/batch/', organization_views.organization_orders_batch, name='organization_orders_batch'),
+    path('organization/preorders/', organization_views.organization_preorders, name='organization_preorders'),
+    path('organization/preorders/batch/', organization_views.organization_preorders_batch, name='organization_preorders_batch'),
+    path('organization/remittance/', organization_views.org_remittance_view, name='org_remittance_view'),
+    # path('organization/pending-verification/', organization_views.org_pending_verification, name='org_pending_verification'),
+    path('organization/update/<str:item_type>/<int:item_id>/', organization_views.update_status_org, name='update_status_org'),
+    # path('organization/sales-report/', organization_views.org_sales_report, name='org_sales_report'),
+    # path('organization/preorder-report/', organization_views.org_preorder_report, name='org_preorder_report'),
 
     # =========================================================================
     # Alumni Dashboard & Reports

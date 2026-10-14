@@ -928,7 +928,7 @@ def product_edit(request, pk):
             ('Thursday', 'Thu'), ('Friday', 'Fri'), ('Saturday', 'Sat'),
         ],
     }
-    return render(request, 'UTrade_app/products/edit_product.html', context)
+    return render(request, 'UTrade_app/management/actions/edit_product.html', context)
 
 
 @transaction.atomic

@@ -171,10 +171,16 @@ class ManagementPanelView(LoginRequiredMixin, View):
 class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Product
     form_class = ProductForm
-    template_name = 'UTrade_app/management/actions/edit_product.html'  # ← fix this
+    template_name = 'UTrade_app/management/actions/edit_product.html'
 
     def test_func(self):
-        return self.get_object().seller_id == self.request.user.id
+        obj = self.get_object()
+        user = self.request.user
+        return (
+            obj.seller_id == user.id
+            or getattr(user, 'user_role', None) == 'management'
+        )
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         product = self.object
@@ -192,49 +198,43 @@ class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             ],
         })
         return context
+
     def form_valid(self, form):
         product = form.save(commit=False)
-        product.status = 'Pending'  # force re-review after edit
+        product.status = 'Pending'
         product.save()
 
-        # Optional: update variants from POST JSON
-        variants_raw = self.request.POST.get('variants')
+        variants_raw = (
+            self.request.POST.get('variants_json')
+            or self.request.POST.get('variants')
+        )
         if variants_raw:
-            import json
             try:
                 variants = json.loads(variants_raw)
             except json.JSONDecodeError:
                 variants = []
             for v in variants:
                 vid = v.get('id')
+                payload = {
+                    'variant_name': v.get('name', ''),
+                    'attribute_value': v.get('attribute', ''),
+                    'price': v.get('price') or 0,
+                    'stocks': v.get('stock') or 0,
+                    'condition': v.get('condition', 'Brand New'),
+                    'flaws_description': v.get('flaws', ''),
+                }
                 if vid:
-                    ProductVariant.objects.filter(
-                        id=vid, product=product
-                    ).update(
-                        variant_name=v.get('name', ''),
-                        attribute_value=v.get('attribute', ''),
-                        price=v.get('price') or 0,
-                        stocks=v.get('stock') or 0,
-                        condition=v.get('condition', 'Brand New'),
-                        flaws_description=v.get('flaws', ''),
-                    )
+                    ProductVariant.objects.filter(id=vid, product=product).update(**payload)
                 else:
-                    ProductVariant.objects.create(
-                        product=product,
-                        variant_name=v.get('name', ''),
-                        attribute_value=v.get('attribute', ''),
-                        price=v.get('price') or 0,
-                        stocks=v.get('stock') or 0,
-                        condition=v.get('condition', 'Brand New'),
-                        flaws_description=v.get('flaws', ''),
-                    )
+                    ProductVariant.objects.create(product=product, **payload)
 
         messages.warning(
             self.request,
-            f'“{product.name}” was updated and sent back to Management for approval. '
-            f'It is hidden from the marketplace until approved again.'
+            f'“{product.name}” was updated and sent back for approval.'
         )
-        return redirect('seller_inventory')
+        if getattr(self.request.user, 'user_role', None) == 'management':
+            return redirect('cbrgu_products')
+        return redirect('dashboard')
     
 def update_status(request, type, id):
     new_status = request.GET.get('status')

@@ -29,7 +29,6 @@ urlpatterns = [
     path('browse/', items_views.ProductListView.as_view(), name='product.list'),
     path('addproduct/', items_views.ProductCreateView.as_view(), name='product.create'),
     path('product/<int:pk>/', items_views.ProductDetailView.as_view(), name='product.detail'),
-    path('product/<int:pk>/edit/', user_views.ProductUpdateView.as_view(), name='product.edit'),
     path('product/<int:pk>/delete/', user_views.ProductDeleteView.as_view(), name='product.delete'),
     path('product/<int:product_id>/variant/create/', user_views.variant_create, name='variant.create'),
     path('variant/<int:pk>/delete/', management_views.variant_delete, name='variant.delete'),
@@ -176,5 +175,5 @@ urlpatterns = [
     path('management/admin/all-users/', management_views.all_users, name='all_users'),
     path('management/product/<int:product_id>/unlist-form/', management_views.management_unlist_product_form, name='management.product_unlist_form'),
     path('management/product/<int:product_id>/list/', management_views.management_list_product, name='management.product_list'),
-    path('product/<int:pk>/edit/', management_views.ProductUpdateView.as_view(), name='product.edits'),
+    path('product/<int:pk>/edit/', management_views.ProductUpdateView.as_view(), name='product.edit'),
 ]

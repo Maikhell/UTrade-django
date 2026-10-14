@@ -129,7 +129,7 @@
                 {% if org_type == 'academic' and org_acronym != 'CSG' %}
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="{% url 'org_pending_verification' %}">
+                     href="#">
                     <i class="bi bi-person-check text-success"></i> Pending Verification
                     {% if pending_verification_count %}
                       <span class="badge bg-warning text-dark rounded-pill ms-auto">{{ pending_verification_count }}</span>
@@ -170,9 +170,9 @@
               <i class="bi bi-file-earmark-pdf me-1"></i> Sales Report
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
-              <li><a class="dropdown-item" href="{% url 'org_sales_report' %}?period=7d">Last 7 days</a></li>
-              <li><a class="dropdown-item" href="{% url 'org_sales_report' %}?period=30d">Last 30 days</a></li>
-              <li><a class="dropdown-item" href="{% url 'org_sales_report' %}?period=all">All time</a></li>
+              <li><a class="dropdown-item" href="#">Last 7 days</a></li>
+              <li><a class="dropdown-item" href="#">Last 30 days</a></li>
+              <li><a class="dropdown-item" href="#">All time</a></li>
             </ul>
           </div>
           <div class="dropdown">
@@ -181,7 +181,7 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
               <li>
-                <a class="dropdown-item" href="{% url 'org_preorder_report' %}?scope=all" target="_blank">All pre-orders</a>
+                <a class="dropdown-item" href="#">All pre-orders</a>
               </li>
             </ul>
           </div>

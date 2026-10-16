@@ -103,6 +103,15 @@
                     <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count|default:0 }}</span>
                   </a>
                 </li>
+                 <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="{% url 'org_remittance_view' %}">
+                    <i class="bi bi-cash-stack text-success"></i> Remittance
+                  </a>
+                </li>
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-cart-fill"></i> Orders
+              </div>
                 <li class="nav-item">
                   <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
                      href="{% url 'organization_orders' %}">
@@ -118,13 +127,9 @@
                     {% endif %}
                   </a>
                 </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="{% url 'org_remittance_view' %}">
-                    <i class="bi bi-cash-stack text-success"></i> Remittance
-                  </a>
-                </li>
-
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-cart-fill"></i> Users
+              </div>
                 {# Pending Verification: Academic only, hide for CSG and Non-Academic #}
                 {% if org_type == 'academic' and org_acronym != 'CSG' %}
                 <li class="nav-item">
@@ -137,6 +142,12 @@
                   </a>
                 </li>
                 {% endif %}
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                     href="#">
+                    <i class="bi bi-people text-success"></i> Users
+                  </a>
+                </li>
               </ul>
             </div>
 

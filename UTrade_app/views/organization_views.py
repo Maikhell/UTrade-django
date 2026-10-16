@@ -1458,3 +1458,68 @@ def org_view_remittance_receipt(request, ledger_id):
         "UTrade_app/reports/remittance_receipt.html",
         context,
     )
+@login_required
+@user_passes_test(is_organization)
+def org_pending_verification(request):
+    org = _require_org(request.user)
+    if not org:
+        messages.error(request, "No organization linked to your account.")
+        return redirect("organization.panel")
+
+    org_type = (getattr(org, "org_type", None) or "academic").lower()
+    if org_type != "academic" or (org.name or "").upper() == "CSG":
+        messages.info(request, "Pending verification is not available for this organization.")
+        return redirect("organization.panel")
+
+    search = request.GET.get("search", "").strip()
+    status_filter = (request.GET.get("status") or "pending").strip().lower()
+    course_code = (org.course_code or "").strip()
+
+    # Only students whose course matches this org (e.g. BSIT)
+    qs = User.objects.filter(user_role="student").order_by("-date_joined")
+    if course_code:
+        qs = qs.filter(course__iexact=course_code)
+    else:
+        qs = qs.filter(org_link=org)
+
+    if status_filter == "pending":
+        qs = qs.filter(status__in=["pending", "Pending", "unverified"])
+    elif status_filter == "verified":
+        qs = qs.filter(status="verified")
+    # "all" → no status filter
+
+    if search:
+        qs = qs.filter(
+            Q(first_name__icontains=search)
+            | Q(last_name__icontains=search)
+            | Q(email__icontains=search)
+            | Q(student_no__icontains=search)
+            | Q(display_name__icontains=search)
+            | Q(username__icontains=search)
+        )
+
+    pending_count = User.objects.filter(
+        user_role="student",
+        status__in=["pending", "Pending", "unverified"],
+    )
+    if course_code:
+        pending_count = pending_count.filter(course__iexact=course_code)
+    else:
+        pending_count = pending_count.filter(org_link=org)
+
+    paginator = Paginator(qs, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        **_sidebar_context(request.user),
+        "org": org,
+        "page_obj": page_obj,
+        "search": search,
+        "status_filter": status_filter,
+        "pending_count": pending_count.count(),
+    }
+    return render(
+        request,
+        "UTrade_app/organization/actions/pending_verification.html",
+        context,
+    )

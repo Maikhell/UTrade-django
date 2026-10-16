@@ -1455,6 +1455,6 @@ def org_view_remittance_receipt(request, ledger_id):
     }
     return render(
         request,
-        "UTrade_app/organization/organization_panel/remittance_receipt.html",
+        "UTrade_app/reports/remittance_receipt.html",
         context,
     )

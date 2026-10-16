@@ -431,7 +431,7 @@ async function addToStaging() {
     didOpen: () => Swal.showLoading(),
   });
 
-  try {
+try {
     const response = await fetch("/api/staged-product/add/", {
       method: "POST",
       headers: {
@@ -440,7 +440,21 @@ async function addToStaging() {
       body: formData,
     });
 
-    const result = await response.json();
+    // Always read as text first so we never crash on HTML
+    const raw = await response.text();
+    let result;
+    try {
+      result = JSON.parse(raw);
+    } catch (parseErr) {
+      console.error("Non-JSON response from server:", raw.slice(0, 1000));
+      Swal.fire(
+        "Server Error",
+        `Status ${response.status}. The server returned HTML instead of JSON.\n\nCheck the Django terminal for the traceback.`,
+        "error",
+      );
+      return;
+    }
+
     if (result.status !== "success") {
       throw new Error(result.message || "Server error.");
     }

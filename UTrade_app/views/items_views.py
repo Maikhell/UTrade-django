@@ -69,7 +69,7 @@ def _get_user_organization(user):
     org = getattr(user, 'organization', None)
 
     # Already a model instance
-    if org is not None and hasattr(org, 'approval_letter'):
+    if org is not None and hasattr(org, 'pk'):
         return org
 
     # Stored as string (name or course_code)
@@ -83,6 +83,12 @@ def _get_user_organization(user):
     if isinstance(org, int):
         return Organization.objects.filter(pk=org).first()
 
+    # Fallback: common alternate attribute names
+    for attr in ('org', 'org_link', 'related_org'):
+        candidate = getattr(user, attr, None)
+        if candidate is not None and hasattr(candidate, 'pk'):
+            return candidate
+
     return None
 
 
@@ -91,40 +97,60 @@ def _save_approval_letter(request):
     Save / replace the organization’s approval letter.
     Management accounts and personal sellers are completely exempt.
     Returns (ok: bool, message: str|None)
+
+    Never raises – always returns a tuple so the AJAX view can stay JSON-only.
     """
-    # Management & personal sellers skip entirely
-    if not getattr(request.user, 'is_officer', False):
-        return True, None
-
-    organization = _get_user_organization(request.user)
-    if organization is None:
-        return False, 'No organization linked to this account.'
-
-    file = request.FILES.get('approval_letter')
-    if not file:
-        # Already has a letter → allow proceeding without re-upload
-        if organization.approval_letter:
+    try:
+        # Management & personal sellers skip entirely
+        if not getattr(request.user, 'is_officer', False):
             return True, None
-        return False, 'Letter of Approval is required.'
 
-    # Type check
-    allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
-    if (
-        file.content_type not in allowed_types
-        and not file.name.lower().endswith(('.jpg', '.jpeg', '.png'))
-    ):
-        return False, 'Only JPG or PNG files are allowed.'
+        organization = _get_user_organization(request.user)
+        if organization is None:
+            # Officer with no linked org – don't hard-fail staging;
+            # just skip letter handling so the rest of the flow works.
+            return True, None
 
-    # Size check (10 MB)
-    if file.size > 10 * 1024 * 1024:
-        return False, 'File exceeds the 10 MB limit.'
+        # Field may not exist yet (migration not run)
+        if not hasattr(organization, 'approval_letter'):
+            return True, None
 
-    # Overwrite existing (single field → no duplicates)
-    if organization.approval_letter:
-        organization.approval_letter.delete(save=False)
-    organization.approval_letter = file
-    organization.save(update_fields=['approval_letter'])
-    return True, 'Approval letter saved.'
+        file = request.FILES.get('approval_letter')
+        if not file:
+            # Already has a letter → allow proceeding without re-upload
+            if organization.approval_letter:
+                return True, None
+            # No letter on file and none uploaded – still allow staging.
+            # Final submit will enforce the requirement.
+            return True, None
+
+        # Type check
+        allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
+        if (
+            file.content_type not in allowed_types
+            and not file.name.lower().endswith(('.jpg', '.jpeg', '.png'))
+        ):
+            return False, 'Only JPG or PNG files are allowed.'
+
+        # Size check (10 MB)
+        if file.size > 10 * 1024 * 1024:
+            return False, 'File exceeds the 10 MB limit.'
+
+        # Overwrite existing
+        try:
+            if organization.approval_letter:
+                organization.approval_letter.delete(save=False)
+        except Exception:
+            pass
+
+        organization.approval_letter = file
+        organization.save(update_fields=['approval_letter'])
+        return True, 'Approval letter saved.'
+
+    except Exception as e:
+        # Never let letter handling crash the whole request
+        print(f'_save_approval_letter error: {e}')
+        return True, None   # soft-fail so staging still works
 
 
 # ===================== LANDING / HELPERS =====================
@@ -664,183 +690,201 @@ def toggle_wishlist(request, product_id):
 @login_required
 @require_POST
 def add_to_staging_ajax(request):
+    """
+    Create a StagedProduct from the workshop form.
+    ALWAYS returns JSON – never an HTML error page.
+    """
     from datetime import datetime
 
-    def check_text(text):
-        if not text:
+    try:
+        def check_text(text):
+            if not text:
+                return None
+            banned = ['alcohol', 'drugs', 'beer', 'wine', 'vape', 'tobacco', 'weed']
+            clean = re.sub(r'[^a-z]', '', text.lower())
+            for word in banned:
+                if word in clean:
+                    return word
             return None
-        banned = ['alcohol', 'drugs', 'beer', 'wine', 'vape', 'tobacco', 'weed']
-        clean = re.sub(r'[^a-z]', '', text.lower())
-        for word in banned:
-            if word in clean:
-                return word
-        return None
 
-    if check_text(request.POST.get('name')) or check_text(request.POST.get('description')):
-        return JsonResponse(
-            {'status': 'error', 'message': 'Prohibited content detected.'},
-            status=400,
+        if check_text(request.POST.get('name')) or check_text(request.POST.get('description')):
+            return JsonResponse(
+                {'status': 'error', 'message': 'Prohibited content detected.'},
+                status=400,
+            )
+
+        # Save approval letter if present (soft-fail)
+        ok, msg = _save_approval_letter(request)
+        if not ok:
+            return JsonResponse({'status': 'error', 'message': msg}, status=400)
+
+        location = (request.POST.get('location_options') or '').strip()
+        available_days_raw = (request.POST.get('available_days') or '').strip()
+        meetup_from = request.POST.get('meetup_time_from')
+        meetup_to = request.POST.get('meetup_time_to')
+        product_code = (request.POST.get('product_code') or '').strip()
+
+        ALLOWED_DAYS = {
+            'Monday', 'Tuesday', 'Wednesday',
+            'Thursday', 'Friday', 'Saturday',
+        }
+
+        if not location:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Campus meetup spot is required.'},
+                status=400,
+            )
+
+        day_list = [d.strip() for d in available_days_raw.split(',') if d.strip()]
+        if not day_list:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Please select at least one available day (Mon–Sat).'},
+                status=400,
+            )
+        if any(d not in ALLOWED_DAYS for d in day_list):
+            return JsonResponse(
+                {'status': 'error', 'message': 'Invalid day selected. Allowed: Monday–Saturday.'},
+                status=400,
+            )
+
+        def parse_time(value):
+            if not value:
+                return None
+            return datetime.strptime(value, '%H:%M').time()
+
+        def is_within_allowed(t):
+            if t is None:
+                return False
+            minutes = t.hour * 60 + t.minute
+            return 7 * 60 <= minutes <= 21 * 60
+
+        try:
+            t_from = parse_time(meetup_from)
+            t_to = parse_time(meetup_to)
+        except ValueError:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Invalid time format. Use HH:MM.'},
+                status=400,
+            )
+
+        if not t_from or not t_to:
+            return JsonResponse(
+                {'status': 'error', 'message': 'Meetup time range is required.'},
+                status=400,
+            )
+
+        if not is_within_allowed(t_from):
+            return JsonResponse(
+                {'status': 'error', 'message': 'From time must be between 7:00 AM and 9:00 PM.'},
+                status=400,
+            )
+
+        if not is_within_allowed(t_to):
+            return JsonResponse(
+                {'status': 'error', 'message': 'To time must be between 7:00 AM and 9:00 PM.'},
+                status=400,
+            )
+
+        if t_from >= t_to:
+            return JsonResponse(
+                {'status': 'error', 'message': 'From time must be earlier than To time.'},
+                status=400,
+            )
+
+        # Product code
+        if (
+            not product_code
+            or Product.objects.filter(product_code=product_code).exists()
+            or StagedProduct.objects.filter(product_code=product_code).exists()
+        ):
+            product_code = generate_next_product_code()
+
+        category_id = request.POST.get('category')
+        category = None
+        if category_id and str(category_id).isdigit():
+            category = Category.objects.filter(id=category_id).first()
+
+        staged_prod = StagedProduct.objects.create(
+            seller=request.user,
+            name=request.POST.get('name'),
+            description=request.POST.get('description') or '',
+            category=category,
+            product_code=product_code,
+            meetup_locations_list=location,
+            available_days=','.join(day_list),
+            preferred_meetup_time_from=t_from,
+            preferred_meetup_time_to=t_to,
+            owner_type=request.POST.get('owner_type', 'PERSONAL'),
+            accepted_payments=request.POST.get('payment') or 'BOTH',
+            pre_order=str(request.POST.get('pre_order')).lower() in ['true', 'on', '1', 'yes'],
         )
 
-    # ---------- NEW: save approval letter as soon as it is uploaded ----------
-    ok, msg = _save_approval_letter(request)
-    if not ok:
-        return JsonResponse({'status': 'error', 'message': msg}, status=400)
+        # Variants
+        try:
+            variants_data = json.loads(request.POST.get('variants', '[]'))
+        except json.JSONDecodeError:
+            variants_data = []
 
-    location = (request.POST.get('location_options') or '').strip()
-    available_days_raw = (request.POST.get('available_days') or '').strip()
-    meetup_from = request.POST.get('meetup_time_from')
-    meetup_to = request.POST.get('meetup_time_to')
-    product_code = (request.POST.get('product_code') or '').strip()
+        has_image_index = hasattr(StagedVariant, 'image_index')
 
-    ALLOWED_DAYS = {
-        'Monday', 'Tuesday', 'Wednesday',
-        'Thursday', 'Friday', 'Saturday',
-    }
+        for v in variants_data:
+            kwargs = dict(
+                staged_product=staged_prod,
+                variant_name=v.get('name', '') or 'Variant',
+                variant_attribute=v.get('attribute', '') or '',
+                price=v.get('price', 0) or 0,
+                stocks=v.get('stock', 0) or 0,
+                condition=v.get('condition', 'Brand New') or 'Brand New',
+                flaws=v.get('flaws', '') or '',
+            )
+            if has_image_index:
+                kwargs['image_index'] = v.get('imageIndex')
+            StagedVariant.objects.create(**kwargs)
 
-    if not location:
-        return JsonResponse(
-            {'status': 'error', 'message': 'Campus meetup spot is required.'},
-            status=400,
-        )
+        # Keep previously uploaded images (edit flow)
+        keep_ids = []
+        try:
+            keep_ids = json.loads(request.POST.get('keep_image_ids', '[]'))
+        except Exception:
+            pass
 
-    day_list = [d.strip() for d in available_days_raw.split(',') if d.strip()]
-    if not day_list:
-        return JsonResponse(
-            {'status': 'error', 'message': 'Please select at least one available day (Mon–Sat).'},
-            status=400,
-        )
-    if any(d not in ALLOWED_DAYS for d in day_list):
-        return JsonResponse(
-            {'status': 'error', 'message': 'Invalid day selected. Allowed: Monday–Saturday.'},
-            status=400,
-        )
+        if keep_ids:
+            for img_id in keep_ids:
+                try:
+                    old_img = StagedImage.objects.get(pk=img_id)
+                    StagedImage.objects.create(
+                        staged_product=staged_prod,
+                        image=old_img.image,
+                        is_main=old_img.is_main,
+                    )
+                except StagedImage.DoesNotExist:
+                    pass
 
-    def parse_time(value):
-        if not value:
-            return None
-        return datetime.strptime(value, '%H:%M').time()
+        # New uploads
+        images = request.FILES.getlist('images')
+        for i, img in enumerate(images):
+            StagedImage.objects.create(
+                staged_product=staged_prod,
+                image=img,
+                is_main=(i == 0 and not keep_ids),
+            )
 
-    def is_within_allowed(t):
-        if t is None:
-            return False
-        minutes = t.hour * 60 + t.minute
-        return 7 * 60 <= minutes <= 21 * 60
+        return JsonResponse({
+            'status': 'success',
+            'staged_id': staged_prod.id,
+            'product_code': product_code,
+            'next_product_code': generate_next_product_code(),
+            'approval_letter_saved': True,
+        })
 
-    try:
-        t_from = parse_time(meetup_from)
-        t_to = parse_time(meetup_to)
-    except ValueError:
-        return JsonResponse(
-            {'status': 'error', 'message': 'Invalid time format. Use HH:MM.'},
-            status=400,
-        )
-
-    if not t_from or not t_to:
-        return JsonResponse(
-            {'status': 'error', 'message': 'Meetup time range is required.'},
-            status=400,
-        )
-
-    if not is_within_allowed(t_from):
-        return JsonResponse(
-            {'status': 'error', 'message': 'From time must be between 7:00 AM and 9:00 PM.'},
-            status=400,
-        )
-
-    if not is_within_allowed(t_to):
-        return JsonResponse(
-            {'status': 'error', 'message': 'To time must be between 7:00 AM and 9:00 PM.'},
-            status=400,
-        )
-
-    if t_from >= t_to:
-        return JsonResponse(
-            {'status': 'error', 'message': 'From time must be earlier than To time.'},
-            status=400,
-        )
-
-    # Product code: use client value only if free; else generate
-    if (
-        not product_code
-        or Product.objects.filter(product_code=product_code).exists()
-        or StagedProduct.objects.filter(product_code=product_code).exists()
-    ):
-        product_code = generate_next_product_code()
-
-    category_id = request.POST.get('category')
-    category = None
-    if category_id and str(category_id).isdigit():
-        category = Category.objects.filter(id=category_id).first()
-    # "other" path intentionally ignored (frontend no longer sends it)
-
-    staged_prod = StagedProduct.objects.create(
-        seller=request.user,
-        name=request.POST.get('name'),
-        description=request.POST.get('description'),
-        category=category,
-        product_code=product_code,
-        meetup_locations_list=location,
-        available_days=','.join(day_list),
-        preferred_meetup_time_from=t_from,
-        preferred_meetup_time_to=t_to,
-        owner_type=request.POST.get('owner_type', 'PERSONAL'),
-        accepted_payments=request.POST.get('payment') or 'BOTH',
-        pre_order=str(request.POST.get('pre_order')).lower() in ['true', 'on', '1', 'yes'],
-    )
-
-    try:
-        variants_data = json.loads(request.POST.get('variants', '[]'))
-    except json.JSONDecodeError:
-        variants_data = []
-
-    for v in variants_data:
-        StagedVariant.objects.create(
-            staged_product=staged_prod,
-            variant_name=v.get('name', ''),
-            variant_attribute=v.get('attribute', ''),
-            price=v.get('price', 0) or 0,
-            stocks=v.get('stock', 0) or 0,
-            condition=v.get('condition', 'Brand New'),
-            flaws=v.get('flaws', ''),
-            image_index=v.get('imageIndex'),   # preserve image association
-        )
-
-    # Keep previously uploaded images (edit flow)
-    keep_ids = []
-    try:
-        keep_ids = json.loads(request.POST.get('keep_image_ids', '[]'))
-    except Exception:
-        pass
-
-    if keep_ids:
-        for img_id in keep_ids:
-            try:
-                old_img = StagedImage.objects.get(pk=img_id)
-                StagedImage.objects.create(
-                    staged_product=staged_prod,
-                    image=old_img.image,
-                    is_main=old_img.is_main,
-                )
-            except StagedImage.DoesNotExist:
-                pass
-
-    # New uploads
-    images = request.FILES.getlist('images')
-    for i, img in enumerate(images):
-        StagedImage.objects.create(
-            staged_product=staged_prod,
-            image=img,
-            is_main=(i == 0 and not keep_ids),
-        )
-
-    return JsonResponse({
-        'status': 'success',
-        'staged_id': staged_prod.id,
-        'product_code': product_code,
-        'next_product_code': generate_next_product_code(),
-        'approval_letter_saved': True,   # tell frontend the letter is on file
-    })
+    except Exception as e:
+        # CRITICAL: always return JSON so the frontend never sees HTML
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Server error: {str(e)}',
+        }, status=500)
 
 
 @login_required

@@ -348,8 +348,21 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const revenueLabels = JSON.parse("{{ revenue_labels_json|default:'[]'|escapejs }}");
-  const revenueData   = JSON.parse("{{ revenue_data_json|default:'[]'|escapejs }}");
+  function safeParse(raw, fallback) {
+    try {
+      const v = JSON.parse(raw);
+      return Array.isArray(v) ? v : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  const emptyDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const emptyZeros = [0, 0, 0, 0, 0, 0, 0];
+
+  const revenueLabels = safeParse("{{ revenue_labels_json|default:'[]'|escapejs }}", emptyDays);
+  const revenueData   = safeParse("{{ revenue_data_json|default:'[]'|escapejs }}", emptyZeros);
+
   const ordersStatusData = {
     incoming: {{ incoming_orders_count|default:0 }},
     accepted: {{ accepted_orders_count|default:0 }},
@@ -360,12 +373,13 @@ document.addEventListener('DOMContentLoaded', function () {
     ready: {{ ready_preorder_count|default:0 }},
     completed: {{ completed_preorder_count|default:0 }}
   };
-  const topProductsLabels = JSON.parse("{{ top_products_labels_json|default:'[]'|escapejs }}");
-  const topProductsData   = JSON.parse("{{ top_products_data_json|default:'[]'|escapejs }}");
-  const ordersOverTimeLabels = JSON.parse("{{ orders_over_time_labels_json|default:'[]'|escapejs }}");
-  const ordersOverTimeData   = JSON.parse("{{ orders_over_time_data_json|default:'[]'|escapejs }}");
-  const preordersOverTimeLabels = JSON.parse("{{ preorders_over_time_labels_json|default:'[]'|escapejs }}");
-  const preordersOverTimeData   = JSON.parse("{{ preorders_over_time_data_json|default:'[]'|escapejs }}");
+
+  const topProductsLabels = safeParse("{{ top_products_labels_json|default:'[]'|escapejs }}", ['No Sales Yet']);
+  const topProductsData   = safeParse("{{ top_products_data_json|default:'[]'|escapejs }}", [0]);
+  const ordersOverTimeLabels = safeParse("{{ orders_over_time_labels_json|default:'[]'|escapejs }}", emptyDays);
+  const ordersOverTimeData   = safeParse("{{ orders_over_time_data_json|default:'[]'|escapejs }}", emptyZeros);
+  const preordersOverTimeLabels = safeParse("{{ preorders_over_time_labels_json|default:'[]'|escapejs }}", emptyDays);
+  const preordersOverTimeData   = safeParse("{{ preorders_over_time_data_json|default:'[]'|escapejs }}", emptyZeros);
 
   const revenueCtx = document.getElementById('revenueChart');
   if (revenueCtx) {
@@ -374,17 +388,30 @@ document.addEventListener('DOMContentLoaded', function () {
       data: {
         labels: revenueLabels,
         datasets: [{
-          label: 'Revenue (₱)', data: revenueData,
-          borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)',
-          borderWidth: 2.5, fill: true, tension: 0.4,
-          pointBackgroundColor: '#0d6efd', pointRadius: 4
+          label: 'Revenue (₱)',
+          data: revenueData,
+          borderColor: '#0d6efd',
+          backgroundColor: 'rgba(13, 110, 253, 0.1)',
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#0d6efd',
+          pointRadius: 4
         }]
       },
       options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => '₱' + ctx.parsed.y.toLocaleString() } } },
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => '₱' + ctx.parsed.y.toLocaleString() } }
+        },
         scales: {
-          y: { beginAtZero: true, ticks: { callback: v => '₱' + v.toLocaleString() }, grid: { color: 'rgba(0,0,0,0.05)' } },
+          y: {
+            beginAtZero: true,
+            ticks: { callback: v => '₱' + v.toLocaleString() },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
           x: { grid: { display: false } }
         }
       }
@@ -396,10 +423,21 @@ document.addEventListener('DOMContentLoaded', function () {
     new Chart(statusCtx, {
       type: 'doughnut',
       data: {
-        labels: ['Incoming', 'Ready for Meetup', 'Completed'],
-        datasets: [{ data: [ordersStatusData.incoming, ordersStatusData.accepted, ordersStatusData.completed], backgroundColor: ['#0d6efd', '#198754', '#6c757d'], borderWidth: 0 }]
+        labels: ['Incoming', 'Accepted', 'Completed'],
+        datasets: [{
+          data: [ordersStatusData.incoming, ordersStatusData.accepted, ordersStatusData.completed],
+          backgroundColor: ['#0d6efd', '#198754', '#6c757d'],
+          borderWidth: 0
+        }]
       },
-      options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } }
+        }
+      }
     });
   }
 
@@ -409,11 +447,23 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'bar',
       data: {
         labels: topProductsLabels.length ? topProductsLabels : ['No data'],
-        datasets: [{ label: 'Units Sold', data: topProductsData.length ? topProductsData : [0], backgroundColor: 'rgba(13, 110, 253, 0.8)', borderRadius: 6, barThickness: 18 }]
+        datasets: [{
+          label: 'Units Sold',
+          data: topProductsData.length ? topProductsData : [0],
+          backgroundColor: 'rgba(13, 110, 253, 0.8)',
+          borderRadius: 6,
+          barThickness: 18
+        }]
       },
       options: {
-        indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } }, y: { grid: { display: false } } }
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+          y: { grid: { display: false } }
+        }
       }
     });
   }
@@ -424,11 +474,26 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'bar',
       data: {
         labels: ordersOverTimeLabels,
-        datasets: [{ label: 'Orders', data: ordersOverTimeData, backgroundColor: 'rgba(25, 135, 84, 0.8)', borderRadius: 6, barThickness: 28 }]
+        datasets: [{
+          label: 'Orders',
+          data: ordersOverTimeData,
+          backgroundColor: 'rgba(25, 135, 84, 0.8)',
+          borderRadius: 6,
+          barThickness: 28
+        }]
       },
       options: {
-        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } }
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          x: { grid: { display: false } }
+        }
       }
     });
   }
@@ -439,9 +504,20 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'doughnut',
       data: {
         labels: ['Incoming', 'Ready', 'Completed'],
-        datasets: [{ data: [preordersStatusData.incoming, preordersStatusData.ready, preordersStatusData.completed], backgroundColor: ['#0dcaf0', '#198754', '#6c757d'], borderWidth: 0 }]
+        datasets: [{
+          data: [preordersStatusData.incoming, preordersStatusData.ready, preordersStatusData.completed],
+          backgroundColor: ['#0dcaf0', '#198754', '#6c757d'],
+          borderWidth: 0
+        }]
       },
-      options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } }
+        }
+      }
     });
   }
 
@@ -451,16 +527,32 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'bar',
       data: {
         labels: preordersOverTimeLabels,
-        datasets: [{ label: 'Pre-Orders', data: preordersOverTimeData, backgroundColor: 'rgba(13, 202, 240, 0.8)', borderRadius: 6, barThickness: 28 }]
+        datasets: [{
+          label: 'Pre-Orders',
+          data: preordersOverTimeData,
+          backgroundColor: 'rgba(13, 202, 240, 0.8)',
+          borderRadius: 6,
+          barThickness: 28
+        }]
       },
       options: {
-        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } }
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1 },
+            grid: { color: 'rgba(0,0,0,0.05)' }
+          },
+          x: { grid: { display: false } }
+        }
       }
     });
   }
 });
 </script>
+
 
 {% endwith %}
 {% endwith %}

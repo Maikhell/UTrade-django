@@ -1159,22 +1159,152 @@ def organization_preorders_batch(request):
 @login_required
 @user_passes_test(is_organization)
 def organization_panel(request):
-    """Organization dashboard."""
-    ctx = _sidebar_context(request.user)
-    org = ctx.get("org")
+    """
+    Organization dashboard — stats + Chart.js data scoped to this org only.
+    """
+    user = request.user
+    org = _require_org(user)
+    now = timezone.now()
+    seven_days_ago = now - timedelta(days=7)
+    default_days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    default_zeros = [0, 0, 0, 0, 0, 0, 0]
 
-    products = _org_product_qs(request.user)
-    orders = _org_order_qs(request.user)
+    products = _org_product_qs(user)
+    seller_orders = _org_order_qs(user)
+    seller_preorders = (
+        _org_preorder_qs(user)
+        .select_related("buyer", "product_variant", "product_variant__product")
+        .order_by("-id")
+    )
+
+    # ---- Orders by status ----
+    incoming_orders_qs = seller_orders.filter(status__in=["Pending", "Paid"])
+    accepted_orders_qs = seller_orders.filter(status="Accepted")
+    ready_orders_qs = seller_orders.filter(status="Delivered")
+    completed_orders_qs = seller_orders.filter(status="Completed")
+
+    # Items from completed orders (this org’s products only)
+    completed_items = OrderItem.objects.filter(
+        order__in=completed_orders_qs,
+        product_variant__product__in=products,
+    )
+
+    # ---- Pre-orders by status ----
+    incoming_preorders_qs = seller_preorders.filter(
+        status__in=["PENDING", "Pending", "pending"]
+    )
+    ready_preorders_qs = seller_preorders.filter(
+        status__in=["READY", "Ready", "Ready for Pickup", "ACCEPTED", "Accepted"]
+    )
+    completed_preorders_qs = seller_preorders.filter(
+        status__in=["COMPLETED", "Completed"]
+    )
+
+    # ---- Stocks ----
+    try:
+        total_stocks = (
+            ProductVariant.objects.filter(product__in=products).aggregate(
+                total=Sum("stocks")
+            )["total"]
+        ) or 0
+    except Exception:
+        total_stocks = (
+            ProductVariant.objects.filter(product__in=products).aggregate(
+                total=Sum("stock")
+            )["total"]
+        ) or 0
+
+    total_orders = seller_orders.count()
+    total_preorders = seller_preorders.count()
+    total_income = completed_items.aggregate(
+        total=Sum(F("price") * F("quantity"))
+    )["total"] or Decimal("0.00")
+
+    # ---- Revenue last 7 days ----
+    revenue_daily = (
+        completed_items.filter(order__created_at__gte=seven_days_ago)
+        .annotate(date=TruncDate("order__created_at"))
+        .values("date")
+        .annotate(daily_revenue=Sum(F("price") * F("quantity")))
+        .order_by("date")
+    )
+    revenue_labels = [r["date"].strftime("%a") for r in revenue_daily if r["date"]]
+    revenue_data = [float(r["daily_revenue"] or 0) for r in revenue_daily]
+
+    # ---- Top products ----
+    top_products_qs = (
+        completed_items.values("product_variant__product__name")
+        .annotate(total_units=Sum("quantity"))
+        .order_by("-total_units")[:5]
+    )
+    top_products_labels = [
+        p["product_variant__product__name"] or "Unknown" for p in top_products_qs
+    ]
+    top_products_data = [p["total_units"] or 0 for p in top_products_qs]
+
+    # ---- Orders over time ----
+    orders_daily = (
+        seller_orders.filter(created_at__gte=seven_days_ago)
+        .annotate(date=TruncDate("created_at"))
+        .values("date")
+        .annotate(order_count=Count("id"))
+        .order_by("date")
+    )
+    orders_over_time_labels = [
+        o["date"].strftime("%a") for o in orders_daily if o["date"]
+    ]
+    orders_over_time_data = [o["order_count"] for o in orders_daily]
+
+    # ---- Pre-orders over time ----
+    preorders_daily = (
+        seller_preorders.filter(created_at__gte=seven_days_ago)
+        .annotate(date=TruncDate("created_at"))
+        .values("date")
+        .annotate(order_count=Count("id"))
+        .order_by("date")
+    )
+    preorders_over_time_labels = [
+        o["date"].strftime("%a") for o in preorders_daily if o["date"]
+    ]
+    preorders_over_time_data = [o["order_count"] for o in preorders_daily]
 
     context = {
-        **ctx,
+        "org": org,
+        "org_name": org.name if org else "Organization",
+        "products": products,
+        "total_stocks": total_stocks,
+        "total_orders": total_orders,
+        "total_preorders": total_preorders,
+        "total_income": f"{total_income:,.2f}",
         "active_products_count": products.filter(status="Approved").count(),
         "pending_products_count": products.filter(status="Pending").count(),
-        "incoming_orders_count": orders.filter(
-            status__in=["Pending", "Paid"]
-        ).count(),
-        "recent_orders": orders.order_by("-created_at")[:10],
-        "org_name": org.name if org else "Organization",
+        "incoming_orders_count": incoming_orders_qs.count(),
+        "accepted_orders_count": accepted_orders_qs.count(),
+        "ready_orders_count": ready_orders_qs.count(),
+        "completed_orders_count": completed_orders_qs.count(),
+        "incoming_preorder_count": incoming_preorders_qs.count(),
+        "ready_preorder_count": ready_preorders_qs.count(),
+        "completed_preorder_count": completed_preorders_qs.count(),
+        "recent_orders": seller_orders.order_by("-created_at")[:10],
+        # Chart JSON (always valid arrays so Chart.js never breaks)
+        "revenue_labels_json": json.dumps(revenue_labels or default_days),
+        "revenue_data_json": json.dumps(revenue_data or default_zeros),
+        "top_products_labels_json": json.dumps(
+            top_products_labels or ["No Sales Yet"]
+        ),
+        "top_products_data_json": json.dumps(top_products_data or [0]),
+        "orders_over_time_labels_json": json.dumps(
+            orders_over_time_labels or default_days
+        ),
+        "orders_over_time_data_json": json.dumps(
+            orders_over_time_data or default_zeros
+        ),
+        "preorders_over_time_labels_json": json.dumps(
+            preorders_over_time_labels or default_days
+        ),
+        "preorders_over_time_data_json": json.dumps(
+            preorders_over_time_data or default_zeros
+        ),
     }
     return render(
         request,

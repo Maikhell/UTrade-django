@@ -119,8 +119,10 @@ urlpatterns = [
     # path('organization/preorder-report/', organization_views.org_preorder_report, name='org_preorder_report'),
     path("organization/remittance/", organization_views.org_remittance_view, name="org_remittance_view"),
     path("organization/remittance/logs/", organization_views.org_remittance_logs, name="org_remittance_logs"),
-    path("organization/remittance/receipt/<int:ledger_id>/",organization_views.org_view_remittance_receipt,name="org_view_remittance_receipt",
-),
+    path("organization/remittance/receipt/<int:ledger_id>/",organization_views.org_view_remittance_receipt,name="org_view_remittance_receipt"),
+    path("organization/users/", organization_views.org_users, name="org_users"),
+    path("organization/users/message/", organization_views.org_message_user, name="org_message_user"),
+    path("organization/users/report/", organization_views.org_report_user, name="org_report_user"),
     # =========================================================================
     # Alumni Dashboard & Reports
     # =========================================================================

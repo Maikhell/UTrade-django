@@ -41,6 +41,7 @@ from ..models import (
     ProductImage,
     ProductVariant,
     User,
+    UserReport
 )
 from ..utils import log_action
 
@@ -1513,3 +1514,155 @@ def org_pending_verification(request):
         "UTrade_app/organization/actions/pending_verification.html",
         context,
     )
+    
+@login_required
+@user_passes_test(is_organization)
+def org_users(request):
+    """Students (verified + unverified) for this org's course only."""
+    org = _require_org(request.user)
+    if not org:
+        messages.error(request, "No organization linked to your account.")
+        return redirect("organization.panel")
+
+    search = request.GET.get("search", "").strip()
+    status_filter = request.GET.get("status", "").strip().lower()
+    course_code = (org.course_code or "").strip()
+
+    qs = User.objects.filter(
+        user_role="student",
+        status__in=["verified", "unverified"],
+    ).order_by("-date_joined")
+
+    if course_code:
+        qs = qs.filter(course__iexact=course_code)
+    else:
+        qs = qs.filter(org_link=org)
+
+    if status_filter in ("verified", "unverified"):
+        qs = qs.filter(status=status_filter)
+
+    if search:
+        qs = qs.filter(
+            Q(first_name__icontains=search)
+            | Q(last_name__icontains=search)
+            | Q(email__icontains=search)
+            | Q(student_no__icontains=search)
+            | Q(username__icontains=search)
+        )
+
+    paginator = Paginator(qs, 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    context = {
+        **_sidebar_context(request.user),
+        "org": org,
+        "page_obj": page_obj,
+        "search": search,
+        "status_filter": status_filter,
+        "total_users": qs.count(),
+    }
+    return render(
+        request,
+        "UTrade_app/organization/organization_panel/users.html",
+        context,
+    )
+
+
+@login_required
+@user_passes_test(is_organization)
+@require_POST
+def org_message_user(request):
+    """Open/reuse a conversation with a student in this org's course."""
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
+
+    target_id = data.get("user_id")
+    org = _require_org(request.user)
+    if not org or not target_id:
+        return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
+
+    course_code = (org.course_code or "").strip()
+    target = get_object_or_404(User, id=target_id, user_role="student")
+    if course_code and (target.course or "").upper() != course_code.upper():
+        return JsonResponse({"success": False, "message": "User is not in your course."}, status=403)
+
+    # Conversation: org officer as buyer side, student as seller (product optional)
+    conversation, _ = Conversation.objects.get_or_create(
+        product=None,
+        buyer=request.user,
+        seller=target,
+    )
+    # Prefer your real chat URL name if different
+    redirect_url = f"/messages/{conversation.id}/"
+    try:
+        from django.urls import reverse
+        redirect_url = reverse("chat_detail", kwargs={"pk": conversation.id})
+    except Exception:
+        pass
+
+    return JsonResponse({"success": True, "redirect_url": redirect_url, "conversation_id": conversation.id})
+
+
+@login_required
+@user_passes_test(is_organization)
+@require_POST
+def org_report_user(request):
+    """Report a student (creates conversation if needed for UserReport FK)."""
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"success": False, "message": "Invalid JSON"}, status=400)
+
+    target_id = data.get("user_id")
+    reason = (data.get("reason") or "").strip()
+    details = (data.get("details") or "").strip()
+
+    allowed_reasons = {
+        "Harassment", "Spam", "Inappropriate", "Threats", "Impersonation", "Other"
+    }
+    if reason not in allowed_reasons:
+        return JsonResponse({"success": False, "message": "Invalid reason"}, status=400)
+    if reason == "Other" and not details:
+        return JsonResponse({"success": False, "message": "Details required for Other"}, status=400)
+
+    org = _require_org(request.user)
+    if not org or not target_id:
+        return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
+
+    course_code = (org.course_code or "").strip()
+    target = get_object_or_404(User, id=target_id, user_role="student")
+    if course_code and (target.course or "").upper() != course_code.upper():
+        return JsonResponse({"success": False, "message": "User is not in your course."}, status=403)
+
+    if target.id == request.user.id:
+        return JsonResponse({"success": False, "message": "Cannot report yourself."}, status=400)
+
+    conversation, _ = Conversation.objects.get_or_create(
+        product=None,
+        buyer=request.user,
+        seller=target,
+    )
+
+    UserReport.objects.create(
+        conversation=conversation,
+        reporter=request.user,
+        reported_user=target,
+        reason=reason,
+        details=details,
+        status="pending",
+    )
+
+    log_action(
+        user=request.user,
+        action="User Reported",
+        item_type="User",
+        item_name=target.get_full_name() or target.username,
+        details=f"Reason: {reason}; {details[:200]}",
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": f"Report against {target.get_full_name() or target.username} submitted.",
+    })

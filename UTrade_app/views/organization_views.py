@@ -1406,19 +1406,18 @@ def org_remittance_logs(request):
         .order_by("-updated_at", "-cycle_due")
     )
 
-    # Prefer PlatformFeeRemittance if you store receipts there
     remittances = (
-        PlatformFeeRemittance.objects.filter(organization=org)
-        .select_related("organization", "ledger")
-        .order_by("-created_at")
-    ) if hasattr(PlatformFeeRemittance, "objects") else []
+        PlatformFeeRemittance.objects.filter(ledger__organization=org)
+        .select_related("ledger", "ledger__organization", "recorded_by")
+        .order_by("-payment_date", "-created_at")
+    )
 
     context = {
         **_sidebar_context(request.user),
         "org": org,
         "org_name": org.name,
         "paid_ledgers": paid_ledgers[:50],
-        "remittances": remittances[:50] if remittances else [],
+        "remittances": remittances[:50],
     }
     return render(
         request,
@@ -1439,16 +1438,15 @@ def org_view_remittance_receipt(request, ledger_id):
         status="PAID",
     )
     # Reuse management receipt template if available, or simple page
-    remittance = None
-    try:
-        remittance = (
-            PlatformFeeRemittance.objects.filter(ledger=ledger)
-            .order_by("-id")
-            .first()
-        )
-    except Exception:
-        pass
-
+    remittance = (
+    PlatformFeeRemittance.objects.filter(
+        ledger=ledger,
+        ledger__organization=org,
+    )
+    .order_by("-id")
+    .first()
+    ) 
+          
     context = {
         **_sidebar_context(request.user),
         "org": org,

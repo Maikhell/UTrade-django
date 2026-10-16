@@ -1355,7 +1355,7 @@ def org_sales_chart_data(request):
 @login_required
 @user_passes_test(is_organization)
 def org_remittance_view(request):
-    """Show this organization's platform fee cycle(s)."""
+    """Active cycle(s) for the logged-in organization only."""
     org = _require_org(request.user)
     if not org:
         messages.error(request, "No organization linked to your account.")
@@ -1365,16 +1365,98 @@ def org_remittance_view(request):
         OrganizationPlatformLedger.objects.filter(organization=org)
         .order_by("-cycle_start")
     )
+    # Prefer open/due for "active" table; fall back to latest
+    active = list(
+        ledgers.filter(status__in=["OPEN", "DUE"]).order_by("-cycle_start")[:5]
+    )
+    if not active and ledgers.exists():
+        active = [ledgers.first()]
+
     latest = ledgers.first()
 
     context = {
         **_sidebar_context(request.user),
-        "ledgers": ledgers[:20],
-        "latest": latest,
         "org": org,
+        "org_name": org.name,
+        "ledgers": active,
+        "latest": latest,
+        "all_ledgers_count": ledgers.count(),
     }
     return render(
         request,
         "UTrade_app/organization/organization_panel/remittance.html",
+        context,
+    )
+
+
+@login_required
+@user_passes_test(is_organization)
+def org_remittance_logs(request):
+    """Paid remittances / receipts for this organization only."""
+    org = _require_org(request.user)
+    if not org:
+        messages.error(request, "No organization linked to your account.")
+        return redirect("organization.panel")
+
+    paid_ledgers = (
+        OrganizationPlatformLedger.objects.filter(
+            organization=org,
+            status="PAID",
+        )
+        .order_by("-updated_at", "-cycle_due")
+    )
+
+    # Prefer PlatformFeeRemittance if you store receipts there
+    remittances = (
+        PlatformFeeRemittance.objects.filter(organization=org)
+        .select_related("organization", "ledger")
+        .order_by("-created_at")
+    ) if hasattr(PlatformFeeRemittance, "objects") else []
+
+    context = {
+        **_sidebar_context(request.user),
+        "org": org,
+        "org_name": org.name,
+        "paid_ledgers": paid_ledgers[:50],
+        "remittances": remittances[:50] if remittances else [],
+    }
+    return render(
+        request,
+        "UTrade_app/organization/organization_panel/remittance_logs.html",
+        context,
+    )
+
+
+@login_required
+@user_passes_test(is_organization)
+def org_view_remittance_receipt(request, ledger_id):
+    """View receipt only if ledger belongs to this org."""
+    org = _require_org(request.user)
+    ledger = get_object_or_404(
+        OrganizationPlatformLedger,
+        id=ledger_id,
+        organization=org,
+        status="PAID",
+    )
+    # Reuse management receipt template if available, or simple page
+    remittance = None
+    try:
+        remittance = (
+            PlatformFeeRemittance.objects.filter(ledger=ledger)
+            .order_by("-id")
+            .first()
+        )
+    except Exception:
+        pass
+
+    context = {
+        **_sidebar_context(request.user),
+        "org": org,
+        "ledger": ledger,
+        "remittance": remittance,
+    }
+    return render(
+        request,
+        "UTrade_app/organization/organization_panel/remittance_receipt.html",
         context,
     )

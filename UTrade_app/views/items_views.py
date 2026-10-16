@@ -108,6 +108,7 @@ def next_product_code_api(request):
 class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'UTrade_app/products/add_product.html'
+
     BANNED_KEYWORDS = [
         'alcohol', 'drugs', 'beer', 'wine', 'vodka', 'whiskey',
         'ecigarette', 'vape', 'smoke', 'tobacco', 'cigarette',
@@ -141,11 +142,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         # Stored as primary key
         if isinstance(org, int):
             return Organization.objects.filter(pk=org).first()
-
-        # Fallback patterns – uncomment the one that matches your schema
-        # return getattr(user, 'org', None)
-        # return user.organizations.first()                 # M2M
-        # return Organization.objects.filter(officers=user).first()
 
         return None
 
@@ -199,7 +195,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         context['staged_items'] = StagedProduct.objects.filter(
             seller=self.request.user,
             is_submitted=False,
-        )
+        ).prefetch_related('images', 'variants')
         context['next_product_code'] = generate_next_product_code()
 
         # Only officers need the organization + letter
@@ -226,19 +222,17 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         return None
 
     def get_or_create_custom_category(self, request):
+        """
+        Kept for backward compatibility, but the frontend no longer
+        sends category='other'. Returns None if the id is invalid.
+        """
         category_id = request.POST.get('category')
-        custom_name = request.POST.get('custom_category_name')
-
-        if category_id == 'other' and custom_name:
-            category, created = Category.objects.get_or_create(
-                name=custom_name.strip().title()
-            )
-            return category
-
+        if not category_id or category_id == 'other':
+            return None
         return Category.objects.filter(id=category_id).first()
 
     # ------------------------------------------------------------------
-    # Form handling (non-staging path)
+    # Form handling (non-staging path – rarely used now)
     # ------------------------------------------------------------------
     def form_valid(self, form):
         name = form.cleaned_data.get('name', '')
@@ -288,6 +282,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         is_final_submit = request.POST.get('action') == 'submit_staging'
 
         if not is_final_submit:
+            # Fall back to normal CreateView handling (almost never used)
             return super().post(request, *args, **kwargs)
 
         try:
@@ -302,6 +297,8 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     'message': 'No items in staging to submit.',
                 }, status=400)
 
+            org = self._get_user_organization(request.user)
+
             for staged_prod in staged_items:
                 # Re-validate / assign product code
                 product_code = (getattr(staged_prod, 'product_code', None) or '').strip()
@@ -311,10 +308,10 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 ):
                     product_code = generate_next_product_code()
 
-                # Grab selected location from dropdown submission
+                # Grab selected location
                 location_text = (
-                    request.POST.get('location_options')
-                    or getattr(staged_prod, 'meetup_locations_list', '')
+                    getattr(staged_prod, 'meetup_locations_list', '')
+                    or request.POST.get('location_options', '')
                 ).strip()
 
                 new_product = Product.objects.create(
@@ -336,6 +333,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         staged_prod, 'preferred_meetup_time_to', None
                     ),
                 )
+
+                # ----- Attach approval letter to the product -----
+                if org and org.approval_letter:
+                    new_product.approval_letter = org.approval_letter
+                    new_product.save(update_fields=['approval_letter'])
 
                 # Optional: also link MeetupLocation M2M if you still use it
                 if location_text and hasattr(new_product, 'meetup_locations'):

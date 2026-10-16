@@ -1,18 +1,15 @@
-{% extends 'UTrade_app/base.html' %} {% load static %} {% block title %} Seller
-Workshop {% endblock %} {% block content %} {% block extra_css %}
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+{% block title %} Seller Workshop {% endblock %}
+{% block content %}
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'UTrade_app/css/workshop.css' %}" />
 {% endblock %}
 
 <div class="container mb-3 d-flex justify-content-between align-items-center">
   <nav aria-label="breadcrumb" class="mb-4">
-    <a
-      href="#"
-      onclick="
-        history.back();
-        return false;
-      "
-      class="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
-    >
+    <a href="#" onclick="history.back(); return false;"
+       class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
       <i class="bi bi-arrow-left" aria-hidden="true"></i>
       <span>Back to Account</span>
     </a>
@@ -28,25 +25,14 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
           <i class="bi bi-images me-2"></i>1. Product Gallery
         </h6>
         <div class="mb-3">
-          <label
-            class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill"
-            ><i class="bi bi-plus-lg me-1"></i> Select Photos<input
-              type="file"
-              id="image_input"
-              class="d-none"
-              accept="image/*"
-              multiple
-              onchange="previewMultipleImages(event)"
-          /></label>
+          <label class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill">
+            <i class="bi bi-plus-lg me-1"></i> Select Photos
+            <input type="file" id="image_input" class="d-none" accept="image/*" multiple
+                   onchange="previewMultipleImages(event)" />
+          </label>
         </div>
-        <div
-          id="image_preview_container"
-          class="image-preview-grid column-scroll"
-        >
-          <div
-            class="text-center py-5 text-muted small w-100"
-            style="grid-column: span 2"
-          >
+        <div id="image_preview_container" class="image-preview-grid column-scroll">
+          <div class="text-center py-5 text-muted small w-100" style="grid-column: span 2">
             <i class="bi bi-cloud-upload display-6 d-block mb-2"></i>
             Select images
           </div>
@@ -60,42 +46,24 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
         <h5 class="fw-bold mb-4">2. Product Details</h5>
         <div class="row g-2 mb-3">
           <div class="col-6">
-            <label class="form-label small fw-bold text-secondary"
-              >Category</label
-            >
-            <select
-              id="category"
-              class="form-select bg-light border-0"
-              onchange="handleCategoryChange(this)"
-            >
+            <label class="form-label small fw-bold text-secondary">Category</label>
+            <select id="category" class="form-select bg-light border-0"
+                    onchange="handleCategoryChange(this)">
               <option selected disabled>Choose Category...</option>
               {% for category in categories %}
               <option value="{{ category.id }}">{{ category.name }}</option>
               {% endfor %}
-              <option value="other">-- Other (Type New) --</option>
+              <!-- "Other" option intentionally removed -->
             </select>
           </div>
 
           <div class="col-6">
-            <label class="form-label small fw-bold text-secondary">
-              Product Code
-            </label>
-            <input
-              type="text"
-              id="product_code"
-              name="product_code"
-              class="form-control bg-light border-0"
-              value="{{ next_product_code }}"
-              readonly
-              disabled
-            />
-            <!-- hidden so value is still submitted with FormData -->
-            <input
-              type="hidden"
-              id="product_code_hidden"
-              name="product_code"
-              value="{{ next_product_code }}"
-            />
+            <label class="form-label small fw-bold text-secondary">Product Code</label>
+            <input type="text" id="product_code" name="product_code"
+                   class="form-control bg-light border-0"
+                   value="{{ next_product_code }}" readonly disabled />
+            <input type="hidden" id="product_code_hidden" name="product_code"
+                   value="{{ next_product_code }}" />
             <div class="form-text small">Auto-generated · cannot be edited</div>
           </div>
         </div>
@@ -103,68 +71,34 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
         <form id="product_form">
           {% csrf_token %}
           <div class="mb-3">
-            <label class="form-label small fw-bold text-secondary"
-              >Product Name</label
-            >
-            <input
-              type="text"
-              id="name"
-              class="form-control bg-light border-0 py-2"
-              placeholder="e.g. Mechanical Keyboard"
-              oninput="validateProhibitedInput(this)"
-            />
+            <label class="form-label small fw-bold text-secondary">Product Name</label>
+            <input type="text" id="name" class="form-control bg-light border-0 py-2"
+                   placeholder="e.g. Mechanical Keyboard"
+                   oninput="validateProhibitedInput(this)" />
             <div id="name_prohibited_error" class="invalid-feedback small">
               Contains restricted/prohibited words.
             </div>
           </div>
 
-          <!-- Description -->
           <div class="mb-3">
-            <label class="form-label small fw-bold text-secondary"
-              >Description</label
-            >
-            <textarea
-              id="description"
-              rows="3"
-              class="form-control bg-light border-0"
-              placeholder="Details, flaws, inclusions..."
-              oninput="validateProhibitedInput(this)"
-            ></textarea>
-            <div
-              id="description_prohibited_error"
-              class="invalid-feedback small"
-            >
+            <label class="form-label small fw-bold text-secondary">Description</label>
+            <textarea id="description" rows="3" class="form-control bg-light border-0"
+                      placeholder="Details, flaws, inclusions..."
+                      oninput="validateProhibitedInput(this)"></textarea>
+            <div id="description_prohibited_error" class="invalid-feedback small">
               Contains restricted/prohibited words.
             </div>
           </div>
 
           <div class="row g-2 mb-3">
             <div class="col-6">
-              <label class="form-label small fw-bold text-secondary"
-                >Total Stocks</label
-              >
-              <input
-                type="number"
-                id="stocks"
-                class="form-control bg-light border-0"
-                readonly
-                placeholder="Calculated from variants"
-              />
+              <label class="form-label small fw-bold text-secondary">Total Stocks</label>
+              <input type="number" id="stocks" class="form-control bg-light border-0"
+                     readonly placeholder="Calculated from variants" />
             </div>
           </div>
 
-          <!-- Custom Category Input -->
-          <div id="other_category_div" class="mb-3 d-none">
-            <label class="form-label small fw-bold text-success"
-              >New Category Name</label
-            >
-            <input
-              type="text"
-              id="custom_category"
-              class="form-control border-success py-2"
-              placeholder="Enter new category name..."
-            />
-          </div>
+          <!-- Custom Category Input REMOVED (no longer needed) -->
 
           <!-- Attributes Section -->
           <div id="attributes_section" class="mt-4 p-3 rounded bg-light border">
@@ -173,20 +107,13 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
             </h6>
 
             <div id="size_suggestions_container" class="mb-3">
-              <label
-                id="quick_select_label"
-                class="form-label small fw-bold text-success"
-                >Quick Select:</label
-              >
+              <label id="quick_select_label" class="form-label small fw-bold text-success">
+                Quick Select <span class="text-muted fw-normal">(last 5 used)</span>:
+              </label>
               <div id="suggestion_buttons" class="d-flex flex-wrap gap-2">
-                <span class="text-muted small"
-                  >Select a category to see available variations.</span
-                >
+                <span class="text-muted small">Select a category to see available variations.</span>
               </div>
-              <div
-                id="no_attributes_note"
-                class="alert alert-info py-2 small d-none"
-              >
+              <div id="no_attributes_note" class="alert alert-info py-2 small d-none">
                 <i class="bi bi-info-circle me-2"></i>No quick select yet.
                 Please input your own attributes.
               </div>
@@ -196,51 +123,28 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
 
             <div class="row g-2 mb-2">
               <div class="col-md-4">
-                <input
-                  type="text"
-                  id="variant_name"
-                  class="form-control form-control-sm"
-                  placeholder="Variant Name"
-                />
+                <input type="text" id="variant_name" class="form-control form-control-sm"
+                       placeholder="Variant Name" />
               </div>
               <div class="col-md-4">
-                <input
-                  type="number"
-                  id="variant_price"
-                  class="form-control form-control-sm"
-                  placeholder="Price"
-                />
+                <input type="number" id="variant_price" class="form-control form-control-sm"
+                       placeholder="Price" />
               </div>
               <div class="col-md-4">
-                <input
-                  type="number"
-                  id="variant_stock"
-                  class="form-control form-control-sm"
-                  placeholder="Stock"
-                />
+                <input type="number" id="variant_stock" class="form-control form-control-sm"
+                       placeholder="Stock" />
               </div>
               <div class="col-md-4">
-                <input
-                  type="text"
-                  id="variant_attribute"
-                  class="form-control form-control-sm"
-                  placeholder="e.g. XL, 32oz, Blue"
-                />
+                <input type="text" id="variant_attribute" class="form-control form-control-sm"
+                       placeholder="e.g. XL, 32oz, Blue" />
               </div>
               <div class="col-md-4">
-                <input
-                  type="text"
-                  id="variant_flaws"
-                  class="form-control form-control-sm"
-                  placeholder="Flaws "
-                />
+                <input type="text" id="variant_flaws" class="form-control form-control-sm"
+                       placeholder="Flaws " />
               </div>
               <div class="col-md-4">
-                <select
-                  id="variant_condition"
-                  class="form-select form-select-sm"
-                  onchange="toggleCustomCondition(this)"
-                >
+                <select id="variant_condition" class="form-select form-select-sm"
+                        onchange="toggleCustomCondition(this)">
                   <option value="Brand New">Brand New</option>
                   <option value="Like New">Like New</option>
                   <option value="Used - Good">Used - Good</option>
@@ -250,25 +154,17 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
               </div>
             </div>
             <div class="d-flex gap-2 mb-3">
-              <button
-                type="button"
-                class="btn btn-outline-secondary btn-sm w-100"
-                onclick="openVariantImagePicker()"
-              >
+              <button type="button" class="btn btn-outline-secondary btn-sm w-100"
+                      onclick="openVariantImagePicker()">
                 <i class="bi bi-image me-1"></i> Pick Image
               </button>
-              <button
-                type="button"
-                class="btn btn-success btn-sm w-100"
-                onclick="addVariant()"
-              >
+              <button type="button" class="btn btn-success btn-sm w-100" onclick="addVariant()">
                 <i class="bi bi-plus-circle me-1"></i> Add Variant
               </button>
             </div>
             <div id="variant_list" class="mt-3"></div>
           </div>
 
-          <!-- Hidden simple price for JS compatibility -->
           <div id="simple_price_section" class="d-none">
             <input type="number" id="price" value="0" />
           </div>
@@ -278,96 +174,53 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
             <label class="form-label small fw-bold text-secondary">
               Campus Meetup Spot <span class="text-danger">*</span>
             </label>
-
-            <select
-              id="location_input"
-              name="location_options"
-              class="form-select rounded-3"
-              required
-            >
-              <option value="" disabled selected>
-                Select a meetup location...
-              </option>
+            <select id="location_input" name="location_options"
+                    class="form-select rounded-3" required>
+              <option value="" disabled selected>Select a meetup location...</option>
               {% for location in meetup_locations %}
               <option value="{{ location.name }}">{{ location.name }}</option>
               {% endfor %}
             </select>
-
             <div class="form-text small">
-              Choose <strong>one</strong> preferred meetup location added by the
-              administration.
+              Choose <strong>one</strong> preferred meetup location added by the administration.
             </div>
           </div>
 
-          <!-- Available Days (Mon–Sat, multiple) -->
+          <!-- Available Days -->
           <div class="my-3">
             <label class="form-label small fw-bold text-secondary">
               Available Days <span class="text-danger">*</span>
             </label>
-
             <div class="d-flex flex-wrap gap-2">
               <div class="form-check">
-                <input
-                  class="form-check-input meetup-day"
-                  type="checkbox"
-                  value="Monday"
-                  id="day_mon"
-                />
+                <input class="form-check-input meetup-day" type="checkbox" value="Monday" id="day_mon" />
                 <label class="form-check-label small" for="day_mon">Mon</label>
               </div>
               <div class="form-check">
-                <input
-                  class="form-check-input meetup-day"
-                  type="checkbox"
-                  value="Tuesday"
-                  id="day_tue"
-                />
+                <input class="form-check-input meetup-day" type="checkbox" value="Tuesday" id="day_tue" />
                 <label class="form-check-label small" for="day_tue">Tue</label>
               </div>
               <div class="form-check">
-                <input
-                  class="form-check-input meetup-day"
-                  type="checkbox"
-                  value="Wednesday"
-                  id="day_wed"
-                />
+                <input class="form-check-input meetup-day" type="checkbox" value="Wednesday" id="day_wed" />
                 <label class="form-check-label small" for="day_wed">Wed</label>
               </div>
               <div class="form-check">
-                <input
-                  class="form-check-input meetup-day"
-                  type="checkbox"
-                  value="Thursday"
-                  id="day_thu"
-                />
+                <input class="form-check-input meetup-day" type="checkbox" value="Thursday" id="day_thu" />
                 <label class="form-check-label small" for="day_thu">Thu</label>
               </div>
               <div class="form-check">
-                <input
-                  class="form-check-input meetup-day"
-                  type="checkbox"
-                  value="Friday"
-                  id="day_fri"
-                />
+                <input class="form-check-input meetup-day" type="checkbox" value="Friday" id="day_fri" />
                 <label class="form-check-label small" for="day_fri">Fri</label>
               </div>
               <div class="form-check">
-                <input
-                  class="form-check-input meetup-day"
-                  type="checkbox"
-                  value="Saturday"
-                  id="day_sat"
-                />
+                <input class="form-check-input meetup-day" type="checkbox" value="Saturday" id="day_sat" />
                 <label class="form-check-label small" for="day_sat">Sat</label>
               </div>
             </div>
-
-            <div class="form-text small">
-              Select one or more days when you are available for meetup.
-            </div>
+            <div class="form-text small">Select one or more days when you are available for meetup.</div>
           </div>
 
-          <!-- Time Range (From – To) -->
+          <!-- Time Range -->
           <div class="my-3">
             <label class="form-label small fw-bold text-secondary">
               Available Time <span class="text-danger">*</span>
@@ -376,187 +229,108 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
             <div class="row g-2">
               <div class="col-6">
                 <label class="form-label small text-muted mb-1">From</label>
-                <input
-                  type="time"
-                  id="meetup_time_from"
-                  name="meetup_time_from"
-                  class="form-control rounded-3"
-                  min="07:00"
-                  max="21:00"
-                  step="60"
-                  required
-                />
+                <input type="time" id="meetup_time_from" name="meetup_time_from"
+                       class="form-control rounded-3" min="07:00" max="21:00" step="60" required />
                 <div id="from_time_error" class="invalid-feedback d-none"></div>
               </div>
               <div class="col-6">
                 <label class="form-label small text-muted mb-1">To</label>
-                <input
-                  type="time"
-                  id="meetup_time_to"
-                  name="meetup_time_to"
-                  class="form-control rounded-3"
-                  min="07:00"
-                  max="21:00"
-                  step="60"
-                  required
-                />
+                <input type="time" id="meetup_time_to" name="meetup_time_to"
+                       class="form-control rounded-3" min="07:00" max="21:00" step="60" required />
                 <div id="to_time_error" class="invalid-feedback d-none"></div>
               </div>
             </div>
-            <div
-              id="time_range_error"
-              class="text-danger small mt-1 d-none"
-            ></div>
+            <div id="time_range_error" class="text-danger small mt-1 d-none"></div>
             <div class="form-text small">
-              Allowed: <strong>7:00 AM – 9:00 PM</strong>. From must be earlier
-              than To.
+              Allowed: <strong>7:00 AM – 9:00 PM</strong>. From must be earlier than To.
             </div>
           </div>
-          <!-- Selling As / Listing Type Logic -->
+
+          <!-- Selling As -->
           <div class="row g-2 mb-3">
             <div class="col-12">
               {% if request.user.user_role == 'management' %}
-              <label class="form-label small fw-bold text-primary"
-                >Selling As</label
-              >
-              <select
-                id="owner_type"
-                name="owner_type"
-                class="form-select bg-white border py-2 shadow-sm"
-              >
+              <label class="form-label small fw-bold text-primary">Selling As</label>
+              <select id="owner_type" name="owner_type" class="form-select bg-white border py-2 shadow-sm">
                 <option value="MANAGEMENT" selected>Management Listing</option>
               </select>
               {% elif request.user.is_officer %}
-              <label class="form-label small fw-bold text-primary"
-                >Selling As</label
-              >
-              <select
-                id="owner_type"
-                name="owner_type"
-                class="form-select bg-white border py-2 shadow-sm"
-              >
-                {% comment %}
-                <option value="PERSONAL">Personal Listing</option>
-                {% endcomment %}
+              <label class="form-label small fw-bold text-primary">Selling As</label>
+              <select id="owner_type" name="owner_type" class="form-select bg-white border py-2 shadow-sm">
                 <option value="ORGANIZATION">Organization Listing</option>
               </select>
               {% else %}
-              <input
-                type="hidden"
-                id="owner_type"
-                name="owner_type"
-                value="PERSONAL"
-              />
+              <input type="hidden" id="owner_type" name="owner_type" value="PERSONAL" />
               {% endif %}
             </div>
           </div>
-          <!-- Pre-order Checkbox Option -->
+
+          <!-- Pre-order -->
           <div class="mb-3 form-check bg-light p-3 rounded border">
-            <input
-              type="checkbox"
-              class="form-check-input"
-              id="is_pre_order"
-              name="is_pre_order"
-            />
-            <label
-              class="form-check-label small fw-bold text-dark"
-              for="is_pre_order"
-            >
-              <i class="bi bi-clock-history me-1 text-primary"></i> Mark as
-              Pre-order Item
+            <input type="checkbox" class="form-check-input" id="is_pre_order" name="is_pre_order" />
+            <label class="form-check-label small fw-bold text-dark" for="is_pre_order">
+              <i class="bi bi-clock-history me-1 text-primary"></i> Mark as Pre-order Item
             </label>
             <div class="form-text small text-muted mt-1">
-              Check this if items are made-to-order or fulfillment takes longer
-              than usual.
+              Check this if items are made-to-order or fulfillment takes longer than usual.
             </div>
           </div>
+
           <!-- ========== LETTER OF APPROVAL (Organization only) ========== -->
           {% if request.user.is_officer %}
           <div class="mb-3 p-3 rounded border bg-light" id="approval_letter_section">
             <label class="form-label small fw-bold text-secondary d-block">
-              Attach Letter of Approval
-              <span class="text-danger">*</span>
+              Attach Letter of Approval <span class="text-danger">*</span>
             </label>
 
             {% if organization and organization.approval_letter %}
-              <!-- Existing letter: show preview + Update button -->
               <div class="mb-2 d-flex align-items-start gap-3">
                 <a href="{{ organization.approval_letter.url }}" target="_blank" rel="noopener">
-                  <img
-                    src="{{ organization.approval_letter.url }}"
-                    alt="Current Approval Letter"
-                    class="rounded border shadow-sm"
-                    style="max-width: 160px; max-height: 120px; object-fit: contain;"
-                  />
+                  <img src="{{ organization.approval_letter.url }}"
+                       alt="Current Approval Letter"
+                       class="rounded border shadow-sm"
+                       style="max-width: 160px; max-height: 120px; object-fit: contain;" />
                 </a>
                 <div>
                   <div class="small text-success fw-bold mb-1">
                     <i class="bi bi-check-circle me-1"></i>Letter on file
                   </div>
-                  <button
-                    type="button"
-                    class="btn btn-sm btn-outline-primary"
-                    onclick="document.getElementById('approval_letter').click()"
-                  >
+                  <button type="button" class="btn btn-sm btn-outline-primary"
+                          onclick="document.getElementById('approval_letter').click()">
                     <i class="bi bi-arrow-repeat me-1"></i>Update
                   </button>
                 </div>
               </div>
-              <input
-                type="file"
-                id="approval_letter"
-                name="approval_letter"
-                class="form-control form-control-sm d-none"
-                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                onchange="previewApprovalLetter(event)"
-              />
+              <input type="file" id="approval_letter" name="approval_letter"
+                     class="form-control form-control-sm d-none"
+                     accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                     onchange="previewApprovalLetter(event)" />
             {% else %}
-              <!-- No letter yet -->
-              <div class="form-text text-muted mb-2">
-                No approval request yet (Add)
-              </div>
-              <input
-                type="file"
-                id="approval_letter"
-                name="approval_letter"
-                class="form-control"
-                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                required
-                onchange="previewApprovalLetter(event)"
-              />
+              <div class="form-text text-muted mb-2">No approval letter yet – please upload one</div>
+              <input type="file" id="approval_letter" name="approval_letter"
+                     class="form-control"
+                     accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                     required
+                     onchange="previewApprovalLetter(event)" />
             {% endif %}
 
-            <div class="form-text small mt-1">
-              JPG / PNG only · Maximum 10 MB
-            </div>
+            <div class="form-text small mt-1">JPG / PNG only · Maximum 10 MB</div>
             <div id="approval_letter_error" class="text-danger small mt-1 d-none"></div>
             <div id="approval_preview" class="mt-2"></div>
           </div>
           {% endif %}
           <!-- ========== END LETTER OF APPROVAL ========== -->
+
           <div class="mb-4">
-            <label class="form-label small fw-bold text-secondary d-block"
-              >Accepted Payment</label
-            >
+            <label class="form-label small fw-bold text-secondary d-block">Accepted Payment</label>
             <div class="btn-group w-100">
-              <input
-                type="radio"
-                class="btn-check"
-                name="payment"
-                id="p_cash"
-                value="COP"
-                checked
-              />
+              <input type="radio" class="btn-check" name="payment" id="p_cash" value="COP" checked />
               <label class="btn btn-outline-success" for="p_cash">Cash</label>
-              
             </div>
           </div>
 
-          <button
-            type="button"
-            onclick="addToStaging()"
-            class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow"
-          >
+          <button type="button" onclick="addToStaging()"
+                  class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow">
             Add to List
           </button>
         </form>
@@ -565,55 +339,34 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
 
     <!-- 3. STAGING LIST -->
     <div class="col-lg-4">
-      <div
-        class="card border-0 shadow-sm rounded-4 p-3 h-100 d-flex flex-column"
-      >
+      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 d-flex flex-column">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="fw-bold text-uppercase small text-muted mb-0">
-            3. Staging List
-          </h6>
-          <span id="item_count" class="badge bg-dark rounded-pill"
-            >{{ staged_items|length }}</span
-          >
+          <h6 class="fw-bold text-uppercase small text-muted mb-0">3. Staging List</h6>
+          <span id="item_count" class="badge bg-dark rounded-pill">{{ staged_items|length }}</span>
         </div>
 
-        <div
-          id="staging_area"
-          class="column-scroll flex-grow-1 mb-3"
-          style="overflow-y: auto"
-        >
+        <div id="staging_area" class="column-scroll flex-grow-1 mb-3" style="overflow-y: auto">
           {% if not staged_items %}
-          <div class="text-center py-5 text-muted empty-msg">
-            List is empty.
-          </div>
-          {% endif %} {% for item in staged_items %}
-          <div
-            class="card staged-item mb-3 p-3 bg-white border shadow-sm"
-            data-id="{{ item.id }}"
-          >
+          <div class="text-center py-5 text-muted empty-msg">List is empty.</div>
+          {% endif %}
+          {% for item in staged_items %}
+          <div class="card staged-item mb-3 p-3 bg-white border shadow-sm" data-id="{{ item.id }}">
             <div class="d-flex align-items-start">
-              {% with img=item.images.first %} {% if img %}
-              <img
-                src="{{ img.image.url }}"
-                class="rounded shadow-sm me-3"
-                style="width: 50px; height: 50px; object-fit: cover"
-              />
-              {% endif %} {% endwith %}
-
+              {% with img=item.images.first %}
+              {% if img %}
+              <img src="{{ img.image.url }}" class="rounded shadow-sm me-3"
+                   style="width: 50px; height: 50px; object-fit: cover" />
+              {% endif %}
+              {% endwith %}
               <div class="flex-grow-1">
                 <div class="d-flex justify-content-between align-items-start">
                   <h6 class="mb-0 fw-bold text-dark">{{ item.name }}</h6>
                   <div class="d-flex gap-2">
-                    <button
-                      class="btn btn-sm text-primary p-0"
-                      onclick="editItem({{ item.id }})"
-                    >
+                    <button class="btn btn-sm text-primary p-0" onclick="editItem({{ item.id }})">
                       <i class="bi bi-pencil-square"></i>
                     </button>
-                    <button
-                      class="btn btn-sm text-danger p-0"
-                      onclick="removeItem(this, {{ item.id }})"
-                    >
+                    <button class="btn btn-sm text-danger p-0"
+                            onclick="removeItem(this, {{ item.id }})">
                       <i class="bi bi-trash-fill"></i>
                     </button>
                   </div>
@@ -628,10 +381,7 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
         </div>
 
         <div class="mt-auto pt-3 border-top">
-          <button
-            class="btn btn-dark btn-lg w-100 fw-bold"
-            onclick="submitToAdmin()"
-          >
+          <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">
             Send for Authentication
           </button>
         </div>
@@ -642,4 +392,5 @@ Workshop {% endblock %} {% block content %} {% block extra_css %}
 
 {% block extra_js %}
 <script src="{% static 'UTrade_app/js/workshop.js' %}"></script>
-{% endblock %} {% endblock %}
+{% endblock %}
+{% endblock %}

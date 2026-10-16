@@ -5,6 +5,8 @@ if (typeof window.itemCount === "undefined") {
   window.productVariants = [];
   window.currentSelectedImageIndex = null;
   window.PROHIBITED_WORDS = [];
+  window.existingImageUrls = [];          // for edit restore
+  window.editingStagedId = null;
 }
 
 async function loadProhibitedWords() {
@@ -12,7 +14,6 @@ async function loadProhibitedWords() {
     const response = await fetch("/api/prohibited-words/");
     const data = await response.json();
     window.PROHIBITED_WORDS = data.prohibited_words || [];
-    console.log("Prohibited words loaded:", window.PROHIBITED_WORDS.length);
   } catch (error) {
     console.error("Failed to load prohibited words:", error);
     window.PROHIBITED_WORDS = ["scam", "drugs", "shabu"];
@@ -25,15 +26,23 @@ function previewMultipleImages(event) {
   const container = document.getElementById("image_preview_container");
   if (!container) return;
 
-  container.innerHTML = "";
-  window.selectedFiles = Array.from(event.target.files || []);
+  // Keep any previously restored existing images (edit mode)
+  const existingWrappers = Array.from(
+    container.querySelectorAll(".preview-wrapper[data-existing='1']")
+  );
 
-  window.selectedFiles.forEach((file, index) => {
+  container.innerHTML = "";
+  existingWrappers.forEach((w) => container.appendChild(w));
+
+  const newFiles = Array.from(event.target.files || []);
+  window.selectedFiles = newFiles;          // only the NEW files for upload
+
+  newFiles.forEach((file, index) => {
     const reader = new FileReader();
     reader.onload = function (e) {
       const wrapper = document.createElement("div");
       wrapper.className = "preview-wrapper animate__animated animate__fadeIn";
-      const isMain = index === 0;
+      const isMain = existingWrappers.length === 0 && index === 0;
       const badge = isMain ? '<span class="main-badge">COVER</span>' : "";
       wrapper.innerHTML = `
         ${badge}
@@ -108,16 +117,12 @@ function getSelectedMeetupDays() {
 
 function timeToMinutes(timeStr) {
   if (!timeStr || typeof timeStr !== "string") return null;
-
   const parts = timeStr.trim().split(":");
   if (parts.length < 2) return null;
-
   const h = parseInt(parts[0], 10);
   const m = parseInt(parts[1], 10);
-
   if (Number.isNaN(h) || Number.isNaN(m)) return null;
   if (h < 0 || h > 23 || m < 0 || m > 59) return null;
-
   return h * 60 + m;
 }
 
@@ -144,7 +149,6 @@ function clearFieldError(inputEl, errorId) {
 function validateMeetupDays(showErrors = true) {
   const days = getSelectedMeetupDays();
   const errorEl = document.getElementById("days_error");
-
   if (days.length === 0) {
     if (showErrors && errorEl) {
       errorEl.textContent = "Please select at least one day (Mon–Sat).";
@@ -153,7 +157,6 @@ function validateMeetupDays(showErrors = true) {
     }
     return false;
   }
-
   if (errorEl) {
     errorEl.textContent = "";
     errorEl.classList.add("d-none");
@@ -165,17 +168,9 @@ function validateMeetupDays(showErrors = true) {
 function validateMeetupTimeRange(showErrors = true) {
   const fromInput = document.getElementById("meetup_time_from");
   const toInput = document.getElementById("meetup_time_to");
-
   if (!fromInput || !toInput) {
-    console.error(
-      "Missing time inputs. Need #meetup_time_from and #meetup_time_to in HTML.",
-    );
     if (showErrors) {
-      Swal.fire(
-        "Form Error",
-        "Time inputs are missing in the page HTML.",
-        "error",
-      );
+      Swal.fire("Form Error", "Time inputs are missing in the page HTML.", "error");
     }
     return false;
   }
@@ -185,7 +180,6 @@ function validateMeetupTimeRange(showErrors = true) {
 
   clearFieldError(fromInput, "from_time_error");
   clearFieldError(toInput, "to_time_error");
-
   const rangeError = document.getElementById("time_range_error");
   if (rangeError) {
     rangeError.textContent = "";
@@ -198,13 +192,11 @@ function validateMeetupTimeRange(showErrors = true) {
   const maxAllowed = 21 * 60;
 
   if (!fromVal) {
-    if (showErrors)
-      setFieldError(fromInput, "from_time_error", "From time is required.");
+    if (showErrors) setFieldError(fromInput, "from_time_error", "From time is required.");
     valid = false;
   }
   if (!toVal) {
-    if (showErrors)
-      setFieldError(toInput, "to_time_error", "To time is required.");
+    if (showErrors) setFieldError(toInput, "to_time_error", "To time is required.");
     valid = false;
   }
   if (!valid) return false;
@@ -213,8 +205,7 @@ function validateMeetupTimeRange(showErrors = true) {
   const toMins = timeToMinutes(toVal);
 
   if (fromMins === null) {
-    if (showErrors)
-      setFieldError(fromInput, "from_time_error", "Invalid From time.");
+    if (showErrors) setFieldError(fromInput, "from_time_error", "Invalid From time.");
     return false;
   }
   if (toMins === null) {
@@ -224,21 +215,13 @@ function validateMeetupTimeRange(showErrors = true) {
 
   if (fromMins < minAllowed || fromMins > maxAllowed) {
     if (showErrors) {
-      setFieldError(
-        fromInput,
-        "from_time_error",
-        "Must be between 7:00 AM and 9:00 PM.",
-      );
+      setFieldError(fromInput, "from_time_error", "Must be between 7:00 AM and 9:00 PM.");
     }
     valid = false;
   }
   if (toMins < minAllowed || toMins > maxAllowed) {
     if (showErrors) {
-      setFieldError(
-        toInput,
-        "to_time_error",
-        "Must be between 7:00 AM and 9:00 PM.",
-      );
+      setFieldError(toInput, "to_time_error", "Must be between 7:00 AM and 9:00 PM.");
     }
     valid = false;
   }
@@ -255,7 +238,6 @@ function validateMeetupTimeRange(showErrors = true) {
     }
     valid = false;
   }
-
   return valid;
 }
 
@@ -268,6 +250,8 @@ function getProductCodeValue() {
 function setProductCodeValue(code) {
   const el = document.getElementById("product_code");
   if (el && code) el.value = code;
+  const hidden = document.getElementById("product_code_hidden");
+  if (hidden && code) hidden.value = code;
 }
 
 async function refreshNextProductCode() {
@@ -287,40 +271,35 @@ async function addToStaging() {
   const stocksEl = document.getElementById("stocks");
   const descEl = document.getElementById("description");
   const categoryEl = document.getElementById("category");
-  const preOrderElement = document.getElementById("is_pre_order"); // matches HTML id
+  const preOrderElement = document.getElementById("is_pre_order");
   const locationInput = document.getElementById("location_input");
   const fromInput = document.getElementById("meetup_time_from");
   const toInput = document.getElementById("meetup_time_to");
   const ownerTypeEl = document.getElementById("owner_type");
-  const productCodeEl = document.getElementById("product_code");
   const attributesSection = document.getElementById("attributes_section");
 
   const isVariantMode =
     attributesSection && !attributesSection.classList.contains("d-none");
-
   const isPreOrder = !!(preOrderElement && preOrderElement.checked);
 
   [nameEl, priceEl, stocksEl, locationInput, fromInput, toInput].forEach(
     (el) => el && el.classList.remove("is-invalid"),
   );
 
-  let hasError = false;
-
-  if (!locationInput || !locationInput.value.trim()) {
-    if (locationInput) locationInput.classList.add("is-invalid");
+  // Approval letter (officers only)
+  if (typeof validateApprovalLetter === "function" && !validateApprovalLetter()) {
     return Swal.fire(
-      "Location Required",
-      "Please enter a campus meetup spot.",
+      "Letter of Approval Required",
+      "Please attach a Letter of Approval (JPG/PNG, max 10 MB).",
       "warning",
     );
   }
-  if (typeof validateApprovalLetter === "function" && !validateApprovalLetter()) {
-  return Swal.fire(
-    "Letter of Approval Required",
-    "Please attach a Letter of Approval (JPG/PNG, max 10 MB).",
-    "warning",
-  );
-}
+
+  if (!locationInput || !locationInput.value.trim()) {
+    if (locationInput) locationInput.classList.add("is-invalid");
+    return Swal.fire("Location Required", "Please enter a campus meetup spot.", "warning");
+  }
+
   if (typeof validateMeetupDays === "function") {
     if (!validateMeetupDays(true)) {
       return Swal.fire(
@@ -350,18 +329,13 @@ async function addToStaging() {
   if (!(fromInput.value || "").trim() || !(toInput.value || "").trim()) {
     if (!(fromInput.value || "").trim()) fromInput.classList.add("is-invalid");
     if (!(toInput.value || "").trim()) toInput.classList.add("is-invalid");
-    return Swal.fire(
-      "Time Required",
-      "Please set both From and To meetup times.",
-      "warning",
-    );
+    return Swal.fire("Time Required", "Please set both From and To meetup times.", "warning");
   }
 
   const timeValid =
     typeof validateMeetupTimeRange === "function"
       ? validateMeetupTimeRange(true)
       : true;
-
   if (!timeValid) {
     return Swal.fire(
       "Invalid Time Range",
@@ -372,7 +346,7 @@ async function addToStaging() {
 
   if (!nameEl || !nameEl.value.trim()) {
     if (nameEl) nameEl.classList.add("is-invalid");
-    hasError = true;
+    return Swal.fire("Required Fields", "Product name is required.", "error");
   }
 
   if (validateProhibitedInput(nameEl) || validateProhibitedInput(descEl)) {
@@ -383,100 +357,65 @@ async function addToStaging() {
     );
   }
 
-  if (
-    checkProhibitedContent(nameEl?.value || "") ||
-    checkProhibitedContent(descEl?.value || "")
-  ) {
-    return Swal.fire(
-      "Prohibited Content",
-      "Your text contains restricted words.",
-      "error",
-    );
-  }
-
   let finalPrice, finalStocks;
-
   if (isVariantMode) {
     if (!window.productVariants || window.productVariants.length === 0) {
-      return Swal.fire(
-        "Variations Required",
-        "Please add at least one variety.",
-        "warning",
-      );
+      return Swal.fire("Variations Required", "Please add at least one variety.", "warning");
     }
     finalPrice = window.productVariants[0].price;
-    finalStocks = window.productVariants.reduce(
-      (sum, v) => sum + (v.stock || 0),
-      0,
-    );
+    finalStocks = window.productVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
   } else {
-    if (!priceEl || !priceEl.value.trim()) {
-      if (priceEl) priceEl.classList.add("is-invalid");
-      hasError = true;
-    }
-    if (!stocksEl || !stocksEl.value.trim()) {
-      if (stocksEl) stocksEl.classList.add("is-invalid");
-      hasError = true;
-    }
     finalPrice = priceEl?.value || 0;
     finalStocks = stocksEl?.value || 0;
   }
 
-  if (!window.selectedFiles || window.selectedFiles.length === 0) {
-    return Swal.fire(
-      "Photos Required",
-      "Please select at least one photo.",
-      "warning",
-    );
+  // At least one image (new or existing)
+  const hasExistingImages =
+    document.querySelectorAll("#image_preview_container .preview-wrapper[data-existing='1']").length > 0;
+  if ((!window.selectedFiles || window.selectedFiles.length === 0) && !hasExistingImages) {
+    return Swal.fire("Photos Required", "Please select at least one photo.", "warning");
   }
 
-  if (hasError) {
-    return Swal.fire(
-      "Required Fields",
-      "Please fill in the highlighted fields.",
-      "error",
-    );
+  const categoryId = categoryEl ? categoryEl.value : "";
+  if (!categoryId || categoryId === "other") {
+    return Swal.fire("Category Required", "Please choose a valid category.", "warning");
   }
-
-  let categoryId = categoryEl ? categoryEl.value : "";
   let categoryName = "Uncategorized";
-  let customCategoryName = "";
-
   if (categoryEl && categoryEl.selectedIndex >= 0) {
     categoryName = categoryEl.options[categoryEl.selectedIndex].text;
   }
 
-  if (categoryId === "other") {
-    customCategoryName =
-      document.getElementById("custom_category")?.value.trim() || "";
-    categoryName = customCategoryName || "New Category";
-  }
-
   const productCode = getProductCodeValue();
-
   const formData = new FormData();
   formData.append("name", nameEl.value.trim());
   formData.append("description", descEl?.value.trim() || "");
   formData.append("category", categoryId);
-  formData.append("custom_category_name", customCategoryName);
   formData.append("product_code", productCode);
   formData.append("location_options", locationInput.value.trim());
   formData.append("available_days", selectedDays.join(","));
   formData.append("meetup_time_from", fromInput.value);
   formData.append("meetup_time_to", toInput.value);
   formData.append("owner_type", ownerTypeEl?.value || "PERSONAL");
-
-  // Pre-order: send once only as "True" / "False"
   formData.append("pre_order", isPreOrder ? "True" : "False");
 
   const paymentEl = document.querySelector('input[name="payment"]:checked');
-  formData.append("payment", paymentEl ? paymentEl.value : "BOTH");
+  formData.append("payment", paymentEl ? paymentEl.value : "COP");
   formData.append("variants", JSON.stringify(window.productVariants || []));
-  
+
+  // Existing image IDs to keep (edit mode)
+  if (window.existingImageUrls && window.existingImageUrls.length) {
+    formData.append("keep_image_ids", JSON.stringify(
+      window.existingImageUrls.map((i) => i.id).filter(Boolean)
+    ));
+  }
+
+  // Approval letter
   const approvalInput = document.getElementById("approval_letter");
   if (approvalInput && approvalInput.files && approvalInput.files[0]) {
     formData.append("approval_letter", approvalInput.files[0]);
   }
+
+  // New gallery images
   window.selectedFiles.forEach((file) => {
     formData.append("images", file);
   });
@@ -491,14 +430,12 @@ async function addToStaging() {
     const response = await fetch("/api/staged-product/add/", {
       method: "POST",
       headers: {
-        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
-          .value,
+        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
       },
       body: formData,
     });
 
     const result = await response.json();
-
     if (result.status !== "success") {
       throw new Error(result.message || "Server error.");
     }
@@ -506,6 +443,7 @@ async function addToStaging() {
     const dbId = result.staged_id;
     const savedCode = result.product_code || productCode;
 
+    // Build card image
     const firstImg = document.querySelector("#image_preview_container img");
     const imageHtml = firstImg
       ? `<img src="${firstImg.src}" class="rounded shadow-sm me-3" style="width:70px;height:70px;object-fit:cover;border:1px solid #dee2e6;">`
@@ -533,35 +471,17 @@ async function addToStaging() {
             <div class="mt-1">
               <span class="badge bg-success-subtle text-success small">₱${finalPrice}</span>
               <span class="text-muted small ms-1">Stock: ${finalStocks}</span>
-              ${
-                isPreOrder
-                  ? `<span class="badge bg-primary-subtle text-primary small ms-1">Pre-order</span>`
-                  : ""
-              }
+              ${isPreOrder ? `<span class="badge bg-primary-subtle text-primary small ms-1">Pre-order</span>` : ""}
             </div>
           </div>
         </div>
         <div class="small text-muted mb-2 text-truncate-2" style="font-size:0.85rem;">${descEl?.value || ""}</div>
         <div class="d-flex flex-wrap gap-1 mb-2">
-          ${
-            savedCode
-              ? `<span class="badge bg-dark text-white fw-normal">
-                   <i class="bi bi-upc me-1"></i>${savedCode}
-                 </span>`
-              : ""
-          }
-          <span class="badge bg-light text-dark border fw-normal">
-            <i class="bi bi-tag me-1"></i>${categoryName}
-          </span>
-          <span class="badge bg-light text-dark border fw-normal">
-            <i class="bi bi-geo-alt me-1"></i>${locationInput.value.trim()}
-          </span>
-          <span class="badge bg-light text-dark border fw-normal">
-            <i class="bi bi-calendar-week me-1"></i>${daysLabel}
-          </span>
-          <span class="badge bg-light text-dark border fw-normal">
-            <i class="bi bi-clock me-1"></i>${timeLabel}
-          </span>
+          ${savedCode ? `<span class="badge bg-dark text-white fw-normal"><i class="bi bi-upc me-1"></i>${savedCode}</span>` : ""}
+          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-tag me-1"></i>${categoryName}</span>
+          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-geo-alt me-1"></i>${locationInput.value.trim()}</span>
+          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-calendar-week me-1"></i>${daysLabel}</span>
+          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-clock me-1"></i>${timeLabel}</span>
         </div>
       </div>`;
 
@@ -572,22 +492,19 @@ async function addToStaging() {
     }
 
     const countEl = document.getElementById("item_count");
-    if (countEl) {
-      countEl.innerText = document.querySelectorAll(".staged-item").length;
-    }
+    if (countEl) countEl.innerText = document.querySelectorAll(".staged-item").length;
 
+    // Reset form
     const codeBeforeReset = result.next_product_code || null;
-
     document.getElementById("product_form")?.reset();
     window.selectedFiles = [];
     window.productVariants = [];
     window.currentSelectedImageIndex = null;
+    window.existingImageUrls = [];
+    window.editingStagedId = null;
 
-    document.querySelectorAll(".meetup-day").forEach((cb) => {
-      cb.checked = false;
-    });
+    document.querySelectorAll(".meetup-day").forEach((cb) => (cb.checked = false));
 
-    // form reset also unchecks pre-order; that's expected
     if (codeBeforeReset) {
       setProductCodeValue(codeBeforeReset);
     } else {
@@ -605,10 +522,12 @@ async function addToStaging() {
 
     if (categoryEl) {
       categoryEl.value = "";
-      if (typeof handleCategoryChange === "function") {
-        handleCategoryChange(categoryEl);
-      }
+      if (typeof handleCategoryChange === "function") handleCategoryChange(categoryEl);
     }
+
+    // Clear approval preview if a new file was chosen
+    const approvalPreview = document.getElementById("approval_preview");
+    if (approvalPreview) approvalPreview.innerHTML = "";
 
     Swal.fire({
       toast: true,
@@ -620,11 +539,7 @@ async function addToStaging() {
     });
   } catch (error) {
     console.error("Staging Error:", error);
-    Swal.fire(
-      "Error",
-      error.message || "Failed to connect to server.",
-      "error",
-    );
+    Swal.fire("Error", error.message || "Failed to connect to server.", "error");
   }
 }
 
@@ -633,41 +548,21 @@ async function editItem(stagedId) {
   try {
     const response = await fetch(`/api/staged-product/${stagedId}/`);
     const data = await response.json();
-
     if (data.error) throw new Error(data.error);
+
+    window.editingStagedId = stagedId;
 
     const nameEl = document.getElementById("name");
     const descEl = document.getElementById("description");
     if (nameEl) nameEl.value = data.name || "";
     if (descEl) descEl.value = data.description || "";
 
-    // Product code
-    if (data.product_code) {
-      setProductCodeValue(data.product_code);
-    }
+    if (data.product_code) setProductCodeValue(data.product_code);
 
+    // Category (no "other" path any more)
     const categorySelect = document.getElementById("category");
-    const customCategoryDiv = document.getElementById("other_category_div");
-    const customCategoryInput = document.getElementById("custom_category");
-
-    if (categorySelect) {
-      const optionExists = Array.from(categorySelect.options).some(
-        (opt) => opt.value == data.category,
-      );
-
-      if (optionExists) {
-        categorySelect.value = data.category;
-        if (customCategoryDiv) customCategoryDiv.classList.add("d-none");
-      } else {
-        categorySelect.value = "other";
-        if (customCategoryDiv) {
-          customCategoryDiv.classList.remove("d-none");
-          if (customCategoryInput) {
-            customCategoryInput.value = data.category_name || "";
-          }
-        }
-      }
-
+    if (categorySelect && data.category) {
+      categorySelect.value = data.category;
       if (typeof handleCategoryChange === "function") {
         handleCategoryChange(categorySelect);
       }
@@ -675,14 +570,13 @@ async function editItem(stagedId) {
 
     const locationInput = document.getElementById("location_input");
     if (locationInput) {
-      locationInput.value = data.locations || data.location_options || "";
+      locationInput.value = data.locations || data.location_options || data.meetup_locations_list || "";
     }
 
     const days = (data.available_days || "")
       .split(",")
       .map((d) => d.trim())
       .filter(Boolean);
-
     document.querySelectorAll(".meetup-day").forEach((cb) => {
       cb.checked = days.includes(cb.value);
     });
@@ -696,38 +590,53 @@ async function editItem(stagedId) {
       toInput.value = String(data.meetup_time_to).slice(0, 5);
     }
 
+    // Pre-order
+    const preOrderEl = document.getElementById("is_pre_order");
+    if (preOrderEl) preOrderEl.checked = !!data.pre_order;
+
+    // ---------- Restore gallery images ----------
     const container = document.getElementById("image_preview_container");
     if (container) {
       container.innerHTML = "";
-      (data.images || []).forEach((img) => {
-        container.insertAdjacentHTML(
-          "beforeend",
-          `
-          <div class="preview-wrapper">
-            <img src="${img.url}" class="preview-box ${img.is_main ? "is-main-image" : ""}">
-          </div>`,
-        );
+      window.existingImageUrls = [];
+      window.selectedFiles = [];          // clear any previous new files
+
+      (data.images || []).forEach((img, idx) => {
+        window.existingImageUrls.push({ id: img.id, url: img.url, is_main: img.is_main });
+        const wrapper = document.createElement("div");
+        wrapper.className = "preview-wrapper";
+        wrapper.dataset.existing = "1";
+        wrapper.dataset.imageId = img.id || "";
+        const badge = img.is_main || idx === 0 ? '<span class="main-badge">COVER</span>' : "";
+        wrapper.innerHTML = `
+          ${badge}
+          <img src="${img.url}" class="preview-box ${img.is_main || idx === 0 ? "is-main-image" : ""}">
+        `;
+        container.appendChild(wrapper);
       });
     }
 
+    // ---------- Restore variants (incl. image index association) ----------
     window.productVariants = (data.variants || []).map((v) => ({
       name: v.variant_name || v.name,
       price: v.price,
       stock: v.stocks || v.stock,
       condition: v.condition || "Brand New",
-      attribute: v.attribute_value || v.attribute || "",
+      attribute: v.attribute_value || v.attribute || v.variant_attribute || "",
       flaws: v.flaws || "",
+      imageIndex: v.image_index != null ? v.image_index : null,
+      imageUrl: v.image_url || null,          // if backend returns a direct URL
     }));
 
     if (typeof renderVariantList === "function") {
       renderVariantList();
     }
 
+    // Soft-delete the staged item so the user can re-add the edited version
     await fetch(`/api/staged-product/delete/${stagedId}/`, {
       method: "POST",
       headers: {
-        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]")
-          .value,
+        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
       },
     });
 
@@ -738,6 +647,9 @@ async function editItem(stagedId) {
     if (countEl) {
       countEl.innerText = document.querySelectorAll(".staged-item").length;
     }
+
+    // Scroll form into view
+    document.getElementById("product_form")?.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (err) {
     console.error("Edit Error:", err);
     Swal.fire("Error", "Could not retrieve product data.", "error");
@@ -754,7 +666,25 @@ function renderVariantList() {
     const div = document.createElement("div");
     div.className =
       "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white";
+
+    let thumbHtml = "";
+    if (variant.imageUrl) {
+      thumbHtml = `<img src="${variant.imageUrl}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
+    } else if (
+      variant.imageIndex != null &&
+      window.selectedFiles[variant.imageIndex]
+    ) {
+      const thumbUrl = URL.createObjectURL(window.selectedFiles[variant.imageIndex]);
+      thumbHtml = `<img src="${thumbUrl}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
+    } else if (
+      variant.imageIndex != null &&
+      window.existingImageUrls[variant.imageIndex]
+    ) {
+      thumbHtml = `<img src="${window.existingImageUrls[variant.imageIndex].url}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
+    }
+
     div.innerHTML = `
+      ${thumbHtml}
       <div class="flex-grow-1">
         <div class="d-flex align-items-center">
           <span class="small fw-bold text-dark">${variant.name}</span>
@@ -767,6 +697,7 @@ function renderVariantList() {
         </div>
         <div class="text-muted" style="font-size:0.7rem;">
           ₱${variant.price} | Stock: ${variant.stock}
+          ${variant.flaws ? ` | <span class="text-danger">Flaw: ${variant.flaws}</span>` : ""}
         </div>
       </div>
       <button type="button" class="btn-close" style="font-size:0.6rem;"
@@ -774,6 +705,7 @@ function renderVariantList() {
     `;
     listContainer.appendChild(div);
   });
+  updateTotalStock();
 }
 
 function addVariant() {
@@ -792,11 +724,7 @@ function addVariant() {
   const stockValue = stockInput.value;
 
   if (!variantName || !stockValue) {
-    Swal.fire(
-      "Missing Info",
-      "Please provide a Variant Name and Stock.",
-      "warning",
-    );
+    Swal.fire("Missing Info", "Please provide a Variant Name and Stock.", "warning");
     return;
   }
 
@@ -817,42 +745,8 @@ function addVariant() {
   if (!window.productVariants) window.productVariants = [];
   window.productVariants.push(variant);
 
-  const div = document.createElement("div");
-  div.className =
-    "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white animate__animated animate__fadeInUp";
-
-  let thumbHtml = "";
-  if (
-    window.currentSelectedImageIndex !== null &&
-    window.selectedFiles[window.currentSelectedImageIndex]
-  ) {
-    const thumbUrl = URL.createObjectURL(
-      window.selectedFiles[window.currentSelectedImageIndex],
-    );
-    thumbHtml = `<img src="${thumbUrl}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
-  }
-
-  div.innerHTML = `
-    ${thumbHtml}
-    <div class="flex-grow-1">
-      <div class="d-flex align-items-center">
-        <span class="small fw-bold text-dark">${variant.name}</span>
-        ${
-          variant.attribute
-            ? `<span class="badge bg-secondary-subtle text-secondary ms-2" style="font-size:0.6rem;">${variant.attribute}</span>`
-            : ""
-        }
-        <span class="badge bg-info-subtle text-info ms-1" style="font-size:0.6rem;">${variant.condition}</span>
-      </div>
-      <div class="text-muted" style="font-size:0.7rem;">
-        ₱${variant.price.toFixed(2)} | Stock: ${variant.stock}
-        ${variant.flaws ? ` | <span class="text-danger">Flaw: ${variant.flaws}</span>` : ""}
-      </div>
-    </div>
-    <button type="button" class="btn-close" style="font-size:0.6rem;"
-            onclick="removeVariant(this, '${variant.name}')"></button>
-  `;
-  listContainer.appendChild(div);
+  // Re-render whole list so thumbnails stay consistent
+  renderVariantList();
 
   nameInput.value = "";
   if (attrInput) attrInput.value = "";
@@ -865,32 +759,40 @@ function addVariant() {
   if (imgBtn) imgBtn.innerHTML = `<i class="bi bi-image me-1"></i> Pick Image`;
 
   window.currentSelectedImageIndex = null;
-  updateTotalStock();
 }
 
 function openVariantImagePicker() {
-  if (!window.selectedFiles || window.selectedFiles.length === 0) {
-    return Swal.fire(
-      "No Photos",
-      "Please upload product photos first!",
-      "info",
-    );
+  // Combine existing restored images + newly selected files
+  const existing = window.existingImageUrls || [];
+  const newFiles = window.selectedFiles || [];
+
+  if (existing.length === 0 && newFiles.length === 0) {
+    return Swal.fire("No Photos", "Please upload product photos first!", "info");
   }
 
   let html = '<div class="row g-2">';
-  window.selectedFiles.forEach((file, index) => {
+  // Existing images first
+  existing.forEach((img, index) => {
+    html += `
+      <div class="col-4">
+        <div class="position-relative">
+          <img src="${img.url}" class="img-thumbnail cursor-pointer border-2"
+               onclick="selectVariantImage(${index}, true)"
+               style="height:80px;width:100%;object-fit:cover;">
+          ${index === 0 ? '<span class="badge bg-dark position-absolute top-0 start-0 m-1" style="font-size:0.5rem;">Cover</span>' : ""}
+        </div>
+      </div>`;
+  });
+  // New files
+  newFiles.forEach((file, index) => {
     const url = URL.createObjectURL(file);
+    const globalIdx = existing.length + index;
     html += `
       <div class="col-4">
         <div class="position-relative">
           <img src="${url}" class="img-thumbnail cursor-pointer border-2"
-               onclick="selectVariantImage(${index})"
+               onclick="selectVariantImage(${globalIdx}, false)"
                style="height:80px;width:100%;object-fit:cover;">
-          ${
-            index === 0
-              ? '<span class="badge bg-dark position-absolute top-0 start-0 m-1" style="font-size:0.5rem;">Cover</span>'
-              : ""
-          }
         </div>
       </div>`;
   });
@@ -904,7 +806,7 @@ function openVariantImagePicker() {
   });
 }
 
-function selectVariantImage(index) {
+function selectVariantImage(index, isExisting) {
   window.currentSelectedImageIndex = index;
   const btn = document.querySelector('[onclick="openVariantImagePicker()"]');
   if (btn) {
@@ -934,7 +836,6 @@ function updateTotalStock() {
 /* ===================== PROHIBITED WORDS ===================== */
 function validateProhibitedInput(element) {
   if (!element) return false;
-
   const text = element.value || "";
   const matchedWord = getFoundProhibitedWord(text);
   const errorDiv = document.getElementById(`${element.id}_prohibited_error`);
@@ -954,11 +855,7 @@ function validateProhibitedInput(element) {
 }
 
 function getFoundProhibitedWord(text) {
-  if (
-    !text ||
-    !window.PROHIBITED_WORDS ||
-    window.PROHIBITED_WORDS.length === 0
-  ) {
+  if (!text || !window.PROHIBITED_WORDS || window.PROHIBITED_WORDS.length === 0) {
     return null;
   }
   const lowerText = text.toLowerCase();
@@ -970,11 +867,7 @@ function getFoundProhibitedWord(text) {
 }
 
 function checkProhibitedContent(text) {
-  if (
-    !text ||
-    !window.PROHIBITED_WORDS ||
-    window.PROHIBITED_WORDS.length === 0
-  ) {
+  if (!text || !window.PROHIBITED_WORDS || window.PROHIBITED_WORDS.length === 0) {
     return false;
   }
   const lowerText = text.toLowerCase();
@@ -986,7 +879,6 @@ function checkProhibitedContent(text) {
 /* ===================== SUBMIT TO ADMIN ===================== */
 async function submitToAdmin() {
   const stagedCount = document.querySelectorAll(".staged-item").length;
-
   if (stagedCount === 0) {
     return Swal.fire({
       title: "Empty List",
@@ -995,20 +887,19 @@ async function submitToAdmin() {
       confirmButtonColor: "#198754",
     });
   }
+
+  // Approval letter still required for officers at final submit
   if (typeof validateApprovalLetter === "function" && !validateApprovalLetter()) {
-  return Swal.fire(
-    "Letter of Approval Required",
-    "Please attach a Letter of Approval (JPG/PNG, max 10 MB).",
-    "warning",
-  );
-}
+    return Swal.fire(
+      "Letter of Approval Required",
+      "Please attach a Letter of Approval (JPG/PNG, max 10 MB).",
+      "warning",
+    );
+  }
+
   const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]")?.value;
   if (!csrftoken) {
-    return Swal.fire(
-      "Error",
-      "CSRF Token missing. Check your HTML template!",
-      "error",
-    );
+    return Swal.fire("Error", "CSRF Token missing. Check your HTML template!", "error");
   }
 
   const confirmation = await Swal.fire({
@@ -1021,7 +912,6 @@ async function submitToAdmin() {
     confirmButtonText: "Yes, submit it!",
     cancelButtonText: "Wait, let me check",
   });
-
   if (!confirmation.isConfirmed) return;
 
   Swal.fire({
@@ -1048,7 +938,6 @@ async function submitToAdmin() {
     });
 
     const result = await response.json();
-
     if (result.status === "success") {
       await Swal.fire({
         icon: "success",
@@ -1074,35 +963,42 @@ async function submitToAdmin() {
   }
 }
 
-/* ===================== REMOVE STAGED ITEM ===================== */
-function removeItem(btn, productId) {
+/* ===================== REMOVE STAGED ITEM (persistent) ===================== */
+async function removeItem(btn, productId) {
   const card = btn?.closest(".staged-item");
+
+  // Optimistic UI
   if (card) card.remove();
-
-  window.allStagedProducts = (window.allStagedProducts || []).filter(
-    (item) => item.id !== productId,
-  );
-  window.itemCount = document.querySelectorAll(".staged-item").length;
-
+  const remaining = document.querySelectorAll(".staged-item").length;
   const countEl = document.getElementById("item_count");
-  if (countEl) countEl.innerText = window.itemCount;
-
-  if (window.itemCount === 0) {
+  if (countEl) countEl.innerText = remaining;
+  if (remaining === 0) {
     const stagingArea = document.getElementById("staging_area");
     if (stagingArea) {
       stagingArea.innerHTML =
         '<div class="text-center py-5 text-muted small empty-msg">List is empty.</div>';
     }
   }
+
+  // Persist deletion on server
+  try {
+    await fetch(`/api/staged-product/delete/${productId}/`, {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+      },
+    });
+  } catch (err) {
+    console.error("Failed to delete staged product on server:", err);
+    // Optional: re-add the card or show a toast
+  }
 }
 
-/* ===================== CATEGORY CHANGE ===================== */
+/* ===================== CATEGORY CHANGE (no "Other") ===================== */
 function handleCategoryChange(selectElement) {
   if (!selectElement || selectElement.selectedIndex === -1) {
     const attrSection = document.getElementById("attributes_section");
-    const otherDiv = document.getElementById("other_category_div");
     if (attrSection) attrSection.classList.add("d-none");
-    if (otherDiv) otherDiv.classList.add("d-none");
     return;
   }
 
@@ -1111,35 +1007,31 @@ function handleCategoryChange(selectElement) {
   const selectedText = selectedOption.text.trim();
 
   const attrSection = document.getElementById("attributes_section");
-  const otherDiv = document.getElementById("other_category_div");
   const simplePriceSection = document.getElementById("simple_price_section");
-  const suggestionContainer = document.getElementById(
-    "size_suggestions_container",
-  );
+  const suggestionContainer = document.getElementById("size_suggestions_container");
   const suggestionButtons = document.getElementById("suggestion_buttons");
   const stocksInput = document.getElementById("stocks");
   const noAttributesNote = document.getElementById("no_attributes_note");
 
   if (attrSection) attrSection.classList.add("d-none");
-  if (otherDiv) otherDiv.classList.add("d-none");
   if (suggestionContainer) suggestionContainer.classList.add("d-none");
   if (noAttributesNote) noAttributesNote.classList.add("d-none");
   if (simplePriceSection) simplePriceSection.classList.remove("d-none");
   if (stocksInput) stocksInput.readOnly = false;
 
-  if (selectedValue === "other") {
-    if (otherDiv) otherDiv.classList.remove("d-none");
-    if (attrSection) attrSection.classList.remove("d-none");
-    if (noAttributesNote) noAttributesNote.classList.remove("d-none");
-    if (simplePriceSection) simplePriceSection.classList.add("d-none");
-    if (stocksInput) stocksInput.readOnly = true;
-    return;
-  }
+  // "other" path completely removed
+  if (!selectedValue || selectedValue === "other") return;
 
   fetch(`/api/get-attributes/${selectedValue}/`)
     .then((response) => response.json())
     .then((data) => {
-      if (data.attributes && data.attributes.length > 0) {
+      // Limit to the 5 most recently used attributes
+      let attrs = data.attributes || [];
+      if (attrs.length > 5) {
+        attrs = attrs.slice(0, 5);          // backend already orders by -created / -id
+      }
+
+      if (attrs.length > 0) {
         if (attrSection) attrSection.classList.remove("d-none");
         if (suggestionContainer) suggestionContainer.classList.remove("d-none");
         if (simplePriceSection) simplePriceSection.classList.add("d-none");
@@ -1147,7 +1039,7 @@ function handleCategoryChange(selectElement) {
 
         if (suggestionButtons) {
           suggestionButtons.innerHTML = "";
-          data.attributes.forEach((attr) => {
+          attrs.forEach((attr) => {
             const btn = document.createElement("button");
             btn.type = "button";
             btn.className =
@@ -1159,25 +1051,23 @@ function handleCategoryChange(selectElement) {
                 variantInput.value = attr.value;
                 variantInput.focus();
               }
+              // Also fill the attribute field for convenience
+              const attrField = document.getElementById("variant_attribute");
+              if (attrField) attrField.value = attr.value;
             };
             suggestionButtons.appendChild(btn);
           });
         }
       } else {
         const showVariantsFor = [
-          "Clothes",
-          "Clothing",
-          "Shoes",
-          "Footwear",
-          "Gadgets",
-          "Electronics",
-          "Furniture",
-          "Watches",
+          "Clothes", "Clothing", "Shoes", "Footwear",
+          "Gadgets", "Electronics", "Furniture", "Watches",
         ];
         if (showVariantsFor.includes(selectedText)) {
           if (attrSection) attrSection.classList.remove("d-none");
           if (simplePriceSection) simplePriceSection.classList.add("d-none");
           if (stocksInput) stocksInput.readOnly = true;
+          if (noAttributesNote) noAttributesNote.classList.remove("d-none");
         }
       }
     })
@@ -1207,6 +1097,67 @@ function useCustomAttribute() {
   }
 }
 
+/* ===================== APPROVAL LETTER ===================== */
+function previewApprovalLetter(event) {
+  const file = event.target.files[0];
+  const preview = document.getElementById("approval_preview");
+  const errorEl = document.getElementById("approval_letter_error");
+  if (!preview || !errorEl) return;
+
+  preview.innerHTML = "";
+  errorEl.classList.add("d-none");
+  errorEl.textContent = "";
+
+  if (!file) return;
+
+  const okType =
+    ["image/jpeg", "image/png"].includes(file.type) ||
+    /\.(jpe?g|png)$/i.test(file.name);
+  if (!okType) {
+    errorEl.textContent = "Only JPG or PNG files are allowed.";
+    errorEl.classList.remove("d-none");
+    event.target.value = "";
+    return;
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    errorEl.textContent = "File exceeds the 10 MB limit.";
+    errorEl.classList.remove("d-none");
+    event.target.value = "";
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    preview.innerHTML = `
+      <a href="${e.target.result}" target="_blank" rel="noopener">
+        <img src="${e.target.result}" class="rounded border shadow-sm"
+             style="max-width:160px;max-height:120px;object-fit:contain">
+      </a>
+      <div class="small text-muted mt-1">Click image to view full size</div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function validateApprovalLetter() {
+  const section = document.getElementById("approval_letter_section");
+  if (!section) return true; // management / personal → skip
+
+  const input = document.getElementById("approval_letter");
+  const hasExisting = !!document.querySelector(
+    '#approval_letter_section img[alt="Current Approval Letter"]',
+  );
+  if (!hasExisting && (!input || !input.files.length)) {
+    const err = document.getElementById("approval_letter_error");
+    if (err) {
+      err.textContent = "Letter of Approval is required.";
+      err.classList.remove("d-none");
+    }
+    return false;
+  }
+  return true;
+}
+
 /* ===================== GLOBAL LISTENERS ===================== */
 document.addEventListener("input", (e) => {
   if (e.target.classList.contains("is-invalid")) {
@@ -1231,59 +1182,3 @@ document.addEventListener("DOMContentLoaded", () => {
     cb.addEventListener("change", () => validateMeetupDays(true));
   });
 });
-function previewApprovalLetter(event) {
-  const file = event.target.files[0];
-  const preview = document.getElementById('approval_preview');
-  const errorEl = document.getElementById('approval_letter_error');
-  if (!preview || !errorEl) return;
-
-  preview.innerHTML = '';
-  errorEl.classList.add('d-none');
-  errorEl.textContent = '';
-
-  if (!file) return;
-
-  const okType = ['image/jpeg', 'image/png'].includes(file.type) ||
-                 /\.(jpe?g|png)$/i.test(file.name);
-  if (!okType) {
-    errorEl.textContent = 'Only JPG or PNG files are allowed.';
-    errorEl.classList.remove('d-none');
-    event.target.value = '';
-    return;
-  }
-
-  if (file.size > 10 * 1024 * 1024) {
-    errorEl.textContent = 'File exceeds the 10 MB limit.';
-    errorEl.classList.remove('d-none');
-    event.target.value = '';
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    preview.innerHTML = `
-      <a href="${e.target.result}" target="_blank" rel="noopener">
-        <img src="${e.target.result}" class="rounded border shadow-sm"
-             style="max-width:160px;max-height:120px;object-fit:contain">
-      </a>
-      <div class="small text-muted mt-1">Click image to view full size</div>`;
-  };
-  reader.readAsDataURL(file);
-}
-
-function validateApprovalLetter() {
-  const section = document.getElementById('approval_letter_section');
-  if (!section) return true;               // management / personal → skip
-
-  const input = document.getElementById('approval_letter');
-  const hasExisting = !!document.querySelector(
-    '#approval_letter_section img[alt="Current Approval Letter"]'
-  );
-  if (!hasExisting && (!input || !input.files.length)) {
-    const err = document.getElementById('approval_letter_error');
-    err.textContent = 'Letter of Approval is required.';
-    err.classList.remove('d-none');
-    return false;
-  }
-  return true;
-}

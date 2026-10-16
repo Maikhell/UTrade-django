@@ -5,8 +5,12 @@ if (typeof window.itemCount === "undefined") {
   window.productVariants = [];
   window.currentSelectedImageIndex = null;
   window.PROHIBITED_WORDS = [];
-  window.existingImageUrls = [];          // for edit restore
+  window.existingImageUrls = [];
   window.editingStagedId = null;
+  // Session flag for approval letter (true if already on file or uploaded this session)
+  window.approvalLetterOnFile = !!(
+    document.querySelector('#approval_letter_section img[alt="Current Approval Letter"]')
+  );
 }
 
 async function loadProhibitedWords() {
@@ -35,7 +39,7 @@ function previewMultipleImages(event) {
   existingWrappers.forEach((w) => container.appendChild(w));
 
   const newFiles = Array.from(event.target.files || []);
-  window.selectedFiles = newFiles;          // only the NEW files for upload
+  window.selectedFiles = newFiles;
 
   newFiles.forEach((file, index) => {
     const reader = new FileReader();
@@ -404,9 +408,10 @@ async function addToStaging() {
 
   // Existing image IDs to keep (edit mode)
   if (window.existingImageUrls && window.existingImageUrls.length) {
-    formData.append("keep_image_ids", JSON.stringify(
-      window.existingImageUrls.map((i) => i.id).filter(Boolean)
-    ));
+    formData.append(
+      "keep_image_ids",
+      JSON.stringify(window.existingImageUrls.map((i) => i.id).filter(Boolean)),
+    );
   }
 
   // Approval letter
@@ -442,6 +447,15 @@ async function addToStaging() {
 
     const dbId = result.staged_id;
     const savedCode = result.product_code || productCode;
+
+    // ----- Approval letter bookkeeping -----
+    if (approvalInput && approvalInput.files && approvalInput.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (e) => markApprovalLetterOnFile(e.target.result);
+      reader.readAsDataURL(approvalInput.files[0]);
+    } else if (result.approval_letter_saved) {
+      window.approvalLetterOnFile = true;
+    }
 
     // Build card image
     const firstImg = document.querySelector("#image_preview_container img");
@@ -525,9 +539,8 @@ async function addToStaging() {
       if (typeof handleCategoryChange === "function") handleCategoryChange(categoryEl);
     }
 
-    // Clear approval preview if a new file was chosen
-    const approvalPreview = document.getElementById("approval_preview");
-    if (approvalPreview) approvalPreview.innerHTML = "";
+    // Clear approval preview only if we already marked it on-file
+    // (the markApprovalLetterOnFile call above already handled the UI)
 
     Swal.fire({
       toast: true,
@@ -570,7 +583,8 @@ async function editItem(stagedId) {
 
     const locationInput = document.getElementById("location_input");
     if (locationInput) {
-      locationInput.value = data.locations || data.location_options || data.meetup_locations_list || "";
+      locationInput.value =
+        data.locations || data.location_options || data.meetup_locations_list || "";
     }
 
     const days = (data.available_days || "")
@@ -599,10 +613,14 @@ async function editItem(stagedId) {
     if (container) {
       container.innerHTML = "";
       window.existingImageUrls = [];
-      window.selectedFiles = [];          // clear any previous new files
+      window.selectedFiles = [];
 
       (data.images || []).forEach((img, idx) => {
-        window.existingImageUrls.push({ id: img.id, url: img.url, is_main: img.is_main });
+        window.existingImageUrls.push({
+          id: img.id,
+          url: img.url,
+          is_main: img.is_main,
+        });
         const wrapper = document.createElement("div");
         wrapper.className = "preview-wrapper";
         wrapper.dataset.existing = "1";
@@ -616,7 +634,7 @@ async function editItem(stagedId) {
       });
     }
 
-    // ---------- Restore variants (incl. image index association) ----------
+    // ---------- Restore variants ----------
     window.productVariants = (data.variants || []).map((v) => ({
       name: v.variant_name || v.name,
       price: v.price,
@@ -625,7 +643,7 @@ async function editItem(stagedId) {
       attribute: v.attribute_value || v.attribute || v.variant_attribute || "",
       flaws: v.flaws || "",
       imageIndex: v.image_index != null ? v.image_index : null,
-      imageUrl: v.image_url || null,          // if backend returns a direct URL
+      imageUrl: v.image_url || null,
     }));
 
     if (typeof renderVariantList === "function") {
@@ -648,8 +666,10 @@ async function editItem(stagedId) {
       countEl.innerText = document.querySelectorAll(".staged-item").length;
     }
 
-    // Scroll form into view
-    document.getElementById("product_form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("product_form")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   } catch (err) {
     console.error("Edit Error:", err);
     Swal.fire("Error", "Could not retrieve product data.", "error");
@@ -674,7 +694,9 @@ function renderVariantList() {
       variant.imageIndex != null &&
       window.selectedFiles[variant.imageIndex]
     ) {
-      const thumbUrl = URL.createObjectURL(window.selectedFiles[variant.imageIndex]);
+      const thumbUrl = URL.createObjectURL(
+        window.selectedFiles[variant.imageIndex],
+      );
       thumbHtml = `<img src="${thumbUrl}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
     } else if (
       variant.imageIndex != null &&
@@ -745,7 +767,6 @@ function addVariant() {
   if (!window.productVariants) window.productVariants = [];
   window.productVariants.push(variant);
 
-  // Re-render whole list so thumbnails stay consistent
   renderVariantList();
 
   nameInput.value = "";
@@ -762,7 +783,6 @@ function addVariant() {
 }
 
 function openVariantImagePicker() {
-  // Combine existing restored images + newly selected files
   const existing = window.existingImageUrls || [];
   const newFiles = window.selectedFiles || [];
 
@@ -771,7 +791,6 @@ function openVariantImagePicker() {
   }
 
   let html = '<div class="row g-2">';
-  // Existing images first
   existing.forEach((img, index) => {
     html += `
       <div class="col-4">
@@ -783,7 +802,6 @@ function openVariantImagePicker() {
         </div>
       </div>`;
   });
-  // New files
   newFiles.forEach((file, index) => {
     const url = URL.createObjectURL(file);
     const globalIdx = existing.length + index;
@@ -888,7 +906,6 @@ async function submitToAdmin() {
     });
   }
 
-  // Approval letter still required for officers at final submit
   if (typeof validateApprovalLetter === "function" && !validateApprovalLetter()) {
     return Swal.fire(
       "Letter of Approval Required",
@@ -925,6 +942,7 @@ async function submitToAdmin() {
   formData.append("action", "submit_staging");
   formData.append("total_products", stagedCount);
 
+  // Only send a new file if the user just selected one; otherwise backend uses the one already on the Organization
   const approvalInput = document.getElementById("approval_letter");
   if (approvalInput && approvalInput.files && approvalInput.files[0]) {
     formData.append("approval_letter", approvalInput.files[0]);
@@ -990,7 +1008,6 @@ async function removeItem(btn, productId) {
     });
   } catch (err) {
     console.error("Failed to delete staged product on server:", err);
-    // Optional: re-add the card or show a toast
   }
 }
 
@@ -1019,7 +1036,6 @@ function handleCategoryChange(selectElement) {
   if (simplePriceSection) simplePriceSection.classList.remove("d-none");
   if (stocksInput) stocksInput.readOnly = false;
 
-  // "other" path completely removed
   if (!selectedValue || selectedValue === "other") return;
 
   fetch(`/api/get-attributes/${selectedValue}/`)
@@ -1028,7 +1044,7 @@ function handleCategoryChange(selectElement) {
       // Limit to the 5 most recently used attributes
       let attrs = data.attributes || [];
       if (attrs.length > 5) {
-        attrs = attrs.slice(0, 5);          // backend already orders by -created / -id
+        attrs = attrs.slice(0, 5);
       }
 
       if (attrs.length > 0) {
@@ -1045,23 +1061,29 @@ function handleCategoryChange(selectElement) {
             btn.className =
               "btn btn-outline-success btn-sm rounded-pill px-3 suggestion-btn me-2 mb-2";
             btn.innerText = attr.value;
+
+            // *** FIX: Quick Select only fills the attribute field, NOT the variant name ***
             btn.onclick = function () {
-              const variantInput = document.getElementById("variant_name");
-              if (variantInput) {
-                variantInput.value = attr.value;
-                variantInput.focus();
-              }
-              // Also fill the attribute field for convenience
               const attrField = document.getElementById("variant_attribute");
-              if (attrField) attrField.value = attr.value;
+              if (attrField) {
+                attrField.value = attr.value;
+                attrField.focus();
+              }
             };
+
             suggestionButtons.appendChild(btn);
           });
         }
       } else {
         const showVariantsFor = [
-          "Clothes", "Clothing", "Shoes", "Footwear",
-          "Gadgets", "Electronics", "Furniture", "Watches",
+          "Clothes",
+          "Clothing",
+          "Shoes",
+          "Footwear",
+          "Gadgets",
+          "Electronics",
+          "Furniture",
+          "Watches",
         ];
         if (showVariantsFor.includes(selectedText)) {
           if (attrSection) attrSection.classList.remove("d-none");
@@ -1091,8 +1113,9 @@ function useCustomAttribute() {
   });
 
   if (!exists) {
-    const variantName = document.getElementById("variant_name");
-    if (variantName) variantName.value = val;
+    // Only put custom value into the attribute field
+    const attrField = document.getElementById("variant_attribute");
+    if (attrField) attrField.value = val;
     input.value = "";
   }
 }
@@ -1132,9 +1155,12 @@ function previewApprovalLetter(event) {
     preview.innerHTML = `
       <a href="${e.target.result}" target="_blank" rel="noopener">
         <img src="${e.target.result}" class="rounded border shadow-sm"
-             style="max-width:160px;max-height:120px;object-fit:contain">
+             style="max-width:160px;max-height:120px;object-fit:contain"
+             alt="Current Approval Letter">
       </a>
-      <div class="small text-muted mt-1">Click image to view full size</div>`;
+      <div class="small text-success fw-bold mt-1">
+        <i class="bi bi-check-circle me-1"></i>Ready to upload
+      </div>`;
   };
   reader.readAsDataURL(file);
 }
@@ -1143,19 +1169,72 @@ function validateApprovalLetter() {
   const section = document.getElementById("approval_letter_section");
   if (!section) return true; // management / personal → skip
 
+  // Already uploaded in this session OR was present on page load
+  if (window.approvalLetterOnFile) return true;
+
   const input = document.getElementById("approval_letter");
-  const hasExisting = !!document.querySelector(
+  const hasFile = input && input.files && input.files.length > 0;
+  const hasExistingImg = !!document.querySelector(
     '#approval_letter_section img[alt="Current Approval Letter"]',
   );
-  if (!hasExisting && (!input || !input.files.length)) {
-    const err = document.getElementById("approval_letter_error");
-    if (err) {
-      err.textContent = "Letter of Approval is required.";
-      err.classList.remove("d-none");
-    }
-    return false;
+
+  if (hasFile || hasExistingImg) {
+    return true;
   }
-  return true;
+
+  const err = document.getElementById("approval_letter_error");
+  if (err) {
+    err.textContent = "Letter of Approval is required.";
+    err.classList.remove("d-none");
+  }
+  return false;
+}
+
+/**
+ * Call after a successful staged-product/add that included a letter.
+ * Updates UI so the user no longer needs to re-select the file.
+ */
+function markApprovalLetterOnFile(previewUrl) {
+  window.approvalLetterOnFile = true;
+
+  const section = document.getElementById("approval_letter_section");
+  if (!section) return;
+
+  const preview = document.getElementById("approval_preview");
+  if (preview) preview.innerHTML = "";
+
+  // If the page originally showed the empty-state, inject an "on file" block
+  const existingImg = section.querySelector('img[alt="Current Approval Letter"]');
+  if (!existingImg && previewUrl) {
+    const onFileHtml = `
+      <div class="mb-2 d-flex align-items-start gap-3" id="approval_on_file_block">
+        <a href="${previewUrl}" target="_blank" rel="noopener">
+          <img src="${previewUrl}" alt="Current Approval Letter"
+               class="rounded border shadow-sm"
+               style="max-width:160px;max-height:120px;object-fit:contain;">
+        </a>
+        <div>
+          <div class="small text-success fw-bold mb-1">
+            <i class="bi bi-check-circle me-1"></i>Letter on file
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-primary"
+                  onclick="document.getElementById('approval_letter').click()">
+            <i class="bi bi-arrow-repeat me-1"></i>Update
+          </button>
+        </div>
+      </div>`;
+    const errorEl = document.getElementById("approval_letter_error");
+    if (errorEl) {
+      errorEl.insertAdjacentHTML("beforebegin", onFileHtml);
+    }
+  }
+
+  // Remove required so HTML5 validation doesn't block later
+  const input = document.getElementById("approval_letter");
+  if (input) {
+    input.removeAttribute("required");
+    input.value = ""; // clear the file input (letter is already on the server)
+  }
 }
 
 /* ===================== GLOBAL LISTENERS ===================== */

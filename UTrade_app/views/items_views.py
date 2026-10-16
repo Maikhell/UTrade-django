@@ -22,8 +22,14 @@ import re
 import json
 from django.db.models import Q
 
+
+User = get_user_model()
+
+
 def get_seller(self):
     return get_object_or_404(User, pk=self.kwargs['seller_id'])
+
+
 # ===================== PRODUCT CODE =====================
 def generate_next_product_code():
     """
@@ -51,48 +57,120 @@ def generate_next_product_code():
     return f'{prefix}{last + 1:04d}'
 
 
+# ===================== SHARED APPROVAL-LETTER HELPER =====================
+def _get_user_organization(user):
+    """
+    Return the Organization instance linked to this user, or None.
+    Only officers have an organization. Management is exempt.
+    """
+    if not getattr(user, 'is_officer', False):
+        return None
+
+    org = getattr(user, 'organization', None)
+
+    # Already a model instance
+    if org is not None and hasattr(org, 'approval_letter'):
+        return org
+
+    # Stored as string (name or course_code)
+    if isinstance(org, str) and org.strip():
+        return (
+            Organization.objects.filter(name=org).first()
+            or Organization.objects.filter(course_code=org).first()
+        )
+
+    # Stored as primary key
+    if isinstance(org, int):
+        return Organization.objects.filter(pk=org).first()
+
+    return None
+
+
+def _save_approval_letter(request):
+    """
+    Save / replace the organization’s approval letter.
+    Management accounts and personal sellers are completely exempt.
+    Returns (ok: bool, message: str|None)
+    """
+    # Management & personal sellers skip entirely
+    if not getattr(request.user, 'is_officer', False):
+        return True, None
+
+    organization = _get_user_organization(request.user)
+    if organization is None:
+        return False, 'No organization linked to this account.'
+
+    file = request.FILES.get('approval_letter')
+    if not file:
+        # Already has a letter → allow proceeding without re-upload
+        if organization.approval_letter:
+            return True, None
+        return False, 'Letter of Approval is required.'
+
+    # Type check
+    allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
+    if (
+        file.content_type not in allowed_types
+        and not file.name.lower().endswith(('.jpg', '.jpeg', '.png'))
+    ):
+        return False, 'Only JPG or PNG files are allowed.'
+
+    # Size check (10 MB)
+    if file.size > 10 * 1024 * 1024:
+        return False, 'File exceeds the 10 MB limit.'
+
+    # Overwrite existing (single field → no duplicates)
+    if organization.approval_letter:
+        organization.approval_letter.delete(save=False)
+    organization.approval_letter = file
+    organization.save(update_fields=['approval_letter'])
+    return True, 'Approval letter saved.'
+
+
+# ===================== LANDING / HELPERS =====================
 def landing_page(request):
-  # 1. Fetch categories and meetup locations efficiently
-  categories = Category.objects.all().order_by('name')
-  meetup_locations = MeetupLocation.objects.all()
+    # 1. Fetch categories and meetup locations efficiently
+    categories = Category.objects.all().order_by('name')
+    meetup_locations = MeetupLocation.objects.all()
 
-  # 2. Base queryset: ONLY approved products + prefetch related fields to avoid N+1 queries
-  products = (
-      Product.objects.filter(status='Approved')
-      .select_related('category', 'seller', 'related_org')
-      .prefetch_related('images', 'variants')
-      .order_by('-created_at')
-  )
-
-  # 3. Apply optional search filter
-  query = request.GET.get('q')
-  if query:
-    products = products.filter(
-        Q(name__icontains=query)
-        | Q(description__icontains=query)
-        | Q(category__name__icontains=query)
-        | Q(product_code__icontains=query)
+    # 2. Base queryset: ONLY approved products + prefetch related fields to avoid N+1 queries
+    products = (
+        Product.objects.filter(status='Approved')
+        .select_related('category', 'seller', 'related_org')
+        .prefetch_related('images', 'variants')
+        .order_by('-created_at')
     )
 
-  # 4. Apply category filter
-  category_id = request.GET.get('category')
-  if category_id:
-    products = products.filter(category_id=category_id)
+    # 3. Apply optional search filter
+    query = request.GET.get('q')
+    if query:
+        products = products.filter(
+            Q(name__icontains=query)
+            | Q(description__icontains=query)
+            | Q(category__name__icontains=query)
+            | Q(product_code__icontains=query)
+        )
 
-  # 5. Limit initial load to 12 featured/recent products for guest landing speed
-  featured_products = products[:12]
+    # 4. Apply category filter
+    category_id = request.GET.get('category')
+    if category_id:
+        products = products.filter(category_id=category_id)
 
-  return render(
-      request,
-      'UTrade_app/landingpage.html',
-      {
-          'categories': categories,
-          'products': featured_products,
-          'meetup_locations': meetup_locations,
-          'search_query': query,
-          'current_category': category_id,
-      },
-  )
+    # 5. Limit initial load to 12 featured/recent products for guest landing speed
+    featured_products = products[:12]
+
+    return render(
+        request,
+        'UTrade_app/landingpage.html',
+        {
+            'categories': categories,
+            'products': featured_products,
+            'meetup_locations': meetup_locations,
+            'search_query': query,
+            'current_category': category_id,
+        },
+    )
+
 
 def prohibited_words_api(request):
     words = list(ProhibitedWord.objects.values_list('word', flat=True))
@@ -105,6 +183,7 @@ def next_product_code_api(request):
     return JsonResponse({'product_code': generate_next_product_code()})
 
 
+# ===================== PRODUCT CREATE (WORKSHOP) =====================
 class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'UTrade_app/products/add_product.html'
@@ -116,74 +195,13 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     ]
 
     # ------------------------------------------------------------------
-    # Helpers
+    # Helpers (thin wrappers around the shared functions)
     # ------------------------------------------------------------------
     def _get_user_organization(self, user):
-        """
-        Return the Organization instance linked to this user, or None.
-        Only officers have an organization. Management is exempt.
-        """
-        if not getattr(user, 'is_officer', False):
-            return None
-
-        org = getattr(user, 'organization', None)
-
-        # Already a model instance
-        if org is not None and hasattr(org, 'approval_letter'):
-            return org
-
-        # Stored as string (name or course_code)
-        if isinstance(org, str) and org.strip():
-            return (
-                Organization.objects.filter(name=org).first()
-                or Organization.objects.filter(course_code=org).first()
-            )
-
-        # Stored as primary key
-        if isinstance(org, int):
-            return Organization.objects.filter(pk=org).first()
-
-        return None
+        return _get_user_organization(user)
 
     def _save_approval_letter(self, request):
-        """
-        Save / replace the organization’s approval letter.
-        Management accounts and personal sellers are completely exempt.
-        Returns (ok: bool, message: str|None)
-        """
-        # Management & personal sellers skip entirely
-        if not getattr(request.user, 'is_officer', False):
-            return True, None
-
-        organization = self._get_user_organization(request.user)
-        if organization is None:
-            return False, 'No organization linked to this account.'
-
-        file = request.FILES.get('approval_letter')
-        if not file:
-            # Already has a letter → allow proceeding without re-upload
-            if organization.approval_letter:
-                return True, None
-            return False, 'Letter of Approval is required.'
-
-        # Type check
-        allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
-        if (
-            file.content_type not in allowed_types
-            and not file.name.lower().endswith(('.jpg', '.jpeg', '.png'))
-        ):
-            return False, 'Only JPG or PNG files are allowed.'
-
-        # Size check (10 MB)
-        if file.size > 10 * 1024 * 1024:
-            return False, 'File exceeds the 10 MB limit.'
-
-        # Overwrite existing (single field → no duplicates)
-        if organization.approval_letter:
-            organization.approval_letter.delete(save=False)
-        organization.approval_letter = file
-        organization.save(update_fields=['approval_letter'])
-        return True, 'Approval letter saved.'
+        return _save_approval_letter(request)
 
     # ------------------------------------------------------------------
     # Context
@@ -408,6 +426,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             }, status=500)
 
 
+# ===================== PRODUCT DETAIL / LIST / CART / ETC. =====================
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'UTrade_app/products/product_details.html'
@@ -505,17 +524,18 @@ class BatchPreOrderView(LoginRequiredMixin, View):
                 variant = ProductVariant.objects.filter(id=variant_id).first()
                 if variant:
                     PreOrderRequest.objects.create(
-                        buyer=request.user,               
-                        product_variant=variant,               
-                        seller=variant.product.seller,   
+                        buyer=request.user,
+                        product_variant=variant,
+                        seller=variant.product.seller,
                         quantity=quantity,
                         status=status,
-                    ) 
+                    )
 
             return JsonResponse({'success': True, 'message': 'Pre-orders created successfully.'})
 
         except Exception as e:
             return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
 
 class ProductListView(ListView):
     model = Product
@@ -594,18 +614,17 @@ class ProductListView(ListView):
         context['search_query'] = self.request.GET.get('q')
 
         if self.request.user.is_authenticated:
-            # ✅ SAFELY filter out missing/deleted product references
             context['user_wishlist_ids'] = set(
                 Wishlist.objects.filter(
                     user=self.request.user,
-                    product__isnull=False  # Ignore deleted/orphaned products
+                    product__isnull=False
                 ).values_list('product_id', flat=True)
             )
             context['user_cart_ids'] = set(
                 CartItem.objects.filter(
                     cart__user=self.request.user,
-                    variant__isnull=False,          # Ignore deleted variants
-                    variant__product__isnull=False  # Ignore deleted parent products
+                    variant__isnull=False,
+                    variant__product__isnull=False
                 ).values_list('variant__product_id', flat=True)
             )
         else:
@@ -641,6 +660,7 @@ def toggle_wishlist(request, product_id):
         return JsonResponse({'status': 'error', 'message': 'Product not found'})
 
 
+# ===================== STAGING AJAX ENDPOINTS =====================
 @login_required
 @require_POST
 def add_to_staging_ajax(request):
@@ -661,6 +681,11 @@ def add_to_staging_ajax(request):
             {'status': 'error', 'message': 'Prohibited content detected.'},
             status=400,
         )
+
+    # ---------- NEW: save approval letter as soon as it is uploaded ----------
+    ok, msg = _save_approval_letter(request)
+    if not ok:
+        return JsonResponse({'status': 'error', 'message': msg}, status=400)
 
     location = (request.POST.get('location_options') or '').strip()
     available_days_raw = (request.POST.get('available_days') or '').strip()
@@ -747,10 +772,7 @@ def add_to_staging_ajax(request):
     category = None
     if category_id and str(category_id).isdigit():
         category = Category.objects.filter(id=category_id).first()
-    elif category_id == 'other':
-        custom_name = (request.POST.get('custom_category_name') or '').strip()
-        if custom_name:
-            category, _ = Category.objects.get_or_create(name=custom_name.title())
+    # "other" path intentionally ignored (frontend no longer sends it)
 
     staged_prod = StagedProduct.objects.create(
         seller=request.user,
@@ -781,14 +803,35 @@ def add_to_staging_ajax(request):
             stocks=v.get('stock', 0) or 0,
             condition=v.get('condition', 'Brand New'),
             flaws=v.get('flaws', ''),
+            image_index=v.get('imageIndex'),   # preserve image association
         )
 
+    # Keep previously uploaded images (edit flow)
+    keep_ids = []
+    try:
+        keep_ids = json.loads(request.POST.get('keep_image_ids', '[]'))
+    except Exception:
+        pass
+
+    if keep_ids:
+        for img_id in keep_ids:
+            try:
+                old_img = StagedImage.objects.get(pk=img_id)
+                StagedImage.objects.create(
+                    staged_product=staged_prod,
+                    image=old_img.image,
+                    is_main=old_img.is_main,
+                )
+            except StagedImage.DoesNotExist:
+                pass
+
+    # New uploads
     images = request.FILES.getlist('images')
     for i, img in enumerate(images):
         StagedImage.objects.create(
             staged_product=staged_prod,
             image=img,
-            is_main=(i == 0),
+            is_main=(i == 0 and not keep_ids),
         )
 
     return JsonResponse({
@@ -796,26 +839,52 @@ def add_to_staging_ajax(request):
         'staged_id': staged_prod.id,
         'product_code': product_code,
         'next_product_code': generate_next_product_code(),
+        'approval_letter_saved': True,   # tell frontend the letter is on file
     })
 
 
+@login_required
 def get_staged_product_details(request, staged_id):
     try:
-        product = StagedProduct.objects.get(id=staged_id, seller=request.user)
-
-        variants = list(
-            product.variants.values('variant_name', 'price', 'stocks', 'condition', 'flaws')
+        product = (
+            StagedProduct.objects
+            .prefetch_related('images', 'variants')
+            .get(id=staged_id, seller=request.user, is_submitted=False)
         )
-        images = [
-            {'url': img.image.url, 'is_main': img.is_main}
-            for img in product.images.all()
-        ]
+
+        images = []
+        for img in product.images.all():
+            images.append({
+                'id': img.id,
+                'url': img.image.url,
+                'is_main': img.is_main,
+            })
+
+        variants = []
+        for v in product.variants.all():
+            image_url = None
+            if v.image_index is not None and 0 <= v.image_index < len(images):
+                image_url = images[v.image_index]['url']
+            variants.append({
+                'variant_name': v.variant_name,
+                'price': str(v.price),
+                'stocks': v.stocks,
+                'condition': v.condition,
+                'flaws': v.flaws or '',
+                'attribute_value': v.variant_attribute or '',
+                'image_index': v.image_index,
+                'image_url': image_url,
+            })
 
         data = {
+            'id': product.id,
             'name': product.name,
             'description': product.description,
-            'category': product.category.id if product.category else '',
+            'category': product.category_id if product.category else '',
+            'category_name': product.category.name if product.category else '',
             'product_code': getattr(product, 'product_code', '') or '',
+            'pre_order': product.pre_order,
+            'owner_type': product.owner_type,
             'locations': product.meetup_locations_list or '',
             'available_days': product.available_days or '',
             'meetup_time_from': (
@@ -837,24 +906,34 @@ def get_staged_product_details(request, staged_id):
         return JsonResponse({'error': 'Not found'}, status=404)
 
 
+@login_required
+@require_POST
 def delete_staged_product(request, staged_id):
-    if request.method in ('POST', 'DELETE'):
-        try:
-            item = StagedProduct.objects.get(id=staged_id, seller=request.user)
-            item.delete()
-            return JsonResponse({'status': 'success'})
-        except StagedProduct.DoesNotExist:
-            return JsonResponse({'error': 'Item not found'}, status=404)
+    deleted, _ = StagedProduct.objects.filter(
+        id=staged_id,
+        seller=request.user,
+        is_submitted=False,
+    ).delete()
+    if deleted:
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error', 'message': 'Item not found'}, status=404)
 
 
 def get_attributes(request, category_id):
-    attributes = CategoryAttribute.objects.filter(category_id=category_id).values(
-        'value', 'attribute_type'
+    """
+    Return the 5 most recently used attributes for the given category.
+    Ordered by -id so the newest appear first.
+    """
+    attributes = (
+        CategoryAttribute.objects
+        .filter(category_id=category_id)
+        .order_by('-id')[:5]
+        .values('id', 'value', 'attribute_type')
     )
     return JsonResponse({'attributes': list(attributes)})
 
-User = get_user_model()
 
+# ===================== STOREFRONT =====================
 class StorefrontView(ListView):
     """Seller shop — same product grid as marketplace, filtered by seller."""
     model = Product
@@ -863,8 +942,6 @@ class StorefrontView(ListView):
     paginate_by = 15
 
     def get_seller(self):
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
         return get_object_or_404(User, pk=self.kwargs['seller_id'])
 
     def get_queryset(self):

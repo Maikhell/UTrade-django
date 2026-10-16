@@ -85,80 +85,80 @@
             <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
 
             <!-- {{ org_name }} Panel -->
-            <div class="mb-3">
-        <!-- ACS Panel section -->
-          <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-            <i class="bi bi-building"></i> {{ org_name }} Panel
-          </div>
-          <ul class="nav flex-column gap-1 ms-3 mt-1">
-            <li class="nav-item">
-              <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1"
-                href="{% url 'organization.panel' %}">
-                <i class="bi bi-speedometer2 text-success"></i> Dashboard
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                href="{% url 'org_products' %}">
-                <i class="bi bi-box-seam text-success"></i> Products
-                <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count|default:0 }}</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                href="{% url 'org_remittance_view' %}">
-                <i class="bi bi-cash-stack text-success"></i> Remittance
-              </a>
-            </li>
-          </ul>
+          <div class="mb-3">
+            <!-- ACS Panel section -->
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-building"></i> {{ org_name }} Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1"
+                    href="{% url 'organization.panel' %}">
+                    <i class="bi bi-speedometer2 text-success"></i> Dashboard
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                    href="{% url 'org_products' %}">
+                    <i class="bi bi-box-seam text-success"></i> Products
+                    <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count|default:0 }}</span>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                    href="{% url 'org_remittance_view' %}">
+                    <i class="bi bi-cash-stack text-success"></i> Remittance
+                  </a>
+                </li>
+              </ul>
 
-          <!-- Orders section -->
-          <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1 mt-2">
-            <i class="bi bi-cart-fill"></i> Orders
-          </div>
-          <ul class="nav flex-column gap-1 ms-3 mt-1">
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                href="{% url 'organization_orders' %}">
-                <i class="bi bi-inbox text-success"></i> Orders
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                href="{% url 'organization_preorders' %}">
-                <i class="bi bi-calendar-check text-success"></i> Pre-Orders
-                {% if incoming_preorder_count %}
-                  <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>
-                {% endif %}
-              </a>
-            </li>
-          </ul>
+              <!-- Orders section -->
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1 mt-2">
+                <i class="bi bi-cart-fill"></i> Orders
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                    href="{% url 'organization_orders' %}">
+                    <i class="bi bi-inbox text-success"></i> Orders
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                    href="{% url 'organization_preorders' %}">
+                    <i class="bi bi-calendar-check text-success"></i> Pre-Orders
+                    {% if incoming_preorder_count %}
+                      <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>
+                    {% endif %}
+                  </a>
+                </li>
+              </ul>
 
-          <!-- Users section -->
-          <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1 mt-2">
-            <i class="bi bi-person"></i> Users
-          </div>
-          <ul class="nav flex-column gap-1 ms-3 mt-1">
-            {# Pending Verification: Academic only, hide for CSG and Non-Academic #}
-            {% if org_type == 'academic' and org_acronym != 'CSG' %}
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                href="{% url 'org_pending_verification' %}">
-                <i class="bi bi-person-check text-success"></i> Pending Verification
-                {% if pending_verification_count %}
-                  <span class="badge bg-warning text-dark rounded-pill ms-auto">{{ pending_verification_count }}</span>
+              <!-- Users section -->
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1 mt-2">
+                <i class="bi bi-person"></i> Users
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                {# Pending Verification: Academic only, hide for CSG and Non-Academic #}
+                {% if org_type == 'academic' and org_acronym != 'CSG' %}
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                    href="{% url 'org_pending_verification' %}">
+                    <i class="bi bi-person-check text-success"></i> Pending Verification
+                    {% if pending_verification_count %}
+                      <span class="badge bg-warning text-dark rounded-pill ms-auto">{{ pending_verification_count }}</span>
+                    {% endif %}
+                  </a>
+                </li>
                 {% endif %}
-              </a>
-            </li>
-            {% endif %}
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                href="{% url 'org_users' %}">
-                <i class="bi bi-people text-success"></i> Users
-              </a>
-            </li>
-          </ul>
-        </div>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
+                    href="{% url 'org_users' %}">
+                    <i class="bi bi-people text-success"></i> Users
+                  </a>
+                </li>
+              </ul>
+            </div>
 
             <hr class="my-3 opacity-25">
             <div class="d-grid gap-2">

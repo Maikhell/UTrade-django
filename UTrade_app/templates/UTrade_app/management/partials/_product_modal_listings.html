@@ -1,149 +1,235 @@
+{# expects: product, optional show_approve, show_reject, show_unlist #}
 <div class="modal fade" id="productModal{{ product.id }}" tabindex="-1"
      aria-labelledby="productModalLabel{{ product.id }}" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content border-0 shadow rounded-4 overflow-hidden">
-
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title fw-bold" id="productModalLabel{{ product.id }}">{{ product.name }}</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold text-success" id="productModalLabel{{ product.id }}">
+          {{ product.name }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
 
-      <div class="modal-body p-4">
-        <div class="row g-4">
+      <div class="modal-body pt-2">
+        <div class="row g-3">
+
+          {# ---- Main image + gallery scroll ---- #}
           <div class="col-md-5">
-            {% with img=product.images.first %}
-              {% if img %}
-                <img src="{{ img.image.url }}" class="img-fluid rounded-3 shadow-sm w-100 mb-2"
-                     style="max-height:280px; object-fit:cover;" alt="{{ product.name }}">
+            {% with main=product.images.first %}
+              {% if main %}
+                <img src="{{ main.image.url }}"
+                     id="mainImg{{ product.id }}"
+                     class="img-fluid rounded-3 w-100 border"
+                     style="max-height: 260px; object-fit: cover;"
+                     alt="{{ product.name }}">
               {% else %}
-                <div class="bg-light rounded-3 d-flex align-items-center justify-content-center" style="height:220px;">
+                <div class="bg-light rounded-3 d-flex align-items-center justify-content-center border"
+                     style="height: 220px;">
                   <i class="bi bi-image fs-1 text-muted"></i>
                 </div>
               {% endif %}
             {% endwith %}
-            {% if product.images.count > 1 %}
-            <div class="d-flex gap-2 flex-wrap">
+
+            {# Horizontal scroll: product images + variant assigned images #}
+            <div class="detail-label mt-3 mb-1">Photos &amp; variant images</div>
+            <div class="d-flex gap-2 overflow-auto pb-2"
+                 style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;">
               {% for img in product.images.all %}
-                <img src="{{ img.image.url }}" class="rounded border"
-                     style="width:56px;height:56px;object-fit:cover;" alt="">
+                <img src="{{ img.image.url }}"
+                     alt="Product photo"
+                     class="rounded-2 border flex-shrink-0"
+                     style="width: 72px; height: 72px; object-fit: cover; scroll-snap-align: start; cursor: pointer;"
+                     onclick="document.getElementById('mainImg{{ product.id }}').src=this.src;">
+              {% empty %}
+              {% endfor %}
+              {% for v in product.variants.all %}
+                {% if v.assigned_image %}
+                  <div class="flex-shrink-0 text-center" style="scroll-snap-align: start; width: 72px;">
+                    <img src="{{ v.assigned_image.image.url }}"
+                         alt="{{ v.variant_name }}"
+                         class="rounded-2 border"
+                         style="width: 72px; height: 72px; object-fit: cover; cursor: pointer;"
+                         onclick="document.getElementById('mainImg{{ product.id }}').src=this.src;">
+                    <div class="small text-muted text-truncate" style="font-size: 0.65rem;" title="{{ v.variant_name }}">
+                      {{ v.variant_name }}
+                    </div>
+                  </div>
+                {% endif %}
               {% endfor %}
             </div>
-            {% endif %}
+            <p class="small text-muted mb-0 mt-1">
+              <i class="bi bi-arrows-expand"></i> Swipe / scroll sideways for more photos
+            </p>
           </div>
 
+          {# ---- Details ---- #}
           <div class="col-md-7">
-            <div class="d-flex flex-wrap gap-2 mb-3">
+            <div class="d-flex flex-wrap gap-2 mb-2">
               <span class="badge
-                {% if product.status == 'Approved' %}badge-approved
-                {% elif product.status == 'Pending' %}badge-pending
-                {% elif product.status == 'Unlisted' %}badge-unlisted
-                {% else %}badge-rejected{% endif %} rounded-pill">
+                {% if product.status == 'Approved' %}bg-success
+                {% elif product.status == 'Pending' %}bg-warning text-dark
+                {% elif product.status == 'Rejected' %}bg-danger
+                {% else %}bg-secondary{% endif %} rounded-pill">
                 {{ product.status }}
               </span>
               {% if product.pre_order %}
-                <span class="badge bg-info text-dark rounded-pill">Pre-Order</span>
+                <span class="badge bg-info text-dark rounded-pill">Pre-order</span>
+              {% endif %}
+              {% if product.owner_type == 'ORGANIZATION' %}
+                <span class="badge bg-info text-dark rounded-pill">Organization</span>
+              {% elif product.owner_type == 'MANAGEMENT' %}
+                <span class="badge bg-primary rounded-pill">Management</span>
               {% endif %}
             </div>
 
-            <div class="row g-3 mb-3">
-              <div class="col-6">
-                <div class="detail-label">Product Code</div>
-                <div class="fw-semibold">{{ product.product_code|default:"—" }}</div>
+            {% if product.product_code %}
+              <div class="mb-2">
+                <div class="detail-label">Product code</div>
+                <div class="fw-semibold">{{ product.product_code }}</div>
               </div>
-              <div class="col-6">
-                <div class="detail-label">Category</div>
-                <div class="fw-semibold">{{ product.category.name|default:"—" }}</div>
-              </div>
+            {% endif %}
+
+            <div class="mb-2">
+              <div class="detail-label">Price range</div>
+              <div class="fw-bold text-success fs-5">₱{{ product.get_price_range }}</div>
+            </div>
+
+            <div class="row g-2 mb-2">
               <div class="col-6">
                 <div class="detail-label">Seller</div>
-                <div class="fw-semibold">{{ product.seller.get_short_name|default:product.seller.username }}</div>
-              </div>
-              <div class="col-6">
-                <div class="detail-label">Course / Section</div>
-                <div class="fw-semibold">
-                  {{ product.seller.course|default:"—" }}
+                <div class="small fw-semibold">
+                  {{ product.display_seller_name|default:product.seller.get_short_name }}
+                </div>
+                <div class="small text-muted">
+                  {{ product.seller.course|default:"" }}
                   {% if product.seller.section %} · {{ product.seller.section }}{% endif %}
                 </div>
               </div>
               <div class="col-6">
-                <div class="detail-label">Created</div>
-                <div class="fw-semibold">{{ product.created_at|date:"M d, Y" }}</div>
+                <div class="detail-label">Category</div>
+                <div class="small fw-semibold">{{ product.category.name|default:"—" }}</div>
               </div>
               <div class="col-6">
-                <div class="detail-label">Total Stock</div>
-                <div class="fw-semibold text-success">{{ product.get_total_stock }}</div>
+                <div class="detail-label">Total stock</div>
+                <div class="small fw-semibold">{{ product.get_total_stock }}</div>
               </div>
               <div class="col-6">
-                <div class="detail-label">Meetup</div>
-                <div class="fw-semibold">{{ product.meetup_location_text|default:"—" }}</div>
-              </div>
-              <div class="col-6">
-                <div class="detail-label">Pickup Days</div>
-                <div class="fw-semibold">{{ product.available_days|default:"—" }}</div>
-              </div>
-              <div class="col-6">
-                <div class="detail-label">Rating</div>
-                <div class="star-rating">
-                  {% with rating=product.average_rating %}
-                    {% for i in "12345" %}
-                      {% if forloop.counter <= rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star empty"></i>{% endif %}
-                    {% endfor %}
-                    <span class="text-muted small ms-1">{{ rating }}</span>
-                  {% endwith %}
-                </div>
+                <div class="detail-label">Payments</div>
+                <div class="small fw-semibold">{{ product.get_accepted_payments_display|default:product.accepted_payments }}</div>
               </div>
             </div>
 
-            {% if product.description %}
+            <div class="mb-2">
+              <div class="detail-label">Meetup</div>
+              <div class="small">
+                <i class="bi bi-geo-alt text-success"></i>
+                {{ product.meetup_location_text|default:"Not specified" }}
+              </div>
+              {% if product.available_days %}
+                <div class="small text-muted">Days: {{ product.available_days }}</div>
+              {% endif %}
+              {% if product.preferred_meetup_time_from or product.preferred_meetup_time_to %}
+                <div class="small text-muted">
+                  Time:
+                  {% if product.preferred_meetup_time_from %}{{ product.preferred_meetup_time_from|time:"g:i A" }}{% endif %}
+                  {% if product.preferred_meetup_time_to %} – {{ product.preferred_meetup_time_to|time:"g:i A" }}{% endif %}
+                </div>
+              {% endif %}
+            </div>
+
             <div class="mb-3">
               <div class="detail-label">Description</div>
-              <p class="mb-0 small">{{ product.description|truncatewords:50 }}</p>
+              <p class="small mb-0" style="white-space: pre-wrap;">{{ product.description|default:"—" }}</p>
             </div>
+
+            {# ========== LETTER OF APPROVAL ========== #}
+            {% if product.approval_letter %}
+              <div class="border border-success border-opacity-25 rounded-3 p-3 mb-3 bg-success bg-opacity-10">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <i class="bi bi-file-earmark-check text-success fs-5"></i>
+                  <div>
+                    <div class="fw-bold text-success small text-uppercase" style="letter-spacing: 0.04em;">
+                      Letter of Approval
+                    </div>
+                    <div class="text-muted" style="font-size: 0.7rem;">
+                      Official document submitted with this listing (org / management use)
+                    </div>
+                  </div>
+                </div>
+                <a href="{{ product.approval_letter.url }}" target="_blank" rel="noopener"
+                   class="d-inline-block">
+                  <img src="{{ product.approval_letter.url }}"
+                       alt="Letter of Approval for {{ product.name }}"
+                       class="img-fluid rounded-3 border shadow-sm"
+                       style="max-height: 220px; object-fit: contain; background: #fff;">
+                </a>
+                <div class="mt-2">
+                  <a href="{{ product.approval_letter.url }}" target="_blank" rel="noopener"
+                     class="btn btn-sm btn-outline-success rounded-pill">
+                    <i class="bi bi-box-arrow-up-right me-1"></i> Open full size
+                  </a>
+                </div>
+              </div>
+            {% elif product.status == 'Pending' and product.owner_type == 'ORGANIZATION' %}
+              <div class="alert alert-warning py-2 small mb-3">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                No letter of approval uploaded for this pending organization product.
+              </div>
             {% endif %}
 
-            <div class="detail-label mb-2">Variants</div>
+            {# Variants #}
+            <div class="detail-label">Variants</div>
             {% for v in product.variants.all %}
-            <div class="variant-row rounded-3 p-2 mb-2 small">
-              <div class="d-flex justify-content-between">
-                <strong>{{ v.variant_name }}</strong>
-                <span class="text-success fw-bold">₱{{ v.price }}</span>
+              <div class="variant-row rounded-3 px-3 py-2 mb-2 small">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                  <div>
+                    <strong>{{ v.variant_name }}</strong>
+                    {% if v.attribute_value %}
+                      <span class="text-muted">({{ v.attribute_value }})</span>
+                    {% endif %}
+                    <div class="text-muted">{{ v.condition }} · Stock: {{ v.stocks }}</div>
+                    {% if v.flaws_description %}
+                      <div class="text-muted">Flaws: {{ v.flaws_description }}</div>
+                    {% endif %}
+                  </div>
+                  <div class="fw-bold text-success text-nowrap">₱{{ v.price }}</div>
+                </div>
               </div>
-              <div class="text-muted">
-                Stock: {{ v.stocks }} · {{ v.condition }}
-                {% if v.attribute_value %} · {{ v.attribute_value }}{% endif %}
-              </div>
-            </div>
             {% empty %}
-            <p class="text-muted small">No variants.</p>
+              <p class="small text-muted">No variants listed.</p>
             {% endfor %}
           </div>
         </div>
       </div>
 
-      <div class="modal-footer border-0 bg-light flex-wrap gap-2">
-        <a href="{% url 'start_chat' product_id=product.id %}?from=management&ref=product"
-           class="btn btn-outline-success rounded-pill">
-          <i class="bi bi-chat-dots me-1"></i> Message Seller
-        </a>
+      <div class="modal-footer border-0 pt-0 flex-wrap gap-2">
+        {% if product.id %}
+          <a href="{% url 'start_chat' product.id %}"
+             class="btn btn-outline-success rounded-pill">
+            <i class="bi bi-chat-dots me-1"></i> Message Seller
+          </a>
+        {% endif %}
+
         {% if show_approve %}
-        <button type="button" class="btn btn-success rounded-pill"
-                onclick="confirmAction('product', '{{ product.id }}', 'Approved', '{{ product.name|escapejs }}')">
-          <i class="bi bi-check-lg me-1"></i> Approve
-        </button>
+          <button type="button" class="btn btn-success rounded-pill"
+                  onclick="confirmAction('product', '{{ product.id }}', 'Approved', '{{ product.name|escapejs }}')">
+            <i class="bi bi-check-lg me-1"></i> Approve
+          </button>
         {% endif %}
         {% if show_reject %}
-        <button type="button" class="btn btn-danger rounded-pill"
-                onclick="rejectProduct('{{ product.id }}', '{{ product.name|escapejs }}')">
-          <i class="bi bi-x-lg me-1"></i> Reject
-        </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill"
+                  onclick="rejectProduct('{{ product.id }}', '{{ product.name|escapejs }}')">
+            <i class="bi bi-x-lg me-1"></i> Reject
+          </button>
         {% endif %}
         {% if show_unlist %}
-        <button type="button" class="btn btn-outline-danger rounded-pill"
-                onclick="unlistProduct('{{ product.id }}', '{{ product.name|escapejs }}')">
-          <i class="bi bi-eye-slash me-1"></i> Unlist
-        </button>
+          <button type="button" class="btn btn-outline-danger rounded-pill"
+                  onclick="unlistProduct('{{ product.id }}', '{{ product.name|escapejs }}')">
+            <i class="bi bi-eye-slash me-1"></i> Unlist
+          </button>
         {% endif %}
-        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Close</button>
+
+        <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>

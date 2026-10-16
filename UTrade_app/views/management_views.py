@@ -926,8 +926,12 @@ def active_listings(request):
 
     base_qs = (
         Product.objects
-        .select_related('seller', 'category')
-        .prefetch_related('variants', 'images')
+        .select_related('seller', 'category', 'related_org')
+        .prefetch_related(
+            'variants',
+            'variants__assigned_image',
+            'images',
+        )
         .order_by('-created_at')
     )
 
@@ -948,8 +952,8 @@ def active_listings(request):
     elif pre_order_filter == 'False':
         base_qs = base_qs.filter(pre_order=False)
 
-    active_products   = base_qs.filter(status='Approved')
-    pending_products  = base_qs.filter(status='Pending')
+    active_products = base_qs.filter(status='Approved')
+    pending_products = base_qs.filter(status='Pending')
     unlisted_products = base_qs.filter(status='Unlisted')
     rejected_products = base_qs.filter(status='Rejected')
 
@@ -965,7 +969,12 @@ def active_listings(request):
         'status_filter': status_filter,
         'org_name': 'UTrade Global Management',
     }
-    return render(request, 'UTrade_app/management/management_panel/active_listings.html', context)
+    return render(
+        request,
+        'UTrade_app/management/management_panel/active_listings.html',
+        context,
+    )
+    
 def _buyer_org_acronym(user):
     """Return BSIT / BSCS style acronym for a buyer."""
     if not user:

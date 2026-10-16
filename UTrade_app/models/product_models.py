@@ -133,7 +133,12 @@ class StagedProduct(models.Model):
     description = models.TextField()
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
     pre_order = models.BooleanField(default=False)
-    
+    approval_letter = models.ImageField(
+        upload_to='org_approval_letters/staged/',
+        blank=True,
+        null=True,
+        help_text='JPG/PNG only, max 10 MB – carried over to Product on submit',
+    )
     owner_type = models.CharField(max_length=15, choices=Product.OWNER_TYPE_CHOICES, default='PERSONAL')
     related_org = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True)
     product_code = models.CharField(

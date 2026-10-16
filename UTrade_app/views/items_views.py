@@ -57,33 +57,28 @@ def generate_next_product_code():
     return f'{prefix}{last + 1:04d}'
 
 
-# ===================== SHARED APPROVAL-LETTER HELPER =====================
+# ===================== ORG LOOKUP + APPROVAL LETTER (on Product) =====================
 def _get_user_organization(user):
     """
     Return the Organization instance linked to this user, or None.
-    Only officers have an organization. Management is exempt.
+    Used only for context display – approval_letter is NOT on Organization.
     """
     if not getattr(user, 'is_officer', False):
         return None
 
     org = getattr(user, 'organization', None)
-
-    # Already a model instance
     if org is not None and hasattr(org, 'pk'):
         return org
 
-    # Stored as string (name or course_code)
     if isinstance(org, str) and org.strip():
         return (
             Organization.objects.filter(name=org).first()
             or Organization.objects.filter(course_code=org).first()
         )
 
-    # Stored as primary key
     if isinstance(org, int):
         return Organization.objects.filter(pk=org).first()
 
-    # Fallback: common alternate attribute names
     for attr in ('org', 'org_link', 'related_org'):
         candidate = getattr(user, attr, None)
         if candidate is not None and hasattr(candidate, 'pk'):
@@ -92,74 +87,33 @@ def _get_user_organization(user):
     return None
 
 
-def _save_approval_letter(request):
+def _validate_approval_letter_file(file):
     """
-    Save / replace the organization’s approval letter.
-    Management accounts and personal sellers are completely exempt.
-    Returns (ok: bool, message: str|None)
-
-    Never raises – always returns a tuple so the AJAX view can stay JSON-only.
+    Validate an uploaded approval-letter file (JPG/PNG, max 10 MB).
+    Returns (ok: bool, message: str|None).
+    Does NOT touch Organization – letter belongs on Product / StagedProduct.
     """
-    try:
-        # Management & personal sellers skip entirely
-        if not getattr(request.user, 'is_officer', False):
-            return True, None
+    if not file:
+        return True, None
 
-        organization = _get_user_organization(request.user)
-        if organization is None:
-            # Officer with no linked org – don't hard-fail staging;
-            # just skip letter handling so the rest of the flow works.
-            return True, None
+    allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
+    if (
+        file.content_type not in allowed_types
+        and not file.name.lower().endswith(('.jpg', '.jpeg', '.png'))
+    ):
+        return False, 'Only JPG or PNG files are allowed.'
 
-        # Field may not exist yet (migration not run)
-        if not hasattr(organization, 'approval_letter'):
-            return True, None
+    if file.size > 10 * 1024 * 1024:
+        return False, 'File exceeds the 10 MB limit.'
 
-        file = request.FILES.get('approval_letter')
-        if not file:
-            # Already has a letter → allow proceeding without re-upload
-            if organization.approval_letter:
-                return True, None
-            # No letter on file and none uploaded – still allow staging.
-            # Final submit will enforce the requirement.
-            return True, None
-
-        # Type check
-        allowed_types = {'image/jpeg', 'image/png', 'image/jpg'}
-        if (
-            file.content_type not in allowed_types
-            and not file.name.lower().endswith(('.jpg', '.jpeg', '.png'))
-        ):
-            return False, 'Only JPG or PNG files are allowed.'
-
-        # Size check (10 MB)
-        if file.size > 10 * 1024 * 1024:
-            return False, 'File exceeds the 10 MB limit.'
-
-        # Overwrite existing
-        try:
-            if organization.approval_letter:
-                organization.approval_letter.delete(save=False)
-        except Exception:
-            pass
-
-        organization.approval_letter = file
-        organization.save(update_fields=['approval_letter'])
-        return True, 'Approval letter saved.'
-
-    except Exception as e:
-        # Never let letter handling crash the whole request
-        print(f'_save_approval_letter error: {e}')
-        return True, None   # soft-fail so staging still works
+    return True, None
 
 
 # ===================== LANDING / HELPERS =====================
 def landing_page(request):
-    # 1. Fetch categories and meetup locations efficiently
     categories = Category.objects.all().order_by('name')
     meetup_locations = MeetupLocation.objects.all()
 
-    # 2. Base queryset: ONLY approved products + prefetch related fields to avoid N+1 queries
     products = (
         Product.objects.filter(status='Approved')
         .select_related('category', 'seller', 'related_org')
@@ -167,7 +121,6 @@ def landing_page(request):
         .order_by('-created_at')
     )
 
-    # 3. Apply optional search filter
     query = request.GET.get('q')
     if query:
         products = products.filter(
@@ -177,12 +130,10 @@ def landing_page(request):
             | Q(product_code__icontains=query)
         )
 
-    # 4. Apply category filter
     category_id = request.GET.get('category')
     if category_id:
         products = products.filter(category_id=category_id)
 
-    # 5. Limit initial load to 12 featured/recent products for guest landing speed
     featured_products = products[:12]
 
     return render(
@@ -220,18 +171,9 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         'examanswer', 'leakage', 'leak', 'cheating', 'dregs', 'weed',
     ]
 
-    # ------------------------------------------------------------------
-    # Helpers (thin wrappers around the shared functions)
-    # ------------------------------------------------------------------
     def _get_user_organization(self, user):
         return _get_user_organization(user)
 
-    def _save_approval_letter(self, request):
-        return _save_approval_letter(request)
-
-    # ------------------------------------------------------------------
-    # Context
-    # ------------------------------------------------------------------
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['meetup_locations'] = MeetupLocation.objects.all()
@@ -241,14 +183,9 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
             is_submitted=False,
         ).prefetch_related('images', 'variants')
         context['next_product_code'] = generate_next_product_code()
-
-        # Only officers need the organization + letter
         context['organization'] = self._get_user_organization(self.request.user)
         return context
 
-    # ------------------------------------------------------------------
-    # Content validation
-    # ------------------------------------------------------------------
     def is_content_prohibited(self, text):
         if not text:
             return None
@@ -266,18 +203,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         return None
 
     def get_or_create_custom_category(self, request):
-        """
-        Kept for backward compatibility, but the frontend no longer
-        sends category='other'. Returns None if the id is invalid.
-        """
         category_id = request.POST.get('category')
         if not category_id or category_id == 'other':
             return None
         return Category.objects.filter(id=category_id).first()
 
-    # ------------------------------------------------------------------
-    # Form handling (non-staging path – rarely used now)
-    # ------------------------------------------------------------------
     def form_valid(self, form):
         name = form.cleaned_data.get('name', '')
         desc = form.cleaned_data.get('description', '')
@@ -301,12 +231,10 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         product.pre_order = form.cleaned_data.get('pre_order', False)
         product.owner_type = self.request.POST.get('owner_type', 'PERSONAL')
 
-        # Capture the selected location from the dropdown
         selected_location = self.request.POST.get('location_options', '').strip()
         if selected_location:
             product.meetup_location_text = selected_location
 
-        # Assign product code if empty
         if not getattr(product, 'product_code', None):
             product.product_code = generate_next_product_code()
 
@@ -314,20 +242,20 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         return redirect('product.list')
 
     # ------------------------------------------------------------------
-    # POST – staging submit + approval letter
+    # POST – final staging submit; letter goes onto each Product
     # ------------------------------------------------------------------
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        # Persist / enforce the letter early (only officers reach the check)
-        ok, msg = self._save_approval_letter(request)
-        if not ok:
-            return JsonResponse({'status': 'error', 'message': msg}, status=400)
-
         is_final_submit = request.POST.get('action') == 'submit_staging'
 
         if not is_final_submit:
-            # Fall back to normal CreateView handling (almost never used)
             return super().post(request, *args, **kwargs)
+
+        # Validate any freshly uploaded letter (does not touch Organization)
+        letter_file = request.FILES.get('approval_letter')
+        ok, msg = _validate_approval_letter_file(letter_file)
+        if not ok:
+            return JsonResponse({'status': 'error', 'message': msg}, status=400)
 
         try:
             staged_items = StagedProduct.objects.filter(
@@ -341,10 +269,21 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     'message': 'No items in staging to submit.',
                 }, status=400)
 
-            org = self._get_user_organization(request.user)
+            # Officers must supply a letter (request file OR already on a staged item)
+            if getattr(request.user, 'is_officer', False):
+                has_letter = bool(letter_file)
+                if not has_letter:
+                    for sp in staged_items:
+                        if getattr(sp, 'approval_letter', None):
+                            has_letter = True
+                            break
+                if not has_letter:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': 'Letter of Approval is required.',
+                    }, status=400)
 
             for staged_prod in staged_items:
-                # Re-validate / assign product code
                 product_code = (getattr(staged_prod, 'product_code', None) or '').strip()
                 if (
                     not product_code
@@ -352,7 +291,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                 ):
                     product_code = generate_next_product_code()
 
-                # Grab selected location
                 location_text = (
                     getattr(staged_prod, 'meetup_locations_list', '')
                     or request.POST.get('location_options', '')
@@ -378,12 +316,14 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     ),
                 )
 
-                # ----- Attach approval letter to the product -----
-                if org and org.approval_letter:
-                    new_product.approval_letter = org.approval_letter
+                # ----- Attach approval letter to the PRODUCT -----
+                # Prefer a file uploaded on this submit; else use one stored on the staged item
+                letter_to_use = letter_file or getattr(staged_prod, 'approval_letter', None)
+                if letter_to_use and hasattr(new_product, 'approval_letter'):
+                    new_product.approval_letter = letter_to_use
                     new_product.save(update_fields=['approval_letter'])
 
-                # Optional: also link MeetupLocation M2M if you still use it
+                # Optional MeetupLocation M2M
                 if location_text and hasattr(new_product, 'meetup_locations'):
                     try:
                         location_obj, _ = MeetupLocation.objects.get_or_create(
@@ -399,9 +339,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         product=new_product,
                         image=staged_img.image,
                     )
-                    if getattr(staged_img, 'is_main', False) and hasattr(
-                        new_product, 'image'
-                    ):
+                    if getattr(staged_img, 'is_main', False) and hasattr(new_product, 'image'):
                         new_product.image = staged_img.image
                         new_product.save(update_fields=['image'])
 
@@ -481,12 +419,11 @@ class ProductDetailView(DetailView):
             if d.strip()
         ]
 
-        # Reviews (adjust related_name if yours differs)
         reviews = getattr(product, 'reviews', None)
         if reviews is not None:
             context['reviews'] = reviews.select_related('user').order_by('-created_at')[:20]
         else:
-            from ..models import Review  # if Review links to product
+            from ..models import Review
             context['reviews'] = Review.objects.filter(
                 Q(product=product) | Q(order_item__product_variant__product=product)
             ).select_related('user').order_by('-created_at')[:20]
@@ -592,7 +529,6 @@ class ProductListView(ListView):
                 | Q(related_org__full_name__icontains=query)
             )
 
-            # Convert query string to int if searching numeric IDs to avoid DB crash
             if query.isdigit():
                 queryset = queryset | Product.objects.filter(id=int(query), status='Approved')
 
@@ -666,14 +602,20 @@ class WishlistListView(LoginRequiredMixin, ListView):
     context_object_name = 'wishlists'
 
     def get_queryset(self):
-        return Wishlist.objects.filter(user=self.request.user).select_related('product').order_by('-added_at')
+        return (
+            Wishlist.objects.filter(user=self.request.user)
+            .select_related('product')
+            .order_by('-added_at')
+        )
 
 
 @login_required
 def toggle_wishlist(request, product_id):
     try:
         product = Product.objects.get(id=product_id)
-        wishlist_item, created = Wishlist.objects.get_or_create(user=request.user, product=product)
+        wishlist_item, created = Wishlist.objects.get_or_create(
+            user=request.user, product=product
+        )
 
         if not created:
             wishlist_item.delete()
@@ -693,6 +635,8 @@ def add_to_staging_ajax(request):
     """
     Create a StagedProduct from the workshop form.
     ALWAYS returns JSON – never an HTML error page.
+    Approval letter is stored on the StagedProduct (if field exists),
+    then copied onto Product on final submit.
     """
     from datetime import datetime
 
@@ -713,8 +657,9 @@ def add_to_staging_ajax(request):
                 status=400,
             )
 
-        # Save approval letter if present (soft-fail)
-        ok, msg = _save_approval_letter(request)
+        # Validate letter file if present (does NOT touch Organization)
+        letter_file = request.FILES.get('approval_letter')
+        ok, msg = _validate_approval_letter_file(letter_file)
         if not ok:
             return JsonResponse({'status': 'error', 'message': msg}, status=400)
 
@@ -819,6 +764,11 @@ def add_to_staging_ajax(request):
             pre_order=str(request.POST.get('pre_order')).lower() in ['true', 'on', '1', 'yes'],
         )
 
+        # Attach letter to THIS staged product (field optional – only if migrated)
+        if letter_file and hasattr(staged_prod, 'approval_letter'):
+            staged_prod.approval_letter = letter_file
+            staged_prod.save(update_fields=['approval_letter'])
+
         # Variants
         try:
             variants_data = json.loads(request.POST.get('variants', '[]'))
@@ -860,7 +810,7 @@ def add_to_staging_ajax(request):
                 except StagedImage.DoesNotExist:
                     pass
 
-        # New uploads
+        # New gallery uploads
         images = request.FILES.getlist('images')
         for i, img in enumerate(images):
             StagedImage.objects.create(
@@ -874,11 +824,10 @@ def add_to_staging_ajax(request):
             'staged_id': staged_prod.id,
             'product_code': product_code,
             'next_product_code': generate_next_product_code(),
-            'approval_letter_saved': True,
+            'approval_letter_saved': bool(letter_file),
         })
 
     except Exception as e:
-        # CRITICAL: always return JSON so the frontend never sees HTML
         import traceback
         traceback.print_exc()
         return JsonResponse({
@@ -907,8 +856,9 @@ def get_staged_product_details(request, staged_id):
         variants = []
         for v in product.variants.all():
             image_url = None
-            if v.image_index is not None and 0 <= v.image_index < len(images):
-                image_url = images[v.image_index]['url']
+            idx = getattr(v, 'image_index', None)
+            if idx is not None and 0 <= idx < len(images):
+                image_url = images[idx]['url']
             variants.append({
                 'variant_name': v.variant_name,
                 'price': str(v.price),
@@ -916,7 +866,7 @@ def get_staged_product_details(request, staged_id):
                 'condition': v.condition,
                 'flaws': v.flaws or '',
                 'attribute_value': v.variant_attribute or '',
-                'image_index': v.image_index,
+                'image_index': idx,
                 'image_url': image_url,
             })
 

@@ -1563,7 +1563,7 @@ def org_users(request):
     }
     return render(
         request,
-        "UTrade_app/organization/organization_panel/users.html",
+        "UTrade_app/organization/actions/users.html",
         context,
     )
 

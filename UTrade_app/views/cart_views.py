@@ -188,23 +188,16 @@ def checkout_view(request):
     )
 
 
-def _fulfillment_key(product):
-    """
-    Split orders so different organizations never share one Order.
-    - Org listing  → key by related_org_id
-    - Personal     → key by seller user id
-    """
-    if getattr(product, "related_org_id", None):
-        return ("org", product.related_org_id)
-    return ("user", product.seller_id)
-
-
 @login_required
 @require_POST
 def place_order(request):
+    """
+    ALWAYS one Order per product.seller_id.
+    Never merge HM (seller 9) with CSG (seller 10).
+    """
     raw_ids = request.POST.getlist("item_ids")
     if not raw_ids:
-        single = request.POST.get("item_ids", "")
+        single = (request.POST.get("item_ids") or "").strip()
         if single:
             raw_ids = [x.strip() for x in single.split(",") if x.strip()]
 
@@ -228,7 +221,6 @@ def place_order(request):
             "variant",
             "variant__product",
             "variant__product__seller",
-            "variant__product__related_org",
         )
     )
 
@@ -236,23 +228,24 @@ def place_order(request):
         messages.error(request, "Selected items are no longer in your cart.")
         return redirect("cart_detail")
 
-    # Group by org (or personal seller) — NOT seller_id alone
-    by_key = defaultdict(list)
+    # ---- STRICT split by seller user id only ----
+    by_seller_id = defaultdict(list)
     for item in cart_items:
         product = item.variant.product
-        if not product.seller_id:
+        sid = product.seller_id
+        if not sid:
             messages.error(
                 request,
                 f"Product '{product.name}' has no seller. Cannot place order.",
             )
             return redirect("cart_detail")
-        by_key[_fulfillment_key(product)].append(item)
+        by_seller_id[sid].append(item)
 
     created_orders = []
 
     try:
         with transaction.atomic():
-            for _key, items in by_key.items():
+            for seller_id, items in by_seller_id.items():
                 for item in items:
                     if item.quantity > item.variant.stocks:
                         raise ValueError(
@@ -260,8 +253,12 @@ def place_order(request):
                             f"({item.variant.variant_name}). "
                             f"Available: {item.variant.stocks}."
                         )
+                    # Hard guard: every line must match this seller_id
+                    if item.variant.product.seller_id != seller_id:
+                        raise ValueError(
+                            f"Seller mismatch for {item.variant.product.name}"
+                        )
 
-                # Seller on the Order = listing user of these products
                 seller = items[0].variant.product.seller
                 total = sum((i.get_cost() for i in items), Decimal("0.00"))
 
@@ -295,13 +292,12 @@ def place_order(request):
         messages.error(request, f"Could not place order: {e}")
         return redirect("cart_detail")
 
-    if len(created_orders) == 1:
-        messages.success(request, f"Order #{created_orders[0].id} placed.")
-    else:
-        ids = ", ".join(f"#{o.id}" for o in created_orders)
-        messages.success(
-            request,
-            f"{len(created_orders)} orders created (split by seller/org): {ids}.",
-        )
-
+    # Clear success text so you can verify split in the UI
+    summary = ", ".join(
+        f"#{o.id}→{o.seller.username}" for o in created_orders
+    )
+    messages.success(
+        request,
+        f"{len(created_orders)} order(s) created: {summary}",
+    )
     return redirect("order_list")

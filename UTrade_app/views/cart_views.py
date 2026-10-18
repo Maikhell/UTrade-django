@@ -191,82 +191,133 @@ def checkout_view(request):
 @login_required
 @require_POST
 def place_order(request):
+    """
+    ONE Order per seller.
+    Seller is always taken from each item's product.seller — never from the first cart line only.
+    """
     raw_ids = request.POST.getlist("item_ids")
+    if not raw_ids:
+        # fallback if template used a single field
+        single = request.POST.get("item_ids", "")
+        if single:
+            raw_ids = [x.strip() for x in single.split(",") if x.strip()]
+
     if not raw_ids:
         messages.error(request, "No items to order.")
         return redirect("cart_detail")
 
     try:
         item_ids = [int(x) for x in raw_ids]
-    except ValueError:
+    except (TypeError, ValueError):
         messages.error(request, "Invalid cart items.")
         return redirect("cart_detail")
 
-    payment_method = (request.POST.get("payment_method") or "COP").upper()
+    payment_method = (request.POST.get("payment_method") or "COP").strip().upper()
     if payment_method not in ("GCASH", "COP"):
         payment_method = "COP"
 
     cart_items = list(
-        CartItem.objects.filter(id__in=item_ids, cart__user=request.user)
-        .select_related("variant", "variant__product", "variant__product__seller")
+        CartItem.objects.filter(
+            id__in=item_ids,
+            cart__user=request.user,
+        )
+        .select_related(
+            "variant",
+            "variant__product",
+            "variant__product__seller",
+        )
     )
+
     if not cart_items:
         messages.error(request, "Selected items are no longer in your cart.")
         return redirect("cart_detail")
 
+    # --- CRITICAL: group by the product's seller, not a single order.seller ---
     by_seller = defaultdict(list)
     for item in cart_items:
-        by_seller[item.variant.product.seller_id].append(item)
+        seller = item.variant.product.seller
+        if seller is None:
+            messages.error(
+                request,
+                f"Product '{item.variant.product.name}' has no seller. Cannot place order.",
+            )
+            return redirect("cart_detail")
+        by_seller[seller.id].append(item)
 
     created_orders = []
 
     try:
         with transaction.atomic():
             for seller_id, items in by_seller.items():
+                # stock check for this seller's items only
                 for item in items:
                     if item.quantity > item.variant.stocks:
                         raise ValueError(
                             f"Not enough stock for {item.variant.product.name} "
-                            f"({item.variant.variant_name})."
+                            f"({item.variant.variant_name}). Available: {item.variant.stocks}."
                         )
 
-                seller = items[0].variant.product.seller
-                total = sum((i.get_cost() for i in items), Decimal("0.00"))
+                seller = items[0].variant.product.seller  # same seller_id for all in group
+                total = sum((item.get_cost() for item in items), Decimal("0.00"))
 
-                order = Order.objects.create(
-                    user=request.user,
-                    seller=seller,
-                    total_amount=total,
-                    status="Pending",
-                    payment_method=payment_method,
-                )
+                # Build kwargs only with fields your Order model has
+                order_kwargs = {
+                    "user": request.user,
+                    "seller": seller,  # THIS seller only
+                    "total_amount": total,
+                    "status": "Pending",
+                }
+                # optional fields — uncomment if present on Order:
+                if hasattr(Order, "payment_method"):
+                    order_kwargs["payment_method"] = payment_method
+                if hasattr(Order, "payment_status"):
+                    order_kwargs["payment_status"] = (
+                        "Pending" if payment_method == "GCASH" else "COP"
+                    )
+
+                order = Order.objects.create(**order_kwargs)
 
                 for item in items:
-                    OrderItem.objects.create(
-                        order=order,
-                        product_variant=item.variant,
-                        quantity=item.quantity,
-                        price=item.variant.price,
-                    )
+                    # ONLY items from this seller
+                    oi_kwargs = {
+                        "order": order,
+                        "quantity": item.quantity,
+                    }
+                    # match your OrderItem FK / price field names
+                    if hasattr(OrderItem, "product_variant"):
+                        oi_kwargs["product_variant"] = item.variant
+                    elif hasattr(OrderItem, "variant"):
+                        oi_kwargs["variant"] = item.variant
+
+                    if hasattr(OrderItem, "price"):
+                        oi_kwargs["price"] = item.variant.price
+                    elif hasattr(OrderItem, "unit_price"):
+                        oi_kwargs["unit_price"] = item.variant.price
+
+                    OrderItem.objects.create(**oi_kwargs)
 
                 created_orders.append(order)
 
-            CartItem.objects.filter(id__in=item_ids, cart__user=request.user).delete()
+            # remove only ordered cart lines
+            CartItem.objects.filter(
+                id__in=item_ids,
+                cart__user=request.user,
+            ).delete()
 
     except ValueError as e:
         messages.error(request, str(e))
         return redirect("cart_detail")
-    except Exception:
-        messages.error(request, "Could not place order. Please try again.")
+    except Exception as e:
+        messages.error(request, f"Could not place order: {e}")
         return redirect("cart_detail")
 
     if len(created_orders) == 1:
-        messages.success(request, f"Order #{created_orders[0].id} placed successfully.")
+        messages.success(request, f"Order #{created_orders[0].id} placed.")
     else:
         ids = ", ".join(f"#{o.id}" for o in created_orders)
         messages.success(
             request,
-            f"{len(created_orders)} orders placed (one per seller): {ids}.",
+            f"{len(created_orders)} orders created (one per seller): {ids}.",
         )
 
-    return redirect("order_list")
+    return redirect("order_list")  # your buyer orders URL name

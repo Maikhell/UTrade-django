@@ -43,12 +43,12 @@
       <div class="tab-pane fade show active" id="pending" role="tabpanel">
 
         {% for po in preorders %}
-          {% if po.status|upper == 'PENDING' or po.status|upper == 'APPROVED' or po.status|upper == 'PREPARING' %}
+          {% if po.status|upper == 'PENDING' or po.status|upper == 'APPROVED' or po.status|upper == 'PREPARING' or po.status|upper == 'ACCEPTED' or po.status|upper == 'PROCESSING' or po.status|upper == 'AWAITING_PAYMENT' or po.status|upper == 'WAITING_STOCKS' %}
             {% with p=po.product_variant.product %}
-            <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden border-start border-4 border-info">
-              <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-info-subtle">
-                <span class="small fw-bold text-uppercase text-info-emphasis">
-                  <span class="badge bg-info text-dark me-1">Pre-Order</span>
+            <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
+              <div class="p-2 px-3 d-flex justify-content-between align-items-center border-bottom bg-white">
+                <span class="small fw-bold text-uppercase text-dark">
+                  <span class="badge bg-secondary me-1">Pre-Order</span>
                   {{ po.status }}
                 </span>
                 <span class="small text-muted">Req #{{ po.id }} | {{ po.created_at|date:'M d' }}</span>
@@ -61,7 +61,7 @@
                     {% with role=po.seller.user_role|default:''|lower %}
                       {% if role == 'management' or role == 'admin' %}
                         <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
-                      {% elif po.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
+                      {% elif po.seller.organization or role == 'organization' or role == 'org_officer' or role == 'alumni_assoc' %}
                         <span class="badge bg-info-subtle text-info ms-1">Organization</span>
                       {% else %}
                         <span class="badge bg-success-subtle text-success ms-1">Student</span>
@@ -95,9 +95,9 @@
                 <div class="d-flex justify-content-end align-items-center flex-wrap gap-2">
                   <div class="me-auto">
                     <small class="text-muted d-block">Estimated Total</small>
-                    <span class="fw-bold text-info">₱{% widthratio po.product_variant.price 1 po.quantity %}</span>
+                    <span class="fw-bold">₱{% widthratio po.product_variant.price 1 po.quantity %}</span>
                   </div>
-                  <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Pay at Pickup</span>
+                  <span class="badge bg-light text-dark border rounded-pill px-3 py-2">Pay at Pickup</span>
                   {% if po.status|upper == 'PENDING' %}
                     <button type="button" onclick="handleCancelPreOrder('{{ po.id }}')" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Pre-Order</button>
                   {% else %}
@@ -121,8 +121,8 @@
 
         {% for order in pending_orders %}
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
-            <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-warning-subtle">
-              <span class="small fw-bold text-uppercase text-warning-emphasis">
+            <div class="p-2 px-3 d-flex justify-content-between align-items-center border-bottom bg-white">
+              <span class="small fw-bold text-uppercase text-dark">
                 <span class="badge bg-secondary me-1">Order</span>
                 {{ order.status }}
               </span>
@@ -140,7 +140,7 @@
                       {% with role=group.grouper.user_role|default:''|lower %}
                         {% if role == 'management' or role == 'admin' %}
                           <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
-                        {% elif group.grouper.organization or role == 'organization' or role == 'alumni_assoc' %}
+                        {% elif group.grouper.organization or role == 'organization' or role == 'org_officer' or role == 'alumni_assoc' %}
                           <span class="badge bg-info-subtle text-info ms-1">Organization</span>
                         {% else %}
                           <span class="badge bg-success-subtle text-success ms-1">Student</span>
@@ -184,22 +184,24 @@
               <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                   <small class="text-muted d-block">Order Total ({{ order.payment_method }})</small>
-                  <span class="fw-bold text-primary" style="font-size:1.2rem;">₱{{ order.total_amount }}</span>
+                  <span class="fw-bold" style="font-size:1.2rem;">₱{{ order.total_amount }}</span>
                 </div>
                 <div class="d-flex gap-2 flex-wrap justify-content-end">
                   {% if order.payment_method == 'COP' %}
-                    <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Pay at Pickup</span>
+                    <span class="badge bg-light text-dark border rounded-pill px-3 py-2">Pay at Pickup</span>
                   {% endif %}
                   {% if order.status == 'Pending' %}
                     <button type="button" onclick="handleCancelOrder('{{ order.id }}')" class="btn btn-outline-danger btn-sm rounded-pill px-3 fw-bold">Cancel Order</button>
                   {% endif %}
-                  <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#orderDetails{{ order.id }}">View Details</button>
+                  <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#orderDetails{{ order.id }}">View Details</button>
                 </div>
               </div>
             </div>
           </div>
         {% empty %}
-          <div class="text-center py-5 text-muted">No pending orders found.</div>
+          {% if not preorders %}
+            <div class="text-center py-5 text-muted">No pending orders found.</div>
+          {% endif %}
         {% endfor %}
       </div>
 
@@ -209,11 +211,10 @@
         {% for po in preorders %}
           {% if po.status|upper == 'READY' %}
             {% with p=po.product_variant.product %}
-            <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden border-start border-4 border-warning">
-              <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-warning-subtle">
-                <span class="small fw-bold text-uppercase text-warning-emphasis">
-                  <i class="bi bi-bag-check"></i>
-                  <span class="badge bg-info text-dark me-1">Pre-Order</span>
+            <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
+              <div class="p-2 px-3 d-flex justify-content-between align-items-center border-bottom bg-white">
+                <span class="small fw-bold text-uppercase text-dark">
+                  <span class="badge bg-secondary me-1">Pre-Order</span>
                   Ready for Pickup
                 </span>
                 <span class="small text-muted">Req #{{ po.id }}</span>
@@ -226,7 +227,7 @@
                     {% with role=po.seller.user_role|default:''|lower %}
                       {% if role == 'management' or role == 'admin' %}
                         <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
-                      {% elif po.seller.organization or role == 'organization' or role == 'alumni_assoc' %}
+                      {% elif po.seller.organization or role == 'organization' or role == 'org_officer' or role == 'alumni_assoc' %}
                         <span class="badge bg-info-subtle text-info ms-1">Organization</span>
                       {% else %}
                         <span class="badge bg-success-subtle text-success ms-1">Student</span>
@@ -257,23 +258,22 @@
                 </div>
 
                 <div class="d-flex justify-content-end align-items-center flex-wrap gap-2">
-                  <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Pay at Pickup</span>
-                  <span class="badge bg-light text-dark border fw-medium">Processing</span>
+                  <span class="badge bg-light text-dark border rounded-pill px-3 py-2">Pay at Pickup</span>
                   <button type="button"
-                          class="btn btn-primary btn-sm rounded-pill px-3 fw-bold"
+                          class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold"
                           data-bs-toggle="modal"
                           data-bs-target="#preorderDetails{{ po.id }}">
                     View Details
                   </button>
-                    {% if p and p.id %}
-                      <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
-                        <i class="bi bi-chat-dots"></i> Message Seller
-                      </a>
-                    {% else %}
-                      <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
-                        <i class="bi bi-chat-dots"></i> Item Unavailable
-                      </button>
-                    {% endif %}
+                  {% if p and p.id %}
+                    <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                      <i class="bi bi-chat-dots"></i> Message Seller
+                    </a>
+                  {% else %}
+                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
+                      <i class="bi bi-chat-dots"></i> Item Unavailable
+                    </button>
+                  {% endif %}
                 </div>
               </div>
             </div>
@@ -284,7 +284,7 @@
                   <div class="modal-header">
                     <div>
                       <h5 class="modal-title fw-bold">
-                        <span class="badge bg-info text-dark me-2">Pre-Order</span>
+                        <span class="badge bg-secondary me-2">Pre-Order</span>
                         Req #{{ po.id }}
                       </h5>
                       <small class="text-muted">{{ po.created_at|date:"M d, Y h:i A" }}</small>
@@ -303,12 +303,11 @@
                       </div>
                       <div class="col-md-6">
                         <small class="text-muted d-block">Status</small>
-                        <span class="badge bg-warning text-dark">{{ po.status }}</span>
+                        <span class="badge bg-light text-dark border">{{ po.status }}</span>
                       </div>
                       <div class="col-md-6">
                         <small class="text-muted d-block">Payment</small>
                         <span class="fw-semibold">Cash on Pickup (COP)</span>
-                        <span class="badge bg-success-subtle text-success ms-1">Pay at Pickup</span>
                       </div>
                       <div class="col-md-6">
                         <small class="text-muted d-block">Pickup Location</small>
@@ -346,19 +345,19 @@
 
                     <div class="d-flex justify-content-between border-top pt-3 mt-3">
                       <span class="fw-bold">Estimated Total</span>
-                      <span class="fw-bold text-primary fs-5">₱{% widthratio po.product_variant.price 1 po.quantity %}</span>
+                      <span class="fw-bold fs-5">₱{% widthratio po.product_variant.price 1 po.quantity %}</span>
                     </div>
                   </div>
                   <div class="modal-footer justify-content-between">
-                  {% if p and p.id %}
-                    <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
-                      <i class="bi bi-chat-dots"></i> Message Seller
-                    </a>
-                  {% else %}
-                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
-                      <i class="bi bi-chat-dots"></i> Item Unavailable
-                    </button>
-                  {% endif %}
+                    {% if p and p.id %}
+                      <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                        <i class="bi bi-chat-dots"></i> Message Seller
+                      </a>
+                    {% else %}
+                      <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
+                        <i class="bi bi-chat-dots"></i> Item Unavailable
+                      </button>
+                    {% endif %}
                     <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
                   </div>
                 </div>
@@ -370,8 +369,8 @@
 
         {% for order in pickup_orders %}
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
-            <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-primary-subtle">
-              <span class="small fw-bold text-uppercase">
+            <div class="p-2 px-3 d-flex justify-content-between align-items-center border-bottom bg-white">
+              <span class="small fw-bold text-uppercase text-dark">
                 <span class="badge bg-secondary me-1">Order</span>
                 {{ order.status }}
               </span>
@@ -388,7 +387,7 @@
                       {% with role=group.grouper.user_role|default:''|lower %}
                         {% if role == 'management' or role == 'admin' %}
                           <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
-                        {% elif group.grouper.organization or role == 'organization' or role == 'alumni_assoc' %}
+                        {% elif group.grouper.organization or role == 'organization' or role == 'org_officer' or role == 'alumni_assoc' %}
                           <span class="badge bg-info-subtle text-info ms-1">Organization</span>
                         {% else %}
                           <span class="badge bg-success-subtle text-success ms-1">Student</span>
@@ -428,31 +427,21 @@
               <hr class="my-3 opacity-25" />
               <div class="d-flex justify-content-end align-items-center flex-wrap gap-2">
                 {% if order.payment_method == 'COP' %}
-                  <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Pay at Pickup</span>
+                  <span class="badge bg-light text-dark border rounded-pill px-3 py-2">Pay at Pickup</span>
                 {% endif %}
-                {% if order.status == 'Delivered' %}
-                  <form action="{% url 'confirm_receipt' order.id %}" method="POST" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-success btn-sm rounded-pill px-3 fw-bold">Confirm Received</button>
-                  </form>
-                {% else %}
-                  <span class="badge bg-light text-dark border fw-medium">Processing</span>
-                {% endif %}
-                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold"
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold"
                         data-bs-toggle="modal" data-bs-target="#pickupDetails{{ order.id }}">
                   View Details
                 </button>
                 {% with first_item=order.items.all.0 %}
-                  {% if first_item %}
-                  {% if p and p.id %}
-                    <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                  {% if first_item and first_item.product_variant.product.id %}
+                    <a href="{% url 'start_chat' product_id=first_item.product_variant.product.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
                       <i class="bi bi-chat-dots"></i> Message Seller
                     </a>
                   {% else %}
                     <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
                       <i class="bi bi-chat-dots"></i> Item Unavailable
                     </button>
-                  {% endif %}
                   {% endif %}
                 {% endwith %}
               </div>
@@ -468,16 +457,16 @@
 
         {% for order in history_orders %}
           <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
-            <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-light">
-              <span class="small fw-bold text-uppercase">
+            <div class="p-2 px-3 d-flex justify-content-between align-items-center border-bottom bg-white">
+              <span class="small fw-bold text-uppercase text-dark">
                 <span class="badge bg-secondary me-1">Order</span>
                 {% if order.status == 'Completed' %}
-                  <i class="bi bi-check-circle-fill text-success"></i> Completed
+                  Completed
                   {% if not order.is_rated %}
-                    <span class="badge bg-warning text-dark ms-1">Needs rating</span>
+                    <span class="badge bg-light text-dark border ms-1">Needs rating</span>
                   {% endif %}
                 {% else %}
-                  <i class="bi bi-x-circle-fill text-danger"></i> {{ order.status }}
+                  {{ order.status }}
                 {% endif %}
               </span>
               <span class="small text-muted">Order #{{ order.id }} | {{ order.created_at|date:'M d' }}</span>
@@ -493,7 +482,7 @@
                       {% with role=group.grouper.user_role|default:''|lower %}
                         {% if role == 'management' or role == 'admin' %}
                           <span class="badge bg-primary-subtle text-primary ms-1">Management</span>
-                        {% elif group.grouper.organization or role == 'organization' or role == 'alumni_assoc' %}
+                        {% elif group.grouper.organization or role == 'organization' or role == 'org_officer' or role == 'alumni_assoc' %}
                           <span class="badge bg-info-subtle text-info ms-1">Organization</span>
                         {% else %}
                           <span class="badge bg-success-subtle text-success ms-1">Student</span>
@@ -542,11 +531,11 @@
                       <i class="bi bi-download me-1"></i> Receipt
                     </a>
                     {% if not order.is_rated %}
-                      <button type="button" class="btn btn-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}">
+                      <button type="button" class="btn btn-outline-warning btn-sm rounded-pill px-3 fw-bold" data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}">
                         <i class="bi bi-star-fill me-1"></i> Rate
                       </button>
                     {% else %}
-                      <span class="badge bg-success-subtle text-success d-flex align-items-center px-3">
+                      <span class="badge bg-light text-dark border d-flex align-items-center px-3">
                         <i class="bi bi-check2-circle me-1"></i> Rated
                       </span>
                     {% endif %}
@@ -563,12 +552,12 @@
         {% endfor %}
 
         {% for po in preorders %}
-          {% if po.status|upper == 'COMPLETED' or po.status|upper == 'DECLINED' %}
+          {% if po.status|upper == 'COMPLETED' or po.status|upper == 'DECLINED' or po.status|upper == 'REJECTED' or po.status|upper == 'CANCELLED' %}
             {% with p=po.product_variant.product %}
-            <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden opacity-75">
-              <div class="p-2 px-3 d-flex justify-content-between align-items-center bg-light">
-                <span class="small fw-bold text-uppercase">
-                  <span class="badge bg-info text-dark me-1">Pre-Order</span>
+            <div class="card border-0 shadow-sm rounded-4 mb-3 overflow-hidden">
+              <div class="p-2 px-3 d-flex justify-content-between align-items-center border-bottom bg-white">
+                <span class="small fw-bold text-uppercase text-dark">
+                  <span class="badge bg-secondary me-1">Pre-Order</span>
                   {{ po.status }}
                 </span>
                 <span class="small text-muted">Req #{{ po.id }}</span>
@@ -628,12 +617,12 @@
                 <small class="text-muted d-block">Payment</small>
                 <span class="fw-semibold">{{ order.payment_method }}</span>
                 {% if order.payment_method == 'COP' %}
-                  <span class="badge bg-success-subtle text-success ms-1">Pay at Pickup</span>
+                  <span class="badge bg-light text-dark border ms-1">Pay at Pickup</span>
                 {% endif %}
               </div>
               <div class="col-md-6">
                 <small class="text-muted d-block">Status</small>
-                <span class="badge bg-primary-subtle text-primary">{{ order.status }}</span>
+                <span class="badge bg-light text-dark border">{{ order.status }}</span>
               </div>
             </div>
             <h6 class="fw-bold mb-3">Products by seller</h6>
@@ -666,7 +655,7 @@
             {% endfor %}
             <div class="d-flex justify-content-between border-top pt-3 mt-2">
               <span class="fw-bold">Order Total</span>
-              <span class="fw-bold text-primary fs-5">₱{{ order.total_amount }}</span>
+              <span class="fw-bold fs-5">₱{{ order.total_amount }}</span>
             </div>
           </div>
           <div class="modal-footer">
@@ -698,12 +687,12 @@
                 <small class="text-muted d-block">Payment</small>
                 <span class="fw-semibold">{{ order.payment_method }}</span>
                 {% if order.payment_method == 'COP' %}
-                  <span class="badge bg-success-subtle text-success ms-1">Pay at Pickup</span>
+                  <span class="badge bg-light text-dark border ms-1">Pay at Pickup</span>
                 {% endif %}
               </div>
               <div class="col-md-6">
                 <small class="text-muted d-block">Status</small>
-                <span class="badge bg-primary-subtle text-primary">{{ order.status }}</span>
+                <span class="badge bg-light text-dark border">{{ order.status }}</span>
               </div>
             </div>
             <h6 class="fw-bold mb-3">Products by seller</h6>
@@ -733,21 +722,19 @@
             {% endfor %}
             <div class="d-flex justify-content-between border-top pt-3">
               <span class="fw-bold">Total</span>
-              <span class="fw-bold text-primary fs-5">₱{{ order.total_amount }}</span>
+              <span class="fw-bold fs-5">₱{{ order.total_amount }}</span>
             </div>
           </div>
           <div class="modal-footer justify-content-between">
             {% with first_item=order.items.all.0 %}
-              {% if first_item %}
-                {% if p and p.id %}
-                  <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
-                    <i class="bi bi-chat-dots"></i> Message Seller
-                  </a>
-                {% else %}
-                  <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
-                    <i class="bi bi-chat-dots"></i> Item Unavailable
-                  </button>
-                {% endif %}
+              {% if first_item and first_item.product_variant.product.id %}
+                <a href="{% url 'start_chat' product_id=first_item.product_variant.product.id %}" class="btn btn-outline-secondary btn-sm rounded-pill px-3 fw-bold">
+                  <i class="bi bi-chat-dots"></i> Message Seller
+                </a>
+              {% else %}
+                <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold" disabled>
+                  <i class="bi bi-chat-dots"></i> Item Unavailable
+                </button>
               {% endif %}
             {% endwith %}
             <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Close</button>
@@ -775,7 +762,7 @@
           <div class="modal-body">
             <p class="mb-3">
               Status:
-              <span class="badge {% if order.status == 'Completed' %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">{{ order.status }}</span>
+              <span class="badge bg-light text-dark border">{{ order.status }}</span>
             </p>
             {% regroup order.items.all by product_variant.product.seller as seller_groups %}
             {% for group in seller_groups %}
@@ -803,10 +790,10 @@
             {% endfor %}
             <div class="d-flex justify-content-between border-top pt-3">
               <span class="fw-bold">Total Paid</span>
-              <span class="fw-bold text-primary fs-5">₱{{ order.total_amount }}</span>
+              <span class="fw-bold fs-5">₱{{ order.total_amount }}</span>
             </div>
             {% if order.cancellation_reason %}
-              <div class="mt-3 p-3 bg-danger-subtle rounded-3">
+              <div class="mt-3 p-3 bg-light rounded-3">
                 <small class="text-muted d-block">Cancellation Reason</small>
                 {{ order.cancellation_reason }}
               </div>
@@ -858,8 +845,6 @@
   {% endfor %}
 
   <style>
-    .bg-info-subtle { background-color: #cff4fc !important; }
-    .border-info { border-color: #0dcaf0 !important; }
     .rating-star { color: #ffc107; }
   </style>
 

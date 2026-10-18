@@ -170,7 +170,9 @@ def checkout_view(request):
         seller_groups.append(g)
 
     total_price = sum((g["subtotal"] for g in seller_groups), Decimal("0.00"))
-    all_methods = [item.variant.product.accepted_payments or "BOTH" for item in cart_items]
+    all_methods = [
+        item.variant.product.accepted_payments or "BOTH" for item in cart_items
+    ]
     can_use_gcash = all(m in ("GCASH", "BOTH") for m in all_methods)
     can_use_cop = all(m in ("COP", "BOTH") for m in all_methods)
 
@@ -192,8 +194,8 @@ def checkout_view(request):
 @require_POST
 def place_order(request):
     """
-    ALWAYS one Order per product.seller_id.
-    Never merge HM (seller 9) with CSG (seller 10).
+    One Order per product.seller_id.
+    Example: HM (seller 9) and CSG (seller 10) → two separate orders.
     """
     raw_ids = request.POST.getlist("item_ids")
     if not raw_ids:
@@ -228,18 +230,17 @@ def place_order(request):
         messages.error(request, "Selected items are no longer in your cart.")
         return redirect("cart_detail")
 
-    # ---- STRICT split by seller user id only ----
+    # Group strictly by the product's seller user id
     by_seller_id = defaultdict(list)
     for item in cart_items:
-        product = item.variant.product
-        sid = product.seller_id
-        if not sid:
+        seller_id = item.variant.product.seller_id
+        if not seller_id:
             messages.error(
                 request,
-                f"Product '{product.name}' has no seller. Cannot place order.",
+                f"Product '{item.variant.product.name}' has no seller.",
             )
             return redirect("cart_detail")
-        by_seller_id[sid].append(item)
+        by_seller_id[seller_id].append(item)
 
     created_orders = []
 
@@ -253,7 +254,6 @@ def place_order(request):
                             f"({item.variant.variant_name}). "
                             f"Available: {item.variant.stocks}."
                         )
-                    # Hard guard: every line must match this seller_id
                     if item.variant.product.seller_id != seller_id:
                         raise ValueError(
                             f"Seller mismatch for {item.variant.product.name}"
@@ -292,10 +292,7 @@ def place_order(request):
         messages.error(request, f"Could not place order: {e}")
         return redirect("cart_detail")
 
-    # Clear success text so you can verify split in the UI
-    summary = ", ".join(
-        f"#{o.id}→{o.seller.username}" for o in created_orders
-    )
+    summary = ", ".join(f"#{o.id}→{o.seller.username}" for o in created_orders)
     messages.success(
         request,
         f"{len(created_orders)} order(s) created: {summary}",

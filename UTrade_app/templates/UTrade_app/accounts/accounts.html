@@ -124,6 +124,12 @@
                 <i class="bi bi-person-workspace me-1"></i> Staff
               </span>
 
+            {% elif user.user_role == 'osas_sds' %}
+              <span class="badge bg-info text-dark rounded-pill px-3 py-2 text-uppercase fw-bold"
+                    style="font-size: 0.65rem; letter-spacing: 1px">
+                <i class="bi bi-people me-1"></i> OSAS / SDS
+              </span>
+
             {% elif user.is_officer or user.user_role == 'org_officer' %}
               <span class="badge bg-info text-dark rounded-pill px-3 py-2 text-uppercase fw-bold"
                     style="font-size: 0.65rem; letter-spacing: 1px">
@@ -267,6 +273,54 @@
               <div class="ms-3 ms-md-4">
                 <h5 class="fw-bold mb-1">Add Product</h5>
                 <p class="text-muted small mb-0">List a new item</p>
+              </div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-sm-6">
+          <a href="{% url 'inbox' %}"
+             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark border-primary-hover">
+            {% if unread_messages_count %}
+              <span class="notif-bubble">{{ unread_messages_count }}</span>
+            {% endif %}
+            <div class="d-flex align-items-center">
+              <div class="icon-box bg-white text-primary shadow-sm">
+                <i class="bi bi-chat-left-dots fs-4"></i>
+              </div>
+              <div class="ms-3 ms-md-4">
+                <h5 class="fw-bold mb-1">Messages</h5>
+                <p class="text-muted small mb-0">Check notification inbox</p>
+              </div>
+            </div>
+          </a>
+        </div>
+
+      {% elif user.user_role == 'osas_sds' %}
+        {# OSAS / SDS — Public Profile, Dashboard, Messages only #}
+        <div class="col-12">
+          <a href="{% url 'osas_organizations' %}"
+             class="card h-100 p-3 p-md-4 rounded-4 bg-light text-dark action-card border-info-hover text-decoration-none">
+            <div class="d-flex align-items-center">
+              <div class="icon-box bg-info text-dark shadow-sm">
+                <i class="bi bi-building fs-4"></i>
+              </div>
+              <div class="ms-3 ms-md-4">
+                <h5 class="fw-bold mb-1">OSAS Dashboard</h5>
+                <p class="text-muted small mb-0">View organizations and registered students</p>
+              </div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-sm-6">
+          <a href="{% url 'user.profile' %}"
+             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark border-success-hover">
+            <div class="d-flex align-items-center">
+              <div class="icon-box bg-white text-dark shadow-sm">
+                <i class="bi bi-person-bounding-box fs-4"></i>
+              </div>
+              <div class="ms-3 ms-md-4">
+                <h5 class="fw-bold mb-1">Public Profile</h5>
+                <p class="text-muted small mb-0">View your SDS profile page</p>
               </div>
             </div>
           </a>
@@ -437,7 +491,7 @@
           <a href="{% url 'wishlist.list' %}"
              class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark border-danger-hover">
             <div class="d-flex align-items-center">
-              <div class="icon-box bg-white text-danger shadow-sm">
+              <div class="icon-box bg-white text-success shadow-sm">
                 <i class="bi bi-heart fs-4"></i>
               </div>
               <div class="ms-3 ms-md-4">

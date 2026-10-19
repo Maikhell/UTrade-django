@@ -45,6 +45,34 @@
     font-weight: 700;
     font-size: 0.9rem;
   }
+  .detail-avatar {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .detail-avatar-placeholder {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.75rem;
+  }
+  .detail-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c757d;
+    margin-bottom: 0.15rem;
+  }
+  .detail-value {
+    font-weight: 500;
+    color: #212529;
+    word-break: break-word;
+  }
 </style>
 
 <nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
@@ -199,6 +227,7 @@
                   <th class="py-3">Role</th>
                   <th class="py-3">Status</th>
                   <th class="py-3">Joined</th>
+                  <th class="text-center pe-4 py-3" style="min-width: 120px;">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -293,10 +322,304 @@
                     <td class="py-3">
                       <span class="small text-muted">{{ u.date_joined|date:"M d, Y" }}</span>
                     </td>
+
+                    <!-- Action: View Details -->
+                    <td class="text-center pe-4 py-3">
+                      <button type="button"
+                              class="btn btn-sm btn-outline-success rounded-pill px-3"
+                              data-bs-toggle="modal"
+                              data-bs-target="#userDetailModal{{ u.id }}"
+                              title="View full user details">
+                        <i class="bi bi-eye me-1"></i> View Details
+                      </button>
+                    </td>
                   </tr>
+
+                  <!-- ========== USER DETAIL MODAL ========== -->
+                  <div class="modal fade" id="userDetailModal{{ u.id }}" tabindex="-1" aria-labelledby="userDetailLabel{{ u.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+                      <div class="modal-content border-0 shadow-lg rounded-4">
+
+                        <div class="modal-header border-0 pb-0">
+                          <h5 class="modal-title fw-bold" id="userDetailLabel{{ u.id }}">
+                            User Details
+                          </h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+
+                        <div class="modal-body pt-3">
+
+                          <!-- Profile header -->
+                          <div class="d-flex flex-column flex-sm-row align-items-center gap-3 mb-4 pb-3 border-bottom">
+                            {% if u.image %}
+                              <img src="{{ u.image.url }}" alt="" class="detail-avatar border border-3 border-white shadow-sm">
+                            {% else %}
+                              <div class="detail-avatar-placeholder bg-success-subtle text-success border shadow-sm">
+                                {{ u.first_name|default:u.username|default:u.student_no|slice:":1"|upper }}
+                              </div>
+                            {% endif %}
+                            <div class="text-center text-sm-start">
+                              <div class="fw-bold fs-5 text-dark">
+                                {{ u.get_full_name|default:u.get_short_name }}
+                                {% if u.suffix %}<span class="text-muted fw-normal">{{ u.suffix }}</span>{% endif %}
+                              </div>
+                              <div class="text-muted small mb-2">{{ u.email }}</div>
+                              <div class="d-flex flex-wrap justify-content-center justify-content-sm-start gap-1">
+                                {% if u.user_role == 'student' %}
+                                  <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2">Student</span>
+                                {% elif u.user_role == 'org_officer' %}
+                                  <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle px-2">Org Officer</span>
+                                {% elif u.user_role == 'osas_sds' %}
+                                  <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2">OSAS / SDS</span>
+                                {% elif u.user_role == 'campus_admin' %}
+                                  <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2">Campus Admin</span>
+                                {% elif u.user_role == 'management' %}
+                                  <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2">Management</span>
+                                {% else %}
+                                  <span class="badge rounded-pill bg-light text-muted border px-2">{{ u.get_user_role_display|default:u.user_role|title }}</span>
+                                {% endif %}
+
+                                {% if u.is_suspended %}
+                                  <span class="badge rounded-pill bg-danger-subtle text-danger border border-danger-subtle px-2">Suspended</span>
+                                {% elif u.status == 'verified' %}
+                                  <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2">Verified</span>
+                                {% else %}
+                                  <span class="badge rounded-pill bg-secondary-subtle text-secondary border border-secondary-subtle px-2">{{ u.status|default:"Unverified"|title }}</span>
+                                {% endif %}
+
+                                {% if u.is_email_verified %}
+                                  <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2">
+                                    <i class="bi bi-envelope-check"></i> Email verified
+                                  </span>
+                                {% endif %}
+                              </div>
+                            </div>
+                          </div>
+
+                          <!-- Info grid -->
+                          <div class="row g-3">
+
+                            <!-- Identity -->
+                            <div class="col-12">
+                              <h6 class="text-uppercase text-muted small fw-bold mb-2">
+                                <i class="bi bi-person me-1"></i> Identity
+                              </h6>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Student / Staff ID</div>
+                              <div class="detail-value">{{ u.student_no|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Username</div>
+                              <div class="detail-value">{{ u.username|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Display name</div>
+                              <div class="detail-value">{{ u.display_name|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">First name</div>
+                              <div class="detail-value">{{ u.first_name|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Last name</div>
+                              <div class="detail-value">{{ u.last_name|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Suffix</div>
+                              <div class="detail-value">{{ u.suffix|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Gender</div>
+                              <div class="detail-value">{{ u.gender|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Phone</div>
+                              <div class="detail-value">{{ u.phone_number|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Alumni</div>
+                              <div class="detail-value">{{ u.alumni|default:"—" }}</div>
+                            </div>
+
+                            <!-- Academic / Org -->
+                            <div class="col-12 mt-3">
+                              <h6 class="text-uppercase text-muted small fw-bold mb-2">
+                                <i class="bi bi-mortarboard me-1"></i> Academic / Organization
+                              </h6>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Course</div>
+                              <div class="detail-value">{{ u.course|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Section</div>
+                              <div class="detail-value">{{ u.section|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Organization (text)</div>
+                              <div class="detail-value">{{ u.organization|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Linked organization</div>
+                              <div class="detail-value">
+                                {% if u.org_link %}
+                                  {{ u.org_link.full_name|default:u.org_link.name }}
+                                  {% if u.org_link.course_code %}
+                                    <span class="text-muted small">({{ u.org_link.course_code }})</span>
+                                  {% endif %}
+                                {% else %}
+                                  —
+                                {% endif %}
+                              </div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Is officer</div>
+                              <div class="detail-value">
+                                {% if u.is_officer %}
+                                  <span class="text-success">Yes</span>
+                                {% else %}
+                                  No
+                                {% endif %}
+                              </div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Officer status</div>
+                              <div class="detail-value">{{ u.officer_status|default:"—"|title }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Position</div>
+                              <div class="detail-value">{{ u.position|default:"—" }}</div>
+                            </div>
+
+                            <!-- Account status -->
+                            <div class="col-12 mt-3">
+                              <h6 class="text-uppercase text-muted small fw-bold mb-2">
+                                <i class="bi bi-shield-check me-1"></i> Account status
+                              </h6>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Role</div>
+                              <div class="detail-value">{{ u.get_user_role_display|default:u.user_role|title }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Account status</div>
+                              <div class="detail-value">{{ u.status|default:"—"|title }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Email verified</div>
+                              <div class="detail-value">
+                                {% if u.is_email_verified %}
+                                  <span class="text-success">Yes</span>
+                                {% else %}
+                                  No
+                                {% endif %}
+                              </div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Agreed to terms</div>
+                              <div class="detail-value">
+                                {% if u.has_agreed_to_terms %}
+                                  <span class="text-success">Yes</span>
+                                {% else %}
+                                  No
+                                {% endif %}
+                              </div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Date joined</div>
+                              <div class="detail-value">{{ u.date_joined|date:"M d, Y g:i A"|default:"—" }}</div>
+                            </div>
+                            <div class="col-6 col-md-4">
+                              <div class="detail-label">Last login</div>
+                              <div class="detail-value">
+                                {% if u.last_login %}
+                                  {{ u.last_login|date:"M d, Y g:i A" }}
+                                {% else %}
+                                  —
+                                {% endif %}
+                              </div>
+                            </div>
+
+                            <!-- Suspension (only if relevant) -->
+                            {% if u.is_suspended or u.suspension_reason or u.suspension_until %}
+                              <div class="col-12 mt-3">
+                                <h6 class="text-uppercase text-muted small fw-bold mb-2">
+                                  <i class="bi bi-exclamation-triangle me-1"></i> Suspension
+                                </h6>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="detail-label">Suspended</div>
+                                <div class="detail-value">
+                                  {% if u.is_suspended %}
+                                    <span class="text-danger fw-semibold">Yes</span>
+                                  {% else %}
+                                    No
+                                  {% endif %}
+                                </div>
+                              </div>
+                              <div class="col-6 col-md-4">
+                                <div class="detail-label">Until</div>
+                                <div class="detail-value">
+                                  {% if u.suspension_until %}
+                                    {{ u.suspension_until|date:"M d, Y" }}
+                                  {% else %}
+                                    Indefinite / —
+                                  {% endif %}
+                                </div>
+                              </div>
+                              <div class="col-12">
+                                <div class="detail-label">Reason</div>
+                                <div class="detail-value">{{ u.suspension_reason|default:"—" }}</div>
+                              </div>
+                            {% endif %}
+
+                            <!-- Documents (links if present) -->
+                            {% if u.cor_file or u.officer_id_image %}
+                              <div class="col-12 mt-3">
+                                <h6 class="text-uppercase text-muted small fw-bold mb-2">
+                                  <i class="bi bi-file-earmark me-1"></i> Documents
+                                </h6>
+                              </div>
+                              {% if u.cor_file %}
+                                <div class="col-6 col-md-4">
+                                  <div class="detail-label">COR file</div>
+                                  <div class="detail-value">
+                                    <a href="{{ u.cor_file.url }}" target="_blank" rel="noopener" class="link-success">
+                                      <i class="bi bi-box-arrow-up-right me-1"></i> View COR
+                                    </a>
+                                  </div>
+                                </div>
+                              {% endif %}
+                              {% if u.officer_id_image %}
+                                <div class="col-6 col-md-4">
+                                  <div class="detail-label">Officer ID image</div>
+                                  <div class="detail-value">
+                                    <a href="{{ u.officer_id_image.url }}" target="_blank" rel="noopener" class="link-success">
+                                      <i class="bi bi-box-arrow-up-right me-1"></i> View ID
+                                    </a>
+                                  </div>
+                                </div>
+                              {% endif %}
+                            {% endif %}
+
+                          </div>
+                        </div>
+
+                        <div class="modal-footer border-0 pt-0">
+                          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">
+                            Close
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+                  <!-- /modal -->
+
                 {% empty %}
                   <tr>
-                    <td colspan="6" class="text-center py-5">
+                    <td colspan="7" class="text-center py-5">
                       <div class="text-muted">
                         <i class="bi bi-people display-6 d-block mb-3 opacity-50"></i>
                         <div class="fw-medium">No users found</div>

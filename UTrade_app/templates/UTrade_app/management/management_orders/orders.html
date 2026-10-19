@@ -408,70 +408,71 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {% for order in incoming_orders %}
-                  <tr>
-                    <td class="ps-3">
-                      <input type="checkbox" class="form-check-input order-check incoming-check"
-                             value="{{ order.id }}" data-group="incoming">
-                    </td>
-                    <td class="fw-semibold">#{{ order.id }}</td>
-                    <td>{{ order.user.get_full_name|default:order.user.username }}</td>
-                    <td>
-                      {% with items=order.items.all %}
-                        {% if items %}
-                          {% for item in items %}
-                            {% if item.product_variant and item.product_variant.product %}
-                              <div class="{% if not forloop.first %}mt-1{% endif %}">
-                                <span class="fw-semibold">{{ item.product_variant.product.name }}</span>
-                                {% if item.product_variant.variant_name %}
-                                  <small class="text-muted d-block">{{ item.product_variant.variant_name }}</small>
-                                {% endif %}
-
-                              </div>
-                            {% else %}
-                              <span class="text-muted">Deleted product</span>
-                            {% endif %}
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">—</span>
-                        {% endif %}
-                      {% endwith %}
-                    </td>
-                    <td>
-                      {% with items=order.items.all %}
-                        {% if items %}
-                          {% for item in items %}
-                            <div class="{% if not forloop.first %}mt-1{% endif %}">{{ item.quantity }}</div>
-                          {% endfor %}
-                        {% else %}—{% endif %}
-                      {% endwith %}
-                    </td>
-                    <td>
-                      <span class="badge bg-light text-dark border rounded-pill">
-                        {{ order.user.org_acronym }}
-                      </span>
-                    </td>
-                    <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
-                    <td class="small text-muted">{{ order.created_at|timesince }} ago</td>
-                    <td class="text-end pe-3">
-                      <div class="d-flex justify-content-end gap-1 flex-wrap">
-                        <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
-                                data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
-                          <i class="bi bi-eye"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-success rounded-pill"
-                                onclick="singleAction({{ order.id }}, 'accept')">Accept</button>
-                        <button type="button" class="btn btn-sm btn-danger rounded-pill"
-                                onclick="singleAction({{ order.id }}, 'reject')">Reject</button>
-                      </div>
-                    </td>
-                  </tr>
-                  {% empty %}
-                  <tr>
-                    <td colspan="7" class="text-center py-5 text-muted">No incoming orders.</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
+  {% for order in incoming_orders %}
+  <tr>
+    <td class="ps-3">
+      <input type="checkbox" class="form-check-input order-check incoming-check"
+             value="{{ order.id }}" data-group="incoming">
+    </td>
+    <td class="fw-semibold">#{{ order.id }}</td>
+    <td>{{ order.user.get_full_name|default:order.user.username }}</td>
+    <td>
+      {% with items=order.items.all %}
+        {% if items %}
+          {% for item in items %}
+            <!-- ONLY display the item if it belongs to this logged-in organization/seller -->
+            {% if item.product_variant and item.product_variant.product and item.product_variant.product.seller == request.user %}
+              <div class="{% if not forloop.first %}mt-1{% endif %}">
+                <span class="fw-semibold">{{ item.product_variant.product.name }}</span>
+                {% if item.product_variant.variant_name %}
+                  <small class="text-muted d-block">{{ item.product_variant.variant_name }}</small>
+                % endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          <span class="text-muted">—</span>
+        {% endif %}
+      {% endwith %}
+    </td>
+    <td>
+      {% with items=order.items.all %}
+        {% if items %}
+          {% for item in items %}
+            <!-- Match the same seller condition for quantities -->
+            {% if item.product_variant and item.product_variant.product and item.product_variant.product.seller == request.user %}
+              <div class="{% if not forloop.first %}mt-1{% endif %}">{{ item.quantity }}</div>
+            {% endif %}
+          {% endfor %}
+        {% else %}—{% endif %}
+      {% endwith %}
+    </td>
+    <td>
+      <span class="badge bg-light text-dark border rounded-pill">
+        {{ order.user.org_acronym }}
+      </span>
+    </td>
+    <td class="fw-bold text-success">₱{{ order.total_amount }}</td>
+    <td class="small text-muted">{{ order.created_at|timesince }} ago</td>
+    <td class="text-end pe-3">
+      <div class="d-flex justify-content-end gap-1 flex-wrap">
+        <button type="button" class="btn btn-sm btn-outline-success rounded-pill"
+                data-bs-toggle="modal" data-bs-target="#orderModal{{ order.id }}">
+          <i class="bi bi-eye"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-success rounded-pill"
+                onclick="singleAction({{ order.id }}, 'accept')">Accept</button>
+        <button type="button" class="btn btn-sm btn-danger rounded-pill"
+                onclick="singleAction({{ order.id }}, 'reject')">Reject</button>
+      </div>
+    </td>
+  </tr>
+  {% empty %}
+  <tr>
+    <td colspan="9" class="text-center py-5 text-muted">No incoming orders.</td>
+  </tr>
+  {% endfor %}
+</tbody>
               </table>
             </div>
           </div>

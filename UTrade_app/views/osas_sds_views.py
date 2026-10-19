@@ -104,7 +104,7 @@ def osas_registered_users(request):
             | Q(username__icontains=search)
         )
 
-    paginator = Paginator(qs, 25)
+    paginator = Paginator(qs, 12)
     page_obj = paginator.get_page(request.GET.get('page'))
 
     context = {

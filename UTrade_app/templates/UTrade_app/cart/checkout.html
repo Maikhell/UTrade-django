@@ -13,13 +13,16 @@
 </nav>
 
 <div class="container py-5">
-  <form action="{% url 'place_order' %}" method="POST">
+  <form action="{% url 'place_order' %}" method="POST" id="place-order-form">
     {% csrf_token %}
 
-    {# Pass ALL selected cart item IDs reliably to place_order #}
+    {# Primary: individual fields (preferred by Django getlist) #}
     {% for item in items %}
       <input type="hidden" name="item_ids" value="{{ item.id }}">
     {% endfor %}
+
+    {# Fallback: single comma-separated value (handles rare multi-value POST issues) #}
+    <input type="hidden" name="items" value="{% for item in items %}{{ item.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
 
     <div class="row g-4">
       <div class="col-lg-8">

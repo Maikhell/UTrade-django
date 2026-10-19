@@ -22,14 +22,17 @@ from ..models import (
 )
 
 logger = logging.getLogger(__name__)
+
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
 def _to_decimal(value):
     return value if isinstance(value, Decimal) else Decimal(str(value))
 
-def _checkout_url(item_ids):           # add with the helpers
+
+def _checkout_url(item_ids):
     return f"{reverse('checkout_view')}?items={','.join(map(str, item_ids))}"
+
 
 def _payment_flags(items):
     """Return (can_use_gcash, can_use_cop) for a list of CartItems."""
@@ -54,10 +57,20 @@ def _parse_item_ids(raw_values):
 
 
 def _collect_item_ids(request):
-    """Read selected cart item ids from POST (item_ids / item_ids[]) or GET (?items=1,2,3)."""
+    """
+    Read selected cart item ids from:
+      - POST item_ids / item_ids[]  (multiple hidden fields)
+      - POST items                  (comma-separated fallback)
+      - GET  items                  (?items=1,2,3)
+    """
     raw = request.POST.getlist("item_ids") or request.POST.getlist("item_ids[]")
     if not raw:
-        single = (request.POST.get("item_ids") or request.GET.get("items") or "").strip()
+        single = (
+            request.POST.get("item_ids")
+            or request.POST.get("items")
+            or request.GET.get("items")
+            or ""
+        ).strip()
         if single:
             raw = [x for x in single.split(",") if x.strip()]
     return _parse_item_ids(raw)
@@ -268,7 +281,7 @@ def place_order(request):
         return redirect("cart_detail")
 
     if not item_ids:
-        messages.error(request, "No items to order.")
+        messages.error(request, "No items to order. Please select items and try again.")
         return redirect("cart_detail")
 
     created_orders = []

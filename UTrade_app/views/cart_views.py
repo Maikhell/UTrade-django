@@ -1,3 +1,4 @@
+import base64
 import re
 import uuid
 from collections import defaultdict
@@ -8,12 +9,15 @@ import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
+from django.conf import settings
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Sum, F
 from django.urls import reverse
 from django.utils import timezone
+
+import requests
 
 from ..models import (
     Cart,
@@ -82,6 +86,50 @@ def _collect_item_ids(request):
                 ids.append(int(token))
 
     return _dedupe(ids)
+
+
+def _create_paymongo_session(request, orders):
+    """
+    One PayMongo GCash checkout session covering all GCash orders of a checkout.
+    Returns the hosted checkout URL, or None on failure.
+    """
+    try:
+        encoded_key = base64.b64encode(f"{settings.PAYMONGO_SECRET_KEY}:".encode()).decode()
+        headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "authorization": f"Basic {encoded_key}",
+        }
+        payload = {
+            "data": {
+                "attributes": {
+                    "line_items": [
+                        {
+                            "currency": "PHP",
+                            "amount": int((o.total_amount * 100).to_integral_value()),
+                            "name": f"UTrade Order {o.order_number or o.id}",
+                            "quantity": 1,
+                        }
+                        for o in orders
+                    ],
+                    "payment_method_types": ["gcash"],
+                    # order_success marks every GCash order of the same checkout_batch as Paid
+                    "success_url": request.build_absolute_uri(
+                        reverse("order_success", args=[orders[0].id])
+                    ),
+                    "cancel_url": request.build_absolute_uri(reverse("order_history")),
+                }
+            }
+        }
+        resp = requests.post(
+            "https://api.paymongo.com/v1/checkout_sessions",
+            json=payload, headers=headers, timeout=20,
+        )
+        data = resp.json()
+        return data["data"]["attributes"]["checkout_url"]
+    except Exception:
+        logger.exception("PayMongo session failed for orders %s", [o.pk for o in orders])
+        return None
 
 
 # --------------------------------------------------------------------------- #
@@ -391,6 +439,9 @@ def place_order(request):
                     total += price * item.quantity
                     lines.append((item, variant, price))
 
+                location_text = (
+                    getattr(items[0].variant.product, "meetup_location_text", "") or ""
+                ).strip()
                 order = Order.objects.create(
                     user=request.user,
                     seller=seller,
@@ -398,6 +449,9 @@ def place_order(request):
                     status="Pending",
                     payment_method=requested,
                     checkout_batch=batch_id,
+                    pickup_location=location_text,
+                    meetup_location=location_text,
+                    buyer_note=(request.POST.get("buyer_note") or "").strip(),
                 )
 
                 for item, variant, price in lines:
@@ -453,6 +507,18 @@ def place_order(request):
         messages.success(
             request,
             f"{len(created_orders)} separate orders created: {summary}",
+        )
+
+    # GCash orders: send the buyer to PayMongo (COP orders are already placed).
+    gcash_orders = [o for o in created_orders if o.payment_method == "GCASH"]
+    if gcash_orders:
+        checkout_url = _create_paymongo_session(request, gcash_orders)
+        if checkout_url:
+            return redirect(checkout_url)
+        messages.warning(
+            request,
+            "Your order was placed, but we couldn't start the GCash payment. "
+            "Please contact the seller or try again later.",
         )
 
     return redirect("order_history")

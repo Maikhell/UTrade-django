@@ -410,14 +410,6 @@
                               <div class="detail-value">{{ u.student_no|default:"—" }}</div>
                             </div>
                             <div class="col-6 col-md-4">
-                              <div class="detail-label">Username</div>
-                              <div class="detail-value">{{ u.username|default:"—" }}</div>
-                            </div>
-                            <div class="col-6 col-md-4">
-                              <div class="detail-label">Display name</div>
-                              <div class="detail-value">{{ u.display_name|default:"—" }}</div>
-                            </div>
-                            <div class="col-6 col-md-4">
                               <div class="detail-label">First name</div>
                               <div class="detail-value">{{ u.first_name|default:"—" }}</div>
                             </div>
@@ -457,10 +449,6 @@
                               <div class="detail-value">{{ u.section|default:"—" }}</div>
                             </div>
                             <div class="col-6 col-md-4">
-                              <div class="detail-label">Organization (text)</div>
-                              <div class="detail-value">{{ u.organization|default:"—" }}</div>
-                            </div>
-                            <div class="col-6 col-md-4">
                               <div class="detail-label">Linked organization</div>
                               <div class="detail-value">
                                 {% if u.org_link %}
@@ -472,24 +460,6 @@
                                   —
                                 {% endif %}
                               </div>
-                            </div>
-                            <div class="col-6 col-md-4">
-                              <div class="detail-label">Is officer</div>
-                              <div class="detail-value">
-                                {% if u.is_officer %}
-                                  <span class="text-success">Yes</span>
-                                {% else %}
-                                  No
-                                {% endif %}
-                              </div>
-                            </div>
-                            <div class="col-6 col-md-4">
-                              <div class="detail-label">Officer status</div>
-                              <div class="detail-value">{{ u.officer_status|default:"—"|title }}</div>
-                            </div>
-                            <div class="col-6 col-md-4">
-                              <div class="detail-label">Position</div>
-                              <div class="detail-value">{{ u.position|default:"—" }}</div>
                             </div>
 
                             <!-- Account status -->

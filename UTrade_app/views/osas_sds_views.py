@@ -1,7 +1,7 @@
 # osas_sds_views.py
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.paginator import Paginator
-from django.db.models import OuterRef, Subquery, Value, Q
+from django.db.models import OuterRef, Subquery, Value, Q, Case, When, IntegerField
 from django.db.models.functions import Coalesce
 from django.shortcuts import render
 
@@ -84,12 +84,18 @@ def osas_organizations(request):
 def osas_registered_users(request):
     """
     OSAS/SDS – view all registered students (and optionally other users).
-    Read-only list.
+    Read-only list. Verified users appear first.
     """
     search = request.GET.get('search', '').strip()
     role = request.GET.get('role', 'student').strip()  # default students
 
-    qs = User.objects.all().order_by('-date_joined')
+    qs = User.objects.annotate(
+        verified_rank=Case(
+            When(status='verified', then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        )
+    ).order_by('verified_rank', '-date_joined')
 
     if role:
         qs = qs.filter(user_role=role)

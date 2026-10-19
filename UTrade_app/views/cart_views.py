@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Sum, F
 
 from ..models import (
     Cart,
@@ -105,6 +105,52 @@ def remove_from_cart(request, item_id):
     return redirect("cart_detail")
 
 
+def _group_cart_items_by_seller(cart_items):
+    """
+    Group CartItem list by product.seller_id.
+    Returns list of dicts: seller, seller_name, items, subtotal, payment flags.
+    """
+    sellers_map = {}
+    for item in cart_items:
+        product = item.variant.product
+        seller = product.seller
+        if seller is None:
+            continue
+        sid = seller.pk
+        if sid not in sellers_map:
+            sellers_map[sid] = {
+                "seller": seller,
+                "seller_name": (
+                    seller.get_full_name()
+                    or getattr(seller, "display_name", None)
+                    or seller.username
+                ),
+                "items": [],
+                "subtotal": Decimal("0.00"),
+                "payment_methods": set(),
+            }
+        cost = item.get_cost()
+        if not isinstance(cost, Decimal):
+            cost = Decimal(str(cost))
+        sellers_map[sid]["items"].append(item)
+        sellers_map[sid]["subtotal"] += cost
+        sellers_map[sid]["payment_methods"].add(
+            product.accepted_payments or "BOTH"
+        )
+
+    seller_groups = []
+    for g in sellers_map.values():
+        methods = g["payment_methods"]
+        g["can_use_gcash"] = all(m in ("GCASH", "BOTH") for m in methods)
+        g["can_use_cop"] = all(m in ("COP", "BOTH") for m in methods)
+        g["has_payment_conflict"] = not (g["can_use_gcash"] or g["can_use_cop"])
+        seller_groups.append(g)
+
+    # Stable order by seller name
+    seller_groups.sort(key=lambda g: (g["seller_name"] or "").lower())
+    return seller_groups
+
+
 @login_required
 def checkout_view(request):
     item_ids_str = request.GET.get("items", "")
@@ -139,35 +185,10 @@ def checkout_view(request):
         messages.warning(request, "No items selected for checkout.")
         return redirect("cart_detail")
 
-    sellers_map = {}
-    for item in cart_items:
-        seller = item.variant.product.seller
-        sid = seller.id
-        if sid not in sellers_map:
-            sellers_map[sid] = {
-                "seller": seller,
-                "seller_name": (
-                    seller.get_full_name()
-                    or getattr(seller, "display_name", None)
-                    or seller.username
-                ),
-                "items": [],
-                "subtotal": Decimal("0.00"),
-                "payment_methods": set(),
-            }
-        sellers_map[sid]["items"].append(item)
-        sellers_map[sid]["subtotal"] += item.get_cost()
-        sellers_map[sid]["payment_methods"].add(
-            item.variant.product.accepted_payments or "BOTH"
-        )
-
-    seller_groups = []
-    for g in sellers_map.values():
-        methods = g["payment_methods"]
-        g["can_use_gcash"] = all(m in ("GCASH", "BOTH") for m in methods)
-        g["can_use_cop"] = all(m in ("COP", "BOTH") for m in methods)
-        g["has_payment_conflict"] = not (g["can_use_gcash"] or g["can_use_cop"])
-        seller_groups.append(g)
+    seller_groups = _group_cart_items_by_seller(cart_items)
+    if not seller_groups:
+        messages.error(request, "Could not determine sellers for selected items.")
+        return redirect("cart_detail")
 
     total_price = sum((g["subtotal"] for g in seller_groups), Decimal("0.00"))
     all_methods = [
@@ -194,8 +215,8 @@ def checkout_view(request):
 @require_POST
 def place_order(request):
     """
-    One Order per product.seller_id.
-    Example: HM (seller 9) and CSG (seller 10) → two separate orders.
+    Always create ONE Order per product.seller_id.
+    Items / total_amount on each order belong only to that seller.
     """
     raw_ids = request.POST.getlist("item_ids")
     if not raw_ids:
@@ -203,12 +224,22 @@ def place_order(request):
         if single:
             raw_ids = [x.strip() for x in single.split(",") if x.strip()]
 
-    if not raw_ids:
+    # De-duplicate while preserving order
+    seen = set()
+    clean_ids = []
+    for x in raw_ids:
+        x = str(x).strip()
+        if not x or x in seen:
+            continue
+        seen.add(x)
+        clean_ids.append(x)
+
+    if not clean_ids:
         messages.error(request, "No items to order.")
         return redirect("cart_detail")
 
     try:
-        item_ids = [int(x) for x in raw_ids]
+        item_ids = [int(x) for x in clean_ids]
     except (TypeError, ValueError):
         messages.error(request, "Invalid cart items.")
         return redirect("cart_detail")
@@ -224,20 +255,21 @@ def place_order(request):
             "variant__product",
             "variant__product__seller",
         )
+        .select_for_update()  # lock rows during stock check (inside atomic below)
     )
 
     if not cart_items:
         messages.error(request, "Selected items are no longer in your cart.")
         return redirect("cart_detail")
 
-    # Group strictly by the product's seller user id
+    # Strict group by the product's seller user id
     by_seller_id = defaultdict(list)
     for item in cart_items:
         seller_id = item.variant.product.seller_id
         if not seller_id:
             messages.error(
                 request,
-                f"Product '{item.variant.product.name}' has no seller.",
+                f"Product '{item.variant.product.name}' has no seller assigned.",
             )
             return redirect("cart_detail")
         by_seller_id[seller_id].append(item)
@@ -246,21 +278,45 @@ def place_order(request):
 
     try:
         with transaction.atomic():
+            # Re-fetch with lock inside the transaction
+            cart_items = list(
+                CartItem.objects.filter(id__in=item_ids, cart__user=request.user)
+                .select_related(
+                    "variant",
+                    "variant__product",
+                    "variant__product__seller",
+                )
+                .select_for_update()
+            )
+            by_seller_id = defaultdict(list)
+            for item in cart_items:
+                by_seller_id[item.variant.product.seller_id].append(item)
+
             for seller_id, items in by_seller_id.items():
+                if not items:
+                    continue
+
+                # Stock + ownership checks for THIS seller only
                 for item in items:
-                    if item.quantity > item.variant.stocks:
+                    variant = item.variant
+                    if item.quantity > variant.stocks:
                         raise ValueError(
-                            f"Not enough stock for {item.variant.product.name} "
-                            f"({item.variant.variant_name}). "
-                            f"Available: {item.variant.stocks}."
+                            f"Not enough stock for {variant.product.name} "
+                            f"({variant.variant_name}). Available: {variant.stocks}."
                         )
-                    if item.variant.product.seller_id != seller_id:
+                    if variant.product.seller_id != seller_id:
                         raise ValueError(
-                            f"Seller mismatch for {item.variant.product.name}"
+                            f"Seller mismatch for {variant.product.name}"
                         )
 
                 seller = items[0].variant.product.seller
-                total = sum((i.get_cost() for i in items), Decimal("0.00"))
+                # Subtotal = ONLY this seller's items
+                total = Decimal("0.00")
+                for i in items:
+                    cost = i.get_cost()
+                    if not isinstance(cost, Decimal):
+                        cost = Decimal(str(cost))
+                    total += cost
 
                 order = Order.objects.create(
                     user=request.user,
@@ -277,9 +333,14 @@ def place_order(request):
                         quantity=item.quantity,
                         price=item.variant.price,
                     )
+                    # Deduct stock for this line only
+                    ProductVariant.objects.filter(pk=item.variant_id).update(
+                        stocks=F("stocks") - item.quantity
+                    )
 
                 created_orders.append(order)
 
+            # Remove ordered cart lines only after all orders succeed
             CartItem.objects.filter(
                 id__in=item_ids,
                 cart__user=request.user,
@@ -292,9 +353,19 @@ def place_order(request):
         messages.error(request, f"Could not place order: {e}")
         return redirect("cart_detail")
 
-    summary = ", ".join(f"#{o.id}→{o.seller.username}" for o in created_orders)
-    messages.success(
-        request,
-        f"{len(created_orders)} order(s) created: {summary}",
-    )
+    if len(created_orders) == 1:
+        messages.success(
+            request,
+            f"Order #{created_orders[0].id} placed with @{created_orders[0].seller.username}.",
+        )
+    else:
+        summary = ", ".join(
+            f"#{o.id} → @{o.seller.username} (₱{o.total_amount})"
+            for o in created_orders
+        )
+        messages.success(
+            request,
+            f"{len(created_orders)} separate orders created: {summary}",
+        )
+
     return redirect("order_list")

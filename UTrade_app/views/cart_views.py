@@ -1,5 +1,7 @@
+import re
 import uuid
 from collections import defaultdict
+from datetime import timedelta
 from decimal import Decimal
 import logging
 
@@ -11,6 +13,7 @@ from django.http import JsonResponse
 from django.db import transaction
 from django.db.models import Sum, F
 from django.urls import reverse
+from django.utils import timezone
 
 from ..models import (
     Cart,
@@ -45,35 +48,40 @@ def _payment_flags(items):
     return can_gcash, can_cop
 
 
-def _parse_item_ids(raw_values):
-    """Clean, de-duplicate (order preserved) and int-convert ids. Raises ValueError."""
-    seen, clean = set(), []
-    for x in raw_values:
-        x = str(x).strip()
-        if x and x not in seen:
-            seen.add(x)
-            clean.append(x)
-    return [int(x) for x in clean]
+def _dedupe(ids):
+    seen, out = set(), []
+    for i in ids:
+        if i not in seen:
+            seen.add(i)
+            out.append(i)
+    return out
 
 
 def _collect_item_ids(request):
     """
-    Read selected cart item ids from:
-      - POST item_ids / item_ids[]  (multiple hidden fields)
-      - POST items                  (comma-separated fallback)
-      - GET  items                  (?items=1,2,3)
+    Read selected cart item ids. NEVER raises: unreadable values are skipped.
+
+    Sources, in priority order:
+      1. POST item_ids / item_ids[]  (one hidden field per item). Every value is
+         reduced to its digits, so a localized id such as "1,001" still reads 1001.
+      2. POST items                  (comma-separated fallback)
+      3. GET  items                  (?items=1,2,3)
     """
-    raw = request.POST.getlist("item_ids") or request.POST.getlist("item_ids[]")
-    if not raw:
-        single = (
-            request.POST.get("item_ids")
-            or request.POST.get("items")
-            or request.GET.get("items")
-            or ""
-        ).strip()
-        if single:
-            raw = [x for x in single.split(",") if x.strip()]
-    return _parse_item_ids(raw)
+    raw = request.POST.getlist("item_ids") + request.POST.getlist("item_ids[]")
+    ids = []
+    for value in raw:
+        digits = re.sub(r"\D", "", str(value))
+        if digits:
+            ids.append(int(digits))
+
+    if not ids:
+        csv = request.POST.get("items") or request.GET.get("items") or ""
+        for token in csv.split(","):
+            token = token.strip()
+            if token.isdigit():
+                ids.append(int(token))
+
+    return _dedupe(ids)
 
 
 # --------------------------------------------------------------------------- #
@@ -209,19 +217,14 @@ def _group_cart_items_by_seller(cart_items):
 
 @login_required
 def checkout_view(request):
-    # The cart's JS sends the selected ids either as ?items=1,2,3 (GET) or as a POST.
+    # The cart's JS sends the selected ids as ?items=1,2,3 (GET).
     # A POST is converted to a GET so the checkout page survives a refresh.
     if request.method == "POST":
-        try:
-            ids = _collect_item_ids(request)
-        except ValueError:
-            return redirect("cart_detail")
+        ids = _collect_item_ids(request)
         if not ids:
             messages.warning(request, "No items selected for checkout.")
             return redirect("cart_detail")
-        return redirect(f"{reverse('checkout_view')}?items={','.join(map(str, ids))}")
-
-    item_ids_str = request.GET.get("items", "")
+        return redirect(_checkout_url(ids))
 
     base_qs = CartItem.objects.select_related(
         "variant",
@@ -230,10 +233,9 @@ def checkout_view(request):
         "variant__assigned_image",
     ).prefetch_related("variant__product__images")
 
-    if item_ids_str:
-        try:
-            item_ids = [int(x) for x in item_ids_str.split(",") if x.strip()]
-        except ValueError:
+    if request.GET.get("items"):
+        item_ids = _collect_item_ids(request)
+        if not item_ids:
             return redirect("cart_detail")
         cart_items = list(base_qs.filter(id__in=item_ids, cart__user=request.user))
     else:
@@ -273,16 +275,24 @@ def place_order(request):
     Each order gets only that seller's cart items and the matching total.
     Payment method is chosen per seller (payment_method_<seller_id>), falling back
     to a global `payment_method` field.
+
+    On a failure this view sends the buyer back to the CHECKOUT page with a
+    message (never silently to the cart), and logs the reason.
     """
-    try:
-        item_ids = _collect_item_ids(request)
-    except (TypeError, ValueError):
-        messages.error(request, "Invalid cart items.")
-        return redirect("cart_detail")
+    item_ids = _collect_item_ids(request)
 
     if not item_ids:
-        messages.error(request, "No items to order. Please select items and try again.")
-        return redirect("cart_detail")
+        logger.warning(
+            "place_order: no item ids received for user %s. POST keys=%s",
+            request.user.pk,
+            sorted(request.POST.keys()),
+        )
+        messages.error(
+            request,
+            "We couldn't read which items you selected. Please review your order and try again.",
+        )
+        # No ?items= -> checkout_view loads the whole cart (or goes to the cart if it is empty).
+        return redirect("checkout_view")
 
     created_orders = []
     batch_id = uuid.uuid4()
@@ -299,6 +309,19 @@ def place_order(request):
             )
 
             if not cart_items:
+                # Most common cause: the form was submitted twice (double click) and the
+                # first request already placed the orders and emptied the cart lines.
+                just_ordered = Order.objects.filter(
+                    user=request.user,
+                    created_at__gte=timezone.now() - timedelta(minutes=2),
+                ).exists()
+                logger.warning(
+                    "place_order: ids %s not found in cart of user %s (just_ordered=%s)",
+                    item_ids, request.user.pk, just_ordered,
+                )
+                if just_ordered:
+                    messages.info(request, "Your order was already placed. See it below.")
+                    return redirect("order_list")
                 messages.error(request, "Selected items are no longer in your cart.")
                 return redirect("cart_detail")
 
@@ -397,11 +420,19 @@ def place_order(request):
             ).delete()
 
     except ValueError as e:
+        # Business-rule problems (stock, payment mismatch, ...) are safe to show.
+        logger.info("place_order rejected for user %s: %s", request.user.pk, e)
         messages.error(request, str(e))
         return redirect(_checkout_url(item_ids))
-    except Exception as e:
+    except Exception:
+        # Unexpected errors (e.g. DB / migration problems): log the traceback,
+        # show a generic message instead of leaking internals to the buyer.
         logger.exception("place_order failed for user %s, items %s", request.user.pk, item_ids)
-        messages.error(request, f"Could not place order: {e}")
+        messages.error(
+            request,
+            "Something went wrong while placing your order. Nothing was charged or removed "
+            "from your cart. Please try again.",
+        )
         return redirect(_checkout_url(item_ids))
 
     def _label(o):

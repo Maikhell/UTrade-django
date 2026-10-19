@@ -1,5 +1,5 @@
 {% extends 'UTrade_app/base.html' %}
-{% load static %}
+{% load static l10n %}
 
 {% block title %}Checkout - UTrade{% endblock %}
 
@@ -16,13 +16,16 @@
   <form action="{% url 'place_order' %}" method="POST" id="place-order-form">
     {% csrf_token %}
 
-    {# Primary: individual fields (preferred by Django getlist) #}
-    {% for item in items %}
-      <input type="hidden" name="item_ids" value="{{ item.id }}">
-    {% endfor %}
+    {# localize off: ids must be plain digits (no thousands separators) #}
+    {% localize off %}
+      {# Primary: individual fields #}
+      {% for item in items %}
+        <input type="hidden" name="item_ids" value="{{ item.id }}">
+      {% endfor %}
 
-    {# Fallback: single comma-separated value (handles rare multi-value POST issues) #}
-    <input type="hidden" name="items" value="{% for item in items %}{{ item.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+      {# Fallback: single comma-separated value #}
+      <input type="hidden" name="items" value="{% for item in items %}{{ item.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+    {% endlocalize %}
 
     <div class="row g-4">
       <div class="col-lg-8">
@@ -136,7 +139,7 @@
                 {% if group.can_use_gcash %}
                   <div class="col-md-6">
                     <label class="payment-option w-100 h-100">
-                      <input type="radio" name="payment_method_{{ group.seller_id }}" value="GCASH" class="d-none" checked />
+                      <input type="radio" name="payment_method_{{ group.seller_id|unlocalize }}" value="GCASH" class="d-none" checked />
                       <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
                         <i class="bi bi-lightning-charge-fill text-warning mb-2 h4"></i>
                         <div class="fw-bold small">Online GCash</div>
@@ -148,7 +151,7 @@
                 {% if group.can_use_cop %}
                   <div class="col-md-6">
                     <label class="payment-option w-100 h-100">
-                      <input type="radio" name="payment_method_{{ group.seller_id }}" value="COP" class="d-none"
+                      <input type="radio" name="payment_method_{{ group.seller_id|unlocalize }}" value="COP" class="d-none"
                              {% if not group.can_use_gcash %}checked{% endif %} />
                       <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
                         <i class="bi bi-cash-stack h4 text-success mb-2"></i>
@@ -285,6 +288,7 @@
             <span class="h4 mb-0 fw-bold text-success">₱{{ total_price }}</span>
           </div>
           <button type="submit"
+                  id="place-order-btn"
                   class="btn btn-success btn-lg w-100 py-3 fw-bold rounded-3 shadow-sm"
                   {% if has_payment_conflict %}disabled{% endif %}>
             Place Order{% if seller_groups|length > 1 %}s ({{ seller_groups|length }} sellers){% endif %}
@@ -311,4 +315,35 @@
   .option-box { transition: all 0.2s ease; }
   .option-box:hover { background-color: #f8f9fa; }
 </style>
+
+<script>
+  // Prevent double submits: a second POST would find the cart lines already
+  // removed by the first one and bounce the buyer back to the cart.
+  (function () {
+    var form = document.getElementById('place-order-form');
+    var btn = document.getElementById('place-order-btn');
+    if (!form || !btn) return;
+    var submitted = false;
+    form.addEventListener('submit', function (e) {
+      if (submitted) {
+        e.preventDefault();
+        return;
+      }
+      submitted = true;
+      // Disable after the browser has captured the form data.
+      setTimeout(function () {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Placing order…';
+      }, 0);
+    });
+    // If the user comes back via the browser's back button, re-enable the form.
+    window.addEventListener('pageshow', function (ev) {
+      if (ev.persisted) {
+        submitted = false;
+        btn.disabled = false;
+        btn.textContent = btn.getAttribute('data-label') || 'Place Order';
+      }
+    });
+  })();
+</script>
 {% endblock %}

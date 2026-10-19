@@ -3,7 +3,7 @@ from .views import (
     items_views, user_views, authenticate,
     admin_views, cart_views, order_views, chat_views,
     organization_views, management_views, alumni_views,
-    otplink_views, reports_views
+    otplink_views, reports_views, osas_sds_views
 )
 
 urlpatterns = [
@@ -124,13 +124,6 @@ urlpatterns = [
     path("organization/users/message/", organization_views.org_message_user, name="org_message_user"),
     path("organization/users/report/", organization_views.org_report_user, name="org_report_user"),
     # =========================================================================
-    # Alumni Dashboard & Reports
-    # =========================================================================
-    path('alumni-association/', alumni_views.alumni_dashboard_view, name='alumni.dashboard'),
-    path('alumni-association/alumni/<int:user_id>/', alumni_views.update_alumni_status, name='alumni.update.status'),
-    path('alumni-association/generate-pdf/', alumni_views.generate_alumni_report, name='generate.reports.pdf'),
-
-    # =========================================================================
     # Management – Dashboard & Core
     # =========================================================================
     path('management/dashboard/', user_views.UserProductsView.as_view(), name='dashboard'),
@@ -140,6 +133,10 @@ urlpatterns = [
     path('management/active-listings/', management_views.active_listings, name='active_listings'),
     path('management/cbrgu-products/', management_views.cbrgu_products, name='cbrgu_products'),
 
+
+    path('osas/organizations/', osas_sds_views.osas_organizations, name='osas_organizations'),
+    path('osas/registered-users/', osas_sds_views.osas_registered_users, name='osas_registered_users'),
+    
     # =========================================================================
     # Management – Orders & Pre-Orders
     # =========================================================================

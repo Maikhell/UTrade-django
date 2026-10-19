@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', function () {
+  // The cart template nests this script inside a block; guard against double-loading.
+  if (window.__utradeCartInit) return;
+  window.__utradeCartInit = true;
+
   const itemCheckboxes = document.querySelectorAll('.item-checkbox');
   const sellerCheckboxes = document.querySelectorAll('.seller-checkbox');
   const grandTotalDisplay = document.getElementById('grand-total-display');
@@ -91,33 +95,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (!selectedIds.length) return;
 
-      // Create a dynamic form to submit via POST so Django's request.POST.getlist works properly
-      const form = document.createElement('form');
-      form.method = 'POST';
-      // Point this to your place_order URL endpoint route
-      form.action = this.getAttribute('data-checkout-url') || '/cart/place-order/'; 
-
-      // Include the Django CSRF token for security compliance
-      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
-      if (csrfToken) {
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = 'csrfmiddlewaretoken';
-        csrfInput.value = csrfToken.value;
-        form.appendChild(csrfInput);
-      }
-
-      // Append each selected item id as 'item_ids' array values
-      selectedIds.forEach(function(id) {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'item_ids';
-        input.value = id;
-        form.appendChild(input);
-      });
-
-      document.body.appendChild(form);
-      form.submit();
+      // checkout_view reads the selection from ?items=1,2,3.
+      // (Previously this POSTed to checkout_view, which ignored the body and loaded the whole cart.)
+      const base = this.getAttribute('data-checkout-url') || '/cart/checkout/';
+      const url = base + (base.indexOf('?') === -1 ? '?' : '&') +
+        'items=' + encodeURIComponent(selectedIds.join(','));
+      window.location.href = url;
     });
   }
 });

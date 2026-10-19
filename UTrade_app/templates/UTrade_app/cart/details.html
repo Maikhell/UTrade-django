@@ -21,14 +21,16 @@
         <hr class="opacity-10" />
 
         {% if cart_items %}
-          {% regroup cart_items by variant.product.seller.username as seller_list %}
+          {# Group by seller ID (usernames are nullable / not unique) #}
+          {% regroup cart_items by variant.product.seller_id as seller_list %}
           {% for seller in seller_list %}
+            {% with seller_obj=seller.list.0.variant.product.seller %}
             <div class="seller-group" data-seller="{{ seller.grouper }}">
               <div class="d-flex align-items-center mb-2 mt-3 bg-light p-2 rounded-3">
                 <input type="checkbox" class="form-check-input me-2 seller-checkbox" checked
                        data-seller-target="{{ seller.grouper }}" />
                 <p class="small text-muted mb-0">
-                  Seller: <span class="text-dark fw-medium">@{{ seller.grouper }}</span>
+                  Seller: <span class="text-dark fw-medium">@{{ seller_obj.username|default:seller_obj.display_name|default:seller_obj.student_no }}</span>
                 </p>
               </div>
 
@@ -138,6 +140,7 @@
                 </div>
               {% endfor %}
             </div>
+            {% endwith %}
           {% endfor %}
         {% else %}
           <div class="text-center py-5 text-muted">

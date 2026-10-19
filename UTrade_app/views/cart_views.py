@@ -217,12 +217,16 @@ def place_order(request):
     Create ONE Order per product.seller_id.
     Each order gets only that seller's cart items and the matching subtotal.
     """
-    # ---- collect cart item ids from the form ----
+    # ---- robustly collect cart item ids from POST list, form strings, or GET query params ----
     raw_ids = request.POST.getlist("item_ids")
     if not raw_ids:
-        single = (request.POST.get("item_ids") or "").strip()
+        single = (request.POST.get("item_ids") or request.GET.get("items") or "").strip()
         if single:
             raw_ids = [x.strip() for x in single.split(",") if x.strip()]
+    
+    # Fallback if array notation was used
+    if not raw_ids:
+        raw_ids = request.POST.getlist("item_ids[]")
 
     # de-duplicate, preserve order
     seen = set()

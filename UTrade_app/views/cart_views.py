@@ -210,36 +210,35 @@ def checkout_view(request):
         },
     )
 
-
 @login_required
 @require_POST
 def place_order(request):
     """
-    Always create ONE Order per product.seller_id.
-    Items / total_amount on each order belong only to that seller.
+    Create ONE Order per product.seller_id.
+    Each order gets only that seller's cart items and the matching subtotal.
     """
+    # ---- collect cart item ids from the form ----
     raw_ids = request.POST.getlist("item_ids")
     if not raw_ids:
         single = (request.POST.get("item_ids") or "").strip()
         if single:
             raw_ids = [x.strip() for x in single.split(",") if x.strip()]
 
-    # De-duplicate while preserving order
+    # de-duplicate, preserve order
     seen = set()
-    clean_ids = []
+    clean = []
     for x in raw_ids:
         x = str(x).strip()
-        if not x or x in seen:
-            continue
-        seen.add(x)
-        clean_ids.append(x)
+        if x and x not in seen:
+            seen.add(x)
+            clean.append(x)
 
-    if not clean_ids:
+    if not clean:
         messages.error(request, "No items to order.")
         return redirect("cart_detail")
 
     try:
-        item_ids = [int(x) for x in clean_ids]
+        item_ids = [int(x) for x in clean]
     except (TypeError, ValueError):
         messages.error(request, "Invalid cart items.")
         return redirect("cart_detail")
@@ -248,37 +247,10 @@ def place_order(request):
     if payment_method not in ("GCASH", "COP"):
         payment_method = "COP"
 
-    cart_items = list(
-        CartItem.objects.filter(id__in=item_ids, cart__user=request.user)
-        .select_related(
-            "variant",
-            "variant__product",
-            "variant__product__seller",
-        )
-        .select_for_update()  # lock rows during stock check (inside atomic below)
-    )
-
-    if not cart_items:
-        messages.error(request, "Selected items are no longer in your cart.")
-        return redirect("cart_detail")
-
-    # Strict group by the product's seller user id
-    by_seller_id = defaultdict(list)
-    for item in cart_items:
-        seller_id = item.variant.product.seller_id
-        if not seller_id:
-            messages.error(
-                request,
-                f"Product '{item.variant.product.name}' has no seller assigned.",
-            )
-            return redirect("cart_detail")
-        by_seller_id[seller_id].append(item)
-
     created_orders = []
 
     try:
         with transaction.atomic():
-            # Re-fetch with lock inside the transaction
             cart_items = list(
                 CartItem.objects.filter(id__in=item_ids, cart__user=request.user)
                 .select_related(
@@ -288,21 +260,31 @@ def place_order(request):
                 )
                 .select_for_update()
             )
-            by_seller_id = defaultdict(list)
+
+            if not cart_items:
+                messages.error(request, "Selected items are no longer in your cart.")
+                return redirect("cart_detail")
+
+            # ---- group strictly by product.seller_id ----
+            by_seller = defaultdict(list)
             for item in cart_items:
-                by_seller_id[item.variant.product.seller_id].append(item)
+                seller_id = item.variant.product.seller_id
+                if not seller_id:
+                    raise ValueError(
+                        f"Product '{item.variant.product.name}' has no seller."
+                    )
+                by_seller[seller_id].append(item)
 
-            for seller_id, items in by_seller_id.items():
-                if not items:
-                    continue
-
-                # Stock + ownership checks for THIS seller only
+            # ---- one Order per seller ----
+            for seller_id, items in by_seller.items():
+                # stock + ownership checks (this seller only)
                 for item in items:
                     variant = item.variant
                     if item.quantity > variant.stocks:
                         raise ValueError(
                             f"Not enough stock for {variant.product.name} "
-                            f"({variant.variant_name}). Available: {variant.stocks}."
+                            f"({variant.variant_name}). "
+                            f"Available: {variant.stocks}."
                         )
                     if variant.product.seller_id != seller_id:
                         raise ValueError(
@@ -310,10 +292,11 @@ def place_order(request):
                         )
 
                 seller = items[0].variant.product.seller
-                # Subtotal = ONLY this seller's items
+
+                # total = ONLY this seller's lines
                 total = Decimal("0.00")
-                for i in items:
-                    cost = i.get_cost()
+                for item in items:
+                    cost = item.get_cost()
                     if not isinstance(cost, Decimal):
                         cost = Decimal(str(cost))
                     total += cost
@@ -333,14 +316,14 @@ def place_order(request):
                         quantity=item.quantity,
                         price=item.variant.price,
                     )
-                    # Deduct stock for this line only
+                    # deduct stock for this line only
                     ProductVariant.objects.filter(pk=item.variant_id).update(
                         stocks=F("stocks") - item.quantity
                     )
 
                 created_orders.append(order)
 
-            # Remove ordered cart lines only after all orders succeed
+            # remove ordered cart lines only after all orders succeed
             CartItem.objects.filter(
                 id__in=item_ids,
                 cart__user=request.user,
@@ -354,13 +337,14 @@ def place_order(request):
         return redirect("cart_detail")
 
     if len(created_orders) == 1:
+        o = created_orders[0]
         messages.success(
             request,
-            f"Order #{created_orders[0].id} placed with @{created_orders[0].seller.username}.",
+            f"Order #{o.id} placed with @{o.seller.username} (₱{o.total_amount}).",
         )
     else:
         summary = ", ".join(
-            f"#{o.id} → @{o.seller.username} (₱{o.total_amount})"
+            f"#{o.id}→@{o.seller.username} (₱{o.total_amount})"
             for o in created_orders
         )
         messages.success(

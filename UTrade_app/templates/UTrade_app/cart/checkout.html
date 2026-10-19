@@ -15,6 +15,12 @@
 <div class="container py-5">
   <form action="{% url 'place_order' %}" method="POST">
     {% csrf_token %}
+
+    {# Pass ALL cart item IDs reliably to place_order #}
+    {% for item in items %}
+      <input type="hidden" name="item_ids" value="{{ item.id }}">
+    {% endfor %}
+
     <div class="row g-4">
       <div class="col-lg-8">
 
@@ -117,7 +123,6 @@
                 <div class="text-end">
                   <span class="fw-bold text-success fs-5">₱{{ item.get_cost }}</span>
                 </div>
-                <input type="hidden" name="item_ids" value="{{ item.id }}" />
               </div>
             {% endfor %}
           </div>

@@ -426,7 +426,7 @@
                 <span class="fw-semibold">{{ item.product_variant.product.name }}</span>
                 {% if item.product_variant.variant_name %}
                   <small class="text-muted d-block">{{ item.product_variant.variant_name }}</small>
-                % endif %}
+                {% endif %}
               </div>
             {% endif %}
           {% endfor %}

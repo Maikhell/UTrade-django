@@ -321,7 +321,7 @@ def place_order(request):
                 )
                 if just_ordered:
                     messages.info(request, "Your order was already placed. See it below.")
-                    return redirect("order_list")
+                    return redirect("order_history")
                 messages.error(request, "Selected items are no longer in your cart.")
                 return redirect("cart_detail")
 
@@ -455,4 +455,4 @@ def place_order(request):
             f"{len(created_orders)} separate orders created: {summary}",
         )
 
-    return redirect("order_list")
+    return redirect("order_history")

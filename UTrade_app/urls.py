@@ -51,7 +51,7 @@ urlpatterns = [
     path('cart/update/<int:item_id>/', cart_views.update_cart, name='update_cart'),
     path('cart/remove/<int:item_id>/', cart_views.remove_from_cart, name='remove_from_cart'),
     path('checkout/', cart_views.checkout_view, name='checkout_view'),
-    path('checkout/place-order/', order_views.place_order, name='place_order'),
+    path('checkout/place-order/', cart_views.place_order, name='place_order'),
 
     # =========================================================================
     # Orders & Reviews

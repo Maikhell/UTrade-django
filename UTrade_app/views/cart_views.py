@@ -1,6 +1,7 @@
 import uuid
 from collections import defaultdict
 from decimal import Decimal
+import logging
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
@@ -20,17 +21,22 @@ from ..models import (
     OrderItem,
 )
 
-
+logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
 # Helpers
 # --------------------------------------------------------------------------- #
 def _to_decimal(value):
     return value if isinstance(value, Decimal) else Decimal(str(value))
 
+def _checkout_url(item_ids):           # add with the helpers
+    return f"{reverse('checkout_view')}?items={','.join(map(str, item_ids))}"
 
 def _payment_flags(items):
     """Return (can_use_gcash, can_use_cop) for a list of CartItems."""
-    methods = [i.variant.product.accepted_payments or "BOTH" for i in items]
+    methods = [
+        (i.variant.product.accepted_payments or "BOTH").strip().upper()
+        for i in items
+    ]
     can_gcash = all(m in ("GCASH", "BOTH") for m in methods)
     can_cop = all(m in ("COP", "BOTH") for m in methods)
     return can_gcash, can_cop
@@ -379,10 +385,11 @@ def place_order(request):
 
     except ValueError as e:
         messages.error(request, str(e))
-        return redirect("cart_detail")
+        return redirect(_checkout_url(item_ids))
     except Exception as e:
+        logger.exception("place_order failed for user %s, items %s", request.user.pk, item_ids)
         messages.error(request, f"Could not place order: {e}")
-        return redirect("cart_detail")
+        return redirect(_checkout_url(item_ids))
 
     def _label(o):
         return o.order_number or f"#{o.id}"

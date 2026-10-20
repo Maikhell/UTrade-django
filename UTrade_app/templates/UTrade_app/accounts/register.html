@@ -32,6 +32,12 @@ Register {% endblock %} {% block content %} {% block extra_css %}
       <h2 class="fw-bold text-dark mb-1">Welcome</h2>
       <p class="text-muted mb-4">Please enter your details to sign up.</p>
 
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger small py-2" role="alert">
+        {% for error in form.non_field_errors %} {{ error }} {% endfor %}
+      </div>
+      {% endif %}
+
       <form
         method="post"
         action="{% url 'user.register' %}"
@@ -45,6 +51,9 @@ Register {% endblock %} {% block content %} {% block extra_css %}
           id="id_user_role"
           value="student"
         />
+        <!-- Enabled by JS only after the user accepts the terms in the modal -->
+        <input type="hidden" name="terms" id="termsAccepted" value="on" disabled />
+
         <div class="mb-3">
           <label class="form-label small fw-bold text-secondary"
             >Student Number</label
@@ -124,45 +133,16 @@ Register {% endblock %} {% block content %} {% block extra_css %}
           {% endif %}
         </div>
 
-        <div class="mb-4">
-          <div class="form-check small">
-            <input
-              class="form-check-input {% if form.non_field_errors or form.terms.errors %}is-invalid{% endif %}"
-              type="checkbox"
-              id="termsCheckbox"
-              name="terms"
-              required
-            />
-            <label class="form-check-label text-muted" for="termsCheckbox"
-              >I have read and agree to the
-              <a
-                href="#"
-                class="text-success fw-bold text-decoration-none"
-                data-bs-toggle="modal"
-                data-bs-target="#termsModal"
-                >Terms and Services</a
-              ></label
-            >
-            <div class="form-text" id="termsHint">
-              Click the box to read the terms. You must scroll to the bottom
-              before you can agree.
-            </div>
-            {% if form.non_field_errors %}
-            <div class="invalid-feedback d-block">
-              {% for error in form.non_field_errors %} {{ error }} {% endfor %}
-            </div>
-            {% endif %}
-          </div>
-        </div>
-
         <button
           type="submit"
           id="signUpBtn"
           class="btn btn-success w-100 fw-bold btn-xl shadow-sm"
-          disabled
         >
           Sign Up
         </button>
+        <p class="text-center text-muted small mt-2 mb-0">
+          You will be asked to read and accept the Terms and Services.
+        </p>
       </form>
       <div class="d-flex align-items-center my-4">
         <hr class="flex-grow-1" />
@@ -193,6 +173,7 @@ Register {% endblock %} {% block content %} {% block extra_css %}
     </div>
   </div>
 
+  <!-- Terms modal: no X button, static backdrop, Esc disabled -->
   <div
     class="modal fade"
     id="termsModal"
@@ -210,12 +191,6 @@ Register {% endblock %} {% block content %} {% block extra_css %}
               U-Trade Platform – Seller Terms & Conditions
             </h5>
           </div>
-          <button
-            type="button"
-            class="btn-close btn-close-white"
-            data-bs-dismiss="modal"
-            aria-label="Close"
-          ></button>
         </div>
 
         <div
@@ -386,16 +361,38 @@ Register {% endblock %} {% block content %} {% block extra_css %}
         <div class="modal-footer border-0 p-4 flex-column align-items-stretch">
           <div class="text-center small text-muted mb-2" id="scrollNotice">
             <i class="bi bi-arrow-down-circle me-1"></i>
-            Scroll to the bottom to enable the agree button.
+            Scroll to the bottom to enable the checkbox below.
           </div>
-          <button
-            type="button"
-            id="agreeTermsBtn"
-            class="btn btn-success w-100 fw-bold py-2 shadow-sm"
-            disabled
-          >
-            I AGREE TO THE TERMS
-          </button>
+
+          <div class="form-check mb-3">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              id="modalTermsCheckbox"
+              disabled
+            />
+            <label class="form-check-label fw-semibold" for="modalTermsCheckbox">
+              I have read and agree to the Terms and Services
+            </label>
+          </div>
+
+          <div class="d-flex gap-2">
+            <button
+              type="button"
+              class="btn btn-outline-secondary fw-bold py-2"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              id="agreeTermsBtn"
+              class="btn btn-success flex-grow-1 fw-bold py-2 shadow-sm"
+              disabled
+            >
+              I AGREE &amp; CONTINUE
+            </button>
+          </div>
         </div>
       </div>
     </div>

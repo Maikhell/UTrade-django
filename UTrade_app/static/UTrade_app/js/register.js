@@ -1,16 +1,16 @@
 document.addEventListener('DOMContentLoaded', function () {
-  const checkbox = document.getElementById('termsCheckbox');
-  const signUpBtn = document.getElementById('signUpBtn');
   const form = document.getElementById('registerForm');
-  const agreeBtn = document.getElementById('agreeTermsBtn');
+  const studentInput = document.getElementById('id_student_no');
+  const termsAcceptedInput = document.getElementById('termsAccepted');
+
   const termsModalEl = document.getElementById('termsModal');
   const termsBody = document.getElementById('termsBody');
   const scrollNotice = document.getElementById('scrollNotice');
-  const termsHint = document.getElementById('termsHint');
-  const studentInput = document.getElementById('id_student_no');
+  const modalCheckbox = document.getElementById('modalTermsCheckbox');
+  const agreeBtn = document.getElementById('agreeTermsBtn');
 
   const STUDENT_NO_LENGTH = 9;
-  let termsRead = false; // becomes true once the user scrolls to the bottom
+  let termsAccepted = false;
 
   // ----- Student number: digits only, max 9 -----
   if (studentInput) {
@@ -23,10 +23,9 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     };
 
-    sanitize(); // clean any prefilled value (e.g. after a failed submit)
-    studentInput.addEventListener('input', sanitize); // typing, paste, drag-drop, mobile keyboards
+    sanitize();
+    studentInput.addEventListener('input', sanitize);
 
-    // Block non-digit keystrokes (letters, symbols, spaces)
     studentInput.addEventListener('keydown', function (e) {
       const allowedKeys = [
         'Backspace', 'Delete', 'Tab', 'Enter', 'Escape',
@@ -37,48 +36,22 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // ----- Terms: sign up only enabled when box is checked -----
-  function updateSignUpState() {
-    if (signUpBtn && checkbox) {
-      signUpBtn.disabled = !checkbox.checked;
-    }
-  }
-  updateSignUpState();
-
-  function openTermsModal() {
-    if (!termsModalEl || typeof bootstrap === 'undefined') return;
-    bootstrap.Modal.getOrCreateInstance(termsModalEl).show();
-  }
-
-  // First time: clicking the checkbox opens the modal instead of checking it
-  if (checkbox) {
-    checkbox.addEventListener('click', function (e) {
-      if (!termsRead && !checkbox.checked) {
-        // (checked is already true here because the click toggled it)
-      }
-      if (!termsRead) {
-        e.preventDefault();
-        checkbox.checked = false;
-        openTermsModal();
-        return;
-      }
-      updateSignUpState();
-    });
-
-    checkbox.addEventListener('change', updateSignUpState);
-  }
-
-  // ----- Scroll-to-bottom detection inside the modal -----
+  // ----- Terms modal: scroll to bottom -> checkbox -> agree button -----
   function isAtBottom(el) {
     return el.scrollTop + el.clientHeight >= el.scrollHeight - 5;
   }
 
   function checkScroll() {
-    if (!termsBody || !agreeBtn) return;
+    if (!termsBody || !modalCheckbox) return;
     if (isAtBottom(termsBody)) {
-      termsRead = true;
-      agreeBtn.disabled = false;
+      modalCheckbox.disabled = false;
       if (scrollNotice) scrollNotice.classList.add('d-none');
+    }
+  }
+
+  function updateAgreeButton() {
+    if (agreeBtn && modalCheckbox) {
+      agreeBtn.disabled = !(modalCheckbox.checked && !modalCheckbox.disabled);
     }
   }
 
@@ -86,27 +59,75 @@ document.addEventListener('DOMContentLoaded', function () {
     termsBody.addEventListener('scroll', checkScroll);
   }
 
+  if (modalCheckbox) {
+    modalCheckbox.addEventListener('change', updateAgreeButton);
+  }
+
   if (termsModalEl) {
     termsModalEl.addEventListener('shown.bs.modal', function () {
-      if (termsBody && !termsRead) termsBody.scrollTop = 0;
       checkScroll(); // in case the content already fits without scrolling
     });
   }
 
-  // "I AGREE" checks the box and closes the modal
+  function openTermsModal() {
+    if (!termsModalEl || typeof bootstrap === 'undefined') return;
+    bootstrap.Modal.getOrCreateInstance(termsModalEl).show();
+  }
+
+  function closeTermsModal() {
+    if (!termsModalEl || typeof bootstrap === 'undefined') return;
+    bootstrap.Modal.getOrCreateInstance(termsModalEl).hide();
+  }
+
+  // ----- Confirm and submit -----
+  function confirmAndSubmit() {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: 'Confirm Registration',
+        text: 'Ready to join the UTrade community?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Sign me up!'
+      }).then(function (result) {
+        if (result.isConfirmed) {
+          Swal.fire({
+            title: 'Creating Account...',
+            allowOutsideClick: false,
+            didOpen: function () {
+              Swal.showLoading();
+            }
+          });
+          form.submit();
+        }
+      });
+    } else {
+      form.submit();
+    }
+  }
+
+  // "I AGREE & CONTINUE": only works if the modal checkbox is checked
   if (agreeBtn) {
     agreeBtn.addEventListener('click', function () {
-      if (!termsRead) return;
-      if (checkbox) checkbox.checked = true;
-      updateSignUpState();
-      if (termsHint) termsHint.classList.add('d-none');
-      if (termsModalEl && typeof bootstrap !== 'undefined') {
-        bootstrap.Modal.getOrCreateInstance(termsModalEl).hide();
-      }
+      if (!modalCheckbox || !modalCheckbox.checked || modalCheckbox.disabled) return;
+
+      termsAccepted = true;
+      if (termsAcceptedInput) termsAcceptedInput.disabled = false; // now sent as terms=on
+
+      // Wait for the modal to finish closing before showing the Swal popup
+      termsModalEl.addEventListener(
+        'hidden.bs.modal',
+        function onHidden() {
+          termsModalEl.removeEventListener('hidden.bs.modal', onHidden);
+          confirmAndSubmit();
+        }
+      );
+      closeTermsModal();
     });
   }
 
-  // ----- Confirm before submit -----
+  // ----- Form submit: validate, then require terms in the modal -----
   if (form) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -124,46 +145,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
-      if (!checkbox || !checkbox.checked) {
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            title: 'Terms Required',
-            text: 'Please read and accept the Terms and Services before registering.',
-            icon: 'warning',
-            confirmButtonColor: '#198754'
-          }).then(function () {
-            openTermsModal();
-          });
-        } else {
-          openTermsModal();
-        }
+      if (!termsAccepted) {
+        openTermsModal();
         return;
       }
 
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          title: 'Confirm Registration',
-          text: 'Ready to join the UTrade community?',
-          icon: 'question',
-          showCancelButton: true,
-          confirmButtonColor: '#198754',
-          cancelButtonColor: '#6c757d',
-          confirmButtonText: 'Yes, Sign me up!'
-        }).then(function (result) {
-          if (result.isConfirmed) {
-            Swal.fire({
-              title: 'Creating Account...',
-              allowOutsideClick: false,
-              didOpen: function () {
-                Swal.showLoading();
-              }
-            });
-            form.submit();
-          }
-        });
-      } else {
-        form.submit();
-      }
+      confirmAndSubmit();
     });
   }
 

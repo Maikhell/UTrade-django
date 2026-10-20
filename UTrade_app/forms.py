@@ -1,3 +1,4 @@
+import re
 from django import forms
 from .models import Product, User, ProductVariant, ProductImage
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
@@ -84,7 +85,12 @@ class UserRegistrationForm(forms.ModelForm):
         return cleaned_data
 
     def clean_student_no(self):
-        student_no = self.cleaned_data.get('student_no')
+        student_no = (self.cleaned_data.get('student_no') or '').strip()
+
+        # Digits only, exactly 9 characters (no letters, symbols, or spaces)
+        if not re.fullmatch(r'[0-9]{9}', student_no):
+            raise forms.ValidationError("Student number must be exactly 9 digits.")
+
         if User.objects.filter(student_no=student_no).exists():
             raise forms.ValidationError("This student number is already registered.")
         return student_no

@@ -18,6 +18,8 @@ from django.utils import timezone
 from django.shortcuts import render
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models.functions import TruncDate
+import re
+from django import forms
 import logging
 logger = logging.getLogger(__name__)
 from ..utils import send_otp_email, get_seller_owner_type_filter
@@ -80,11 +82,17 @@ class UserCreateView(CreateView):
             )
 
         return redirect('/verify-email/')
-
+    
+    def clean_student_no(self):
+        student_no = self.cleaned_data.get('student_no', '').strip()
+        if not re.fullmatch(r'\d{9}', student_no):
+            raise forms.ValidationError("Student number must be exactly 9 digits.")
+        return student_no
+    
     def form_invalid(self, form):
         print(f"Form Validation Errors: {form.errors}")
         return super().form_invalid(form)
-    
+
 class UserAccountView(TemplateView):
     template_name = 'UTrade_app/accounts/accounts.html'
 

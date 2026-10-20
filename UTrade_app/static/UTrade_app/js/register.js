@@ -1,40 +1,141 @@
 document.addEventListener('DOMContentLoaded', function () {
-  // ----- Terms checkbox → enable / disable Sign Up button -----
   const checkbox = document.getElementById('termsCheckbox');
-  const btn = document.getElementById('signUpBtn');
+  const signUpBtn = document.getElementById('signUpBtn');
   const form = document.getElementById('registerForm');
   const agreeBtn = document.getElementById('agreeTermsBtn');
+  const termsModalEl = document.getElementById('termsModal');
+  const termsBody = document.getElementById('termsBody');
+  const scrollNotice = document.getElementById('scrollNotice');
+  const termsHint = document.getElementById('termsHint');
+  const studentInput = document.getElementById('id_student_no');
 
-  if (checkbox && btn) {
-    btn.disabled = !checkbox.checked;
+  const STUDENT_NO_LENGTH = 9;
+  let termsRead = false; // becomes true once the user scrolls to the bottom
 
-    checkbox.addEventListener('change', function () {
-      btn.disabled = !this.checked;
+  // ----- Student number: digits only, max 9 -----
+  if (studentInput) {
+    const sanitize = function () {
+      const cleaned = studentInput.value
+        .replace(/\D/g, '')
+        .slice(0, STUDENT_NO_LENGTH);
+      if (studentInput.value !== cleaned) {
+        studentInput.value = cleaned;
+      }
+    };
+
+    sanitize(); // clean any prefilled value (e.g. after a failed submit)
+    studentInput.addEventListener('input', sanitize); // typing, paste, drag-drop, mobile keyboards
+
+    // Block non-digit keystrokes (letters, symbols, spaces)
+    studentInput.addEventListener('keydown', function (e) {
+      const allowedKeys = [
+        'Backspace', 'Delete', 'Tab', 'Enter', 'Escape',
+        'ArrowLeft', 'ArrowRight', 'Home', 'End'
+      ];
+      if (allowedKeys.includes(e.key) || e.ctrlKey || e.metaKey) return;
+      if (!/^\d$/.test(e.key)) e.preventDefault();
     });
   }
 
-  // "I AGREE" button inside the modal also checks the box
-  if (agreeBtn && checkbox && btn) {
+  // ----- Terms: sign up only enabled when box is checked -----
+  function updateSignUpState() {
+    if (signUpBtn && checkbox) {
+      signUpBtn.disabled = !checkbox.checked;
+    }
+  }
+  updateSignUpState();
+
+  function openTermsModal() {
+    if (!termsModalEl || typeof bootstrap === 'undefined') return;
+    bootstrap.Modal.getOrCreateInstance(termsModalEl).show();
+  }
+
+  // First time: clicking the checkbox opens the modal instead of checking it
+  if (checkbox) {
+    checkbox.addEventListener('click', function (e) {
+      if (!termsRead && !checkbox.checked) {
+        // (checked is already true here because the click toggled it)
+      }
+      if (!termsRead) {
+        e.preventDefault();
+        checkbox.checked = false;
+        openTermsModal();
+        return;
+      }
+      updateSignUpState();
+    });
+
+    checkbox.addEventListener('change', updateSignUpState);
+  }
+
+  // ----- Scroll-to-bottom detection inside the modal -----
+  function isAtBottom(el) {
+    return el.scrollTop + el.clientHeight >= el.scrollHeight - 5;
+  }
+
+  function checkScroll() {
+    if (!termsBody || !agreeBtn) return;
+    if (isAtBottom(termsBody)) {
+      termsRead = true;
+      agreeBtn.disabled = false;
+      if (scrollNotice) scrollNotice.classList.add('d-none');
+    }
+  }
+
+  if (termsBody) {
+    termsBody.addEventListener('scroll', checkScroll);
+  }
+
+  if (termsModalEl) {
+    termsModalEl.addEventListener('shown.bs.modal', function () {
+      if (termsBody && !termsRead) termsBody.scrollTop = 0;
+      checkScroll(); // in case the content already fits without scrolling
+    });
+  }
+
+  // "I AGREE" checks the box and closes the modal
+  if (agreeBtn) {
     agreeBtn.addEventListener('click', function () {
-      checkbox.checked = true;
-      btn.disabled = false;
-      checkbox.dispatchEvent(new Event('change'));
+      if (!termsRead) return;
+      if (checkbox) checkbox.checked = true;
+      updateSignUpState();
+      if (termsHint) termsHint.classList.add('d-none');
+      if (termsModalEl && typeof bootstrap !== 'undefined') {
+        bootstrap.Modal.getOrCreateInstance(termsModalEl).hide();
+      }
     });
   }
 
-  // Confirm before submit
+  // ----- Confirm before submit -----
   if (form) {
     form.addEventListener('submit', function (e) {
       e.preventDefault();
+
+      if (studentInput && studentInput.value.length !== STUDENT_NO_LENGTH) {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            title: 'Invalid Student Number',
+            text: 'Student number must be exactly 9 digits.',
+            icon: 'warning',
+            confirmButtonColor: '#198754'
+          });
+        }
+        studentInput.focus();
+        return;
+      }
 
       if (!checkbox || !checkbox.checked) {
         if (typeof Swal !== 'undefined') {
           Swal.fire({
             title: 'Terms Required',
-            text: 'Please accept the Terms and Services before registering.',
+            text: 'Please read and accept the Terms and Services before registering.',
             icon: 'warning',
             confirmButtonColor: '#198754'
+          }).then(function () {
+            openTermsModal();
           });
+        } else {
+          openTermsModal();
         }
         return;
       }
@@ -89,24 +190,21 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // ----- Student number validation & alumni detection -----
-  const studentInput = document.getElementById('id_student_no');
-
+  // ----- Student number validation & alumni detection (on blur) -----
   if (studentInput) {
     studentInput.addEventListener('blur', function () {
       const studentNo = this.value.trim();
-      if (!studentNo || studentNo.length < 4) return;
+      if (!studentNo) return;
 
-      if (!/^\d+$/.test(studentNo)) {
+      if (studentNo.length < STUDENT_NO_LENGTH) {
         if (typeof Swal !== 'undefined') {
           Swal.fire({
-            title: 'Invalid Number',
-            text: 'Student number must contain only digits.',
-            icon: 'error',
-            confirmButtonColor: '#d33'
+            title: 'Incomplete Number',
+            text: 'Student number must be exactly 9 digits.',
+            icon: 'warning',
+            confirmButtonColor: '#198754'
           });
         }
-        this.value = '';
         return;
       }
 

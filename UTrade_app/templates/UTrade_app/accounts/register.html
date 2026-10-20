@@ -54,10 +54,16 @@ Register {% endblock %} {% block content %} {% block extra_css %}
             name="student_no"
             id="id_student_no"
             value="{{ form.student_no.value|default:'' }}"
-            placeholder="Enter student number"
+            placeholder="Enter 9-digit student number"
+            inputmode="numeric"
+            pattern="[0-9]{9}"
+            maxlength="9"
+            minlength="9"
+            autocomplete="off"
             class="form-control form-control-xl bg-light {% if form.student_no.errors %}is-invalid{% endif %}"
             required
           />
+          <div class="form-text">Numbers only, exactly 9 digits.</div>
           {% if form.student_no.errors %}
           <div class="invalid-feedback">
             {% for error in form.student_no.errors %} {{ error }} {% endfor %}
@@ -137,6 +143,10 @@ Register {% endblock %} {% block content %} {% block extra_css %}
                 >Terms and Services</a
               ></label
             >
+            <div class="form-text" id="termsHint">
+              Click the box to read the terms. You must scroll to the bottom
+              before you can agree.
+            </div>
             {% if form.non_field_errors %}
             <div class="invalid-feedback d-block">
               {% for error in form.non_field_errors %} {{ error }} {% endfor %}
@@ -149,6 +159,7 @@ Register {% endblock %} {% block content %} {% block extra_css %}
           type="submit"
           id="signUpBtn"
           class="btn btn-success w-100 fw-bold btn-xl shadow-sm"
+          disabled
         >
           Sign Up
         </button>
@@ -159,18 +170,18 @@ Register {% endblock %} {% block content %} {% block extra_css %}
         <hr class="flex-grow-1" />
       </div>
 
-<a
-  href="{% url 'google_login' %}"
-  class="btn btn-outline-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3"
->
-  <img
-    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-    alt=""
-    width="18"
-    height="18"
-  />
-  Continue with Google
-</a>
+      <a
+        href="{% url 'google_login' %}"
+        class="btn btn-outline-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3"
+      >
+        <img
+          src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+          alt=""
+          width="18"
+          height="18"
+        />
+        Continue with Google
+      </a>
       <p class="text-center text-muted mt-5 mb-0">
         Already have an account?
         <a
@@ -182,199 +193,213 @@ Register {% endblock %} {% block content %} {% block extra_css %}
     </div>
   </div>
 
-  <div class="modal fade" id="termsModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
-    <div class="modal-content border-0 shadow-lg">
-      <div class="modal-header bg-success text-white">
-        <div class="d-flex align-items-center">
-          <i class="bi bi-shield-check fs-4 me-2"></i>
-          <h5 class="modal-title fw-bold">
-            U-Trade Platform – Seller Terms & Conditions
-          </h5>
-        </div>
-        <button
-          type="button"
-          class="btn-close btn-close-white"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-
-      <div class="modal-body text-dark p-4" style="font-size: 0.95rem; line-height: 1.6">
-        
-        <!-- Header Info -->
-        <div class="text-center mb-4">
-          <h6 class="fw-bold text-success mb-1">Business and Resource Generation Office</h6>
-          <p class="fw-semibold mb-1" style="font-size: 0.95rem;">
-            U-TRADE PLATFORM: SELLER TERMS AND CONDITIONS OF SERVICE
-          </p>
-          <p class="text-muted small mb-1">
-            (For Central Student Government & Recognized Student Societies)
-          </p>
-          <p class="text-danger small fw-semibold mb-1">
-            CONFIDENTIAL: Internal campus operations only within CvSU Bacoor.
-          </p>
-          <p class="text-muted small mb-0">
-            <strong>EFFECTIVE DATE:</strong> Academic Year 2026–2027
-          </p>
+  <div
+    class="modal fade"
+    id="termsModal"
+    tabindex="-1"
+    aria-hidden="true"
+    data-bs-backdrop="static"
+    data-bs-keyboard="false"
+  >
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-success text-white">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-shield-check fs-4 me-2"></i>
+            <h5 class="modal-title fw-bold">
+              U-Trade Platform – Seller Terms & Conditions
+            </h5>
+          </div>
+          <button
+            type="button"
+            class="btn-close btn-close-white"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
         </div>
 
-        <hr class="my-4">
-
-        <!-- 1 -->
-        <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            1. Acceptance of Seller Terms
-          </h6>
-          <p class="text-muted">
-            Welcome to the merchant portal of U-Trade, the official e-commerce platform of Cavite State University – Bacoor Campus. 
-            By registering, accessing, or utilizing a Seller Dashboard as a representative of the Central Student Government (CSG) 
-            or a recognized student society, you agree to be bound by these Seller Terms and Conditions. These terms derive their 
-            authority directly from the platform bylaws and are concurred by the Office of the Vice President for Business and 
-            Resource Generation (OVBRG).
-          </p>
-        </section>
-
-        <!-- 2 -->
-        <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            2. Seller Eligibility, Authentication, & Dashboard Access
-          </h6>
-          <ul class="text-muted">
-            <li class="mb-2">
-              <strong>2.1 Institutional Authentication:</strong> All seller accounts must be registered and accessed using 
-              official CvSU institutional credentials to preserve a closed-loop, secure campus ecosystem.
-            </li>
-            <li class="mb-2">
-              <strong>2.2 Organizational Tier Restrictions:</strong> Seller privileges are strictly limited to verified accounts 
-              belonging to the Central Student Government (CSG) and recognized Student Societies.
-            </li>
-            <li class="mb-0">
-              <strong>2.3 Dashboard Security:</strong> Financial ledgers, business generation metrics, and organizational 
-              management tools are isolated exclusively to authorized seller dashboards. Unauthorized access attempts will 
-              result in immediate administrative intervention.
-            </li>
-          </ul>
-        </section>
-
-        <!-- 3 -->
-        <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            3. Mandatory Merchandise and Pricing Approvals
-          </h6>
-          <ul class="text-muted">
-            <li class="mb-2">
-              <strong>3.1 Pre-Approval Requirement:</strong> The CSG and all recognized student societies acting as sellers 
-              on U-Trade must submit all proposed merchandise, items, and exact selling prices to the Business Generating 
-              Office for rigorous review and formal written approval prior to publishing any listings on the platform.
-            </li>
-            <li class="mb-0">
-              <strong>3.2 Absolute Pricing Authority:</strong> The Business Generating Office maintains absolute authority 
-              over pricing controls to protect student consumer welfare and guarantee fair trade practices across the campus. 
-              Any unapproved listings or unauthorized price modifications will be removed immediately by platform administrators.
-            </li>
-          </ul>
-        </section>
-
-        <!-- 4 -->
-        <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            4. Transactions, Receipts, and the 3% System Hosting Fee
-          </h6>
-          <ul class="text-muted">
-            <li class="mb-2">
-              <strong>4.1 Payment Processing:</strong> The platform supports cash-upon-meetup transactions and verified 
-              digital payment integrations. The system automatically generates and stores digital receipts for all completed sales.
-            </li>
-            <li class="mb-2">
-              <strong>4.2 Mandatory 3% Platform Fee:</strong> To support continuous server maintenance, system security, 
-              and platform operations, a mandatory 3% Platform fee is automatically computed and retained per transaction.
-            </li>
-            <li class="mb-0">
-              <strong>4.3 Monthly Settlement Deadline:</strong> All accumulated financial obligations, fees, and hosting 
-              deductions must be cleared directly with the Campus Cashiering Office on or before the 5th day of each succeeding month.
-            </li>
-          </ul>
-        </section>
-
-        <!-- 5 -->
-        <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            5. Fulfillment Protocols and Campus Safety Standards
-          </h6>
-          <ul class="text-muted">
-            <li class="mb-2">
-              <strong>5.1 Designated Drop-Off Zones:</strong> To maintain campus security, pedestrian safety, and an 
-              undisturbed academic atmosphere, all physical exchanges, item hand-offs, and buyer-seller meet-ups for orders 
-              processed via U-Trade must occur strictly within official campus drop-off zones designated by the administration 
-              (e.g., Student Center Hub or Gazebo areas).
-            </li>
-            <li class="mb-2">
-              <strong>5.2 Strict Delivery Restrictions:</strong> Unregulated classroom-to-classroom deliveries, 
-              building-to-building drops, and hallway peddling are strictly prohibited.
-            </li>
-            <li class="mb-0">
-              <strong>5.3 Prohibited Commodities:</strong> Listing, marketing, or selling weapons, illegal drugs, 
-              alcoholic beverages, tobacco, vape products, or unverified perishable food items is strictly banned. 
-              Violations will trigger immediate account freezing.
-            </li>
-          </ul>
-        </section>
-
-        <!-- 6 -->
-        <section class="mb-4">
-          <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-            6. Seller Violations and Disciplinary Sanctions
-          </h6>
-          <p class="text-muted mb-2">
-            <strong>6.1 Grounds for Penalties:</strong> Failure by the CSG or any student society to secure prior 
-            Business Generating Office price approval, attempting to bypass platform transaction workflows, or defaulting 
-            on the monthly platform fee settlement deadline will invoke immediate administrative action.
-          </p>
-          <p class="text-muted mb-2">
-            <strong>6.2 Administrative Penalties:</strong> Violations of these seller terms shall result in:
-          </p>
-          <ul class="text-muted mb-0">
-            <li>Immediate freezing of the organizational U-Trade dashboard and suspension of merchant selling privileges.</li>
-            <li>Formal account suspension from the platform.</li>
-            <li>Direct referral to campus disciplinary authorities and the Office of Student Affairs and Services (OSAS) for institutional review.</li>
-          </ul>
-        </section>
-
-        <hr class="my-4">
-
-        <!-- Signature Block -->
-        <div class="mt-4" style="font-size: 0.88rem;">
-          <p class="mb-1"><strong>Prepared by:</strong></p>
-          <p class="mb-3">
-            <strong>DIANA MAE M. BELARMINO, MMPA</strong><br>
-            Head, Business and Resource Generation Office
-          </p>
-
-          <p class="mb-1"><strong>Approved and Adopted by:</strong></p>
-          <p class="mb-3">Cavite State University - Bacoor City Campus</p>
-
-          <p class="mb-1"><strong>Concurred by:</strong></p>
-          <p class="mb-0">
-            Office of the Vice President for Business and Resource Generation (OVPBaRG)<br>
-            Cavite State University - Don Severino de las Alas Campus
-          </p>
-        </div>
-
-      </div>
-
-      <div class="modal-footer border-0 p-4">
-        <button
-          type="button"
-          class="btn btn-success w-100 fw-bold py-2 shadow-sm"
-          data-bs-dismiss="modal"
+        <div
+          class="modal-body text-dark p-4"
+          id="termsBody"
+          style="font-size: 0.95rem; line-height: 1.6"
         >
-          I AGREE TO THE TERMS
-        </button>
+          <!-- Header Info -->
+          <div class="text-center mb-4">
+            <h6 class="fw-bold text-success mb-1">Business and Resource Generation Office</h6>
+            <p class="fw-semibold mb-1" style="font-size: 0.95rem;">
+              U-TRADE PLATFORM: SELLER TERMS AND CONDITIONS OF SERVICE
+            </p>
+            <p class="text-muted small mb-1">
+              (For Central Student Government & Recognized Student Societies)
+            </p>
+            <p class="text-danger small fw-semibold mb-1">
+              CONFIDENTIAL: Internal campus operations only within CvSU Bacoor.
+            </p>
+            <p class="text-muted small mb-0">
+              <strong>EFFECTIVE DATE:</strong> Academic Year 2026–2027
+            </p>
+          </div>
+
+          <hr class="my-4">
+
+          <!-- 1 -->
+          <section class="mb-4">
+            <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+              1. Acceptance of Seller Terms
+            </h6>
+            <p class="text-muted">
+              Welcome to the merchant portal of U-Trade, the official e-commerce platform of Cavite State University – Bacoor Campus. 
+              By registering, accessing, or utilizing a Seller Dashboard as a representative of the Central Student Government (CSG) 
+              or a recognized student society, you agree to be bound by these Seller Terms and Conditions. These terms derive their 
+              authority directly from the platform bylaws and are concurred by the Office of the Vice President for Business and 
+              Resource Generation (OVBRG).
+            </p>
+          </section>
+
+          <!-- 2 -->
+          <section class="mb-4">
+            <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+              2. Seller Eligibility, Authentication, & Dashboard Access
+            </h6>
+            <ul class="text-muted">
+              <li class="mb-2">
+                <strong>2.1 Institutional Authentication:</strong> All seller accounts must be registered and accessed using 
+                official CvSU institutional credentials to preserve a closed-loop, secure campus ecosystem.
+              </li>
+              <li class="mb-2">
+                <strong>2.2 Organizational Tier Restrictions:</strong> Seller privileges are strictly limited to verified accounts 
+                belonging to the Central Student Government (CSG) and recognized Student Societies.
+              </li>
+              <li class="mb-0">
+                <strong>2.3 Dashboard Security:</strong> Financial ledgers, business generation metrics, and organizational 
+                management tools are isolated exclusively to authorized seller dashboards. Unauthorized access attempts will 
+                result in immediate administrative intervention.
+              </li>
+            </ul>
+          </section>
+
+          <!-- 3 -->
+          <section class="mb-4">
+            <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+              3. Mandatory Merchandise and Pricing Approvals
+            </h6>
+            <ul class="text-muted">
+              <li class="mb-2">
+                <strong>3.1 Pre-Approval Requirement:</strong> The CSG and all recognized student societies acting as sellers 
+                on U-Trade must submit all proposed merchandise, items, and exact selling prices to the Business Generating 
+                Office for rigorous review and formal written approval prior to publishing any listings on the platform.
+              </li>
+              <li class="mb-0">
+                <strong>3.2 Absolute Pricing Authority:</strong> The Business Generating Office maintains absolute authority 
+                over pricing controls to protect student consumer welfare and guarantee fair trade practices across the campus. 
+                Any unapproved listings or unauthorized price modifications will be removed immediately by platform administrators.
+              </li>
+            </ul>
+          </section>
+
+          <!-- 4 -->
+          <section class="mb-4">
+            <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+              4. Transactions, Receipts, and the 3% System Hosting Fee
+            </h6>
+            <ul class="text-muted">
+              <li class="mb-2">
+                <strong>4.1 Payment Processing:</strong> The platform supports cash-upon-meetup transactions and verified 
+                digital payment integrations. The system automatically generates and stores digital receipts for all completed sales.
+              </li>
+              <li class="mb-2">
+                <strong>4.2 Mandatory 3% Platform Fee:</strong> To support continuous server maintenance, system security, 
+                and platform operations, a mandatory 3% Platform fee is automatically computed and retained per transaction.
+              </li>
+              <li class="mb-0">
+                <strong>4.3 Monthly Settlement Deadline:</strong> All accumulated financial obligations, fees, and hosting 
+                deductions must be cleared directly with the Campus Cashiering Office on or before the 5th day of each succeeding month.
+              </li>
+            </ul>
+          </section>
+
+          <!-- 5 -->
+          <section class="mb-4">
+            <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+              5. Fulfillment Protocols and Campus Safety Standards
+            </h6>
+            <ul class="text-muted">
+              <li class="mb-2">
+                <strong>5.1 Designated Drop-Off Zones:</strong> To maintain campus security, pedestrian safety, and an 
+                undisturbed academic atmosphere, all physical exchanges, item hand-offs, and buyer-seller meet-ups for orders 
+                processed via U-Trade must occur strictly within official campus drop-off zones designated by the administration 
+                (e.g., Student Center Hub or Gazebo areas).
+              </li>
+              <li class="mb-2">
+                <strong>5.2 Strict Delivery Restrictions:</strong> Unregulated classroom-to-classroom deliveries, 
+                building-to-building drops, and hallway peddling are strictly prohibited.
+              </li>
+              <li class="mb-0">
+                <strong>5.3 Prohibited Commodities:</strong> Listing, marketing, or selling weapons, illegal drugs, 
+                alcoholic beverages, tobacco, vape products, or unverified perishable food items is strictly banned. 
+                Violations will trigger immediate account freezing.
+              </li>
+            </ul>
+          </section>
+
+          <!-- 6 -->
+          <section class="mb-4">
+            <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
+              6. Seller Violations and Disciplinary Sanctions
+            </h6>
+            <p class="text-muted mb-2">
+              <strong>6.1 Grounds for Penalties:</strong> Failure by the CSG or any student society to secure prior 
+              Business Generating Office price approval, attempting to bypass platform transaction workflows, or defaulting 
+              on the monthly platform fee settlement deadline will invoke immediate administrative action.
+            </p>
+            <p class="text-muted mb-2">
+              <strong>6.2 Administrative Penalties:</strong> Violations of these seller terms shall result in:
+            </p>
+            <ul class="text-muted mb-0">
+              <li>Immediate freezing of the organizational U-Trade dashboard and suspension of merchant selling privileges.</li>
+              <li>Formal account suspension from the platform.</li>
+              <li>Direct referral to campus disciplinary authorities and the Office of Student Affairs and Services (OSAS) for institutional review.</li>
+            </ul>
+          </section>
+
+          <hr class="my-4">
+
+          <!-- Signature Block -->
+          <div class="mt-4" style="font-size: 0.88rem;">
+            <p class="mb-1"><strong>Prepared by:</strong></p>
+            <p class="mb-3">
+              <strong>DIANA MAE M. BELARMINO, MMPA</strong><br>
+              Head, Business and Resource Generation Office
+            </p>
+
+            <p class="mb-1"><strong>Approved and Adopted by:</strong></p>
+            <p class="mb-3">Cavite State University - Bacoor City Campus</p>
+
+            <p class="mb-1"><strong>Concurred by:</strong></p>
+            <p class="mb-0">
+              Office of the Vice President for Business and Resource Generation (OVPBaRG)<br>
+              Cavite State University - Don Severino de las Alas Campus
+            </p>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 p-4 flex-column align-items-stretch">
+          <div class="text-center small text-muted mb-2" id="scrollNotice">
+            <i class="bi bi-arrow-down-circle me-1"></i>
+            Scroll to the bottom to enable the agree button.
+          </div>
+          <button
+            type="button"
+            id="agreeTermsBtn"
+            class="btn btn-success w-100 fw-bold py-2 shadow-sm"
+            disabled
+          >
+            I AGREE TO THE TERMS
+          </button>
+        </div>
       </div>
     </div>
   </div>
-</div>
 </section>
 {% block extra_js %}
 <script src="{% static 'UTrade_app/js/register.js' %}"></script>

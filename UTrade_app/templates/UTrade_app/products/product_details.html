@@ -206,7 +206,7 @@
 
          <div class="d-grid gap-3">
             {% if product.get_total_stock > 0 %}
-              {% if user.is_staff or user.is_superuser or user.user_role == 'management' or user.user_role == 'alumni_assoc' %}
+              {% if user.is_staff or user.is_superuser or user.user_role == 'management' or user.user_role == 'officer' %}
                 <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled>
                   <i class="bi bi-cart-x me-2"></i> Purchasing Disabled
                 </button>

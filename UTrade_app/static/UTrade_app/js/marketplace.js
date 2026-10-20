@@ -1,16 +1,16 @@
 function showLoginPrompt() {
-    const loginUrl = document.getElementById('login-url').value;
+    const registerUrl = document.getElementById('register-url').value;
 
     Swal.fire({
         title: 'Join the Community!',
-        text: 'You need to be logged in to view full product details.',
+        text: 'You need an account to view full product details.',
         icon: 'info',
         showCancelButton: true,
-        confirmButtonText: 'Login Now',
+        confirmButtonText: 'Register Now',
         confirmButtonColor: '#198754',
     }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = loginUrl;
+            window.location.href = registerUrl;
         }
     });
 }

@@ -283,7 +283,7 @@
 
   <input type="hidden" id="user-auth-status" value="{{ user.is_authenticated|yesno:'true,false' }}" />
   <input type="hidden" id="user-verification-status" value="{{ user.status }}" />
-  <input type="hidden" id="login-url" value="{% url 'user.login' %}" />
+  <input type="hidden" id="register-url" value="{% url 'user.register' %}" />
 
   <div class="modal fade" id="verificationModal" tabindex="-1" aria-labelledby="verificationModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

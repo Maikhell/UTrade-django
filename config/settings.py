@@ -9,6 +9,11 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 PAYMONGO_PUBLIC_KEY = os.getenv('PAYMONGO_PUBLIC_KEY')
 PAYMONGO_SECRET_KEY = os.getenv('PAYMONGO_SECRET_KEY')
 
+# Resend API Key
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
+
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'UTrade <orders@utradecvsu-bacoor.com>')
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 

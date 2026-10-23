@@ -3,7 +3,6 @@ import uuid
 import re
 from datetime import timedelta
 from itertools import chain
-from django.core.mail import send_mail
 from django.conf import settings
 import logging
 logger = logging.getLogger(__name__)
@@ -55,7 +54,7 @@ from ..models import (
     PlatformFeeRemittance
     
 )
-from ..utils import log_action
+from ..utils import log_action, send_email
 
 class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Product
@@ -1040,13 +1039,7 @@ def _send_buyer_order_email(order, action, reason=None):
         )
 
     try:
-        send_mail(
-            subject=subject,
-            message=body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            recipient_list=[email],
-            fail_silently=True,
-        )
+        send_email(email, subject, body)
     except Exception:
         logger.exception("Failed to send order email to %s for order %s", email, order.id)
 
@@ -1562,13 +1555,7 @@ def _send_buyer_preorder_email(preorder, event, extra=None):
         return
 
     try:
-        send_mail(
-            subject=subject,
-            message=body,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
-            recipient_list=[email],
-            fail_silently=True,
-        )
+        send_email(email, subject, body)
     except Exception:
         logger.exception("Failed preorder email to %s for #%s", email, preorder.id)
         

@@ -1,10 +1,10 @@
-from .models import SystemLog, Product, StagedProduct, OrganizationPlatformLedger,PlatformFeeLine
+from .models import SystemLog, Product, StagedProduct, OrganizationPlatformLedger, PlatformFeeLine
 import random
 import re
 import logging
 from datetime import timedelta
 
-from django.core.mail import send_mail
+import resend
 from django.conf import settings
 from django.utils import timezone
 from decimal import Decimal, ROUND_HALF_UP
@@ -13,6 +13,7 @@ from django.db import transaction
 logger = logging.getLogger(__name__)
 
 PLATFORM_FEE_RATE = Decimal('0.03')
+
 
 def log_action(user, action, item_type, item_name, details=""):
     SystemLog.objects.create(
@@ -24,10 +25,41 @@ def log_action(user, action, item_type, item_name, details=""):
     )
 
 
+def send_email(to, subject, text, html=None):
+    """
+    Send an email through Resend. Reusable for any email feature
+    (OTP, order notifications, etc.).
+    Raises on missing config or API failure so the caller can show a message.
+    """
+    api_key = getattr(settings, 'RESEND_API_KEY', None)
+    if not api_key:
+        raise RuntimeError('RESEND_API_KEY is not configured.')
+
+    recipients = [to] if isinstance(to, str) else list(to)
+    resend.api_key = api_key
+
+    params = {
+        'from': settings.DEFAULT_FROM_EMAIL,
+        'to': recipients,
+        'subject': subject,
+        'text': text,
+    }
+    if html:
+        params['html'] = html
+
+    try:
+        response = resend.Emails.send(params)
+        logger.info('Email sent to %s (id=%s)', recipients, response.get('id'))
+        return response
+    except Exception:
+        logger.exception('Email FAILED to %s subject=%r', recipients, subject)
+        raise
+
+
 def send_otp_email(user):
     """
-    Generate a 6-digit OTP, store expiry on the user, email it to user.email.
-    Raises on missing email or SMTP failure so the caller can show a message.
+    Generate a 6-digit OTP, store expiry on the user, email it to user.email via Resend.
+    Raises on missing email or send failure so the caller can show a message.
     """
     recipient = (getattr(user, 'email', None) or '').strip()
     if not recipient:
@@ -46,21 +78,8 @@ def send_otp_email(user):
         f'If you did not register for UTrade, you can ignore this email.\n\n'
         f'— UTrade CVSU'
     )
-    email_from = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or settings.EMAIL_HOST_USER
 
-    try:
-        sent = send_mail(
-            subject,
-            message,
-            email_from,
-            [recipient],
-            fail_silently=False,  # surface SMTP errors in Railway logs
-        )
-        logger.info('OTP email sent to %s (sent=%s)', recipient, sent)
-        return sent
-    except Exception:
-        logger.exception('OTP email FAILED for user_id=%s email=%s', user.id, recipient)
-        raise
+    return send_email(recipient, subject, message)
 
 
 def generate_next_product_code(model_cls=None):
@@ -101,10 +120,11 @@ def get_seller_owner_type_filter(user):
         return 'ORGANIZATION'
     return None
 
+
 def _resolve_organization(order):
     """Map order seller → Organization safely without blocking evaluation."""
     seller = getattr(order, 'seller', None)
-    
+
     # 1. First check if the seller account directly links to an organization
     if seller and getattr(seller, 'org_link_id', None):
         return seller.org_link
@@ -118,7 +138,7 @@ def _resolve_organization(order):
                 return product.related_org
             if getattr(product, 'owner_type', '') == 'ORGANIZATION' and hasattr(seller, 'org_link'):
                 return seller.org_link
-                
+
     return None
 
 
@@ -136,7 +156,7 @@ def accrue_platform_fee_for_order(order):
         return None  # Personal sellers — no platform fee
 
     today = timezone.localdate()
-    
+
     # Select ledger with select_for_update to avoid race conditions
     ledger = (
         OrganizationPlatformLedger.objects
@@ -145,7 +165,7 @@ def accrue_platform_fee_for_order(order):
         .order_by('-cycle_start')
         .first()
     )
-    
+
     if not ledger:
         ledger = OrganizationPlatformLedger.objects.create(
             organization=org,
@@ -168,9 +188,9 @@ def accrue_platform_fee_for_order(order):
         order_amount=amount,
         fee_amount=fee,
     )
-    
+
     ledger.accumulated_sales = (ledger.accumulated_sales or Decimal('0.00')) + amount
     ledger.accumulated_fee = (ledger.accumulated_fee or Decimal('0.00')) + fee
     ledger.save(update_fields=['accumulated_sales', 'accumulated_fee'])
-    
+
     return line

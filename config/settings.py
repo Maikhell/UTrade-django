@@ -9,9 +9,9 @@ load_dotenv(os.path.join(BASE_DIR, '.env'))
 PAYMONGO_PUBLIC_KEY = os.getenv('PAYMONGO_PUBLIC_KEY')
 PAYMONGO_SECRET_KEY = os.getenv('PAYMONGO_SECRET_KEY')
 
-# Resend API Key
+# ---------- Email (Resend) ----------
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
-
+# Must be an address on a domain verified in Resend
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'UTrade <orders@utradecvsu-bacoor.com>')
 
 MEDIA_URL = '/media/'
@@ -70,25 +70,10 @@ else:
         },
     }
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-
-# Prefer an explicit env override; fall back to host user
-_default_from = os.getenv('DEFAULT_FROM_EMAIL')
-if _default_from:
-    DEFAULT_FROM_EMAIL = _default_from
-elif EMAIL_HOST_USER:
-    DEFAULT_FROM_EMAIL = f'UTrade CVSU <{EMAIL_HOST_USER}>'
-else:
-    DEFAULT_FROM_EMAIL = 'UTrade CVSU <noreply@cvsu.edu.ph>'
-
-EMAIL_TIMEOUT = 20
-# Optional: some hosts prefer this instead of TLS on 587
-# EMAIL_USE_SSL = False
+# Django's own mail system (used by allauth, password reset, etc.) is not routed
+# through Resend. Print to the console so nothing silently tries SMTP.
+# Use UTrade_app.utils.send_email() for real emails.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

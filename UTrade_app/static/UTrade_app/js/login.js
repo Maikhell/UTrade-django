@@ -1,4 +1,4 @@
-adocument.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function () {
   // Password visibility toggle
   document.querySelectorAll('.toggle-password').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -22,13 +22,24 @@ adocument.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Optional: gentle loading state on submit
+  // Loading state on submit (the browser only fires this once required fields are valid)
   const form = document.getElementById('loginForm');
   const submitBtn = document.getElementById('signInBtn');
   if (form && submitBtn) {
+    const defaultLabel = submitBtn.innerHTML;
+
     form.addEventListener('submit', function () {
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing in…';
+      submitBtn.innerHTML =
+        '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing in…';
+    });
+
+    // Restore the button if the user comes back via the browser's back button
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = defaultLabel;
+      }
     });
   }
 });

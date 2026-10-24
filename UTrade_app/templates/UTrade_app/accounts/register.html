@@ -3,38 +3,50 @@ Register {% endblock %} {% block content %} {% block extra_css %}
 <link rel="stylesheet" href="{% static 'UTrade_app/css/register.css' %}" />
 {% endblock %}
 
-<section class="row g-0 min-vh-100 align-items-center bg-success">
-  <div
-    class="col-md-6 d-flex flex-column justify-content-center align-items-center p-5 text-center"
-  >
-    <div class="glass-bg p-4 mb-4">
-      <img
-        src="{% static 'UTrade_app/img/UTrade.png' %}"
-        alt="Logo"
-        class="img-fluid"
-        style="
-          max-width: 180px;
-          filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.2));
-        "
-      />
-    </div>
-    <h1 class="display-4 fw-bold text-white tracking-tight mb-0">UTRADE</h1>
-    <p class="text-light opacity-75 fw-medium mt-2">
-      Your gateway to smarter trading.
-    </p>
-  </div>
+<section class="auth-page">
+  <aside class="auth-brand">
+    <div class="auth-brand-inner">
+      <div class="glass-bg">
+        <img
+          src="{% static 'UTrade_app/img/UTrade.png' %}"
+          alt="UTrade logo"
+          class="auth-logo"
+        />
+      </div>
+      <h1 class="auth-title">UTRADE</h1>
+      <p class="auth-tagline">Your gateway to smarter trading.</p>
 
-  <div class="col-md-6 d-flex justify-content-center align-items-center p-4">
-    <div
-      class="card border-0 shadow-lg p-4 p-md-5 rounded-3xl w-100"
-      style="max-width: 480px"
-    >
-      <h2 class="fw-bold text-dark mb-1">Welcome</h2>
+      <ul class="auth-features">
+        <li>
+          <i class="bi bi-patch-check"></i>
+          <span>Verified CvSU accounts only</span>
+        </li>
+        <li>
+          <i class="bi bi-geo-alt"></i>
+          <span>Safe meet-ups at official campus drop-off zones</span>
+        </li>
+        <li>
+          <i class="bi bi-receipt"></i>
+          <span>Digital receipts for every completed sale</span>
+        </li>
+      </ul>
+    </div>
+  </aside>
+
+  <div class="auth-panel">
+    <div class="auth-card rounded-3xl">
+      <h2 class="fw-bold text-dark mb-1">Create your account</h2>
       <p class="text-muted mb-4">Please enter your details to sign up.</p>
 
       {% if form.non_field_errors %}
-      <div class="alert alert-danger small py-2" role="alert">
-        {% for error in form.non_field_errors %} {{ error }} {% endfor %}
+      <div
+        class="alert alert-danger d-flex align-items-start gap-2 small py-2"
+        role="alert"
+      >
+        <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+        <div>
+          {% for error in form.non_field_errors %} {{ error }} {% endfor %}
+        </div>
       </div>
       {% endif %}
 
@@ -55,7 +67,7 @@ Register {% endblock %} {% block content %} {% block extra_css %}
         <input type="hidden" name="terms" id="termsAccepted" value="on" disabled />
 
         <div class="mb-3">
-          <label class="form-label small fw-bold text-secondary"
+          <label for="id_student_no" class="form-label small fw-bold text-secondary"
             >Student Number</label
           >
           <input
@@ -81,15 +93,22 @@ Register {% endblock %} {% block content %} {% block extra_css %}
         </div>
 
         <div class="mb-3">
-          <label class="form-label small fw-bold text-secondary">Email</label>
+          <label for="id_email" class="form-label small fw-bold text-secondary"
+            >Email</label
+          >
           <input
             type="email"
             name="email"
+            id="id_email"
             value="{{ form.email.value|default:'' }}"
             placeholder="student.name@cvsu.edu.ph"
+            autocomplete="email"
+            autocapitalize="none"
+            spellcheck="false"
             class="form-control form-control-xl bg-light {% if form.email.errors %}is-invalid{% endif %}"
             required
           />
+          <div class="form-text">We'll send a verification code to this email.</div>
           {% if form.email.errors %}
           <div class="invalid-feedback">
             {% for error in form.email.errors %} {{ error }} {% endfor %}
@@ -98,36 +117,61 @@ Register {% endblock %} {% block content %} {% block extra_css %}
         </div>
 
         <div class="mb-3">
-          <label class="form-label small fw-bold text-secondary"
+          <label for="id_password1" class="form-label small fw-bold text-secondary"
             >Password</label
           >
-          <input
-            type="password"
-            name="password1"
-            placeholder="••••••••"
-            class="form-control form-control-xl bg-light {% if form.password1.errors %}is-invalid{% endif %}"
-            required
-          />
+          <div class="password-field">
+            <input
+              type="password"
+              name="password1"
+              id="id_password1"
+              placeholder="••••••••"
+              autocomplete="new-password"
+              class="form-control form-control-xl bg-light {% if form.password1.errors %}is-invalid{% endif %}"
+              required
+            />
+            <button
+              type="button"
+              class="toggle-password"
+              data-target="id_password1"
+              aria-label="Show or hide password"
+            >
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <div class="form-text">Use at least 8 characters.</div>
           {% if form.password1.errors %}
-          <div class="invalid-feedback">
+          <div class="invalid-feedback d-block">
             {% for error in form.password1.errors %} {{ error }} {% endfor %}
           </div>
           {% endif %}
         </div>
 
         <div class="mb-4">
-          <label class="form-label small fw-bold text-secondary"
+          <label for="id_password2" class="form-label small fw-bold text-secondary"
             >Confirm Password</label
           >
-          <input
-            type="password"
-            name="password2"
-            placeholder="••••••••"
-            class="form-control form-control-xl bg-light {% if form.password2.errors %}is-invalid{% endif %}"
-            required
-          />
+          <div class="password-field">
+            <input
+              type="password"
+              name="password2"
+              id="id_password2"
+              placeholder="••••••••"
+              autocomplete="new-password"
+              class="form-control form-control-xl bg-light {% if form.password2.errors %}is-invalid{% endif %}"
+              required
+            />
+            <button
+              type="button"
+              class="toggle-password"
+              data-target="id_password2"
+              aria-label="Show or hide password"
+            >
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
           {% if form.password2.errors %}
-          <div class="invalid-feedback">
+          <div class="invalid-feedback d-block">
             {% for error in form.password2.errors %} {{ error }} {% endfor %}
           </div>
           {% endif %}
@@ -144,15 +188,12 @@ Register {% endblock %} {% block content %} {% block extra_css %}
           You will be asked to read and accept the Terms and Services.
         </p>
       </form>
-      <div class="d-flex align-items-center my-4">
-        <hr class="flex-grow-1" />
-        <span class="px-3 text-muted small">or</span>
-        <hr class="flex-grow-1" />
-      </div>
+
+      <div class="auth-divider"><span>or</span></div>
 
       <a
         href="{% url 'google_login' %}"
-        class="btn btn-outline-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3"
+        class="btn btn-outline-dark btn-google w-100 fw-semibold d-flex align-items-center justify-content-center gap-2"
       >
         <img
           src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -162,7 +203,8 @@ Register {% endblock %} {% block content %} {% block extra_css %}
         />
         Continue with Google
       </a>
-      <p class="text-center text-muted mt-5 mb-0">
+
+      <p class="text-center text-muted mt-4 mb-0">
         Already have an account?
         <a
           href="{% url 'user.login' %}"
@@ -173,7 +215,7 @@ Register {% endblock %} {% block content %} {% block extra_css %}
     </div>
   </div>
 
-  <!-- Terms modal: no X button, static backdrop, Esc disabled -->
+  <!-- Terms modal: no X button, static backdrop, Esc disabled. Fullscreen on phones. -->
   <div
     class="modal fade"
     id="termsModal"
@@ -182,19 +224,21 @@ Register {% endblock %} {% block content %} {% block extra_css %}
     data-bs-backdrop="static"
     data-bs-keyboard="false"
   >
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div
+      class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-sm-down"
+    >
       <div class="modal-content border-0 shadow-lg">
         <div class="modal-header bg-success text-white">
           <div class="d-flex align-items-center">
             <i class="bi bi-shield-check fs-4 me-2"></i>
             <h5 class="modal-title fw-bold">
-              U-Trade Platform – Seller Terms & Conditions
+              U-Trade Platform – Seller Terms &amp; Conditions
             </h5>
           </div>
         </div>
 
         <div
-          class="modal-body text-dark p-4"
+          class="modal-body text-dark p-3 p-sm-4"
           id="termsBody"
           style="font-size: 0.95rem; line-height: 1.6"
         >
@@ -205,7 +249,7 @@ Register {% endblock %} {% block content %} {% block extra_css %}
               U-TRADE PLATFORM: SELLER TERMS AND CONDITIONS OF SERVICE
             </p>
             <p class="text-muted small mb-1">
-              (For Central Student Government & Recognized Student Societies)
+              (For Central Student Government &amp; Recognized Student Societies)
             </p>
             <p class="text-danger small fw-semibold mb-1">
               CONFIDENTIAL: Internal campus operations only within CvSU Bacoor.
@@ -234,7 +278,7 @@ Register {% endblock %} {% block content %} {% block extra_css %}
           <!-- 2 -->
           <section class="mb-4">
             <h6 class="fw-bold text-success text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px">
-              2. Seller Eligibility, Authentication, & Dashboard Access
+              2. Seller Eligibility, Authentication, &amp; Dashboard Access
             </h6>
             <ul class="text-muted">
               <li class="mb-2">
@@ -358,7 +402,7 @@ Register {% endblock %} {% block content %} {% block extra_css %}
           </div>
         </div>
 
-        <div class="modal-footer border-0 p-4 flex-column align-items-stretch">
+        <div class="modal-footer border-0 p-3 p-sm-4 flex-column align-items-stretch">
           <div class="text-center small text-muted mb-2" id="scrollNotice">
             <i class="bi bi-arrow-down-circle me-1"></i>
             Scroll to the bottom to enable the checkbox below.

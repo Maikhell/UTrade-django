@@ -3,81 +3,101 @@ Page {% endblock %} {% block content %} {% block extra_css %}
 <link rel="stylesheet" href="{% static 'UTrade_app/css/login.css' %}" />
 {% endblock %}
 
-<section class="row g-0 vh-100 align-items-center bg-success">
-  <div
-    class="col-md-6 d-flex flex-column justify-content-center align-items-center p-5 text-center"
-  >
-    <div class="glass-bg p-4 mb-4">
-      <img
-        src="{% static 'UTrade_app/img/UTrade.png' %}"
-        alt="Logo"
-        class="img-fluid"
-        style="
-          max-width: 180px;
-          filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.2));
-        "
-      />
-    </div>
-    <h1 class="display-4 fw-bold text-white tracking-tight mb-0">UTRADE</h1>
-    <p class="text-light opacity-75 fw-medium mt-2">
-      Your Campus E-Commerce Hub
-    </p>
-  </div>
+<section class="auth-page">
+  <aside class="auth-brand">
+    <div class="auth-brand-inner">
+      <div class="glass-bg">
+        <img
+          src="{% static 'UTrade_app/img/UTrade.png' %}"
+          alt="UTrade logo"
+          class="auth-logo"
+        />
+      </div>
+      <h1 class="auth-title">UTRADE</h1>
+      <p class="auth-tagline">Your Campus E-Commerce Hub</p>
 
-  <div class="col-md-6 d-flex justify-content-center align-items-center p-4">
-    <div
-      class="card border-0 shadow-lg p-4 p-md-5 rounded-3xl w-100"
-      style="max-width: 450px"
-    >
-      <h2 class="fw-bold text-dark mb-1">Welcome Back</h2>
+      <ul class="auth-features">
+        <li>
+          <i class="bi bi-patch-check"></i>
+          <span>Verified CvSU accounts only</span>
+        </li>
+        <li>
+          <i class="bi bi-geo-alt"></i>
+          <span>Safe meet-ups at official campus drop-off zones</span>
+        </li>
+        <li>
+          <i class="bi bi-receipt"></i>
+          <span>Digital receipts for every completed sale</span>
+        </li>
+      </ul>
+    </div>
+  </aside>
+
+  <div class="auth-panel">
+    <div class="auth-card rounded-3xl">
+      <h2 class="fw-bold text-dark mb-1">Welcome back</h2>
       <p class="text-muted mb-4">Please enter your details to sign in.</p>
 
       {% if form.non_field_errors %}
-      <div class="alert alert-danger rounded-3 small">
-        {% for error in form.non_field_errors %}
-        <p class="mb-0">{{ error }}</p>
-        {% endfor %}
+      <div
+        class="alert alert-danger d-flex align-items-start gap-2 rounded-3 small py-2"
+        role="alert"
+      >
+        <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+        <div>
+          {% for error in form.non_field_errors %}
+          <p class="mb-0">{{ error }}</p>
+          {% endfor %}
+        </div>
       </div>
       {% endif %}
 
-      <form method="post" action="{% url 'user.login' %}">
+      <form method="post" action="{% url 'user.login' %}" id="loginForm">
         {% csrf_token %}
 
         <div class="mb-3">
-          <label class="form-label small fw-bold text-secondary"
+          <label for="id_username" class="form-label small fw-bold text-secondary"
             >Student Number / Username</label
           >
           <input
             type="text"
             name="username"
+            id="id_username"
             placeholder="Enter student number or username"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
             class="form-control form-control-xl bg-light"
             required
           />
         </div>
 
-        <div class="mb-4">
-          <label class="form-label small fw-bold text-secondary"
+        <div class="mb-2">
+          <label for="id_password" class="form-label small fw-bold text-secondary"
             >Password</label
           >
-          <input
-            type="password"
-            name="password"
-            placeholder="••••••••••••"
-            class="form-control form-control-xl bg-light"
-            required
-          />
+          <div class="password-field">
+            <input
+              type="password"
+              name="password"
+              id="id_password"
+              placeholder="••••••••••••"
+              autocomplete="current-password"
+              class="form-control form-control-xl bg-light"
+              required
+            />
+            <button
+              type="button"
+              class="toggle-password"
+              data-target="id_password"
+              aria-label="Show or hide password"
+            >
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
         </div>
 
-        <div
-          class="d-flex justify-content-between align-items-center mb-4 small"
-        >
-          <div class="form-check">
-            <input type="checkbox" class="form-check-input" id="rememberMe" />
-            <label class="form-check-label text-muted" for="rememberMe"
-              >Remember me</label
-            >
-          </div>
+        <div class="text-end mb-4 small">
           <a href="#" class="text-success fw-bold text-decoration-none"
             >Forgot password?</a
           >
@@ -85,20 +105,18 @@ Page {% endblock %} {% block content %} {% block extra_css %}
 
         <button
           type="submit"
-          class="btn btn-success w-100 fw-bold btn-xl shadow-sm transition"
+          id="signInBtn"
+          class="btn btn-success w-100 fw-bold btn-xl shadow-sm"
         >
           Sign In
         </button>
       </form>
-      <div class="d-flex align-items-center my-4">
-        <hr class="flex-grow-1" />
-        <span class="px-3 text-muted small">or</span>
-        <hr class="flex-grow-1" />
-      </div>
+
+      <div class="auth-divider"><span>or</span></div>
 
       <a
         href="{% url 'google_login' %}"
-        class="btn btn-outline-dark w-100 fw-semibold d-flex align-items-center justify-content-center gap-2 py-2 rounded-3"
+        class="btn btn-outline-dark btn-google w-100 fw-semibold d-flex align-items-center justify-content-center gap-2"
       >
         <img
           src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
@@ -108,7 +126,8 @@ Page {% endblock %} {% block content %} {% block extra_css %}
         />
         Continue with Google
       </a>
-      <p class="text-center text-muted mt-5 mb-0">
+
+      <p class="text-center text-muted mt-4 mb-0">
         Don't have an account?
         <a
           href="{% url 'user.register' %}"
@@ -119,4 +138,6 @@ Page {% endblock %} {% block content %} {% block extra_css %}
     </div>
   </div>
 </section>
-{% endblock %}
+{% block extra_js %}
+<script src="{% static 'UTrade_app/js/login.js' %}"></script>
+{% endblock %} {% endblock %}

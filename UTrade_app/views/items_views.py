@@ -20,7 +20,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 import re
 import json
-from django.db.models import Q
+from django.db.models import Q, F, Min
 
 
 User = get_user_model()
@@ -517,6 +517,7 @@ class ProductListView(ListView):
         category_id = self.request.GET.get('category')
         org_id = self.request.GET.get('org')
         user_type = self.request.GET.get('type')
+        sort = self.request.GET.get('sort')
 
         if query:
             queryset = queryset.filter(
@@ -562,18 +563,47 @@ class ProductListView(ListView):
                 ])
             )
 
-        return queryset.order_by('-created_at').distinct()
+        # Sorting
+        if sort == 'price_low':
+            queryset = queryset.annotate(min_price=Min('variants__price')).order_by('min_price', '-created_at')
+        elif sort == 'price_high':
+            queryset = queryset.annotate(min_price=Min('variants__price')).order_by(
+                F('min_price').desc(nulls_last=True), '-created_at'
+            )
+        else:
+            queryset = queryset.order_by('-created_at')
+
+        return queryset.distinct()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        category = self.request.GET.get('category')
+        org = self.request.GET.get('org')
+        user_type = self.request.GET.get('type')
+
         context['categories'] = Category.objects.all().order_by('name')
         context['organizations'] = Organization.objects.all().order_by('name')
 
-        context['current_category'] = self.request.GET.get('category')
-        context['current_org'] = self.request.GET.get('org')
-        context['current_type'] = self.request.GET.get('type')
+        context['current_category'] = category
+        context['current_org'] = org
+        context['current_type'] = user_type
+        context['current_sort'] = self.request.GET.get('sort') or ''
         context['search_query'] = self.request.GET.get('q')
+
+        # Objects behind the active filters (for the title and the removable chips)
+        context['current_category_obj'] = (
+            Category.objects.filter(pk=category).first() if category and category.isdigit() else None
+        )
+        context['current_org_obj'] = (
+            Organization.objects.filter(pk=org).first() if org and org.isdigit() else None
+        )
+        context['active_filter_count'] = sum(1 for v in (category, org, user_type) if v)
+
+        # Query string without ?page= so pagination keeps every filter and the sort
+        params = self.request.GET.copy()
+        params.pop('page', None)
+        context['querystring'] = params.urlencode()
 
         if self.request.user.is_authenticated:
             context['user_wishlist_ids'] = set(
@@ -594,7 +624,6 @@ class ProductListView(ListView):
             context['user_cart_ids'] = set()
 
         return context
-
 
 class WishlistListView(LoginRequiredMixin, ListView):
     model = Wishlist

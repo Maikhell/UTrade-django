@@ -72,10 +72,6 @@
                 <input class="form-check-input" type="radio" name="type" id="type-organization" value="organization" {% if current_type == 'organization' %}checked{% endif %}>
                 <label class="form-check-label" for="type-organization"><i class="bi bi-people-fill text-info"></i> Student organizations</label>
               </div>
-              <div class="form-check">
-                <input class="form-check-input" type="radio" name="type" id="type-student" value="student" {% if current_type == 'student' %}checked{% endif %}>
-                <label class="form-check-label" for="type-student"><i class="bi bi-mortarboard text-success"></i> Students</label>
-              </div>
 
               {% if organizations %}
                 <h6 class="mp-filter-title">Organization</h6>

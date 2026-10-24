@@ -78,6 +78,7 @@
         margin: 0 0.6rem;
       }
     </style>
+    {% block extra_css %}{% endblock %}
   </head>
   <body>
     {% with url_name=request.resolver_match.url_name %}
@@ -143,7 +144,7 @@
       </nav>
     {% endwith %}
 
-    <main class="container mt-4">
+    <main class="{% block main_class %}container mt-4{% endblock %}">
       {% block content %}
 
       {% endblock %}
@@ -170,7 +171,7 @@
 
           <!-- Links -->
           <div class="d-flex align-items-center flex-wrap justify-content-center">
-            <a href="#" class="footer-link" data-bs-toggle="modal" data-bs-target="#termsModal">
+            <a href="#" class="footer-link" data-bs-toggle="modal" data-bs-target="#termsInfoModal">
               Terms of Service
             </a>
             <span class="footer-divider">|</span>
@@ -188,7 +189,7 @@
     </footer>
 
     <!-- ===================== TERMS OF SERVICE MODAL ===================== -->
-    <div class="modal fade" id="termsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="termsInfoModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content border-0 shadow-lg">
           <div class="modal-header bg-success text-white">

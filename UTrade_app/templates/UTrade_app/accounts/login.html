@@ -1,8 +1,15 @@
-{% extends 'UTrade_app/base.html' %} {% load static %} {% block title %} Login
-Page {% endblock %} {% block content %} {% block extra_css %}
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}Login Page{% endblock %}
+
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'UTrade_app/css/login.css' %}" />
 {% endblock %}
 
+{% block main_class %}{% endblock %}
+
+{% block content %}
 <section class="auth-page">
   <aside class="auth-brand">
     <div class="auth-brand-inner">
@@ -138,6 +145,8 @@ Page {% endblock %} {% block content %} {% block extra_css %}
     </div>
   </div>
 </section>
+{% endblock %}
+
 {% block extra_js %}
 <script src="{% static 'UTrade_app/js/login.js' %}"></script>
-{% endblock %} {% endblock %}
+{% endblock %}

@@ -165,7 +165,7 @@ SOCIALACCOUNT_PROVIDERS = {
         ],
         'AUTH_PARAMS': {
             'access_type': 'online',
-            'hd': 'cvsu.edu.ph',
+            'prompt': 'select_account',
         },
         'OAUTH_PKCE_ENABLED': True,
         'FETCH_USERINFO': True,

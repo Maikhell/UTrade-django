@@ -26,7 +26,7 @@
       <ul class="auth-features">
         <li>
           <i class="bi bi-patch-check"></i>
-          <span>Verified CvSU accounts only</span>
+          <span>Verified CvSU sellers</span>
         </li>
         <li>
           <i class="bi bi-geo-alt"></i>
@@ -45,7 +45,19 @@
       <h2 class="fw-bold text-dark mb-1">Welcome back</h2>
       <p class="text-muted mb-4">Please enter your details to sign in.</p>
 
-      {% if form.non_field_errors %}
+      {% if form.pending_verification %}
+      <div
+        class="alert alert-warning d-flex align-items-start gap-2 rounded-3 small py-2"
+        role="alert"
+      >
+        <i class="bi bi-envelope-exclamation mt-1"></i>
+        <div>
+          <p class="mb-1 fw-semibold">Your email isn't verified yet.</p>
+          <p class="mb-1">We're taking you to the verification page to finish signing up.</p>
+          <a href="{% url 'verify_otp' %}" class="fw-bold text-decoration-none">Continue to verification</a>
+        </div>
+      </div>
+      {% elif form.non_field_errors %}
       <div
         class="alert alert-danger d-flex align-items-start gap-2 rounded-3 small py-2"
         role="alert"
@@ -149,4 +161,11 @@
 
 {% block extra_js %}
 <script src="{% static 'UTrade_app/js/login.js' %}"></script>
+{% if form.pending_verification %}
+<script>
+  setTimeout(function () {
+    window.location.href = "{% url 'verify_otp' %}";
+  }, 1500);
+</script>
+{% endif %}
 {% endblock %}

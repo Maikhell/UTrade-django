@@ -1,12 +1,16 @@
-from django.urls import reverse
-from django.shortcuts import redirect
 from django.conf import settings
+from django.shortcuts import redirect
+from django.urls import reverse
+
+from .utils import needs_google_completion
+
+COMPLETE_PROFILE_PATH = '/complete-google-profile/'
 
 
 class LoginRequiredMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-    
+
     def __call__(self, request):
         current_path = request.path
 
@@ -22,6 +26,16 @@ class LoginRequiredMiddleware:
 
         if media_url and current_path.startswith(media_url):
             return self.get_response(request)
+
+        # Google sign-ups must finish the setup page (student number, password, OTP)
+        # before they can use the rest of the site. Based on the account itself,
+        # not a session flag, so they can't skip it by navigating away.
+        user = request.user
+        if user.is_authenticated and needs_google_completion(user):
+            allowed = (COMPLETE_PROFILE_PATH, '/accounts/', '/logout/')
+            if any(current_path.startswith(p) for p in allowed):
+                return self.get_response(request)
+            return redirect('complete_google_profile')
 
         # Prefixes that must stay public (allauth Google OAuth lives under /accounts/)
         exempt_prefixes = (
@@ -48,27 +62,9 @@ class LoginRequiredMiddleware:
 
         if current_path in exempt_exact:
             return self.get_response(request)
-        
+
         # Everything else requires login
-        if not request.user.is_authenticated:
+        if not user.is_authenticated:
             return redirect('landingpage')
-
-        if request.user.is_authenticated:
-            complete_paths = (
-                '/profile/', '/userprofile/', '/complete-google-profile/',
-                '/logout/', '/accounts/logout/',
-            )
-
-            # If this is a fresh Google signup, guide them to the profile page once.
-            # Once they reach a complete path, clear the flag so they can navigate the site normally.
-            if request.session.get('complete_google_signup', False):
-                if any(current_path.startswith(p) for p in complete_paths):
-                    request.session.pop('complete_google_signup', None)
-                    request.session.modified = True
-                else:
-                    try:
-                        return redirect('complete_google_profile')
-                    except Exception:
-                        return redirect('user.profile')
 
         return self.get_response(request)

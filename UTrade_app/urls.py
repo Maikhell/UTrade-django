@@ -22,7 +22,8 @@ urlpatterns = [
     path('profile/register-officer/', user_views.register_officer, name='register_officer'),
     path('seller/reports/sales/', user_views.seller_sales_report, name='seller.sales_report'),
     path('verify-email/', otplink_views.verify_otp, name='verify_otp'),
-
+    path('complete-google-profile/', otplink_views.complete_google_profile, name='complete_google_profile'),
+        
     # =========================================================================
     # Marketplace: Products & Services
     # =========================================================================

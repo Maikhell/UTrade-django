@@ -13,8 +13,29 @@ from django.db import transaction
 logger = logging.getLogger(__name__)
 
 PLATFORM_FEE_RATE = Decimal('0.03')
+ALLOWED_EMAIL_DOMAINS = ('cvsu.edu.ph', 'gmail.com')
 
 
+def is_allowed_email(email):
+    """Gmail and CvSU institutional addresses may register / sign in with Google."""
+    email = (email or '').strip().lower()
+    local, sep, domain = email.rpartition('@')
+    return bool(local) and bool(sep) and domain in ALLOWED_EMAIL_DOMAINS
+
+
+def needs_google_completion(user):
+    """True for Google sign-ups that haven't set a student number + password yet."""
+    student_no = str(getattr(user, 'student_no', '') or '')
+    return (not student_no) or student_no.startswith('TMP-')
+
+def is_pending_verification(user):
+    """Registered with email + password but never finished the OTP step."""
+    return (
+        not user.is_active
+        and not user.is_email_verified
+        and user.last_login is None
+    )
+    
 def log_action(user, action, item_type, item_name, details=""):
     SystemLog.objects.create(
         user=user,
@@ -194,3 +215,4 @@ def accrue_platform_fee_for_order(order):
     ledger.save(update_fields=['accumulated_sales', 'accumulated_fee'])
 
     return line
+

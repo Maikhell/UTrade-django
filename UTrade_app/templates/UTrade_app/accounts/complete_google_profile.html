@@ -1,0 +1,360 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}Complete your account{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'UTrade_app/css/register.css' %}" />
+<style>
+  .google-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.8rem;
+    border: 1px solid #e3e7e5;
+    border-radius: 50rem;
+    background: #f8f9fa;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #495057;
+  }
+
+  .otp-inputs { display: flex; justify-content: center; gap: 0.6rem; }
+
+  .otp-box {
+    width: 3.1rem; height: 3.7rem; padding: 0; text-align: center;
+    font-size: 1.6rem; font-weight: 700; color: #212529;
+    border: 2px solid #dee2e6; border-radius: 12px; background: #f8f9fa;
+    caret-color: #198754;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .otp-box:focus {
+    outline: 0; background: #fff; border-color: #198754;
+    box-shadow: 0 0 0 .25rem rgba(25, 135, 84, .15);
+  }
+  .otp-box.filled { background: #fff; border-color: #198754; }
+  .otp-box:disabled { background: #e9ecef; cursor: not-allowed; }
+  .otp-inputs.is-invalid .otp-box { border-color: #dc3545; background: #fff5f5; }
+  .otp-inputs.shake { animation: otp-shake .4s ease; }
+
+  @keyframes otp-shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(4px); }
+    30%, 50%, 70% { transform: translateX(-6px); }
+    40%, 60% { transform: translateX(6px); }
+  }
+
+  @media (max-width: 400px) {
+    .otp-inputs { gap: 0.4rem; }
+    .otp-box { width: 2.6rem; height: 3.2rem; font-size: 1.4rem; }
+  }
+</style>
+{% endblock %}
+
+{% block main_class %}{% endblock %}
+
+{% block content %}
+<section class="auth-page">
+  <aside class="auth-brand">
+    <div class="auth-brand-inner">
+      <div class="glass-bg">
+        <img src="{% static 'UTrade_app/img/UTrade.png' %}" alt="UTrade logo" class="auth-logo" />
+      </div>
+      <h1 class="auth-title">UTRADE</h1>
+      <p class="auth-tagline">One last step to start trading.</p>
+
+      <ul class="auth-features">
+        <li><i class="bi bi-envelope-check"></i><span>Email-verified accounts</span></li>
+        <li><i class="bi bi-geo-alt"></i><span>Safe meet-ups at official campus drop-off zones</span></li>
+        <li><i class="bi bi-receipt"></i><span>Digital receipts for every completed sale</span></li>
+      </ul>
+    </div>
+  </aside>
+
+  <div class="auth-panel">
+    <div class="auth-card rounded-3xl">
+
+      <div class="mb-3">
+        <span class="google-pill">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width="16" height="16" />
+          {{ masked_email }}
+        </span>
+      </div>
+
+      <h2 class="fw-bold text-dark mb-1">Finish setting up your account</h2>
+      <p class="text-muted mb-4">
+        Add your student number and a password, then enter the 6-digit code we emailed you.
+      </p>
+
+      {% if notice %}
+      <div class="alert alert-success d-flex align-items-center small py-2" role="status">
+        <i class="bi bi-check-circle-fill me-2"></i><span>{{ notice }}</span>
+      </div>
+      {% endif %}
+
+      {% if error %}
+      <div class="alert alert-danger d-flex align-items-center small py-2" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <form method="post" action="{% url 'complete_google_profile' %}" id="completeForm"
+            data-locked="{% if locked %}1{% else %}0{% endif %}" novalidate>
+        {% csrf_token %}
+        <input type="hidden" name="otp" id="otp-value">
+
+        <div class="mb-3">
+          <label for="id_student_no" class="form-label small fw-bold text-secondary">Student Number</label>
+          <input type="text" name="student_no" id="id_student_no"
+                 value="{{ student_no }}"
+                 placeholder="Enter 9-digit student number"
+                 inputmode="numeric" pattern="[0-9]{9}" maxlength="9" minlength="9"
+                 autocomplete="off"
+                 class="form-control form-control-xl bg-light {% if errors.student_no %}is-invalid{% endif %}"
+                 required />
+          <div class="form-text">Numbers only, exactly 9 digits.</div>
+          {% for e in errors.student_no %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+          <label for="id_password1" class="form-label small fw-bold text-secondary">Password</label>
+          <div class="password-field">
+            <input type="password" name="password1" id="id_password1" placeholder="••••••••"
+                   autocomplete="new-password"
+                   class="form-control form-control-xl bg-light {% if errors.password1 %}is-invalid{% endif %}"
+                   required />
+            <button type="button" class="toggle-password" data-target="id_password1" aria-label="Show or hide password">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <div class="form-text">Use at least 8 characters.</div>
+          {% for e in errors.password1 %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-4">
+          <label for="id_password2" class="form-label small fw-bold text-secondary">Confirm Password</label>
+          <div class="password-field">
+            <input type="password" name="password2" id="id_password2" placeholder="••••••••"
+                   autocomplete="new-password"
+                   class="form-control form-control-xl bg-light {% if errors.password2 %}is-invalid{% endif %}"
+                   required />
+            <button type="button" class="toggle-password" data-target="id_password2" aria-label="Show or hide password">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          {% for e in errors.password2 %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+        </div>
+
+        <label class="form-label small fw-bold text-secondary d-block text-center">
+          Verification code sent to {{ masked_email }}
+        </label>
+        <div class="otp-inputs mb-2 {% if otp_invalid %}is-invalid shake{% endif %}" id="otp-inputs"
+             role="group" aria-label="6-digit verification code">
+          {% for i in "012345" %}
+          <input type="text" class="otp-box" inputmode="numeric" pattern="[0-9]*" maxlength="1"
+                 aria-label="Digit {{ forloop.counter }}"
+                 {% if forloop.first %}autocomplete="one-time-code"{% else %}autocomplete="off"{% endif %}
+                 {% if locked %}disabled{% endif %}>
+          {% endfor %}
+        </div>
+
+        <div class="text-center small mb-4">
+          {% if locked %}
+            <span class="text-danger fw-semibold">
+              <i class="bi bi-lock-fill me-1"></i>Code locked. Request a new one below.
+            </span>
+          {% else %}
+            <span class="text-muted">
+              <i class="bi bi-clock me-1"></i>Code expires in
+              <strong id="expiry" data-seconds="{{ expires_in }}">--:--</strong>
+            </span>
+            {% if attempts_used %}
+              <div class="text-muted mt-1">{{ attempts_left }} of {{ max_attempts }} attempts remaining</div>
+            {% endif %}
+          {% endif %}
+        </div>
+
+        {# Keep this first so Enter submits "verify" #}
+        <button type="submit" name="action" value="verify" id="verify-btn"
+                class="btn btn-success w-100 fw-bold btn-xl shadow-sm"
+                {% if locked %}disabled{% endif %}>
+          Complete sign-up
+        </button>
+
+        <div class="text-center mt-3">
+          <span class="small text-muted">Didn't get the code?</span>
+          <button type="submit" name="action" value="resend" id="resend-btn" formnovalidate
+                  class="btn btn-link btn-sm text-success fw-bold text-decoration-none p-0 ms-1"
+                  data-wait="{{ resend_wait }}"
+                  {% if resend_wait > 0 %}disabled{% endif %}>
+            Resend code
+          </button>
+        </div>
+      </form>
+
+      <p class="text-center small mt-4 mb-0">
+        <a href="{% url 'account_logout' %}" class="text-muted text-decoration-none">
+          <i class="bi bi-arrow-left me-1"></i>Use a different account
+        </a>
+      </p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  if (window.__utCompleteInit) return;
+  window.__utCompleteInit = true;
+
+  function init() {
+    var form = document.getElementById('completeForm');
+    if (!form) return;
+
+    var boxes = [].slice.call(document.querySelectorAll('.otp-box'));
+    var hidden = document.getElementById('otp-value');
+    var verifyBtn = document.getElementById('verify-btn');
+    var resendBtn = document.getElementById('resend-btn');
+    var studentInput = document.getElementById('id_student_no');
+    var locked = form.dataset.locked === '1';
+    var resending = false;
+    var verifyLabel = verifyBtn.innerHTML;
+
+    // ----- Student number: digits only, max 9 -----
+    if (studentInput) {
+      studentInput.addEventListener('input', function () {
+        var cleaned = studentInput.value.replace(/\D/g, '').slice(0, 9);
+        if (studentInput.value !== cleaned) studentInput.value = cleaned;
+      });
+    }
+
+    // ----- Password visibility toggles -----
+    [].forEach.call(document.querySelectorAll('.toggle-password'), function (btn) {
+      btn.addEventListener('click', function () {
+        var input = document.getElementById(btn.getAttribute('data-target'));
+        var icon = btn.querySelector('i');
+        if (!input) return;
+        var show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        if (icon) {
+          icon.classList.toggle('bi-eye', !show);
+          icon.classList.toggle('bi-eye-slash', show);
+        }
+      });
+    });
+
+    // ----- One-digit OTP boxes -----
+    function sync() {
+      var v = boxes.map(function (b) { return b.value; }).join('');
+      hidden.value = v;
+      boxes.forEach(function (b) { b.classList.toggle('filled', b.value !== ''); });
+      verifyBtn.disabled = locked || v.length !== 6;
+    }
+
+    function fill(start, digits) {
+      for (var i = 0; i < digits.length && start + i < boxes.length; i++) {
+        boxes[start + i].value = digits.charAt(i);
+      }
+      boxes[Math.min(start + digits.length, boxes.length - 1)].focus();
+      sync();
+    }
+
+    boxes.forEach(function (box, idx) {
+      box.addEventListener('input', function () {
+        var digits = box.value.replace(/\D/g, '');
+        if (!digits) { box.value = ''; sync(); return; }
+        box.value = '';
+        fill(idx, digits);
+      });
+
+      box.addEventListener('keydown', function (e) {
+        if (e.key === 'Backspace' && box.value === '' && idx > 0) {
+          e.preventDefault();
+          boxes[idx - 1].value = '';
+          boxes[idx - 1].focus();
+          sync();
+        } else if (e.key === 'ArrowLeft' && idx > 0) {
+          e.preventDefault(); boxes[idx - 1].focus();
+        } else if (e.key === 'ArrowRight' && idx < boxes.length - 1) {
+          e.preventDefault(); boxes[idx + 1].focus();
+        }
+      });
+
+      box.addEventListener('paste', function (e) {
+        e.preventDefault();
+        var text = (e.clipboardData || window.clipboardData).getData('text');
+        var digits = text.replace(/\D/g, '');
+        if (digits) fill(digits.length >= 6 ? 0 : idx, digits.slice(0, 6));
+      });
+
+      box.addEventListener('focus', function () { box.select(); });
+    });
+
+    // ----- Submit handling -----
+    resendBtn.addEventListener('click', function () { resending = true; });
+
+    form.addEventListener('submit', function (e) {
+      var isResend = resending || (e.submitter && e.submitter.value === 'resend');
+      if (isResend) return; // don't touch the button: its name/value must be submitted
+
+      sync();
+      if (locked || hidden.value.length !== 6) { e.preventDefault(); return; }
+      verifyBtn.disabled = true;
+      verifyBtn.innerHTML =
+        '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Verifying…';
+    });
+
+    // Restore the page state when returning with the back button
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted) {
+        resending = false;
+        verifyBtn.innerHTML = verifyLabel;
+        sync();
+      }
+    });
+
+    // ----- Timers -----
+    function fmt(s) {
+      var m = Math.floor(s / 60), r = s % 60;
+      return m + ':' + (r < 10 ? '0' : '') + r;
+    }
+
+    var expiry = document.getElementById('expiry');
+    if (expiry) {
+      var left = parseInt(expiry.dataset.seconds, 10) || 0;
+      (function tick() {
+        if (left <= 0) {
+          expiry.textContent = 'expired';
+          expiry.classList.add('text-danger');
+          return;
+        }
+        expiry.textContent = fmt(left--);
+        setTimeout(tick, 1000);
+      })();
+    }
+
+    var wait = parseInt(resendBtn.dataset.wait, 10) || 0;
+    if (wait > 0) {
+      (function tick() {
+        if (wait <= 0) {
+          resendBtn.disabled = false;
+          resendBtn.textContent = 'Resend code';
+          return;
+        }
+        resendBtn.textContent = 'Resend code in ' + fmt(wait--);
+        setTimeout(tick, 1000);
+      })();
+    }
+
+    sync();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+{% endblock %}

@@ -1,6 +1,8 @@
 import re
 from django import forms
+from django.db.models import Q
 from .models import Product, User, ProductVariant, ProductImage
+from .utils import is_allowed_email, is_pending_verification
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 class ProductForm(forms.ModelForm):
     class Meta:
@@ -62,15 +64,21 @@ class UserRegistrationForm(forms.ModelForm):
         if email:
             email = email.lower()
             
-            # Validation for Student accounts
+            # Students may register with a Gmail or an official @cvsu.edu.ph address
             if role == 'student':
-                if not email.endswith('@cvsu.edu.ph'):
+                if not is_allowed_email(email):
                     raise forms.ValidationError(
-                        "Students are required to use their official @cvsu.edu.ph email."
+                        "Please use a Gmail or official @cvsu.edu.ph email address."
                     )
             
             # General uniqueness check
-            if User.objects.filter(email=email).exists():
+            existing = User.objects.filter(email__iexact=email).first()
+            if existing:
+                if is_pending_verification(existing):
+                    raise forms.ValidationError(
+                        "This email is registered but not verified yet. "
+                        "Sign in with your student number and password to get a new code."
+                    )
                 raise forms.ValidationError("This email is already registered.")
         
         return email
@@ -134,6 +142,9 @@ class UserProfileForm(forms.ModelForm):
                 self.fields['section'].required = True
                 
 class UserLoginForm(AuthenticationForm):
+    # Set to True when the credentials belong to an account that never finished OTP verification
+    pending_verification = False
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['username'].label = "Student Number"
@@ -144,6 +155,41 @@ class UserLoginForm(AuthenticationForm):
         self.fields['password'].widget.attrs.update({
             'class': 'form-control'
         })
+
+    def clean(self):
+        username = (self.cleaned_data.get('username') or '').strip()
+        password = self.cleaned_data.get('password')
+
+        if username and password:
+            pending = self._pending_user(username, password)
+            if pending is not None:
+                # Correct password, but the email was never verified. Hand them to the OTP step.
+                self.pending_verification = True
+                if self.request is not None:
+                    session = self.request.session
+                    session['pending_user_id'] = pending.id
+                    session.pop('otp_sent', None)
+                    session.pop('otp_attempts', None)
+                raise forms.ValidationError(
+                    "Your email isn't verified yet. We'll take you to the verification page.",
+                    code='email_unverified',
+                )
+
+        return super().clean()
+
+    @staticmethod
+    def _pending_user(identifier, password):
+        """Unverified account matching these credentials (password is checked first)."""
+        candidates = User.objects.filter(
+            Q(student_no__iexact=identifier)
+            | Q(email__iexact=identifier)
+            | Q(username__iexact=identifier),
+            is_active=False,
+        )[:5]
+        for candidate in candidates:
+            if is_pending_verification(candidate) and candidate.check_password(password):
+                return candidate
+        return None
 
 class UserAccountForm(forms.ModelForm):
     class Meta:

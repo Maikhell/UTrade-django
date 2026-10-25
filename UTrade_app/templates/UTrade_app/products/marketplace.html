@@ -66,7 +66,7 @@
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="type" id="type-management" value="management" {% if current_type == 'management' %}checked{% endif %}>
-                <label class="form-check-label" for="type-management"><i class="bi bi-shield-check text-primary"></i> Official / Management</label>
+                <label class="form-check-label" for="type-management"><i class="bi bi-shield-check text-primary"></i> Official / CBRGU</label>
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="type" id="type-organization" value="organization" {% if current_type == 'organization' %}checked{% endif %}>
@@ -102,7 +102,7 @@
             {% if current_org_obj %}
               {{ current_org_obj.full_name|default:current_org_obj.name }}
             {% elif current_type == 'management' %}
-              Official Management Items
+              Official CBRGU Items
             {% elif current_type == 'organization' %}
               Organization Merchandise
             {% elif current_type == 'student' %}

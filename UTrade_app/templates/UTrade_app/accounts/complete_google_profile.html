@@ -82,8 +82,11 @@
       </div>
 
       <h2 class="fw-bold text-dark mb-1">Finish setting up your account</h2>
-      <p class="text-muted mb-4">
+      <p class="text-muted mb-2">
         Add your student number and a password, then enter the 6-digit code we emailed you.
+      </p>
+      <p class="small text-muted mb-4">
+        Fields marked <span class="text-danger fw-bold">*</span> are required.
       </p>
 
       {% if notice %}
@@ -104,7 +107,8 @@
         <input type="hidden" name="otp" id="otp-value">
 
         <div class="mb-3">
-          <label for="id_student_no" class="form-label small fw-bold text-secondary">Student Number</label>
+          <label for="id_student_no" class="form-label small fw-bold text-secondary"
+            >Student Number <span class="text-danger" aria-hidden="true">*</span></label>
           <input type="text" name="student_no" id="id_student_no"
                  value="{{ student_no }}"
                  placeholder="Enter 9-digit student number"
@@ -117,7 +121,8 @@
         </div>
 
         <div class="mb-3">
-          <label for="id_password1" class="form-label small fw-bold text-secondary">Password</label>
+          <label for="id_password1" class="form-label small fw-bold text-secondary"
+            >Password <span class="text-danger" aria-hidden="true">*</span></label>
           <div class="password-field">
             <input type="password" name="password1" id="id_password1" placeholder="••••••••"
                    autocomplete="new-password"
@@ -132,7 +137,8 @@
         </div>
 
         <div class="mb-4">
-          <label for="id_password2" class="form-label small fw-bold text-secondary">Confirm Password</label>
+          <label for="id_password2" class="form-label small fw-bold text-secondary"
+            >Confirm Password <span class="text-danger" aria-hidden="true">*</span></label>
           <div class="password-field">
             <input type="password" name="password2" id="id_password2" placeholder="••••••••"
                    autocomplete="new-password"
@@ -146,10 +152,10 @@
         </div>
 
         <label class="form-label small fw-bold text-secondary d-block text-center">
-          Verification code sent to {{ masked_email }}
+          Verification code sent to {{ masked_email }} <span class="text-danger" aria-hidden="true">*</span>
         </label>
         <div class="otp-inputs mb-2 {% if otp_invalid %}is-invalid shake{% endif %}" id="otp-inputs"
-             role="group" aria-label="6-digit verification code">
+             role="group" aria-label="6-digit verification code (required)">
           {% for i in "012345" %}
           <input type="text" class="otp-box" inputmode="numeric" pattern="[0-9]*" maxlength="1"
                  aria-label="Digit {{ forloop.counter }}"

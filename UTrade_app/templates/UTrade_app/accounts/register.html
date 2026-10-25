@@ -43,7 +43,10 @@
   <div class="auth-panel">
     <div class="auth-card rounded-3xl">
       <h2 class="fw-bold text-dark mb-1">Create your account</h2>
-      <p class="text-muted mb-4">Please enter your details to sign up.</p>
+      <p class="text-muted mb-2">Please enter your details to sign up.</p>
+      <p class="small text-muted mb-4">
+        Fields marked <span class="text-danger fw-bold">*</span> are required.
+      </p>
 
       {% if form.non_field_errors %}
       <div
@@ -75,7 +78,7 @@
 
         <div class="mb-3">
           <label for="id_student_no" class="form-label small fw-bold text-secondary"
-            >Student Number</label
+            >Student Number <span class="text-danger" aria-hidden="true">*</span></label
           >
           <input
             type="text"
@@ -101,7 +104,7 @@
 
         <div class="mb-3">
           <label for="id_email" class="form-label small fw-bold text-secondary"
-            >Email</label
+            >Email <span class="text-danger" aria-hidden="true">*</span></label
           >
           <input
             type="email"
@@ -125,7 +128,7 @@
 
         <div class="mb-3">
           <label for="id_password1" class="form-label small fw-bold text-secondary"
-            >Password</label
+            >Password <span class="text-danger" aria-hidden="true">*</span></label
           >
           <div class="password-field">
             <input
@@ -156,7 +159,7 @@
 
         <div class="mb-4">
           <label for="id_password2" class="form-label small fw-bold text-secondary"
-            >Confirm Password</label
+            >Confirm Password <span class="text-danger" aria-hidden="true">*</span></label
           >
           <div class="password-field">
             <input
@@ -411,46 +414,3 @@
 
         <div class="modal-footer border-0 p-3 p-sm-4 flex-column align-items-stretch">
           <div class="text-center small text-muted mb-2" id="scrollNotice">
-            <i class="bi bi-arrow-down-circle me-1"></i>
-            Scroll to the bottom to enable the checkbox below.
-          </div>
-
-          <div class="form-check mb-3">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="modalTermsCheckbox"
-              disabled
-            />
-            <label class="form-check-label fw-semibold" for="modalTermsCheckbox">
-              I have read and agree to the Terms and Services
-            </label>
-          </div>
-
-          <div class="d-flex gap-2">
-            <button
-              type="button"
-              class="btn btn-outline-secondary fw-bold py-2"
-              data-bs-dismiss="modal"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              id="agreeTermsBtn"
-              class="btn btn-success flex-grow-1 fw-bold py-2 shadow-sm"
-              disabled
-            >
-              I AGREE &amp; CONTINUE
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-{% endblock %}
-
-{% block extra_js %}
-<script src="{% static 'UTrade_app/js/register.js' %}"></script>
-{% endblock %}

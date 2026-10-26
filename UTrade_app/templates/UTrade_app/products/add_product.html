@@ -1,150 +1,211 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
-{% block title %} Seller Workshop {% endblock %}
-{% block content %}
+
+{% block title %}Seller Workshop{% endblock %}
+
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'UTrade_app/css/workshop.css' %}" />
+<link rel="stylesheet" href="{% static 'UTrade_app/css/add_product.css' %}" />
 {% endblock %}
 
-<div class="container mb-3 d-flex justify-content-between align-items-center">
-  <nav aria-label="breadcrumb" class="mb-4">
-    <a href="#" onclick="history.back(); return false;"
-       class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+{% block main_class %}{% endblock %}
+
+{% block content %}
+<div class="container ap-page py-3 py-md-4">
+
+  {# ========== PAGE HEADER ========== #}
+  <div class="ap-header">
+    <a href="#" onclick="history.back(); return false;" class="ap-back">
       <i class="bi bi-arrow-left" aria-hidden="true"></i>
       <span>Back to Account</span>
     </a>
-  </nav>
-</div>
+    <h1 class="ap-title">Add products</h1>
+    <p class="ap-sub">
+      Create a listing, add it to your staging list, then send everything for authentication.
+    </p>
+    <p class="ap-legend">
+      Fields marked <span class="text-danger fw-bold">*</span> are required.
+    </p>
+  </div>
 
-<div class="container-fluid py-4 workshop-container">
   <div class="row g-4">
-    <!-- 1. PRODUCT GALLERY -->
-    <div class="col-lg-3">
-      <div class="card border-0 shadow-sm rounded-4 p-3 h-100">
-        <h6 class="fw-bold text-uppercase small text-muted mb-3">
-          <i class="bi bi-images me-2"></i>1. Product Gallery
-        </h6>
-        <div class="mb-3">
-          <label class="btn btn-outline-success btn-sm w-100 fw-bold rounded-pill">
-            <i class="bi bi-plus-lg me-1"></i> Select Photos
+
+    {# ========== LEFT: LISTING FORM ========== #}
+    <div class="col-lg-7 col-xl-8">
+      <form id="product_form" onsubmit="return false;" novalidate>
+        {% csrf_token %}
+
+        {# ---------- Photos ---------- #}
+        <section class="ap-card">
+          <h2 class="ap-card-title">
+            <span class="ap-ico"><i class="bi bi-images"></i></span>
+            Product photos <span class="text-danger" aria-hidden="true">*</span>
+          </h2>
+          <p class="ap-hint">Add at least one photo. The first photo is used as the cover.</p>
+
+          <label class="btn btn-outline-success fw-bold ap-upload">
+            <i class="bi bi-cloud-arrow-up me-1"></i> Select photos
             <input type="file" id="image_input" class="d-none" accept="image/*" multiple
                    onchange="previewMultipleImages(event)" />
           </label>
-        </div>
-        <div id="image_preview_container" class="image-preview-grid column-scroll">
-          <div class="text-center py-5 text-muted small w-100" style="grid-column: span 2">
-            <i class="bi bi-cloud-upload display-6 d-block mb-2"></i>
-            Select images
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- 2. PRODUCT DETAILS -->
-    <div class="col-lg-5">
-      <div class="card border-0 shadow-lg rounded-4 p-4 h-100">
-        <h5 class="fw-bold mb-4">2. Product Details</h5>
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <label class="form-label small fw-bold text-secondary">Category</label>
-            <select id="category" class="form-select bg-light border-0"
-                    onchange="handleCategoryChange(this)">
-              <option selected disabled>Choose Category...</option>
-              {% for category in categories %}
-              <option value="{{ category.id }}">{{ category.name }}</option>
-              {% endfor %}
-              <!-- "Other" option intentionally removed -->
-            </select>
-          </div>
-
-          <div class="col-6">
-            <label class="form-label small fw-bold text-secondary">Product Code</label>
-            <input type="text" id="product_code" name="product_code"
-                   class="form-control bg-light border-0"
-                   value="{{ next_product_code }}" readonly disabled />
-            <input type="hidden" id="product_code_hidden" name="product_code"
-                   value="{{ next_product_code }}" />
-            <div class="form-text small">Auto-generated · cannot be edited</div>
-          </div>
-        </div>
-
-        <form id="product_form">
-          {% csrf_token %}
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-secondary">Product Name</label>
-            <input type="text" id="name" class="form-control bg-light border-0 py-2"
-                   placeholder="e.g. Mechanical Keyboard"
-                   oninput="validateProhibitedInput(this)" />
-            <div id="name_prohibited_error" class="invalid-feedback small">
-              Contains restricted/prohibited words.
+          <div id="image_preview_container" class="image-preview-grid mt-3">
+            <div class="ap-empty">
+              <i class="bi bi-cloud-upload"></i>
+              <span>No photos selected yet</span>
             </div>
           </div>
+        </section>
 
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-secondary">Description</label>
-            <textarea id="description" rows="3" class="form-control bg-light border-0"
-                      placeholder="Details, flaws, inclusions..."
-                      oninput="validateProhibitedInput(this)"></textarea>
-            <div id="description_prohibited_error" class="invalid-feedback small">
-              Contains restricted/prohibited words.
-            </div>
-          </div>
+        {# ---------- Details ---------- #}
+        <section class="ap-card">
+          <h2 class="ap-card-title">
+            <span class="ap-ico"><i class="bi bi-card-text"></i></span>
+            Product details
+          </h2>
+          <p class="ap-hint">Tell buyers what you're selling.</p>
 
-          <div class="row g-2 mb-3">
-            <div class="col-6">
-              <label class="form-label small fw-bold text-secondary">Total Stocks</label>
-              <input type="number" id="stocks" class="form-control bg-light border-0"
-                     readonly placeholder="Calculated from variants" />
-            </div>
-          </div>
-
-          <!-- Custom Category Input REMOVED (no longer needed) -->
-
-          <!-- Attributes Section -->
-          <div id="attributes_section" class="mt-4 p-3 rounded bg-light border">
-            <h6 class="fw-bold mb-3">
-              <i class="bi bi-layers-half me-2"></i>Product Variations
-            </h6>
-
-            <div id="size_suggestions_container" class="mb-3">
-              <label id="quick_select_label" class="form-label small fw-bold text-success">
-                Quick Select <span class="text-muted fw-normal">(last 5 used)</span>:
+          <div class="row g-3">
+            <div class="col-md-7">
+              <label for="category" class="form-label ap-label">
+                Category <span class="text-danger" aria-hidden="true">*</span>
               </label>
-              <div id="suggestion_buttons" class="d-flex flex-wrap gap-2">
-                <span class="text-muted small">Select a category to see available variations.</span>
+              <select id="category" class="form-select" onchange="handleCategoryChange(this)" required>
+                <option value="" selected disabled>Choose a category…</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-5">
+              <label for="product_code" class="form-label ap-label">Product code</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-upc"></i></span>
+                <input type="text" id="product_code" name="product_code" class="form-control"
+                       value="{{ next_product_code }}" readonly />
               </div>
-              <div id="no_attributes_note" class="alert alert-info py-2 small d-none">
-                <i class="bi bi-info-circle me-2"></i>No quick select yet.
-                Please input your own attributes.
+              <input type="hidden" id="product_code_hidden" name="product_code" value="{{ next_product_code }}" />
+              <div class="form-text">Auto-generated · cannot be edited</div>
+            </div>
+
+            <div class="col-12">
+              <label for="name" class="form-label ap-label">
+                Product name <span class="text-danger" aria-hidden="true">*</span>
+              </label>
+              <input type="text" id="name" class="form-control"
+                     placeholder="e.g. Mechanical Keyboard"
+                     oninput="validateProhibitedInput(this)" required />
+              <div id="name_prohibited_error" class="invalid-feedback small">
+                Contains restricted/prohibited words.
               </div>
             </div>
 
-            <div id="attribute_pills" class="mb-2"></div>
+            <div class="col-12">
+              <label for="description" class="form-label ap-label">
+                Description <span class="opt-tag">(optional)</span>
+              </label>
+              <textarea id="description" rows="4" class="form-control"
+                        placeholder="Details, flaws, inclusions…"
+                        oninput="validateProhibitedInput(this)"></textarea>
+              <div id="description_prohibited_error" class="invalid-feedback small">
+                Contains restricted/prohibited words.
+              </div>
+            </div>
 
-            <div class="row g-2 mb-2">
-              <div class="col-md-4">
-                <input type="text" id="variant_name" class="form-control form-control-sm"
-                       placeholder="Variant Name" />
+            <div class="col-sm-6">
+              <label for="stocks" class="form-label ap-label">
+                Total stocks <span class="text-danger d-none" id="stock_required" aria-hidden="true">*</span>
+              </label>
+              <input type="number" id="stocks" class="form-control" min="0" readonly
+                     placeholder="Calculated from variations" />
+              <div class="form-text" id="stock_hint">Calculated automatically from your variations.</div>
+            </div>
+
+            {# Shown by the page script for categories without variations #}
+            <div class="col-12 d-none" id="simple_price_section">
+              <div class="row g-3">
+                <div class="col-sm-6">
+                  <label for="price" class="form-label ap-label">
+                    Price (₱) <span class="text-danger" aria-hidden="true">*</span>
+                  </label>
+                  <input type="number" id="price" class="form-control" min="0" step="0.01"
+                         inputmode="decimal" placeholder="0.00" />
+                </div>
+                <div class="col-sm-6">
+                  <label for="simple_condition" class="form-label ap-label">
+                    Condition <span class="text-danger" aria-hidden="true">*</span>
+                  </label>
+                  <select id="simple_condition" class="form-select">
+                    <option value="Brand New">Brand New</option>
+                    <option value="Like New">Like New</option>
+                    <option value="Used - Good">Used - Good</option>
+                    <option value="Used - Fair">Used - Fair</option>
+                  </select>
+                </div>
               </div>
-              <div class="col-md-4">
-                <input type="number" id="variant_price" class="form-control form-control-sm"
-                       placeholder="Price" />
+            </div>
+          </div>
+        </section>
+
+        {# ---------- Variations (hidden by the page script when the category has none) ---------- #}
+        <section class="ap-card" id="attributes_section">
+          <h2 class="ap-card-title">
+            <span class="ap-ico"><i class="bi bi-layers-half"></i></span>
+            Product variations <span class="text-danger" aria-hidden="true">*</span>
+          </h2>
+          <p class="ap-hint">
+            Add at least one variation (size, color, edition…). Each one has its own price and stock.
+          </p>
+
+          <div id="size_suggestions_container" class="mb-3">
+            <label id="quick_select_label" class="form-label small fw-bold text-success">
+              Quick Select <span class="text-muted fw-normal">(last 5 used)</span>:
+            </label>
+            <div id="suggestion_buttons" class="d-flex flex-wrap gap-2">
+              <span class="text-muted small">Select a category to see available variations.</span>
+            </div>
+            <div id="no_attributes_note" class="alert alert-info py-2 small d-none mt-2 mb-0">
+              <i class="bi bi-info-circle me-2"></i>No quick select yet.
+              Please input your own attributes.
+            </div>
+          </div>
+
+          <div id="attribute_pills" class="mb-2"></div>
+
+          <div class="ap-variant-box">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="variant_name" class="form-label ap-label">
+                  Variation name <span class="text-danger" aria-hidden="true">*</span>
+                </label>
+                <input type="text" id="variant_name" class="form-control" placeholder="e.g. Large, Red" />
               </div>
-              <div class="col-md-4">
-                <input type="number" id="variant_stock" class="form-control form-control-sm"
-                       placeholder="Stock" />
-              </div>
-              <div class="col-md-4">
-                <input type="text" id="variant_attribute" class="form-control form-control-sm"
+              <div class="col-md-6">
+                <label for="variant_attribute" class="form-label ap-label">
+                  Attribute <span class="opt-tag">(optional)</span>
+                </label>
+                <input type="text" id="variant_attribute" class="form-control"
                        placeholder="e.g. XL, 32oz, Blue" />
               </div>
-              <div class="col-md-4">
-                <input type="text" id="variant_flaws" class="form-control form-control-sm"
-                       placeholder="Flaws " />
+              <div class="col-6 col-md-3">
+                <label for="variant_price" class="form-label ap-label">
+                  Price (₱) <span class="text-danger" aria-hidden="true">*</span>
+                </label>
+                <input type="number" id="variant_price" class="form-control" min="0" step="0.01"
+                       inputmode="decimal" placeholder="0.00" />
               </div>
-              <div class="col-md-4">
-                <select id="variant_condition" class="form-select form-select-sm"
-                        onchange="toggleCustomCondition(this)">
+              <div class="col-6 col-md-3">
+                <label for="variant_stock" class="form-label ap-label">
+                  Stock <span class="text-danger" aria-hidden="true">*</span>
+                </label>
+                <input type="number" id="variant_stock" class="form-control" min="0"
+                       inputmode="numeric" placeholder="0" />
+              </div>
+              <div class="col-md-6">
+                <label for="variant_condition" class="form-label ap-label">
+                  Condition <span class="text-danger" aria-hidden="true">*</span>
+                </label>
+                <select id="variant_condition" class="form-select" onchange="toggleCustomCondition(this)">
                   <option value="Brand New">Brand New</option>
                   <option value="Like New">Like New</option>
                   <option value="Used - Good">Used - Good</option>
@@ -152,187 +213,202 @@
                   <option value="Other">Other (Custom)</option>
                 </select>
               </div>
+              <div class="col-12">
+                <label for="variant_flaws" class="form-label ap-label">
+                  Flaws <span class="opt-tag">(optional)</span>
+                </label>
+                <input type="text" id="variant_flaws" class="form-control"
+                       placeholder="Scratches, missing parts…" />
+              </div>
             </div>
-            <div class="d-flex gap-2 mb-3">
-              <button type="button" class="btn btn-outline-secondary btn-sm w-100"
-                      onclick="openVariantImagePicker()">
-                <i class="bi bi-image me-1"></i> Pick Image
-              </button>
-              <button type="button" class="btn btn-success btn-sm w-100" onclick="addVariant()">
-                <i class="bi bi-plus-circle me-1"></i> Add Variant
-              </button>
+
+            <div class="row g-2 mt-1">
+              <div class="col-sm-6">
+                <button type="button" class="btn btn-outline-secondary w-100"
+                        onclick="openVariantImagePicker()">
+                  <i class="bi bi-image me-1"></i> Pick Image
+                </button>
+              </div>
+              <div class="col-sm-6">
+                <button type="button" class="btn btn-success w-100 fw-bold" onclick="addVariant()">
+                  <i class="bi bi-plus-circle me-1"></i> Add Variant
+                </button>
+              </div>
             </div>
-            <div id="variant_list" class="mt-3"></div>
           </div>
 
-          <div id="simple_price_section" class="d-none">
-            <input type="number" id="price" value="0" />
-          </div>
+          <div id="variant_list" class="mt-3"></div>
+        </section>
 
-          <!-- Single Campus Meetup Location -->
-          <div class="my-3">
-            <label class="form-label small fw-bold text-secondary">
-              Campus Meetup Spot <span class="text-danger">*</span>
+        {# ---------- Meetup ---------- #}
+        <section class="ap-card">
+          <h2 class="ap-card-title">
+            <span class="ap-ico"><i class="bi bi-geo-alt"></i></span>
+            Meetup details
+          </h2>
+          <p class="ap-hint">Where and when buyers can pick up the item on campus.</p>
+
+          <div class="mb-3">
+            <label for="location_input" class="form-label ap-label">
+              Campus meetup spot <span class="text-danger" aria-hidden="true">*</span>
             </label>
-            <select id="location_input" name="location_options"
-                    class="form-select rounded-3" required>
-              <option value="" disabled selected>Select a meetup location...</option>
+            <select id="location_input" name="location_options" class="form-select" required>
+              <option value="" disabled selected>Select a meetup location…</option>
               {% for location in meetup_locations %}
               <option value="{{ location.name }}">{{ location.name }}</option>
               {% endfor %}
             </select>
-            <div class="form-text small">
+            <div class="form-text">
               Choose <strong>one</strong> preferred meetup location added by the administration.
             </div>
           </div>
 
-          <!-- Available Days -->
-          <div class="my-3">
-            <label class="form-label small fw-bold text-secondary">
-              Available Days <span class="text-danger">*</span>
+          <div class="mb-3">
+            <label class="form-label ap-label d-block">
+              Available days <span class="text-danger" aria-hidden="true">*</span>
             </label>
-            <div class="d-flex flex-wrap gap-2">
-              <div class="form-check">
-                <input class="form-check-input meetup-day" type="checkbox" value="Monday" id="day_mon" />
-                <label class="form-check-label small" for="day_mon">Mon</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input meetup-day" type="checkbox" value="Tuesday" id="day_tue" />
-                <label class="form-check-label small" for="day_tue">Tue</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input meetup-day" type="checkbox" value="Wednesday" id="day_wed" />
-                <label class="form-check-label small" for="day_wed">Wed</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input meetup-day" type="checkbox" value="Thursday" id="day_thu" />
-                <label class="form-check-label small" for="day_thu">Thu</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input meetup-day" type="checkbox" value="Friday" id="day_fri" />
-                <label class="form-check-label small" for="day_fri">Fri</label>
-              </div>
-              <div class="form-check">
-                <input class="form-check-input meetup-day" type="checkbox" value="Saturday" id="day_sat" />
-                <label class="form-check-label small" for="day_sat">Sat</label>
-              </div>
+            <div class="day-pills">
+              <input type="checkbox" class="btn-check meetup-day" id="day_mon" value="Monday" autocomplete="off" />
+              <label class="btn btn-outline-success btn-sm" for="day_mon">Mon</label>
+
+              <input type="checkbox" class="btn-check meetup-day" id="day_tue" value="Tuesday" autocomplete="off" />
+              <label class="btn btn-outline-success btn-sm" for="day_tue">Tue</label>
+
+              <input type="checkbox" class="btn-check meetup-day" id="day_wed" value="Wednesday" autocomplete="off" />
+              <label class="btn btn-outline-success btn-sm" for="day_wed">Wed</label>
+
+              <input type="checkbox" class="btn-check meetup-day" id="day_thu" value="Thursday" autocomplete="off" />
+              <label class="btn btn-outline-success btn-sm" for="day_thu">Thu</label>
+
+              <input type="checkbox" class="btn-check meetup-day" id="day_fri" value="Friday" autocomplete="off" />
+              <label class="btn btn-outline-success btn-sm" for="day_fri">Fri</label>
+
+              <input type="checkbox" class="btn-check meetup-day" id="day_sat" value="Saturday" autocomplete="off" />
+              <label class="btn btn-outline-success btn-sm" for="day_sat">Sat</label>
             </div>
-            <div class="form-text small">Select one or more days when you are available for meetup.</div>
+            <div id="days_error" class="text-danger small mt-1 d-none"></div>
+            <div class="form-text">Select one or more days when you are available.</div>
           </div>
 
-          <!-- Time Range -->
-          <div class="my-3">
-            <label class="form-label small fw-bold text-secondary">
-              Available Time <span class="text-danger">*</span>
+          <div>
+            <label class="form-label ap-label d-block">
+              Available time <span class="text-danger" aria-hidden="true">*</span>
             </label>
-            <div id="days_error" class="text-danger small mt-1 d-none"></div>
             <div class="row g-2">
               <div class="col-6">
-                <label class="form-label small text-muted mb-1">From</label>
-                <input type="time" id="meetup_time_from" name="meetup_time_from"
-                       class="form-control rounded-3" min="07:00" max="21:00" step="60" required />
+                <label for="meetup_time_from" class="form-label small text-muted mb-1">From</label>
+                <input type="time" id="meetup_time_from" name="meetup_time_from" class="form-control"
+                       min="07:00" max="21:00" step="60" required />
                 <div id="from_time_error" class="invalid-feedback d-none"></div>
               </div>
               <div class="col-6">
-                <label class="form-label small text-muted mb-1">To</label>
-                <input type="time" id="meetup_time_to" name="meetup_time_to"
-                       class="form-control rounded-3" min="07:00" max="21:00" step="60" required />
+                <label for="meetup_time_to" class="form-label small text-muted mb-1">To</label>
+                <input type="time" id="meetup_time_to" name="meetup_time_to" class="form-control"
+                       min="07:00" max="21:00" step="60" required />
                 <div id="to_time_error" class="invalid-feedback d-none"></div>
               </div>
             </div>
             <div id="time_range_error" class="text-danger small mt-1 d-none"></div>
-            <div class="form-text small">
+            <div class="form-text">
               Allowed: <strong>7:00 AM – 9:00 PM</strong>. From must be earlier than To.
             </div>
           </div>
+        </section>
 
-          <!-- Selling As -->
-          <div class="row g-2 mb-3">
-            <div class="col-12">
-              {% if request.user.user_role == 'management' %}
-              <label class="form-label small fw-bold text-primary">Selling As</label>
-              <select id="owner_type" name="owner_type" class="form-select bg-white border py-2 shadow-sm">
-                <option value="MANAGEMENT" selected>Management Listing</option>
-              </select>
-              {% elif request.user.is_officer %}
-              <label class="form-label small fw-bold text-primary">Selling As</label>
-              <select id="owner_type" name="owner_type" class="form-select bg-white border py-2 shadow-sm">
-                <option value="ORGANIZATION">Organization Listing</option>
-              </select>
-              {% else %}
-              <input type="hidden" id="owner_type" name="owner_type" value="PERSONAL" />
-              {% endif %}
-            </div>
+        {# ---------- Listing options ---------- #}
+        <section class="ap-card">
+          <h2 class="ap-card-title">
+            <span class="ap-ico"><i class="bi bi-sliders"></i></span>
+            Listing options
+          </h2>
+          <p class="ap-hint">How this item is sold and paid for.</p>
+
+          {% if request.user.user_role == 'management' %}
+          <div class="mb-3">
+            <label for="owner_type" class="form-label ap-label">Selling as</label>
+            <select id="owner_type" name="owner_type" class="form-select">
+              <option value="MANAGEMENT" selected>Management Listing</option>
+            </select>
           </div>
-
-          <!-- Pre-order -->
-          <div class="mb-3 form-check bg-light p-3 rounded border">
-            <input type="checkbox" class="form-check-input" id="is_pre_order" name="is_pre_order" />
-            <label class="form-check-label small fw-bold text-dark" for="is_pre_order">
-              <i class="bi bi-clock-history me-1 text-primary"></i> Mark as Pre-order Item
-            </label>
-            <div class="form-text small text-muted mt-1">
-              Check this if items are made-to-order or fulfillment takes longer than usual.
-            </div>
+          {% elif request.user.is_officer %}
+          <div class="mb-3">
+            <label for="owner_type" class="form-label ap-label">Selling as</label>
+            <select id="owner_type" name="owner_type" class="form-select">
+              <option value="ORGANIZATION">Organization Listing</option>
+            </select>
           </div>
+          {% else %}
+          <input type="hidden" id="owner_type" name="owner_type" value="PERSONAL" />
+          {% endif %}
 
-          <!-- ========== LETTER OF APPROVAL (Organization only) ========== -->
-          {% if request.user.is_officer %}
-            <div class="mb-3 p-3 rounded border bg-light" id="approval_letter_section">
-              <label class="form-label small fw-bold text-secondary d-block">
-                Attach Letter of Approval <span class="text-danger">*</span>
+          <div class="ap-option mb-3">
+            <div class="form-check form-switch mb-0">
+              <input type="checkbox" class="form-check-input" role="switch" id="is_pre_order" name="is_pre_order" />
+              <label class="form-check-label fw-bold" for="is_pre_order">
+                <i class="bi bi-clock-history me-1 text-success"></i> Mark as pre-order item
               </label>
-
-              <input
-                type="file"
-                id="approval_letter"
-                name="approval_letter"
-                class="form-control"
-                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                onchange="previewApprovalLetter(event)"
-              />
-
-              <div class="form-text small mt-1">JPG / PNG only · Maximum 10 MB</div>
-              <div id="approval_letter_error" class="text-danger small mt-1 d-none"></div>
-              <div id="approval_preview" class="mt-2"></div>
             </div>
-            {% endif %}
-          <!-- ========== END LETTER OF APPROVAL ========== -->
-
-          <div class="mb-4">
-            <label class="form-label small fw-bold text-secondary d-block">Accepted Payment</label>
-            <div class="btn-group w-100">
-              <input type="radio" class="btn-check" name="payment" id="p_cash" value="COP" checked />
-              <label class="btn btn-outline-success" for="p_cash">Cash</label>
+            <div class="form-text mt-1">
+              Turn this on if items are made-to-order or fulfillment takes longer than usual.
             </div>
           </div>
 
-          <button type="button" onclick="addToStaging()"
-                  class="btn btn-success w-100 py-3 fw-bold rounded-3 shadow">
-            Add to List
+          {% if request.user.is_officer %}
+          <div class="ap-option mb-3" id="approval_letter_section">
+            <label for="approval_letter" class="form-label ap-label d-block">
+              Letter of approval <span class="text-danger" aria-hidden="true">*</span>
+            </label>
+            <input type="file" id="approval_letter" name="approval_letter" class="form-control"
+                   accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                   onchange="previewApprovalLetter(event)" />
+            <div class="form-text small mt-1">JPG / PNG only · Maximum 10 MB</div>
+            <div id="approval_letter_error" class="text-danger small mt-1 d-none"></div>
+            <div id="approval_preview" class="mt-2"></div>
+          </div>
+          {% endif %}
+
+          <div>
+            <label class="form-label ap-label d-block">Accepted payment</label>
+            <div class="btn-group">
+              <input type="radio" class="btn-check" name="payment" id="p_cash" value="COP" checked />
+              <label class="btn btn-outline-success" for="p_cash">
+                <i class="bi bi-cash-coin me-1"></i> Cash
+              </label>
+            </div>
+          </div>
+        </section>
+
+        {# ---------- Sticky action bar ---------- #}
+        <div class="ap-actions">
+          <button type="button" onclick="addToStaging()" class="btn btn-success btn-lg w-100 fw-bold ap-add-btn">
+            <i class="bi bi-plus-circle me-2"></i>Add to list
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
 
-    <!-- 3. STAGING LIST -->
-    <div class="col-lg-4">
-      <div class="card border-0 shadow-sm rounded-4 p-3 h-100 d-flex flex-column">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="fw-bold text-uppercase small text-muted mb-0">3. Staging List</h6>
-          <span id="item_count" class="badge bg-dark rounded-pill">{{ staged_items|length }}</span>
+    {# ========== RIGHT: STAGING LIST ========== #}
+    <div class="col-lg-5 col-xl-4">
+      <aside class="ap-card ap-staging d-flex flex-column" id="staging_panel">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <h2 class="ap-card-title mb-0">
+            <span class="ap-ico"><i class="bi bi-list-check"></i></span>
+            Staging list
+          </h2>
+          <span id="item_count" class="badge bg-success rounded-pill">{{ staged_items|length }}</span>
         </div>
+        <p class="ap-hint mb-3">Review your items, then send them all for authentication.</p>
 
-        <div id="staging_area" class="column-scroll flex-grow-1 mb-3" style="overflow-y: auto">
+        <div id="staging_area" class="column-scroll flex-grow-1 mb-3">
           {% if not staged_items %}
-          <div class="text-center py-5 text-muted empty-msg">List is empty.</div>
+          <div class="text-center py-5 text-muted small empty-msg">List is empty.</div>
           {% endif %}
           {% for item in staged_items %}
           <div class="card staged-item mb-3 p-3 bg-white border shadow-sm" data-id="{{ item.id }}">
             <div class="d-flex align-items-start">
-              {% with img=item.images.first %}
+              {% with img=item.images.all|first %}
               {% if img %}
-              <img src="{{ img.image.url }}" class="rounded shadow-sm me-3"
+              <img src="{{ img.image.url }}" alt="" class="rounded shadow-sm me-3"
                    style="width: 50px; height: 50px; object-fit: cover" />
               {% endif %}
               {% endwith %}
@@ -340,17 +416,21 @@
                 <div class="d-flex justify-content-between align-items-start">
                   <h6 class="mb-0 fw-bold text-dark">{{ item.name }}</h6>
                   <div class="d-flex gap-2">
-                    <button class="btn btn-sm text-primary p-0" onclick="editItem({{ item.id }})">
+                    <button type="button" class="btn btn-sm text-primary p-0" aria-label="Edit {{ item.name }}"
+                            onclick="editItem({{ item.id }})">
                       <i class="bi bi-pencil-square"></i>
                     </button>
-                    <button class="btn btn-sm text-danger p-0"
+                    <button type="button" class="btn btn-sm text-danger p-0" aria-label="Remove {{ item.name }}"
                             onclick="removeItem(this, {{ item.id }})">
                       <i class="bi bi-trash-fill"></i>
                     </button>
                   </div>
                 </div>
                 <div class="small text-muted">
-                  ₱{{ item.variants.first.price|default:'0' }}
+                  {% with first_variant=item.variants.all|first %}
+                  ₱{{ first_variant.price|default:'0' }}
+                  {% endwith %}
+                  {% if item.product_code %}· {{ item.product_code }}{% endif %}
                 </div>
               </div>
             </div>
@@ -358,17 +438,118 @@
           {% endfor %}
         </div>
 
-        <div class="mt-auto pt-3 border-top">
-          <button class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">
-            Send for Authentication
-          </button>
-        </div>
-      </div>
+        <button type="button" class="btn btn-dark btn-lg w-100 fw-bold" onclick="submitToAdmin()">
+          Send for Authentication
+        </button>
+      </aside>
     </div>
+
   </div>
 </div>
+{% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'UTrade_app/js/workshop.js' %}"></script>
-{% endblock %}
+<script>
+/* Page-level glue that keeps the asterisks honest. workshop.js itself is unchanged. */
+(function () {
+  // 1) "Total stocks" is only required while it's editable (categories without variations)
+  var stocks = document.getElementById('stocks');
+  var stockReq = document.getElementById('stock_required');
+  var stockHint = document.getElementById('stock_hint');
+
+  function syncStockLabel() {
+    var editable = stocks && !stocks.readOnly;
+    if (stockReq) stockReq.classList.toggle('d-none', !editable);
+    if (stockHint) {
+      stockHint.textContent = editable
+        ? 'How many items you have in total.'
+        : 'Calculated automatically from your variations.';
+    }
+  }
+  if (stocks) {
+    new MutationObserver(syncStockLabel).observe(stocks, {
+      attributes: true,
+      attributeFilter: ['readonly']
+    });
+    syncStockLabel();
+  }
+
+  // 2) Editing a single-item listing: show its saved price/condition again
+  var simpleSection = document.getElementById('simple_price_section');
+  if (simpleSection) {
+    new MutationObserver(function () {
+      if (simpleSection.classList.contains('d-none')) return;
+      var vs = window.productVariants || [];
+      if (vs.length !== 1) return;
+      var priceEl = document.getElementById('price');
+      var condEl = document.getElementById('simple_condition');
+      if (priceEl && !priceEl.value) priceEl.value = vs[0].price;
+      if (condEl && vs[0].condition) condEl.value = vs[0].condition;
+    }).observe(simpleSection, { attributes: true, attributeFilter: ['class'] });
+  }
+
+  // 3) A variation must have a price (it used to silently default to ₱0)
+  var origAddVariant = window.addVariant;
+  if (typeof origAddVariant === 'function') {
+    window.addVariant = function () {
+      var nameEl = document.getElementById('variant_name');
+      var stockEl = document.getElementById('variant_stock');
+      var priceEl = document.getElementById('variant_price');
+      var hasBasics = nameEl && nameEl.value.trim() && stockEl && stockEl.value;
+
+      if (hasBasics) {
+        var price = parseFloat(priceEl && priceEl.value);
+        if (!(price > 0)) {
+          if (priceEl) { priceEl.classList.add('is-invalid'); priceEl.focus(); }
+          return Swal.fire(
+            'Price Required',
+            'Please enter a price greater than 0 for this variation.',
+            'warning'
+          );
+        }
+      }
+      return origAddVariant.apply(this, arguments);
+    };
+  }
+
+  // 4) Categories without variations: price + stock are required, and are saved
+  //    as one "Standard" variation (the server only stores price/stock on variations)
+  var origAddToStaging = window.addToStaging;
+  if (typeof origAddToStaging === 'function') {
+    window.addToStaging = function () {
+      var attrSection = document.getElementById('attributes_section');
+      var simpleMode = attrSection && attrSection.classList.contains('d-none');
+
+      if (simpleMode) {
+        var priceEl = document.getElementById('price');
+        var stocksEl = document.getElementById('stocks');
+        var condEl = document.getElementById('simple_condition');
+        var price = parseFloat(priceEl && priceEl.value);
+        var stock = parseInt(stocksEl && stocksEl.value, 10);
+
+        if (!(price > 0)) {
+          if (priceEl) { priceEl.classList.add('is-invalid'); priceEl.focus(); }
+          return Swal.fire('Price Required', 'Please enter a price greater than 0.', 'warning');
+        }
+        if (!(stock > 0)) {
+          if (stocksEl) { stocksEl.classList.add('is-invalid'); stocksEl.focus(); }
+          return Swal.fire('Stock Required', 'Please enter how many items are available.', 'warning');
+        }
+
+        window.productVariants = [{
+          name: 'Standard',
+          price: price,
+          stock: stock,
+          attribute: '',
+          condition: condEl ? condEl.value : 'Brand New',
+          flaws: '',
+          imageIndex: null
+        }];
+      }
+      return origAddToStaging.apply(this, arguments);
+    };
+  }
+})();
+</script>
 {% endblock %}

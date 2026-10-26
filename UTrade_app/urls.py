@@ -3,7 +3,7 @@ from .views import (
     items_views, user_views, authenticate,
     admin_views, cart_views, order_views, chat_views,
     organization_views, management_views, alumni_views,
-    otplink_views, reports_views, osas_sds_views
+    otplink_views, reports_views, osas_sds_views,  password_reset_views
 )
 
 urlpatterns = [
@@ -195,4 +195,8 @@ urlpatterns = [
     path('management/product/<int:product_id>/unlist-form/', management_views.management_unlist_product_form, name='management.product_unlist_form'),
     path('management/product/<int:product_id>/list/', management_views.management_list_product, name='management.product_list'),
     path('product/<int:pk>/edit/', management_views.ProductUpdateView.as_view(), name='product.edit'),
+    
+    path('forgot-password/', password_reset_views.forgot_password, name='forgot_password'),
+    path('reset-password/verify/', password_reset_views.password_reset_verify, name='password_reset_verify'),
+    path('reset-password/new/', password_reset_views.password_reset_new, name='password_reset_new'),
 ]

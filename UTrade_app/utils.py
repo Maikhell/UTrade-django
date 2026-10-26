@@ -13,6 +13,7 @@ from django.db import transaction
 logger = logging.getLogger(__name__)
 
 PLATFORM_FEE_RATE = Decimal('0.03')
+
 ALLOWED_EMAIL_DOMAINS = ('cvsu.edu.ph', 'gmail.com')
 
 
@@ -28,6 +29,7 @@ def needs_google_completion(user):
     student_no = str(getattr(user, 'student_no', '') or '')
     return (not student_no) or student_no.startswith('TMP-')
 
+
 def is_pending_verification(user):
     """Registered with email + password but never finished the OTP step."""
     return (
@@ -35,7 +37,8 @@ def is_pending_verification(user):
         and not user.is_email_verified
         and user.last_login is None
     )
-    
+
+
 def log_action(user, action, item_type, item_name, details=""):
     SystemLog.objects.create(
         user=user,
@@ -77,9 +80,10 @@ def send_email(to, subject, text, html=None):
         raise
 
 
-def send_otp_email(user):
+def send_otp_email(user, purpose='verify'):
     """
     Generate a 6-digit OTP, store expiry on the user, email it to user.email via Resend.
+    purpose: 'verify' (account verification) or 'reset' (password reset).
     Raises on missing email or send failure so the caller can show a message.
     """
     recipient = (getattr(user, 'email', None) or '').strip()
@@ -91,14 +95,27 @@ def send_otp_email(user):
     user.otp_expiry = timezone.now() + timedelta(minutes=10)
     user.save(update_fields=['otp_code', 'otp_expiry'])
 
-    subject = 'Verify your UTrade Account'
-    message = (
-        f'Hi {user.first_name or user.username or "there"},\n\n'
-        f'Your UTrade verification code is: {otp}\n\n'
-        f'This code expires in 10 minutes.\n\n'
-        f'If you did not register for UTrade, you can ignore this email.\n\n'
-        f'— UTrade CVSU'
-    )
+    name = user.first_name or user.username or 'there'
+
+    if purpose == 'reset':
+        subject = 'Reset your UTrade password'
+        message = (
+            f'Hi {name},\n\n'
+            f'Use this code to reset your UTrade password: {otp}\n\n'
+            f'This code expires in 10 minutes.\n\n'
+            f'If you did not request a password reset, you can ignore this email. '
+            f'Your password will not change.\n\n'
+            f'— UTrade CVSU'
+        )
+    else:
+        subject = 'Verify your UTrade Account'
+        message = (
+            f'Hi {name},\n\n'
+            f'Your UTrade verification code is: {otp}\n\n'
+            f'This code expires in 10 minutes.\n\n'
+            f'If you did not register for UTrade, you can ignore this email.\n\n'
+            f'— UTrade CVSU'
+        )
 
     return send_email(recipient, subject, message)
 
@@ -215,4 +232,3 @@ def accrue_platform_fee_for_order(order):
     ledger.save(update_fields=['accumulated_sales', 'accumulated_fee'])
 
     return line
-

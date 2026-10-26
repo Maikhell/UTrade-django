@@ -44,6 +44,8 @@ class LoginRequiredMiddleware:
             '/register/',
             '/verify-email/',
             '/verify-otp/',
+            '/forgot-password/',
+            '/reset-password/',
         )
 
         if any(current_path.startswith(p) for p in exempt_prefixes):

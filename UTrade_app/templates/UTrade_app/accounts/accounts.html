@@ -7,6 +7,11 @@
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'UTrade_app/css/accounts.css' %}" />
   <style>
+    :root {
+      --ut-green: #198754;
+      --ut-green-dark: #146c43;
+      --ut-green-soft: #e8f5ee;
+    }
     .action-card {
       transition: transform 0.15s ease, box-shadow 0.15s ease;
       position: relative;
@@ -15,6 +20,24 @@
       transform: translateY(-2px);
       box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
     }
+    .ap-header {
+      margin-bottom: 1.25rem;
+    }
+
+    .ap-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #6c757d;
+      text-decoration: none;
+    }
+
+    .ap-back:hover {
+      color: var(--ut-green);
+    }
+
     .icon-box {
       width: 52px;
       height: 52px;

@@ -1,6 +1,6 @@
 {% with role=seller.user_role|default:''|lower %}
   {% if role == 'management' or role == 'admin' %}
-    <span class="oc-role oc-role--mgmt">Management</span>
+    <span class="oc-role oc-role--mgmt">CBRGU</span>
   {% elif seller.organization or role == 'organization' or role == 'org_officer' or role == 'alumni_assoc' %}
     <span class="oc-role oc-role--org">Organization</span>
   {% else %}

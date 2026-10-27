@@ -1,0 +1,157 @@
+{% load humanize %}
+{% with p=po.product_variant.product %}
+<div class="modal fade oc-modal" id="preorderModal{{ po.id }}" tabindex="-1"
+     aria-labelledby="preorderModalLabel{{ po.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-sm-down">
+    <div class="modal-content ui-{{ po.ui_class }}">
+
+      <div class="modal-header oc-mhead oc-mhead--{{ po.ui_class }}">
+        <div>
+          <div class="oc-mkind"><i class="bi bi-clock-history"></i> Pre-order</div>
+          <h5 class="modal-title" id="preorderModalLabel{{ po.id }}">Request #{{ po.id }}</h5>
+          <div class="oc-msub">Requested {{ po.created_at|date:"M d, Y · h:i A" }}</div>
+        </div>
+        <div class="d-flex align-items-start gap-2">
+          <span class="oc-chip st-{{ po.ui_class }}"><span class="oc-dot"></span>{{ po.ui_label }}</span>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+
+        {% if po.step %}
+          <section class="oc-msec">
+            <h6 class="oc-mtitle">Progress</h6>
+            {% include "UTrade_app/orders/partials/steps.html" with steps=preorder_steps current=po.step sub=po.ui_label sub_at=3 %}
+            {% if po.estimated_pickup and po.in_flight %}
+              <div class="oc-eta"><i class="bi bi-hourglass-split"></i> Estimated ready: <strong>{{ po.estimated_pickup }}</strong></div>
+            {% endif %}
+          </section>
+        {% elif po.ui_class == 'rejected' %}
+          <div class="oc-alert oc-alert--rejected">
+            <i class="bi bi-x-octagon"></i>
+            <div>
+              <strong>This pre-order was rejected.</strong>
+              <div>{{ po.rejection_reason|default:"No reason provided." }}</div>
+              {% if po.rejection_note %}<div class="mt-1">{{ po.rejection_note }}</div>{% endif %}
+            </div>
+          </div>
+        {% else %}
+          <div class="oc-alert oc-alert--cancelled">
+            <i class="bi bi-slash-circle"></i>
+            <div>
+              <strong>This pre-order was cancelled.</strong>
+              <div>{% if po.rejection_note %}{{ po.rejection_note }}{% else %}{{ po.rejection_reason|default:"No reason provided." }}{% endif %}</div>
+            </div>
+          </div>
+        {% endif %}
+
+        <section class="oc-msec">
+          <h6 class="oc-mtitle">Pre-order information</h6>
+          <div class="oc-info-grid">
+            <div class="oc-info">
+              <span class="oc-info-label">Payment</span>
+              <span class="oc-info-value">Cash on pickup <span class="oc-pill">Pay at pickup</span></span>
+            </div>
+            <div class="oc-info">
+              <span class="oc-info-label">Status</span>
+              <span class="oc-info-value"><span class="oc-chip st-{{ po.ui_class }}"><span class="oc-dot"></span>{{ po.ui_label }}</span></span>
+            </div>
+            <div class="oc-info">
+              <span class="oc-info-label">Pickup location</span>
+              <span class="oc-info-value">{{ p.meetup_location_text|default:"To be confirmed" }}</span>
+            </div>
+            <div class="oc-info">
+              <span class="oc-info-label">Available days</span>
+              <span class="oc-info-value">{{ p.available_days|default:"—" }}</span>
+            </div>
+            <div class="oc-info">
+              <span class="oc-info-label">Time range</span>
+              <span class="oc-info-value">
+                {% if p.preferred_meetup_time_from and p.preferred_meetup_time_to %}
+                  {{ p.preferred_meetup_time_from|time:"g:i A" }} – {{ p.preferred_meetup_time_to|time:"g:i A" }}
+                {% else %}—{% endif %}
+              </span>
+            </div>
+            <div class="oc-info">
+              <span class="oc-info-label">Estimated ready</span>
+              <span class="oc-info-value">{{ po.estimated_pickup|default:"To be confirmed" }}</span>
+            </div>
+            <div class="oc-info">
+              <span class="oc-info-label">Last updated</span>
+              <span class="oc-info-value">{{ po.updated_at|date:"M d, Y · h:i A" }}</span>
+            </div>
+          </div>
+          {% if po.seller_note %}
+            <div class="oc-note oc-note--seller"><span>Seller's note</span>{{ po.seller_note }}</div>
+          {% endif %}
+          {% if po.full_name_at_time %}
+            <div class="oc-note"><span>Requested as</span>
+              {{ po.full_name_at_time }}{% if po.student_no_at_time %} · {{ po.student_no_at_time }}{% endif %}{% if po.course_at_time %} · {{ po.course_at_time }}{% if po.section_at_time %} {{ po.section_at_time }}{% endif %}{% endif %}
+            </div>
+          {% endif %}
+        </section>
+
+        <section class="oc-msec">
+          <h6 class="oc-mtitle">Item</h6>
+          <div class="oc-mgroup">
+            <div class="oc-mgroup-head">
+              <div class="oc-seller">
+                <i class="bi bi-shop"></i>
+                {% if po.seller %}
+                  <span class="oc-seller-name">{{ po.seller.get_full_name|default:po.seller.username }}</span>
+                  {% include "UTrade_app/orders/partials/seller_chip.html" with seller=po.seller %}
+                {% else %}
+                  <span class="text-muted">Unknown seller</span>
+                {% endif %}
+              </div>
+              {% if p and p.id %}
+                <a href="{% url 'start_chat' product_id=p.id %}" class="btn btn-outline-secondary btn-sm">
+                  <i class="bi bi-chat-dots"></i> Message seller
+                </a>
+              {% else %}
+                <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Item unavailable</button>
+              {% endif %}
+            </div>
+
+            <div class="oc-item">
+              <div class="oc-thumb">
+                {% with img=p.images.all|first %}
+                  {% if p.image %}
+                    <img src="{{ p.image.url }}" alt="">
+                  {% elif img %}
+                    <img src="{{ img.image.url }}" alt="">
+                  {% else %}
+                    <i class="bi bi-image"></i>
+                  {% endif %}
+                {% endwith %}
+              </div>
+              <div class="oc-item-info">
+                <div class="oc-item-name">{{ p.name|default:"Deleted product" }}</div>
+                <div class="oc-item-sub">
+                  {{ po.product_variant.variant_name }} · {{ po.quantity }} × ₱{{ po.product_variant.price|floatformat:2|intcomma }}
+                </div>
+              </div>
+              <div class="oc-item-total">₱{{ po.get_total_price|floatformat:2|intcomma }}</div>
+            </div>
+          </div>
+
+          <div class="oc-totals">
+            <span>Estimated total</span>
+            <strong>₱{{ po.get_total_price|floatformat:2|intcomma }}</strong>
+          </div>
+        </section>
+      </div>
+
+      <div class="modal-footer oc-mfoot">
+        {% if po.status|upper == 'COMPLETED' %}
+          <a href="{% url 'generate_preorder_receipt' po.id %}" class="btn btn-outline-dark btn-sm">
+            <i class="bi bi-download"></i> Receipt
+          </a>
+        {% endif %}
+        <button type="button" class="btn btn-success btn-sm px-4" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}

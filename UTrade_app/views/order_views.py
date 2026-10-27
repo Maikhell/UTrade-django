@@ -24,6 +24,55 @@ from ..models import (
     PreOrderRequest,
 )
 
+# ---------------------------------------------------------------------------
+# Order / pre-order progress, used by the "My Purchases" page
+# ---------------------------------------------------------------------------
+ORDER_STEPS = ['Placed', 'Accepted', 'Ready for pickup', 'Completed']
+PREORDER_STEPS = ['Requested', 'Accepted', 'In progress', 'Ready for pickup', 'Completed']
+
+# status -> (css key, label, step)
+# step 0 = ended early (cancelled / rejected); len(steps) + 1 = every step done
+ORDER_STATUS_META = {
+    'Pending': ('pending', 'Pending', 1),
+    'Paid': ('pending', 'Paid · awaiting seller', 1),
+    'Accepted': ('accepted', 'Accepted', 2),
+    'Delivered': ('ready', 'Ready for pickup', 3),
+    'Completed': ('completed', 'Completed', 5),
+    'Cancelled': ('cancelled', 'Cancelled', 0),
+    'Rejected': ('rejected', 'Rejected', 0),
+}
+
+PREORDER_STATUS_META = {
+    'PENDING': ('pending', 'Pending', 1),
+    'ACCEPTED': ('accepted', 'Accepted', 2),
+    'APPROVED': ('accepted', 'Accepted', 2),
+    'PROCESSING': ('progress', 'Processing', 3),
+    'PREPARING': ('progress', 'Preparing', 3),
+    'AWAITING_PAYMENT': ('progress', 'Awaiting payment', 3),
+    'WAITING_STOCKS': ('progress', 'Waiting for stocks', 3),
+    'READY': ('ready', 'Ready for pickup', 4),
+    'COMPLETED': ('completed', 'Completed', 6),
+    'REJECTED': ('rejected', 'Rejected', 0),
+    'DECLINED': ('cancelled', 'Cancelled', 0),
+    'CANCELLED': ('cancelled', 'Cancelled', 0),
+}
+
+PREORDER_IN_PROGRESS = {
+    'PENDING', 'ACCEPTED', 'APPROVED', 'PROCESSING', 'PREPARING',
+    'AWAITING_PAYMENT', 'WAITING_STOCKS',
+}
+
+
+def _decorate(obj, meta, kind, n_steps, status):
+    """Attach display info (colour key, label, step) used by the templates."""
+    key, label, step = meta.get(status, ('pending', obj.status, 1))
+    obj.kind = kind
+    obj.ui_class = key
+    obj.ui_label = label
+    obj.step = step
+    obj.in_flight = 1 <= step <= n_steps
+    return obj
+
 
 @login_required
 @transaction.atomic
@@ -168,29 +217,20 @@ def order_success(request, order_id):
 
 @login_required
 def order_history(request):
-    orders = (
+    orders = list(
         Order.objects.filter(user=request.user)
         .select_related('seller')
         .prefetch_related(
-            'items__product_variant__product',
             'items__product_variant__product__seller',
+            'items__product_variant__product__images',
             'order_reviews',
         )
         .order_by('-created_at')
     )
+    for o in orders:
+        _decorate(o, ORDER_STATUS_META, 'order', len(ORDER_STEPS), (o.status or '').title())
 
-    pending_orders = orders.filter(status__in=['Pending', 'Paid'])
-    pickup_orders = orders.filter(status__in=['Accepted', 'Delivered'])
-
-    completed = list(orders.filter(status='Completed'))
-    cancelled = list(orders.filter(status='Cancelled'))
-
-    # Unrated completed first, then rated completed, cancelled last
-    needs_rating = [o for o in completed if not o.is_rated]
-    already_rated = [o for o in completed if o.is_rated]
-    history_orders = needs_rating + already_rated + cancelled
-
-    preorders = (
+    preorders = list(
         PreOrderRequest.objects.filter(buyer=request.user)
         .select_related(
             'seller',
@@ -198,26 +238,71 @@ def order_history(request):
             'product_variant__product',
             'product_variant__product__seller',
         )
+        .prefetch_related('product_variant__product__images')
         .order_by('-created_at')
     )
-    preorder_pending = preorders.filter(status__in=['PENDING', 'APPROVED', 'PREPARING'])
-    preorder_ready = preorders.filter(status='READY')
+    for po in preorders:
+        _decorate(po, PREORDER_STATUS_META, 'preorder', len(PREORDER_STEPS), (po.status or '').upper())
+
+    # ---- Orders by tab ----
+    active_orders = [o for o in orders if o.status in ('Pending', 'Paid')]
+    pickup_orders = [o for o in orders if o.status in ('Accepted', 'Delivered')]
+    completed = [o for o in orders if o.status == 'Completed']
+    # Cancelled AND rejected orders used to be missing from every tab
+    ended = [o for o in orders if o.status in ('Cancelled', 'Rejected')]
+
+    needs_rating = [o for o in completed if not o.is_rated]
+    already_rated = [o for o in completed if o.is_rated]
+    history_orders = needs_rating + already_rated + ended
+
+    # ---- Pre-orders by tab ----
+    preorder_active = [po for po in preorders if (po.status or '').upper() in PREORDER_IN_PROGRESS]
+    preorder_ready = [po for po in preorders if (po.status or '').upper() == 'READY']
+    preorder_history = [
+        po for po in preorders
+        if (po.status or '').upper() not in PREORDER_IN_PROGRESS
+        and (po.status or '').upper() != 'READY'
+    ]
+
+    def newest_first(items):
+        return sorted(items, key=lambda x: x.created_at, reverse=True)
+
+    # Mixed lists (orders + pre-orders), one per tab
+    active_items = newest_first(active_orders + preorder_active)
+    pickup_items = newest_first(pickup_orders + preorder_ready)
+    history_items = sorted(
+        history_orders + preorder_history,
+        key=lambda x: (
+            0 if (x.kind == 'order' and x.status == 'Completed' and not x.is_rated) else 1,
+            -x.created_at.timestamp(),
+        ),
+    )
 
     context = {
+        # kept for backward compatibility
         'orders': orders,
-        'pending_orders': pending_orders,
-        'pending_count': pending_orders.count(),
+        'pending_orders': active_orders,
+        'pending_count': len(active_orders),
         'pickup_orders': pickup_orders,
-        'pickup_count': pickup_orders.count(),
-        'history_orders': history_orders,  # use this in History tab
+        'pickup_count': len(pickup_orders),
+        'history_orders': history_orders,
         'completed_orders': completed,
         'completed_count': len(completed),
         'preorders': preorders,
-        'preorder_pending_count': preorder_pending.count(),
-        'preorder_ready_count': preorder_ready.count(),
+        'preorder_pending_count': len(preorder_active),
+        'preorder_ready_count': len(preorder_ready),
+        # used by the redesigned page
+        'active_items': active_items,
+        'pickup_items': pickup_items,
+        'history_items': history_items,
+        'all_items': active_items + pickup_items + history_items,
+        'active_count': len(active_items),
+        'pickup_total': len(pickup_items),
+        'history_total': len(history_items),
+        'order_steps': ORDER_STEPS,
+        'preorder_steps': PREORDER_STEPS,
     }
     return render(request, 'UTrade_app/orders/history.html', context)
-
 
 
 @login_required
@@ -285,34 +370,23 @@ def mark_order_delivered(request, order_id):
 
 @login_required
 def confirm_receipt(request, order_id):
-    if request.method == 'POST':
-        order = get_object_or_404(Order, id=order_id, user=request.user)
-
-        if order.status == 'Completed':
-            messages.info(request, "This order is already completed. You can now rate the product.")
-        elif order.status in ('Accepted', 'Delivered'):
-            order.status = 'Completed'
-            order.save(update_fields=['status', 'updated_at'])
-
-            for item in order.items.all():
-                product = item.product_variant.product
-                product.sold += item.quantity
-                product.save(update_fields=['sold'])
-
-            # Accrue platform fee & ledger record
-            accrue_platform_fee_for_order(order)
-
-            messages.success(request, "Order completed! Please rate the product.")
-        else:
-            messages.error(request, "This order cannot be confirmed yet.")
-
+    """
+    Buyers are not allowed to mark an order as delivered/completed.
+    Only the seller (or management) can do that, which also updates sold counts
+    and the platform-fee ledger. The URL is kept so old links don't 404.
+    """
+    messages.error(
+        request,
+        "Orders are marked as completed by the seller. "
+        "You'll be able to rate the order once it is completed.",
+    )
     return redirect('order_history')
 
 
 @login_required
 @require_POST
 def update_preorder_status(request, order_id):
-    """Buyer actions on PreOrderRequest (cancel / complete)."""
+    """Buyer action on a PreOrderRequest: a buyer may only cancel a pending pre-order."""
     try:
         data = json.loads(request.body)
         new_status = (data.get('status') or '').upper()
@@ -320,40 +394,28 @@ def update_preorder_status(request, order_id):
 
         po = get_object_or_404(PreOrderRequest, id=order_id, buyer=request.user)
 
-        valid = {'PENDING', 'APPROVED', 'PREPARING', 'READY', 'COMPLETED', 'DECLINED'}
-        if new_status not in valid:
-            return JsonResponse({'success': False, 'message': 'Invalid status.'}, status=400)
+        if new_status != 'DECLINED':
+            return JsonResponse(
+                {'success': False, 'message': 'Buyers can only cancel a pending pre-order.'},
+                status=403,
+            )
 
-        if new_status == 'DECLINED':
-            if (po.status or '').upper() != 'PENDING':
-                return JsonResponse(
-                    {'success': False, 'message': 'Only pending pre-orders can be cancelled.'},
-                    status=400,
-                )
-            if not reason:
-                return JsonResponse(
-                    {'success': False, 'message': 'Cancellation reason is required.'},
-                    status=400,
-                )
-            po.status = 'DECLINED'
-            if hasattr(po, 'cancellation_reason'):
-                po.cancellation_reason = reason
-                po.save(update_fields=['status', 'cancellation_reason'])
-            else:
-                po.save(update_fields=['status'])
-            return JsonResponse({'success': True, 'message': 'Pre-order cancelled.'})
+        if (po.status or '').upper() != 'PENDING':
+            return JsonResponse(
+                {'success': False, 'message': 'Only pending pre-orders can be cancelled.'},
+                status=400,
+            )
+        if not reason:
+            return JsonResponse(
+                {'success': False, 'message': 'Cancellation reason is required.'},
+                status=400,
+            )
 
-        if new_status == 'COMPLETED':
-            if (po.status or '').upper() != 'READY':
-                return JsonResponse(
-                    {'success': False, 'message': 'Pre-order is not ready yet.'},
-                    status=400,
-                )
-            po.status = 'COMPLETED'
-            po.save(update_fields=['status'])
-            return JsonResponse({'success': True, 'message': 'Pre-order completed.'})
-
-        return JsonResponse({'success': False, 'message': 'Action not allowed.'}, status=400)
+        po.status = 'DECLINED'
+        po.rejection_reason = 'Buyer request'
+        po.rejection_note = reason
+        po.save(update_fields=['status', 'rejection_reason', 'rejection_note', 'updated_at'])
+        return JsonResponse({'success': True, 'message': 'Pre-order cancelled.'})
 
     except json.JSONDecodeError:
         return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)

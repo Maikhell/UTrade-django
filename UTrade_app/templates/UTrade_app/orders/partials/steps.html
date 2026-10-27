@@ -1,0 +1,13 @@
+<ol class="oc-steps" aria-label="Progress">
+  {% for label in steps %}
+  <li class="oc-step{% if forloop.counter < current %} is-done{% elif forloop.counter == current %} is-current{% endif %}"{% if forloop.counter == current %} aria-current="step"{% endif %}>
+    <span class="oc-step-dot" aria-hidden="true">
+      {% if forloop.counter < current %}<i class="bi bi-check-lg"></i>{% else %}{{ forloop.counter }}{% endif %}
+    </span>
+    <span class="oc-step-label">
+      {{ label }}
+      {% if sub and forloop.counter == sub_at and current == sub_at %}<small>{{ sub }}</small>{% endif %}
+    </span>
+  </li>
+  {% endfor %}
+</ol>

@@ -5,6 +5,7 @@ import uuid
 from datetime import timedelta
 from decimal import Decimal
 
+from ..course_utils import course_q, course_matches
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -1484,7 +1485,7 @@ def org_pending_verification(request):
         .order_by("-date_joined")
     )
     if course_code:
-        qs = qs.filter(course__iexact=course_code)
+        qs = qs.filter(course_q(course_code))
     else:
         qs = qs.filter(org_link=org)
 
@@ -1534,7 +1535,7 @@ def org_users(request):
     ).order_by("-date_joined")
 
     if course_code:
-        qs = qs.filter(course__iexact=course_code)
+        qs = qs.filter(course_q(course_code))
     else:
         qs = qs.filter(org_link=org)
 
@@ -1585,7 +1586,7 @@ def org_message_user(request):
 
     course_code = (org.course_code or "").strip()
     target = get_object_or_404(User, id=target_id, user_role="student")
-    if course_code and (target.course or "").upper() != course_code.upper():
+    if course_code and not course_matches(target.course, course_code):
         return JsonResponse({"success": False, "message": "User is not in your course."}, status=403)
 
     # Conversation: org officer as buyer side, student as seller (product optional)
@@ -1633,7 +1634,7 @@ def org_report_user(request):
 
     course_code = (org.course_code or "").strip()
     target = get_object_or_404(User, id=target_id, user_role="student")
-    if course_code and (target.course or "").upper() != course_code.upper():
+    if course_code and not course_matches(target.course, course_code):
         return JsonResponse({"success": False, "message": "User is not in your course."}, status=403)
 
     if target.id == request.user.id:

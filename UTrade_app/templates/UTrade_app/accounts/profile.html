@@ -72,9 +72,13 @@
                   <div class="col-12">
                     <h6 class="fw-bold text-uppercase text-muted small mb-3">Representative Details</h6>
                   </div>
-            <form method="POST" enctype="multipart/form-data" id="profileForm">
+
+            {# data-reverify="1" only for VERIFIED students / alumni #}
+            <form method="POST" enctype="multipart/form-data" id="profileForm"
+                  data-reverify="{% if user.status|lower == 'verified' %}{% if user.user_role == 'student' or user.user_role == 'alumni' %}1{% endif %}{% endif %}">
               {% csrf_token %}
               <input type="file" name="image" id="id_profile_picture" class="d-none" onchange="previewAvatar(event)" />
+              <input type="hidden" name="confirm_reverify" id="confirm_reverify" value="" />
 
               <div class="row g-3">
 
@@ -82,18 +86,21 @@
                 <div class="col-md-6">
                   <label class="form-label small fw-bold text-secondary">First Name <span class="text-danger">*</span></label>
                   <input type="text" name="first_name" class="form-control rounded-3"
-                         value="{{ user.first_name }}" required />
+                         value="{{ user.first_name }}" required
+                         data-track data-label="First name" data-original="{{ user.first_name }}" />
                 </div>
                 <div class="col-md-6">
                   <label class="form-label small fw-bold text-secondary">Last Name <span class="text-danger">*</span></label>
                   <input type="text" name="last_name" class="form-control rounded-3"
-                         value="{{ user.last_name }}" required />
+                         value="{{ user.last_name }}" required
+                         data-track data-label="Last name" data-original="{{ user.last_name }}" />
                 </div>
 
                 <!-- Suffix (optional for everyone) -->
                 <div class="col-md-6">
                   <label class="form-label small fw-bold text-secondary">Suffix</label>
-                  <select name="suffix" class="form-select rounded-3">
+                  <select name="suffix" class="form-select rounded-3"
+                          data-track data-label="Suffix" data-original="{{ user.suffix|default:'' }}">
                     <option value="" {% if not user.suffix %}selected{% endif %}>None</option>
                     <option value="Jr." {% if user.suffix == "Jr." %}selected{% endif %}>Jr.</option>
                     <option value="Sr." {% if user.suffix == "Sr." %}selected{% endif %}>Sr.</option>
@@ -114,19 +121,20 @@
                   </select>
                 </div>
 
-                <!-- ID field (label changes by role) -->
+                <!-- ID field (label changes by role) – now editable -->
                 <div class="col-md-6">
                   {% if user.user_role == 'management' %}
-                    <label class="form-label small fw-bold text-secondary">Staff ID</label>
+                    <label class="form-label small fw-bold text-secondary">Staff ID <span class="text-danger">*</span></label>
                   {% elif user.user_role == 'campus_admin' %}
-                    <label class="form-label small fw-bold text-secondary">Campus Admin ID</label>
+                    <label class="form-label small fw-bold text-secondary">Campus Admin ID <span class="text-danger">*</span></label>
                   {% else %}
-                    <label class="form-label small fw-bold text-secondary">Student Number</label>
+                    <label class="form-label small fw-bold text-secondary">Student Number <span class="text-danger">*</span></label>
                   {% endif %}
-                  <input type="text" name="student_no"
-                         class="form-control rounded-3 bg-light"
-                         value="{{ user.student_no }}" readonly />
-                         <div class="form-text mt-1" style="font-size:0.75rem;">Contact staff to ask to change.</div>
+                  <input type="text" name="student_no" class="form-control rounded-3"
+                         value="{{ user.student_no }}" required
+                         {% if user.user_role == 'student' %}pattern="\d{9}" maxlength="9" inputmode="numeric" title="Student number must be exactly 9 digits"{% else %}maxlength="20"{% endif %}
+                         data-track data-label="Student number" data-original="{{ user.student_no }}" />
+                  <div class="form-text mt-1" style="font-size:0.75rem;">This is also your login ID.</div>
                 </div>
 
                 <!-- Contact / Course / Section – hidden for management & campus_admin -->
@@ -142,18 +150,20 @@
 
                   <div class="col-md-10">
                     <label class="form-label small fw-bold text-secondary">
-                      Course <span class="text-danger">*</span>
+                      Course / Major <span class="text-danger">*</span>
                     </label>
-                    <select name="course" class="form-select rounded-3" required>
+                    <select name="course" class="form-select rounded-3" required
+                            data-track data-label="Course" data-original="{{ user.course|default:'' }}">
                       <option value="" disabled {% if not user.course %}selected{% endif %}>Select your course</option>
-                      <option value="BSIT" {% if user.course == 'BSIT' %}selected{% endif %}>BSIT | Bachelor of Science in Information Technology</option>
-                      <option value="BSHM" {% if user.course == 'BSHM' %}selected{% endif %}>BSHM | Bachelor of Science in Hospitality Management</option>
-                      <option value="BSCS" {% if user.course == 'BSCS' %}selected{% endif %}>BSCS | Bachelor of Science in Computer Science</option>
-                      <option value="BSE"  {% if user.course == 'BSE' %}selected{% endif %}>BSE | Bachelor of Science in Education</option>
-                      <option value="BSBM" {% if user.course == 'BSBM' %}selected{% endif %}>BSBM | Bachelor of Science in Business Management</option>
-                      <option value="BSP"  {% if user.course == 'BSP' %}selected{% endif %}>BSP | Bachelor of Science in Psychology</option>
-                      <option value="BSC"  {% if user.course == 'BSC' %}selected{% endif %}>BSC | Bachelor of Science in Criminology</option>
+                      {% for code, label in course_choices %}
+                        <option value="{{ code }}" {% if user.course == code %}selected{% endif %}>{{ code }} | {{ label }}</option>
+                      {% endfor %}
                     </select>
+                    {% if user.course and user.course == 'BSBM' or user.course == 'BSE' %}
+                      <div class="form-text text-danger" style="font-size:0.75rem;">
+                        Your course has been split into majors. Please choose your major.
+                      </div>
+                    {% endif %}
                   </div>
                   <div class="col-md-2">
                     <label class="form-label small fw-bold text-secondary">
@@ -161,17 +171,28 @@
                     </label>
                     <input type="text" name="section" class="form-control rounded-3"
                            value="{{ user.section|default:'' }}"
-                           placeholder="3-1" maxlength="10" required />
+                           placeholder="3-1" maxlength="10" required
+                           data-track data-label="Section" data-original="{{ user.section|default:'' }}" />
                   </div>
                 {% endif %}
 
-                <!-- Email (always read-only) -->
+                <!-- Email – now editable -->
                 <div class="col-12">
-                  <label class="form-label small fw-bold text-secondary">Email Address</label>
-                  <input type="email" name="email" class="form-control rounded-3 bg-light"
-                         value="{{ user.email }}" readonly />
-                  <div class="form-text mt-1" style="font-size:0.75rem;">University email cannot be changed.</div>
+                  <label class="form-label small fw-bold text-secondary">Email Address <span class="text-danger">*</span></label>
+                  <input type="email" name="email" class="form-control rounded-3"
+                         value="{{ user.email }}" required
+                         data-track data-label="Email" data-original="{{ user.email }}" />
                 </div>
+
+                {% if user.status|lower == 'verified' %}{% if user.user_role == 'student' or user.user_role == 'alumni' %}
+                  <div class="col-12">
+                    <div class="alert alert-warning border-0 small mb-0">
+                      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                      Changing your <strong>name, suffix, student number, email, course or section</strong>
+                      will set your account to <strong>Pending</strong> until it is re-verified.
+                    </div>
+                  </div>
+                {% endif %}{% endif %}
 
                 <!-- ========== ORGANIZATION EXTRA FIELDS ========== -->
                 {% if user.user_role == 'org_officer' or user.is_officer or user.user_role == 'alumni_assoc' %}
@@ -371,5 +392,59 @@
       };
       if (event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
     }
+
+    // ---- Re-verification prompt (verified students / alumni only) ----
+    (function () {
+      const form = document.getElementById('profileForm');
+      if (!form || form.dataset.reverify !== '1') return;
+
+      const tracked = form.querySelectorAll('[data-track]');
+      const flag = document.getElementById('confirm_reverify');
+      let confirmed = false;
+
+      function norm(el, value) {
+        value = (value || '').trim();
+        return el.type === 'email' ? value.toLowerCase() : value;
+      }
+
+      form.addEventListener('submit', function (e) {
+        if (confirmed) return;
+
+        const changed = [];
+        tracked.forEach(function (el) {
+          if (norm(el, el.value) !== norm(el, el.dataset.original)) {
+            changed.push(el.dataset.label || el.name);
+          }
+        });
+        if (!changed.length) return;
+
+        e.preventDefault();
+
+        function proceed() {
+          flag.value = '1';
+          confirmed = true;
+          if (form.requestSubmit) form.requestSubmit(); else form.submit();
+        }
+
+        const list = changed.map(function (c) { return '<li>' + c + '</li>'; }).join('');
+        if (window.Swal) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Re-verification required',
+            html: '<p class="mb-2">You changed:</p>' +
+                  '<ul class="text-start d-inline-block mb-3">' + list + '</ul>' +
+                  '<p class="mb-0">Saving will set your account status to <strong>Pending</strong> ' +
+                  'until it is verified again. Continue?</p>',
+            showCancelButton: true,
+            confirmButtonText: 'Save and set to Pending',
+            cancelButtonText: 'Keep editing',
+            confirmButtonColor: '#198754'
+          }).then(function (r) { if (r.isConfirmed) proceed(); });
+        } else if (window.confirm('Changing ' + changed.join(', ') +
+                   ' will set your account to Pending for re-verification. Continue?')) {
+          proceed();
+        }
+      });
+    })();
   </script>
 {% endblock %}

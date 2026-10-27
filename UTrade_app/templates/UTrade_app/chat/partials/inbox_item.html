@@ -1,0 +1,36 @@
+{% with last=conversation.messages.last %}
+<a href="{% url 'chat_view' conversation.id %}" class="ch-thread"
+   data-search="{{ other_person.get_full_name|default:other_person.get_short_name|lower }} {{ conversation.product.name|lower }} {{ other_person.org_link.name|default:other_person.organization|default:''|lower }}">
+
+  <div class="ch-thumb-wrap">
+    <div class="ch-thumb">
+      {% if conversation.product.images.first %}
+        <img src="{{ conversation.product.images.first.image.url }}" alt="">
+      {% elif conversation.product.image %}
+        <img src="{{ conversation.product.image.url }}" alt="">
+      {% else %}
+        <i class="bi bi-box-seam" aria-hidden="true"></i>
+      {% endif %}
+    </div>
+    <img src="{{ other_person.profile_pic_url }}" class="ch-avatar" alt="">
+  </div>
+
+  <div class="ch-thread-main">
+    <div class="ch-thread-top">
+      <h6 class="ch-thread-name">{{ other_person.get_full_name|default:other_person.get_short_name }}</h6>
+      {% include 'UTrade_app/partials/chat_role_badge.html' with person=other_person %}
+    </div>
+    <p class="ch-thread-product">Re: {{ conversation.product.name }}</p>
+    {% if last %}
+      <p class="ch-thread-preview">
+        {% if last.user == request.user %}You: {% endif %}{% if last.content %}{{ last.content|truncatechars:70 }}{% else %}Sent an attachment{% endif %}
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="ch-thread-side">
+    {% if last %}{{ last.timestamp|date:"M d" }}{% else %}{{ conversation.created_at|date:"M d" }}{% endif %}
+    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+  </div>
+</a>
+{% endwith %}

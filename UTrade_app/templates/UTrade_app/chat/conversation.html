@@ -1,129 +1,122 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}Chat with {% if request.user == conversation.buyer %}{{ conversation.seller.get_short_name }}{% else %}{{ conversation.buyer.get_short_name }}{% endif %}{% endblock %}
+{% block title %}Chat with {{ other_user.get_full_name|default:other_user.get_short_name }}{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'UTrade_app/css/chat.css' %}">
 {% csrf_token %}
+
 <div class="container py-3">
-  <!-- Header -->
-  <div class="d-flex align-items-center justify-content-between bg-white p-3 rounded-4 shadow-sm mb-3">
-    <div class="d-flex align-items-center">
-      <a href="{% url 'inbox' %}" class="btn btn-light rounded-circle me-3" aria-label="Back to inbox">
-        <i class="bi bi-arrow-left"></i>
-      </a>
-      {% if conversation.product.images.first %}
-        <img src="{{ conversation.product.images.first.image.url }}" class="rounded-3 me-3" style="width:45px;height:45px;object-fit:cover;" alt="">
-      {% elif conversation.product.image %}
-        <img src="{{ conversation.product.image.url }}" class="rounded-3 me-3" style="width:45px;height:45px;object-fit:cover;" alt="">
-      {% endif %}
-      <div>
-        <h6 class="mb-0 fw-bold">{{ conversation.product.name }}</h6>
-        <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
-          <small class="text-muted">
-            Chatting with
-            {% if request.user == conversation.buyer %}
-              {{ conversation.seller.get_short_name }}
-            {% else %}
-              {{ conversation.buyer.get_short_name }}
-            {% endif %}
-          </small>
+  <div class="ch-wrap">
 
-          {# Role badge #}
-          {% with other=other_user %}
-            {% if other.user_role == 'management' %}
-              <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill px-2" style="font-size:0.65rem;">Management</span>
-            {% elif other.user_role in 'system_admin,campus_admin' or other.is_staff %}
-              <span class="badge bg-danger-subtle text-danger rounded-pill px-2" style="font-size:0.65rem;">Admin</span>
-            {% else %}
-              <span class="badge bg-primary-subtle text-primary rounded-pill px-2" style="font-size:0.65rem;">Student</span>
-            {% endif %}
-          {% endwith %}
-        </div>
-
-        {# Organization / section #}
-        {% with other=other_user %}
-          {% if other.organization or other.org_link or other.course or other.section %}
-            <div class="d-flex flex-wrap align-items-center gap-2 mt-1">
-              {% if other.org_link %}
-                <small class="text-success fw-semibold" style="font-size:0.7rem;">{{ other.org_link.name }}</small>
-              {% elif other.organization %}
-                <small class="text-success fw-semibold" style="font-size:0.7rem;">{{ other.organization }}</small>
+    <!-- Header -->
+    <div class="ch-card">
+      <div class="ch-head">
+        <div class="ch-head-left">
+          <a href="{% url 'inbox' %}" class="ch-head-back" aria-label="Back to inbox">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          </a>
+          <img src="{{ other_user.profile_pic_url }}" class="ch-avatar ch-head-avatar" alt="">
+          <div class="min-w-0">
+            <h1 class="ch-head-name">{{ other_user.get_full_name|default:other_user.get_short_name }}</h1>
+            <div class="ch-head-sub">
+              {% if request.user == conversation.buyer %}
+                <small class="text-muted">Seller</small>
+              {% else %}
+                <small class="text-muted">Buyer</small>
               {% endif %}
-              {% if other.course %}
-                <span class="text-muted" style="font-size:0.7rem;">•</span>
-                <small class="text-muted" style="font-size:0.7rem;">{{ other.course }}</small>
-              {% endif %}
-              {% if other.section %}
-                <span class="text-muted" style="font-size:0.7rem;">•</span>
-                <small class="text-muted" style="font-size:0.7rem;">Sec {{ other.section }}</small>
-              {% endif %}
+              {% include 'UTrade_app/chat/partials/chat_role_badge.html' with person=other_user %}
             </div>
-          {% endif %}
-        {% endwith %}
-      </div>
-    </div>
-    <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" onclick="reportUser()">
-      <i class="bi bi-flag-fill me-1"></i> Report User
-    </button>
-  </div>
-
-  <!-- Chat log -->
-  <div id="chat-log" class="bg-white shadow-sm rounded-4 p-3 mb-3"
-       style="height:60vh;overflow-y:auto;display:flex;flex-direction:column;"
-       role="log" aria-live="polite" aria-relevant="additions">
-    {% for message in messages %}
-      <div class="d-flex {% if message.user == request.user %}justify-content-end{% else %}justify-content-start{% endif %} mb-3 message-row"
-           data-user-id="{{ message.user.id }}">
-        <div class="p-3 rounded-4 message-bubble
-                    {% if message.user == request.user %}
-                      bg-primary text-white shadow-sm sender-bubble
-                    {% else %}
-                      bg-light text-dark border receiver-bubble
-                    {% endif %}"
-             style="max-width:75%;">
-          <p class="mb-0 small message-content">{{ message.content }}</p>
-          <small class="opacity-75 d-block mt-1" style="font-size:0.65rem;">{{ message.timestamp|date:"h:i A" }}</small>
+          </div>
         </div>
-      </div>
-    {% endfor %}
-  </div>
 
-  <!-- Input + attachments -->
-  <div class="bg-white rounded-4 shadow-sm p-2">
-    <div id="attachment-preview" class="d-none mb-2 px-2">
-      <div class="d-flex align-items-center gap-2 p-2 bg-light rounded-3">
-        <div id="preview-content" class="flex-grow-1 small text-truncate"></div>
-        <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle" id="clear-attachment" aria-label="Remove attachment">
-          <i class="bi bi-x"></i>
+        <button type="button" class="btn btn-outline-danger btn-sm ch-head-btn px-3" onclick="reportUser()">
+          <i class="bi bi-flag-fill me-1" aria-hidden="true"></i> Report user
         </button>
       </div>
+
+      <!-- Product strip -->
+      {% if conversation.product %}
+      <a href="{% url 'product.detail' conversation.product.id %}" class="ch-product">
+        <div class="ch-product-thumb">
+          {% if conversation.product.images.first %}
+            <img src="{{ conversation.product.images.first.image.url }}" alt="">
+          {% elif conversation.product.image %}
+            <img src="{{ conversation.product.image.url }}" alt="">
+          {% endif %}
+        </div>
+        <div class="min-w-0">
+          <span class="ch-product-label">About this item</span>
+          <span class="ch-product-name">{{ conversation.product.name }}</span>
+        </div>
+      </a>
+      {% endif %}
     </div>
 
-    <div class="input-group">
-      <label class="btn btn-light rounded-circle d-flex align-items-center justify-content-center me-1" style="width:42px;height:42px;" for="chat-file-input" title="Attach image or video (max 9 MB, video ≤ 3 s)">
-        <i class="bi bi-paperclip"></i>
-      </label>
-      <input type="file" id="chat-file-input" accept="image/*,video/*" class="d-none" aria-label="Attach file">
+    <!-- Chat log -->
+    <div id="chat-log" class="ch-log" role="log" aria-live="polite" aria-relevant="additions">
+      {% for message in messages %}
+        {% ifchanged message.timestamp|date:"Y-m-d" %}
+          <div class="ch-day">{{ message.timestamp|date:"F j, Y" }}</div>
+        {% endifchanged %}
 
-      <input type="text" id="chat-message-input" class="form-control rounded-pill border-0 shadow-sm p-3" placeholder="Type your message here..." autocomplete="off">
-      <button id="chat-message-submit" class="btn btn-primary rounded-pill px-4 shadow-sm ms-2" aria-label="Send message">
-        <i class="bi bi-send-fill"></i>
-      </button>
+        <div class="ch-row {% if message.user == request.user %}ch-row--me{% else %}ch-row--them{% endif %}"
+             data-user-id="{{ message.user.id }}">
+          <div class="ch-msg">
+            <span class="ch-sender">
+              {% if message.user == request.user %}You{% else %}{{ message.user.get_full_name|default:message.user.get_short_name }}{% endif %}
+            </span>
+            <div class="ch-bubble {% if 'SYSTEM (' in message.content %}ch-bubble--system{% endif %}">
+              {% if message.content %}<span class="message-content">{{ message.content }}</span>{% endif %}
+              {% if message.attachment %}
+                {% if message.attachment_type|slice:":5" == "video" %}
+                  <video controls playsinline><source src="{{ message.attachment }}" type="{{ message.attachment_type }}"></video>
+                {% else %}
+                  <a href="{{ message.attachment }}" target="_blank" rel="noopener"><img src="{{ message.attachment }}" alt="attachment"></a>
+                {% endif %}
+              {% endif %}
+              <span class="ch-time">{{ message.timestamp|date:"h:i A" }}</span>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
     </div>
-    <div class="px-2 pt-1">
-      <small class="text-muted" style="font-size:0.7rem;">Images &amp; videos ≤ 9 MB. Videos max 3 seconds.</small>
+
+    <!-- Composer -->
+    <div class="ch-composer">
+      <div id="attachment-preview" class="ch-attach-preview d-none">
+        <div id="preview-content"></div>
+        <button type="button" class="btn btn-sm btn-outline-secondary rounded-circle" id="clear-attachment" aria-label="Remove attachment">
+          <i class="bi bi-x" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <div class="ch-composer-row">
+        <label class="ch-icon-btn" for="chat-file-input" title="Attach image or video (max 9 MB, video up to 3 s)">
+          <i class="bi bi-paperclip" aria-hidden="true"></i>
+        </label>
+        <input type="file" id="chat-file-input" accept="image/*,video/*" class="d-none" aria-label="Attach file">
+
+        <input type="text" id="chat-message-input" class="ch-input" placeholder="Type your message" autocomplete="off" aria-label="Message">
+        <button id="chat-message-submit" class="ch-send" aria-label="Send message">
+          <i class="bi bi-send-fill" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="ch-hint">Images and videos up to 9 MB. Videos can be up to 3 seconds.</div>
     </div>
+
   </div>
 </div>
 
 <script>
 (function () {
   // ---- Constants ----
-  const MAX_FILE_BYTES = 9 * 1024 * 1024; // 9 MB
+  const MAX_FILE_BYTES = 9 * 1024 * 1024;
   const MAX_VIDEO_SECONDS = 3;
   const conversationId = "{{ conversation.id }}";
   const currentUserId = "{{ request.user.id }}";
+  const otherName = "{{ other_user.get_full_name|default:other_user.get_short_name|escapejs }}";
   const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
   // ---- WebSocket ----
@@ -140,9 +133,8 @@
   const previewContent = document.querySelector('#preview-content');
   const clearAttachmentBtn = document.querySelector('#clear-attachment');
 
-  let pendingFile = null; // { file, type, uploadedUrl? }
+  let pendingFile = null;
 
-  // Scroll to bottom on load
   chatLog.scrollTop = chatLog.scrollHeight;
 
   // ---- Helpers ----
@@ -154,37 +146,32 @@
 
   function createMessageElement(data) {
     const isMe = String(data.user_id) === String(currentUserId);
-    const alignment = isMe ? 'justify-content-end' : 'justify-content-start';
-    const bubbleClass = isMe
-      ? 'bg-primary text-white shadow-sm sender-bubble'
-      : 'bg-light text-dark border receiver-bubble';
+    const rowClass = isMe ? 'ch-row--me' : 'ch-row--them';
+    const senderName = isMe ? 'You' : (data.user_name || otherName);
 
     let mediaHtml = '';
     if (data.attachment_url) {
       if (data.attachment_type && data.attachment_type.startsWith('video')) {
-        mediaHtml = `
-          <video controls playsinline class="rounded-3 mt-1" style="max-width:100%;max-height:220px;">
-            <source src="${data.attachment_url}" type="${data.attachment_type}">
-          </video>`;
+        mediaHtml = `<video controls playsinline><source src="${escapeHtml(data.attachment_url)}" type="${escapeHtml(data.attachment_type)}"></video>`;
       } else {
-        mediaHtml = `
-          <a href="${data.attachment_url}" target="_blank" rel="noopener">
-            <img src="${data.attachment_url}" class="rounded-3 mt-1" style="max-width:100%;max-height:220px;object-fit:contain;" alt="attachment">
-          </a>`;
+        mediaHtml = `<a href="${escapeHtml(data.attachment_url)}" target="_blank" rel="noopener"><img src="${escapeHtml(data.attachment_url)}" alt="attachment"></a>`;
       }
     }
 
     const content = data.message
-      ? `<p class="mb-0 small message-content">${escapeHtml(data.message)}</p>`
+      ? `<span class="message-content">${escapeHtml(data.message)}</span>`
       : '';
-    const timeLabel = data.timestamp || 'Just now';
+    const timeLabel = escapeHtml(data.timestamp || 'Just now');
 
     return `
-      <div class="d-flex ${alignment} mb-3 message-row" data-user-id="${data.user_id}">
-        <div class="p-3 rounded-4 message-bubble ${bubbleClass}" style="max-width:75%;">
-          ${content}
-          ${mediaHtml}
-          <small class="opacity-75 d-block mt-1" style="font-size:0.65rem;">${timeLabel}</small>
+      <div class="ch-row ${rowClass}" data-user-id="${escapeHtml(String(data.user_id))}">
+        <div class="ch-msg">
+          <span class="ch-sender">${escapeHtml(senderName)}</span>
+          <div class="ch-bubble">
+            ${content}
+            ${mediaHtml}
+            <span class="ch-time">${timeLabel}</span>
+          </div>
         </div>
       </div>`;
   }
@@ -208,12 +195,11 @@
     console.warn('Chat socket closed');
   };
 
-  // ---- Send message (text + optional already-uploaded attachment) ----
+  // ---- Send message ----
   async function sendMessage() {
     const text = messageInput.value.trim();
     if (!text && !pendingFile) return;
 
-    // If there is a pending file that has not been uploaded yet → upload first
     if (pendingFile && !pendingFile.uploadedUrl) {
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
@@ -248,20 +234,17 @@
       }
     }
 
-    // Now send over WebSocket
-    const payload = {
+    chatSocket.send(JSON.stringify({
       message: text,
       attachment_url: pendingFile ? pendingFile.uploadedUrl : '',
       attachment_type: pendingFile ? pendingFile.type : ''
-    };
-
-    chatSocket.send(JSON.stringify(payload));
+    }));
     messageInput.value = '';
     clearPendingFile();
   }
 
-  messageInput.addEventListener('keyup', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  messageInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       sendMessage();
     }
@@ -303,11 +286,8 @@
       }
     }
 
-    // Show preview
     pendingFile = { file, type: file.type };
-    previewContent.innerHTML = isVideo
-      ? `<i class="bi bi-camera-video me-1"></i> ${escapeHtml(file.name)} (${(file.size / 1024 / 1024).toFixed(1)} MB)`
-      : `<i class="bi bi-image me-1"></i> ${escapeHtml(file.name)} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+    previewContent.innerHTML = `<i class="bi bi-${isVideo ? 'camera-video' : 'image'} me-1"></i> ${escapeHtml(file.name)} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
     previewBox.classList.remove('d-none');
   });
 
@@ -333,12 +313,12 @@
     });
   }
 
-  // ---- Report user (unchanged) ----
+  // ---- Report user ----
   window.reportUser = async function () {
     const { value: formValues } = await Swal.fire({
-      title: 'Report User',
+      title: 'Report user',
       html: `
-        <p class="small text-muted mb-2">Select a reason. Management will review the full chat.</p>
+        <p class="small text-muted mb-2">Select a reason. CBRGU will review the full chat.</p>
         <select id="swal-reason" class="form-select mb-2">
           <option value="">Select reason...</option>
           <option value="Harassment">Harassment / Abuse</option>
@@ -352,7 +332,7 @@
       `,
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: 'Submit Report',
+      confirmButtonText: 'Submit report',
       confirmButtonColor: '#dc3545',
       preConfirm: () => {
         const reason = document.getElementById('swal-reason').value;
@@ -379,7 +359,7 @@
       });
       const data = await res.json();
       if (data.success) {
-        Swal.fire('Reported', data.message || 'Management will review this chat.', 'success');
+        Swal.fire('Reported', data.message || 'CBRGU will review this chat.', 'success');
       } else {
         Swal.fire('Error', data.message || 'Could not submit report.', 'error');
       }
@@ -390,56 +370,23 @@
 })();
 </script>
 
-<style>
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  .message-row {
-    animation: fadeIn 0.25s ease-out;
-  }
-  #chat-log::-webkit-scrollbar {
-    width: 6px;
-  }
-  #chat-log::-webkit-scrollbar-thumb {
-    background-color: #e9ecef;
-    border-radius: 10px;
-  }
-  /* Clearer visual distinction */
-  .sender-bubble {
-    background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%) !important;
-    color: #fff !important;
-    border-bottom-right-radius: 0.4rem !important;
-  }
-  .receiver-bubble {
-    background-color: #f8f9fa !important;
-    color: #212529 !important;
-    border: 1px solid #e9ecef !important;
-    border-bottom-left-radius: 0.4rem !important;
-  }
-  .message-content {
-    word-break: break-word;
-    white-space: pre-wrap;
-  }
-</style>
-
-<!-- Community Guidelines modal (unchanged) -->
-<div class="modal fade" id="termsModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+<!-- Community Guidelines modal (behavior unchanged; agreeBtn handled by your existing script) -->
+<div class="modal fade ch-modal" id="termsModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow rounded-4">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-bold text-success"><i class="bi bi-shield-check me-2"></i>Community Guidelines</h5>
+    <div class="modal-content shadow">
+      <div class="modal-header ch-modal-head">
+        <h5 class="modal-title fw-bold text-success"><i class="bi bi-shield-check me-2" aria-hidden="true"></i>Community Guidelines</h5>
       </div>
       <div class="modal-body py-4">
-        <p class="text-secondary">Welcome to UTrade Chat! To keep our university marketplace safe, please follow these rules:</p>
+        <p class="text-secondary">Welcome to UTrade Chat. To keep our university marketplace safe, please follow these rules:</p>
         <ul class="small text-muted mb-0">
-          <li class="mb-2"><strong>Be Respectful:</strong> Harassment or inappropriate language is strictly prohibited.</li>
-          <li class="mb-2"><strong>Safety First:</strong> Meet in public campus areas for item trades.</li>
-          <li class="mb-2"><strong>Monitored:</strong> While private, conversations can be reported and reviewed by Admins if a dispute arises.</li>
+          <li class="mb-2"><strong>Be respectful:</strong> Harassment or inappropriate language is strictly prohibited.</li>
+          <li class="mb-2"><strong>Safety first:</strong> Meet in public campus areas for item trades.</li>
+          <li class="mb-2"><strong>Monitored:</strong> While private, conversations can be reported and reviewed by CBRGU if a dispute arises.</li>
         </ul>
       </div>
       <div class="modal-footer border-0 pt-0">
-        <button type="button" id="agreeBtn" class="btn btn-success w-100 rounded-3 fw-bold py-2">I Agree & Continue</button>
+        <button type="button" id="agreeBtn" class="btn btn-success w-100 rounded-pill fw-bold py-2">I agree and continue</button>
       </div>
     </div>
   </div>

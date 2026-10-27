@@ -1,0 +1,8 @@
+{# Usage: {% include 'UTrade_app/partials/chat_role_badge.html' with person=other_user %} #}
+{% if person.user_role == 'management' or person.user_role == 'cbrgu_staff' %}
+  <span class="ch-role ch-role--cbrgu"><i class="bi bi-patch-check-fill" aria-hidden="true"></i>CBRGU</span>
+{% elif person.org_link %}
+  <span class="ch-role ch-role--org"><i class="bi bi-people-fill" aria-hidden="true"></i>{{ person.org_link.name }}</span>
+{% elif person.organization %}
+  <span class="ch-role ch-role--org"><i class="bi bi-people-fill" aria-hidden="true"></i>{{ person.organization }}</span>
+{% endif %}

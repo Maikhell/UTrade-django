@@ -18,7 +18,7 @@
   <div class="ch-thread-main">
     <div class="ch-thread-top">
       <h6 class="ch-thread-name">{{ other_person.get_full_name|default:other_person.get_short_name }}</h6>
-      {% include 'UTrade_app/partials/chat_role_badge.html' with person=other_person %}
+      {% include 'UTrade_app/chat/partials/chat_role_badge.html' with person=other_person %}
     </div>
     <p class="ch-thread-product">Re: {{ conversation.product.name }}</p>
     {% if last %}

@@ -283,11 +283,17 @@
 .ch-row--me .ch-sender { text-align: right; }
 
 .ch-bubble {
-  padding: 0.65rem 0.9rem;
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.5rem 0.8rem 0.4rem;
   border-radius: 1rem;
   font-size: 0.9rem;
   line-height: 1.4;
   word-break: break-word;
+  white-space: normal;
+}
+.ch-bubble .message-content {
+  display: block;
   white-space: pre-wrap;
 }
 .ch-row--me .ch-bubble {
@@ -319,10 +325,16 @@
 }
 .ch-time {
   display: block;
-  margin-top: 0.3rem;
+  margin-top: 0.15rem;
   font-size: 0.65rem;
+  line-height: 1.2;
+  text-align: right;
   opacity: 0.75;
 }
+.ch-row--me .ch-msg { display: flex; flex-direction: column; align-items: flex-end; }
+.ch-row--them .ch-msg { display: flex; flex-direction: column; align-items: flex-start; }
+.min-w-0 { min-width: 0; }
+.ch-head-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @keyframes ch-in {
   from { opacity: 0; transform: translateY(5px); }
@@ -405,4 +417,46 @@
 @media (prefers-reduced-motion: reduce) {
   .ch-row { animation: none; }
   .ch-thread { transition: none; }
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+@media (max-width: 767.98px) {
+  .container:has(.ch-wrap) { padding-left: 0.6rem; padding-right: 0.6rem; }
+  .ch-log { height: calc(100vh - 340px); height: calc(100dvh - 340px); min-height: 260px; }
+}
+
+@media (max-width: 575.98px) {
+  .ch-page-title { font-size: 1.35rem; }
+  .ch-page-sub { font-size: 0.85rem; }
+  .ch-card { border-left-width: 4px; border-radius: 0.85rem; margin-bottom: 0.75rem; }
+
+  /* Inbox */
+  .ch-thread { gap: 0.7rem; padding: 0.75rem 0.8rem; }
+  .ch-thumb { width: 52px; height: 52px; }
+  .ch-thumb-wrap .ch-avatar { width: 24px; height: 24px; right: -6px; bottom: -6px; }
+  .ch-thread-name { font-size: 0.92rem; }
+  .ch-thread-side i { display: none; }
+
+  /* Conversation header */
+  .ch-head { flex-wrap: nowrap; gap: 0.5rem; padding: 0.65rem 0.75rem; }
+  .ch-head-left { flex: 1 1 auto; gap: 0.55rem; }
+  .ch-head-back { width: 34px; height: 34px; }
+  .ch-head-avatar { width: 38px; height: 38px; }
+  .ch-head-name { font-size: 0.95rem; }
+  .ch-head-btn { flex: 0 0 auto; width: 36px; height: 36px; padding: 0 !important; }
+  .ch-head-btn i { margin: 0 !important; }
+  .ch-product { padding: 0.5rem 0.75rem; }
+
+  /* Messages */
+  .ch-log { padding: 0.75rem 0.6rem; border-radius: 0.85rem; height: calc(100vh - 310px); height: calc(100dvh - 310px); }
+  .ch-msg { max-width: 88%; }
+  .ch-bubble { font-size: 0.88rem; }
+
+  /* Composer: 16px font stops iOS from zooming on focus */
+  .ch-composer { padding: 0.45rem; border-radius: 0.85rem; }
+  .ch-input { font-size: 16px; padding: 0.55rem 0.9rem; }
+  .ch-icon-btn, .ch-send { width: 40px; height: 40px; }
+  .ch-hint { display: none; }
 }

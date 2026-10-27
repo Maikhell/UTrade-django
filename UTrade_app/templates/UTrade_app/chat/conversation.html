@@ -26,13 +26,13 @@
               {% else %}
                 <small class="text-muted">Buyer</small>
               {% endif %}
-              {% include 'UTrade_app/chat/partials/chat_role_badge.html' with person=other_user %}
+              {% include 'UTrade_app/partials/chat_role_badge.html' with person=other_user %}
             </div>
           </div>
         </div>
 
-        <button type="button" class="btn btn-outline-danger btn-sm ch-head-btn px-3" onclick="reportUser()">
-          <i class="bi bi-flag-fill me-1" aria-hidden="true"></i> Report user
+        <button type="button" class="btn btn-outline-danger btn-sm ch-head-btn px-3" onclick="reportUser()" aria-label="Report user">
+          <i class="bi bi-flag-fill me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Report user</span>
         </button>
       </div>
 

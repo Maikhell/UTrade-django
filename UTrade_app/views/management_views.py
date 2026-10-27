@@ -1801,7 +1801,7 @@ def report_action(request, report_id):
                 f"🚨 SYSTEM: Your account has been suspended.\n"
                 f"Reason: {reason}\n"
                 f"{'Until: ' + reported.suspension_until.strftime('%Y-%m-%d') if reported.suspension_until else 'Duration: Indefinite'}\n"
-                f"Contact Management if you believe this is an error."
+                f"Contact CBRGU Head if you believe this is an error."
             ),
         )
 
@@ -1846,10 +1846,10 @@ def report_action(request, report_id):
                 product.seller,
                 product=product,
                 message=(
-                    f"🚨 SYSTEM (Management): Your product “{product.name}” was unlisted "
+                    f"🚨 SYSTEM (CBRGU): Your product “{product.name}” was unlisted "
                     f"from the marketplace following a user report.\n"
                     f"Reason: {reason}\n"
-                    f"Contact Management if you have questions."
+                    f"Contact CBRGU Head if you have questions."
                 ),
             )
 

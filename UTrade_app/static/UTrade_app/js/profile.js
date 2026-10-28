@@ -1,5 +1,11 @@
 // --- 1. Handle Profile Update Submission ---
 async function handleProfileSubmit(e) {
+    // The re-verification dialog (inline script in profile.html) already
+    // handled this submit, or the user just confirmed it. Don't ask twice.
+    if (e.defaultPrevented) return;
+    const flag = document.getElementById('confirm_reverify');
+    if (flag && flag.value === '1') return;
+
     e.preventDefault(); // Stop the natural submit to show Swal
     const form = document.getElementById('profileForm');
 
@@ -24,29 +30,34 @@ async function handleProfileSubmit(e) {
 }
 
 // --- 2. Handle Django Success/Error Messages ---
-function showDjangoMessages() {
-    const messageContainer = document.getElementById('django-messages');
-    if (messageContainer) {
-        const message = messageContainer.dataset.message;
-        const tags = messageContainer.dataset.tags;
+// The template renders one element per message, so show them one after another.
+async function showDjangoMessages() {
+    const containers = document.querySelectorAll('[id="django-messages"]');
+    if (!containers.length) return;
 
-        const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 3000,
-            timerProgressBar: true,
-        });
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+    });
 
-        Toast.fire({
-            icon: tags === 'success' ? 'success' : (tags === 'error' ? 'error' : 'info'),
+    for (const el of containers) {
+        const message = el.dataset.message;
+        const tags = el.dataset.tags || '';
+
+        await Toast.fire({
+            icon: tags.includes('success') ? 'success'
+                : (tags.includes('error') ? 'error'
+                : (tags.includes('warning') ? 'warning' : 'info')),
             title: message
         });
     }
 }
 
 // --- 3. Initialize Listeners on Load ---
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     showDjangoMessages();
 
     // Attach the submit handler to the profile form
@@ -58,15 +69,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle Verification Form Validation
     const verifForm = document.getElementById('verificationForm');
     if (verifForm) {
-        verifForm.addEventListener('submit', function(e) {
+        verifForm.addEventListener('submit', function (e) {
             const errorDiv = document.getElementById('error-message');
-            
-            // Get user data and role from hidden inputs or data-attributes
-            // It is better to use the values currently in the inputs
-            const role = "{{ user.user_role }}"; // Passed from Django context
+
+            // Add data-role="{{ user.user_role }}" to the verification form in the
+            // template. ({{ }} does not work inside a static .js file.)
+            const role = verifForm.dataset.role || '';
             const firstName = document.getElementsByName('first_name')[0]?.value || "";
             const lastName = document.getElementsByName('last_name')[0]?.value || "";
-            
+
             const missingFields = [];
             if (!firstName.trim()) missingFields.push("First Name");
             if (!lastName.trim()) missingFields.push("Last Name");
@@ -96,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function previewAvatar(event) {
     const reader = new FileReader();
-    reader.onload = function() {
+    reader.onload = function () {
         const output = document.getElementById('profile_preview');
         output.src = reader.result;
     };

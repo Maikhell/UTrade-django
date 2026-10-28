@@ -252,11 +252,6 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
                 if _norm(f, current[f]) != _norm(f, self._original[f])
             ]
             if changed:
-                if post.get('confirm_reverify') != '1':
-                    return self._reject(
-                        "Changing " + ", ".join(changed) +
-                        " requires re-verification. Please confirm and save again."
-                    )
                 user.status = 'pending'
                 messages.info(
                     self.request,

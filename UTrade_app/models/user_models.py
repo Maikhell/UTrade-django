@@ -67,6 +67,10 @@ class User(AbstractUser):
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     status = models.CharField(max_length=20, default='unverified')
     is_officer = models.BooleanField(default=False)
+    is_org_account = models.BooleanField(
+        default=False,
+        help_text="Login that belongs to an organization, not to a person.",
+    )
     officer_status = models.CharField(
         max_length=20, 
         choices=[('unverified', 'Unverified'), ('pending', 'Pending'), ('verified', 'Verified')],
@@ -108,6 +112,19 @@ class User(AbstractUser):
         except ValueError:
             pass
         return static('UTrade_app/img/default-user.png')
+    @property
+    def active_manager(self):
+        """The student currently accountable for this org account (or None)."""
+        if not self.is_org_account:
+            return None
+        return self.manager_history.filter(is_active=True).select_related('student').first()
+
+    @property
+    def managed_accounts(self):
+        """Org accounts this student is currently accountable for."""
+        return self.managed_org_accounts.filter(is_active=True).select_related(
+            'org_account', 'org_account__org_link'
+        )
     @property
     def get_short_name(self):
         if self.display_name and self.display_name.strip():

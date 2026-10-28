@@ -4,9 +4,11 @@ from .organization_models import Organization
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 from django.templatetags.static import static
+from django.db.models import Q
 
 def user_profile_path(instance, filename):
     return f'profiles/student_{instance.student_no}/{filename}'
+
 
 class User(AbstractUser):
     username = models.CharField(max_length=70, blank=True, null=True)
@@ -117,6 +119,9 @@ class User(AbstractUser):
         return f"User_{self.id}" 
     def __str__(self):
         return str(self.get_short_name)
+    
+    
+    
 class Conversation(models.Model):
 
     product = models.ForeignKey('Product', on_delete=models.CASCADE, null=True, blank=True)
@@ -176,3 +181,36 @@ class UserReport(models.Model):
 
     def __str__(self):
         return f"Report #{self.id} on {self.reported_user} by {self.reporter}"
+    
+class OrgAccountManager(models.Model):
+        """Which student is accountable for an org account. History is kept."""
+        org_account = models.ForeignKey(
+            User, on_delete=models.CASCADE, related_name='manager_history'
+        )
+        student = models.ForeignKey(
+            User, on_delete=models.PROTECT, related_name='managed_org_accounts'
+        )
+        # Snapshot so the record still reads correctly if the student renames/changes ID.
+        student_name = models.CharField(max_length=150)
+        student_no = models.CharField(max_length=20)
+        position = models.CharField(max_length=50, blank=True)
+        assigned_by = models.ForeignKey(
+            User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+        )
+        assigned_at = models.DateTimeField(auto_now_add=True)
+        ended_at = models.DateTimeField(null=True, blank=True)
+        is_active = models.BooleanField(default=True)
+    
+        class Meta:
+            ordering = ['-assigned_at']
+            constraints = [
+                models.UniqueConstraint(
+                    fields=['org_account'],
+                    condition=Q(is_active=True),
+                    name='one_active_manager_per_org_account',
+                )
+            ]
+    
+        def __str__(self):
+            return f"{self.org_account} <- {self.student_name} ({self.student_no})"
+    

@@ -19,6 +19,7 @@ from django.shortcuts import render
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models.functions import TruncDate
 import re
+from ..utils import is_allowed_email
 from django import forms
 import logging
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ from django.views.generic import (
     UpdateView,
 )
 from xhtml2pdf import pisa
-
+from ..course_utils import COURSE_CHOICES
 from ..forms import UserProfileForm, UserRegistrationForm
 from ..models import (
     MeetupLocation,
@@ -46,7 +47,19 @@ from ..models import (
     ChatMessage,
 )
 
-
+REVERIFY_FIELDS = (
+    ('first_name', 'First name'),
+    ('last_name', 'Last name'),
+    ('suffix', 'Suffix'),
+    ('student_no', 'Student number'),
+    ('email', 'Email'),
+    ('course', 'Course'),
+    ('section', 'Section'),
+)
+ORG_LOCKED_FIELDS = ('first_name', 'last_name', 'student_no')
+def _norm(field, value):
+    value = (value or '').strip()
+    return value.lower() if field == 'email' else value
 
 class UserCreateView(CreateView):
     model = User 
@@ -148,89 +161,134 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     template_name = 'UTrade_app/accounts/profile.html'
     success_url = reverse_lazy('user.profile')
     success_message = "Your profile has been updated successfully!"
-
-    def get_object(self):
+ 
+    def get_object(self, queryset=None):
         return self.request.user
-
+ 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['org'] = getattr(self.request.user, 'org_link', None)
+        user = self.request.user
+        context['org'] = user.org_link
+        context['course_choices'] = COURSE_CHOICES          # <- fills the dropdown
+        context['manager'] = user.active_manager             # org accounts
+        context['managed_accounts'] = (
+            user.managed_accounts if user.user_role == 'student' else []
+        )
         return context
-
+ 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        user = self.request.user
+        if self.request.method == 'POST' and user.is_org_account:
+            data = self.request.POST.copy()
+            for f in ORG_LOCKED_FIELDS:
+                data[f] = getattr(user, f) or ''
+            kwargs['data'] = data
+        return kwargs
+ 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
+        user = self.object
+        # Snapshot BEFORE the form validates (validation mutates the instance).
+        self._original = {f: (getattr(user, f) or '') for f, _ in REVERIFY_FIELDS}
+        self._was_verified = (user.status or '').lower() == 'verified'
+ 
         form = self.get_form()
         if form.is_valid():
             return self.form_valid(form)
-        print("Form Errors:", form.errors)
-        messages.error(self.request, "Validation failed. Please check your inputs.")
+        messages.error(request, "Validation failed. Please check your inputs.")
         return self.form_invalid(form)
-
+ 
+    def _reject(self, text):
+        # Nothing has been saved yet, so just go back to the page.
+        messages.error(self.request, text)
+        return redirect('user.profile')
+ 
     def form_valid(self, form):
         user = form.instance
+        post = self.request.POST
         role = user.user_role
-
-        # Profile picture
+        is_org = user.is_org_account
+        is_student = role == 'student'
+ 
         if 'image' in self.request.FILES:
             user.image = self.request.FILES['image']
-
-        # Manual fields that may not be in the ModelForm
-        user.suffix = self.request.POST.get('suffix', '') or None
-        user.gender = self.request.POST.get('gender', '') or None
-
-        if role not in ('management', 'campus_admin'):
-            user.phone_number = self.request.POST.get('phone_number', '').strip() or None
-            user.course = self.request.POST.get('course', '').strip() or None
-            user.section = self.request.POST.get('section', '').strip() or None
-
-            # Simple required-field checks
+ 
+        if not is_org:
+            user.suffix = post.get('suffix', '').strip() or None
+            user.gender = post.get('gender', '') or None
+ 
+        # ---- Email (not part of UserProfileForm, so handled here) ----
+        email = post.get('email', '').strip().lower()
+        if not email:
+            return self._reject("Email is required.")
+        if email != self._original['email'].strip().lower():
+            if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
+                return self._reject("That email is already registered.")
+            if is_student and not is_allowed_email(email):
+                return self._reject("Use a Gmail or official @cvsu.edu.ph email address.")
+        user.email = email
+ 
+        # ---- Student-style fields ----
+        if not is_org and role not in ('management', 'campus_admin'):
+            user.phone_number = post.get('phone_number', '').strip() or None
+            user.course = post.get('course', '').strip() or None
+            user.section = post.get('section', '').strip() or None
             if not user.phone_number:
-                messages.error(self.request, "Contact number is required.")
-                return self.form_invalid(form)
+                return self._reject("Contact number is required.")
             if not user.course:
-                messages.error(self.request, "Course is required.")
-                return self.form_invalid(form)
+                return self._reject("Course is required.")
             if not user.section:
-                messages.error(self.request, "Section is required.")
-                return self.form_invalid(form)
-        else:
-            # Management / Campus Admin – clear student-only fields if desired
-            # (comment out if you want to keep historical data)
-            # user.phone_number = None
-            # user.course = None
-            # user.section = None
-            pass
-
-        # Organization fields (officers / alumni association)
-        if role in ('org_officer', 'alumni_assoc') or user.is_officer:
+                return self._reject("Section is required.")
+ 
+        if is_student and not re.fullmatch(r'\d{9}', user.student_no or ''):
+            return self._reject("Student number must be exactly 9 digits.")
+ 
+        # ---- Re-verification: verified STUDENT accounts only ----
+        if is_student and self._was_verified:
+            current = {f: getattr(user, f) for f, _ in REVERIFY_FIELDS}
+            changed = [
+                label for f, label in REVERIFY_FIELDS
+                if _norm(f, current[f]) != _norm(f, self._original[f])
+            ]
+            if changed:
+                if post.get('confirm_reverify') != '1':
+                    return self._reject(
+                        "Changing " + ", ".join(changed) +
+                        " requires re-verification. Please confirm and save again."
+                    )
+                user.status = 'pending'
+                messages.info(
+                    self.request,
+                    "Your account is now Pending until it is verified again."
+                )
+ 
+        # ---- Organization details (org accounts / alumni association) ----
+        if is_org or role == 'alumni_assoc':
             org = user.org_link
-            org_name = self.request.POST.get('org_name', '').strip()
-            org_full_name = self.request.POST.get('org_full_name', '').strip()
-            org_description = self.request.POST.get('org_description', '').strip()
-
+            org_name = post.get('org_name', '').strip()
+            org_full_name = post.get('org_full_name', '').strip()
+            org_description = post.get('org_description', '').strip()
+ 
             if org:
-                if org_name:
+                if org_name and org_name != org.name:
+                    if Organization.objects.filter(name=org_name).exclude(pk=org.pk).exists():
+                        return self._reject("Another organization already uses that name.")
                     org.name = org_name
+                    user.organization = org_name
                 if org_full_name:
                     org.full_name = org_full_name
                 org.description = org_description
-                if 'approval_letter' in self.request.FILES:
-                    org.approval_letter = self.request.FILES['approval_letter']
                 org.save()
-            elif org_name:
-                # Create a new Organization and link it
+            elif org_name and role == 'alumni_assoc':
                 org = Organization.objects.create(
                     name=org_name,
                     full_name=org_full_name or org_name,
                     description=org_description,
-                    course_code=user.course or '',
                 )
-                if 'approval_letter' in self.request.FILES:
-                    org.approval_letter = self.request.FILES['approval_letter']
-                    org.save()
                 user.org_link = org
                 user.organization = org_name
-
+ 
         return super().form_valid(form)
             
 

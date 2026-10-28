@@ -44,10 +44,10 @@
               {% elif user.user_role == 'campus_admin' %}
                 <span class="badge bg-primary rounded-pill px-3 py-2 text-uppercase fw-bold"
                       style="font-size:0.65rem; letter-spacing:1px;">Campus Admin</span>
-              {% elif user.user_role == 'org_officer' or user.is_officer %}
+              {% elif user.is_org_account %}
                 <span class="badge bg-info text-dark rounded-pill px-3 py-2 text-uppercase fw-bold"
                       style="font-size:0.65rem; letter-spacing:1px;">
-                  {{ user.org_link.name|default:user.organization|default:"Organization" }} Officer
+                  {{ user.org_link.name|default:user.organization|default:"Organization" }} Organization
                 </span>
               {% elif user.user_role == 'alumni_assoc' %}
                 <span class="badge bg-danger rounded-pill px-3 py-2 text-uppercase fw-bold"
@@ -68,62 +68,102 @@
           <!-- RIGHT: Form -->
           <div class="col-md-8 p-4 p-md-5">
             <h4 class="fw-bold mb-1">Account Settings</h4>
-            <p class="text-muted small mb-4">Update your university identity and contact information.</p>
-                  <div class="col-12">
-                    <h6 class="fw-bold text-uppercase text-muted small mb-3">Representative Details</h6>
-                  </div>
+            <p class="text-muted small mb-4">
+              {% if user.is_org_account %}Manage your organization's account details.{% else %}Update your university identity and contact information.{% endif %}
+            </p>
 
-            {# data-reverify="1" only for VERIFIED students / alumni #}
+            {# data-reverify="1" only for VERIFIED STUDENT accounts #}
             <form method="POST" enctype="multipart/form-data" id="profileForm"
-                  data-reverify="{% if user.status|lower == 'verified' %}{% if user.user_role == 'student' or user.user_role == 'alumni' %}1{% endif %}{% endif %}">
+                  data-reverify="{% if user.status|lower == 'verified' and user.user_role == 'student' %}1{% endif %}">
               {% csrf_token %}
               <input type="file" name="image" id="id_profile_picture" class="d-none" onchange="previewAvatar(event)" />
               <input type="hidden" name="confirm_reverify" id="confirm_reverify" value="" />
 
               <div class="row g-3">
 
-                <!-- First / Last Name -->
-                <div class="col-md-6">
-                  <label class="form-label small fw-bold text-secondary">First Name <span class="text-danger">*</span></label>
-                  <input type="text" name="first_name" class="form-control rounded-3"
-                         value="{{ user.first_name }}" required
-                         data-track data-label="First name" data-original="{{ user.first_name }}" />
-                </div>
-                <div class="col-md-6">
-                  <label class="form-label small fw-bold text-secondary">Last Name <span class="text-danger">*</span></label>
-                  <input type="text" name="last_name" class="form-control rounded-3"
-                         value="{{ user.last_name }}" required
-                         data-track data-label="Last name" data-original="{{ user.last_name }}" />
-                </div>
+                {# ===== Org account: who is accountable (read-only) ===== #}
+                {% if user.is_org_account %}
+                  <div class="col-12">
+                    {% if manager %}
+                      <div class="alert alert-info border-0 small mb-0">
+                        <i class="bi bi-person-badge-fill me-2"></i>
+                        Managed by <strong>{{ manager.student_name }}</strong>
+                        ({{ manager.student_no }}){% if manager.position %}, {{ manager.position }}{% endif %}
+                        &middot; since {{ manager.assigned_at|date:"M d, Y" }}.
+                        Only CBRGU can change the manager.
+                      </div>
+                    {% else %}
+                      <div class="alert alert-warning border-0 small mb-0">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        No student is currently assigned to manage this account. Please contact CBRGU.
+                      </div>
+                    {% endif %}
+                  </div>
+                {% endif %}
 
-                <!-- Suffix (optional for everyone) -->
-                <div class="col-md-6">
-                  <label class="form-label small fw-bold text-secondary">Suffix</label>
-                  <select name="suffix" class="form-select rounded-3"
-                          data-track data-label="Suffix" data-original="{{ user.suffix|default:'' }}">
-                    <option value="" {% if not user.suffix %}selected{% endif %}>None</option>
-                    <option value="Jr." {% if user.suffix == "Jr." %}selected{% endif %}>Jr.</option>
-                    <option value="Sr." {% if user.suffix == "Sr." %}selected{% endif %}>Sr.</option>
-                    <option value="II"  {% if user.suffix == "II" %}selected{% endif %}>II</option>
-                    <option value="III" {% if user.suffix == "III" %}selected{% endif %}>III</option>
-                    <option value="IV"  {% if user.suffix == "IV" %}selected{% endif %}>IV</option>
-                  </select>
-                </div>
+                {# ===== Student: org accounts they are accountable for ===== #}
+                {% if managed_accounts %}
+                  <div class="col-12">
+                    <div class="alert alert-secondary border-0 small mb-0">
+                      <i class="bi bi-people-fill me-2"></i>
+                      You are accountable for:
+                      <ul class="mb-0 mt-1">
+                        {% for m in managed_accounts %}
+                          <li><strong>{{ m.org_account.org_link.name|default:m.org_account.student_no }}</strong>
+                              (login ID {{ m.org_account.student_no }})</li>
+                        {% endfor %}
+                      </ul>
+                      Sign in with the organization's own account to use the organization panel.
+                    </div>
+                  </div>
+                {% endif %}
 
-                <!-- Gender -->
-                <div class="col-md-6">
-                  <label class="form-label small fw-bold text-secondary">Gender <span class="text-danger">*</span></label>
-                  <select name="gender" class="form-select rounded-3" required>
-                    <option value="" disabled {% if not user.gender %}selected{% endif %}>Select Gender</option>
-                    <option value="Male"   {% if user.gender == "Male" %}selected{% endif %}>Male</option>
-                    <option value="Female" {% if user.gender == "Female" %}selected{% endif %}>Female</option>
-                    <option value="Other"  {% if user.gender == "Other" %}selected{% endif %}>Prefer not to say</option>
-                  </select>
-                </div>
+                {% if not user.is_org_account %}
+                  <!-- First / Last Name -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">First Name <span class="text-danger">*</span></label>
+                    <input type="text" name="first_name" class="form-control rounded-3"
+                           value="{{ user.first_name }}" required
+                           data-track data-label="First name" data-original="{{ user.first_name }}" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">Last Name <span class="text-danger">*</span></label>
+                    <input type="text" name="last_name" class="form-control rounded-3"
+                           value="{{ user.last_name }}" required
+                           data-track data-label="Last name" data-original="{{ user.last_name }}" />
+                  </div>
 
-                <!-- ID field (label changes by role) – now editable -->
+                  <!-- Suffix -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">Suffix</label>
+                    <select name="suffix" class="form-select rounded-3"
+                            data-track data-label="Suffix" data-original="{{ user.suffix|default:'' }}">
+                      <option value="" {% if not user.suffix %}selected{% endif %}>None</option>
+                      <option value="Jr." {% if user.suffix == "Jr." %}selected{% endif %}>Jr.</option>
+                      <option value="Sr." {% if user.suffix == "Sr." %}selected{% endif %}>Sr.</option>
+                      <option value="II"  {% if user.suffix == "II" %}selected{% endif %}>II</option>
+                      <option value="III" {% if user.suffix == "III" %}selected{% endif %}>III</option>
+                      <option value="IV"  {% if user.suffix == "IV" %}selected{% endif %}>IV</option>
+                    </select>
+                  </div>
+
+                  <!-- Gender -->
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-secondary">Gender <span class="text-danger">*</span></label>
+                    <select name="gender" class="form-select rounded-3" required>
+                      <option value="" disabled {% if not user.gender %}selected{% endif %}>Select Gender</option>
+                      <option value="Male"   {% if user.gender == "Male" %}selected{% endif %}>Male</option>
+                      <option value="Female" {% if user.gender == "Female" %}selected{% endif %}>Female</option>
+                      <option value="Other"  {% if user.gender == "Other" %}selected{% endif %}>Prefer not to say</option>
+                    </select>
+                  </div>
+                {% endif %}
+
+                <!-- ID field (label changes by role) -->
                 <div class="col-md-6">
-                  {% if user.user_role == 'management' %}
+                  {% if user.is_org_account %}
+                    <label class="form-label small fw-bold text-secondary">Organization Login ID</label>
+                  {% elif user.user_role == 'management' %}
                     <label class="form-label small fw-bold text-secondary">Staff ID <span class="text-danger">*</span></label>
                   {% elif user.user_role == 'campus_admin' %}
                     <label class="form-label small fw-bold text-secondary">Campus Admin ID <span class="text-danger">*</span></label>
@@ -132,13 +172,14 @@
                   {% endif %}
                   <input type="text" name="student_no" class="form-control rounded-3"
                          value="{{ user.student_no }}" required
+                         {% if user.is_org_account %}readonly{% endif %}
                          {% if user.user_role == 'student' %}pattern="\d{9}" maxlength="9" inputmode="numeric" title="Student number must be exactly 9 digits"{% else %}maxlength="20"{% endif %}
                          data-track data-label="Student number" data-original="{{ user.student_no }}" />
                   <div class="form-text mt-1" style="font-size:0.75rem;">This is also your login ID.</div>
                 </div>
 
-                <!-- Contact / Course / Section – hidden for management & campus_admin -->
-                {% if user.user_role != 'management' and user.user_role != 'campus_admin' %}
+                <!-- Contact / Course / Section – students and alumni only -->
+                {% if user.user_role != 'management' and user.user_role != 'campus_admin' and not user.is_org_account %}
                   <div class="col-md-6">
                     <label class="form-label small fw-bold text-secondary">
                       Contact Number <span class="text-danger">*</span>
@@ -159,7 +200,7 @@
                         <option value="{{ code }}" {% if user.course == code %}selected{% endif %}>{{ code }} | {{ label }}</option>
                       {% endfor %}
                     </select>
-                    {% if user.course and user.course == 'BSBM' or user.course == 'BSE' %}
+                    {% if user.course == 'BSBM' or user.course == 'BSE' or user.course == 'BSED' %}
                       <div class="form-text text-danger" style="font-size:0.75rem;">
                         Your course has been split into majors. Please choose your major.
                       </div>
@@ -176,7 +217,7 @@
                   </div>
                 {% endif %}
 
-                <!-- Email – now editable -->
+                <!-- Email -->
                 <div class="col-12">
                   <label class="form-label small fw-bold text-secondary">Email Address <span class="text-danger">*</span></label>
                   <input type="email" name="email" class="form-control rounded-3"
@@ -184,7 +225,7 @@
                          data-track data-label="Email" data-original="{{ user.email }}" />
                 </div>
 
-                {% if user.status|lower == 'verified' %}{% if user.user_role == 'student' or user.user_role == 'alumni' %}
+                {% if user.status|lower == 'verified' and user.user_role == 'student' %}
                   <div class="col-12">
                     <div class="alert alert-warning border-0 small mb-0">
                       <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -192,10 +233,10 @@
                       will set your account to <strong>Pending</strong> until it is re-verified.
                     </div>
                   </div>
-                {% endif %}{% endif %}
+                {% endif %}
 
-                <!-- ========== ORGANIZATION EXTRA FIELDS ========== -->
-                {% if user.user_role == 'org_officer' or user.is_officer or user.user_role == 'alumni_assoc' %}
+                <!-- ========== ORGANIZATION DETAILS ========== -->
+                {% if user.is_org_account or user.user_role == 'alumni_assoc' %}
                   <div class="col-12"><hr class="my-2"></div>
                   <div class="col-12">
                     <h6 class="fw-bold text-uppercase text-muted small mb-3">Organization Details</h6>
@@ -217,27 +258,6 @@
                     <label class="form-label small fw-bold text-secondary">Description</label>
                     <textarea name="org_description" class="form-control rounded-3" rows="3"
                               placeholder="Short description of the organization">{{ org.description|default:'' }}</textarea>
-                  </div>
-
-                  <!-- Approval Letter -->
-                  <div class="col-12">
-                    <div class="card border-0 bg-light rounded-4 p-3">
-                      <h6 class="fw-bold mb-2">Approval Letter</h6>
-                      {% if org and org.approval_letter %}
-                        <div class="mb-3 text-center">
-                          <img src="{{ org.approval_letter.url }}"
-                               class="img-fluid rounded border shadow-sm"
-                               style="max-height:180px; object-fit:contain;"
-                               alt="Approval Letter">
-                        </div>
-                      {% else %}
-                        <p class="small text-muted mb-2">No approval letter uploaded yet.</p>
-                      {% endif %}
-                      <label class="form-label small fw-bold text-secondary">Upload / Replace</label>
-                      <input type="file" name="approval_letter" class="form-control rounded-3"
-                             accept="image/*,.pdf">
-                      <div class="form-text" style="font-size:0.7rem;">JPG / PNG / PDF · max 10 MB</div>
-                    </div>
                   </div>
                 {% endif %}
 
@@ -321,7 +341,8 @@
 </div>
 {% endif %}
 
-{# Officer registration modal kept as-is #}
+{# Officer application modal – normal student accounts only #}
+{% if user.user_role == 'student' %}
 <div class="modal fade" id="officerRegistrationModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4 border-0 shadow">
@@ -374,6 +395,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 {% if messages %}
   {% for message in messages %}
@@ -393,7 +415,7 @@
       if (event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
     }
 
-    // ---- Re-verification prompt (verified students / alumni only) ----
+    // ---- Re-verification prompt (verified STUDENT accounts only) ----
     (function () {
       const form = document.getElementById('profileForm');
       if (!form || form.dataset.reverify !== '1') return;

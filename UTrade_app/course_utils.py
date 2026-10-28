@@ -19,20 +19,18 @@ COURSE_CHOICES = [
     ("BSIT", "Bachelor of Science in Information Technology"),
     ("BSHM", "Bachelor of Science in Hospitality Management"),
     ("BSCS", "Bachelor of Science in Computer Science"),
-    ("BSEd-MATH", "Bachelor of Science in Education - Mathematics"),
-    ("BSEd-ENG", "Bachelor of Science in Education - English"),
-    ("BSBA-HR", "Bachelor of Science in Business Administration - Human Resource"),
-    ("BSBA-MM", "Bachelor of Science in Business Administration - Marketing Management"),
-    ("BSP", "Bachelor of Science in Psychology"),
-    ("BSC", "Bachelor of Science in Criminology"),
+    ("BSEd-MATH", "Bachelor of Secondary Education - Major in Mathematics"),
+    ("BSEd-ENG", "Bachelor of Secondary Education - Major in English"),
+    ("BSBA-HR", "Bachelor of Science in Business Administration - Major in Human Resource Management"),
+    ("BSBA-MM", "Bachelor of Science in Business Administration - Major in Marketing Management"),
+    ("BSPsych", "Bachelor of Science in Psychology"),
+    ("BSCrim", "Bachelor of Science in Criminology"),
 ]
 
 VALID_COURSE_CODES = {code for code, _ in COURSE_CHOICES}
 
 # Majors -> the parent program they still belong to.
 PROGRAM_OF = {
-    "BSBA-HR": "BSBA",
-    "BSBA-MM": "BSBA",
     "BSEd-MATH": "BSED",
     "BSEd-ENG": "BSED",
 }
@@ -53,8 +51,8 @@ COURSE_SOCIETY = {
     "BSEd-ENG": "TES",
     "BSBA-MM": "LMS-JMA",
     "BSBA-HR": "SHR",
-    "BSC": "LCDCS",
-    "BSP": "LLP",
+    "BSCrim": "LCDCS",
+    "BSPsych": "LLP",
 }
 
 

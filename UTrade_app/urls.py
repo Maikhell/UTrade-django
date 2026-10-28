@@ -3,7 +3,8 @@ from .views import (
     items_views, user_views, authenticate,
     admin_views, cart_views, order_views, chat_views,
     organization_views, management_views, alumni_views,
-    otplink_views, reports_views, osas_sds_views,  password_reset_views
+    otplink_views, reports_views, osas_sds_views, password_reset_views,
+    org_account_views,
 )
 
 urlpatterns = [
@@ -138,6 +139,8 @@ urlpatterns = [
     path('osas/organizations/', osas_sds_views.osas_organizations, name='osas_organizations'),
     path('osas/registered-users/', osas_sds_views.osas_registered_users, name='osas_registered_users'),
     
+    path('cbrgu/officer/<int:user_id>/approve/', org_account_views.approve_officer_application, name='approve_officer_application'),
+    path('cbrgu/org-account/<int:org_user_id>/reassign/', org_account_views.reassign_org_manager, name='reassign_org_manager'),
     # =========================================================================
     # Management – Orders & Pre-Orders
     # =========================================================================

@@ -26,6 +26,7 @@ from django.db.models import Subquery, OuterRef, Value, DecimalField
 from django.db.models.functions import Coalesce
 from django.db.models import Prefetch
 from django.utils.dateparse import parse_date
+from django.core.exceptions import ValidationError
 
 from xhtml2pdf import pisa
 
@@ -55,6 +56,8 @@ from ..models import (
     
 )
 from ..utils import log_action, send_email
+from ..course_utils import COURSE_CHOICES, VALID_COURSE_CODES
+from ..org_accounts import create_org_account
 
 class ProductUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Product
@@ -1977,38 +1980,14 @@ def add_pickup_spots(request):
     }
     return render(request, 'UTrade_app/management/settings/add_pickup_spots.html', context)
 
-ACCOUNT_TYPE_MAP = {
-    'student': 'student',
-    'organization': 'org_officer',
-    'campus_admin': 'campus_admin',
-    'osas_sds': 'osas_sds',
-    'management': 'management',
-}
+# ---------------------------------------------------------------------------
+# Add Accounts (CBRGU / management)
+# ---------------------------------------------------------------------------
 
 ACCOUNT_TYPES = [
     # (value, label, bootstrap-icon, short description)
     ('student', 'Student', 'bi-mortarboard', 'Regular student account'),
-    ('organization', 'Organization', 'bi-building', 'Org officer + org record'),
-    ('campus_admin', 'Campus Admin', 'bi-shield-check', 'Campus administration'),
-    ('osas_sds', 'OSAS / SDS', 'bi-people', 'Student Affairs & Development'),
-    ('management', 'Management', 'bi-briefcase', 'CBRGU Management'),
-]
-
-
-ACCOUNT_TYPE_MAP = {
-    'student': 'student',
-    'organization': 'org_officer',
-    # Staff roles chosen via staff_role dropdown:
-    'campus_admin': 'campus_admin',
-    'osas_sds': 'osas_sds',
-    'management': 'management',
-    'cbrgu_staff': 'cbrgu_staff',
-}
-
-ACCOUNT_TYPES = [
-    # (value, label, bootstrap-icon, short description)
-    ('student', 'Student', 'bi-mortarboard', 'Regular student account'),
-    ('organization', 'Organization', 'bi-building', 'Organization account'),
+    ('organization', 'Organization', 'bi-building', 'Org login, managed by a verified student'),
     ('staff', 'Staff', 'bi-briefcase', 'Management / OSAS / Campus Admin / CBRGU Staff'),
 ]
 
@@ -2018,6 +1997,14 @@ STAFF_ROLE_CHOICES = [
     ('campus_admin', 'Campus Admin'),
     ('cbrgu_staff', 'CBRGU Staff'),
 ]
+STAFF_ROLES = {value for value, _ in STAFF_ROLE_CHOICES}
+
+FORM_FIELDS = (
+    'first_name', 'last_name', 'suffix', 'gender', 'email', 'student_no',
+    'phone_number', 'course', 'section', 'staff_role',
+    'org_name', 'org_full_name', 'org_type', 'org_course_code',
+    'org_description', 'manager_student_no',
+)
 
 
 def _generate_staff_id(prefix='STF'):
@@ -2048,212 +2035,148 @@ def _sidebar_context():
     }
 
 
+def _form_context(selected_type='student', form_data=None, staff_role=''):
+    return {
+        **_sidebar_context(),
+        'account_types': ACCOUNT_TYPES,
+        'staff_role_choices': STAFF_ROLE_CHOICES,
+        'course_choices': COURSE_CHOICES,
+        'preview_staff_id': _generate_staff_id(
+            _staff_prefix(staff_role) if staff_role else 'STF'
+        ),
+        'selected_type': selected_type,
+        'form_data': form_data or {},
+    }
+
+
+def _render_form_errors(request, errors, account_type, form_data):
+    for e in errors:
+        messages.error(request, e)
+    return render(
+        request,
+        'UTrade_app/management/admin/add_accounts.html',
+        _form_context(account_type or 'student', form_data, form_data.get('staff_role', '')),
+    )
+
+
 @login_required
 @user_passes_test(is_management)
 def add_accounts(request):
     if request.method == 'POST':
         return _handle_create_account(request)
-
-    context = {
-        **_sidebar_context(),
-        'account_types': ACCOUNT_TYPES,
-        'staff_role_choices': STAFF_ROLE_CHOICES,
-        'preview_staff_id': _generate_staff_id('STF'),
-        'form_data': {},
-    }
     return render(
         request,
         'UTrade_app/management/admin/add_accounts.html',
-        context,
+        _form_context(),
     )
 
 
 def _handle_create_account(request):
     data = request.POST
-    account_type = (data.get('account_type') or '').strip().lower()  # student | organization | staff
-    staff_role = (data.get('staff_role') or '').strip().lower()
-
-    first_name = (data.get('first_name') or '').strip()
-    last_name = (data.get('last_name') or '').strip()
-    suffix = (data.get('suffix') or '').strip() or None
-    gender = (data.get('gender') or '').strip()
-    email = (data.get('email') or '').strip().lower()
-    phone = (data.get('phone_number') or '').strip() or None
-    course = (data.get('course') or '').strip() or None
-    section = (data.get('section') or '').strip() or None
+    account_type = (data.get('account_type') or '').strip().lower()
+    f = {k: (data.get(k) or '').strip() for k in FORM_FIELDS}
+    email = f['email'].lower()
     password = data.get('password') or ''
     password_confirm = data.get('password_confirm') or ''
-    student_no_raw = (data.get('student_no') or '').strip()
-    mark_verified = data.get('mark_verified') == '1'
-    is_email_verified = data.get('is_email_verified') == '1'  # Skip OTP
 
     errors = []
-
-    # Resolve user_role
-    if account_type == 'staff':
-        if staff_role not in ('management', 'osas_sds', 'campus_admin', 'cbrgu_staff'):
-            errors.append('Please select a staff role.')
-        user_role = staff_role
-        is_staff_role = True
-        is_org = False
-        is_student_like = False
-    elif account_type == 'organization':
-        user_role = 'org_officer'
-        is_staff_role = False
-        is_org = True
-        is_student_like = True
-    elif account_type == 'student':
-        user_role = 'student'
-        is_staff_role = False
-        is_org = False
-        is_student_like = True
-    else:
+    if account_type not in ('student', 'organization', 'staff'):
         errors.append('Invalid account type.')
-        user_role = None
-        is_staff_role = is_org = is_student_like = False
 
-    if not first_name:
-        errors.append('First name is required.')
-    if not last_name:
-        errors.append('Last name is required.')
-    if not gender:
-        errors.append('Gender is required.')
+    # ---- checks shared by every account type ----
     if not email:
         errors.append('Email is required.')
     elif User.objects.filter(email__iexact=email).exists():
         errors.append('An account with this email already exists.')
-    if not password or len(password) < 8:
+    if len(password) < 8:
         errors.append('Password must be at least 8 characters.')
     if password != password_confirm:
         errors.append('Passwords do not match.')
 
-    # ID assignment
+    if account_type == 'organization':
+        return _create_org(request, f, email, password, errors)
+    return _create_person(
+        request, account_type, f, email, password,
+        mark_verified=data.get('mark_verified') == '1',
+        skip_otp=data.get('is_email_verified') == '1',
+        errors=errors,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Student / Staff
+# ---------------------------------------------------------------------------
+
+def _create_person(request, account_type, f, email, password, mark_verified, skip_otp, errors):
+    is_staff_role = account_type == 'staff'
+
     if is_staff_role:
-        student_no = _generate_staff_id(_staff_prefix(user_role))
-        position = None  # no position field for staff
+        user_role = f['staff_role']
+        if user_role not in STAFF_ROLES:
+            errors.append('Please select a staff role.')
     else:
-        student_no = student_no_raw
-        if not student_no:
-            errors.append('Student number is required.')
-        elif not re.match(r'^[A-Za-z0-9\-]+$', student_no):
-            errors.append('Student number may only contain letters, numbers, and hyphens.')
+        user_role = 'student'
+
+    if not f['first_name']:
+        errors.append('First name is required.')
+    if not f['last_name']:
+        errors.append('Last name is required.')
+    if f['gender'] not in ('Male', 'Female', 'Other'):
+        errors.append('Gender is required.')
+
+    student_no = ''
+    phone = course = section = None
+    if not is_staff_role:
+        student_no = f['student_no']
+        if not re.fullmatch(r'\d{9}', student_no):
+            errors.append('Student number must be exactly 9 digits.')
         elif User.objects.filter(student_no__iexact=student_no).exists():
             errors.append('An account with this student number already exists.')
+
+        phone = f['phone_number'] or None
         if not phone:
             errors.append('Contact number is required.')
-        if not course:
-            errors.append('Course is required.')
+
+        course = f['course'] or None
+        if not course or course not in VALID_COURSE_CODES:
+            errors.append('Please select a valid course.')
+
+        section = f['section'] or None
         if not section:
             errors.append('Section is required.')
-        position = None
-
-    # Organization
-    org = None
-    if is_org and not errors:
-        org_name = (data.get('org_name') or '').strip()
-        org_full_name = (data.get('org_full_name') or '').strip()
-        org_type = (data.get('org_type') or 'academic').strip().lower()
-        org_course_code = (data.get('org_course_code') or '').strip() or None
-        org_description = (data.get('org_description') or '').strip()
-
-        if org_type not in ('academic', 'non_academic'):
-            errors.append('Invalid organization type.')
-        if not org_name:
-            errors.append('Organization acronym / short name is required.')
-        if not org_full_name:
-            errors.append('Full organization name is required.')
-
-        # Course code: required for academic orgs except CSG
-        is_csg = org_name.upper() == 'CSG'
-        if org_type == 'academic' and not is_csg and not org_course_code:
-            errors.append('Course code is required for academic organizations (except CSG).')
-        if org_type == 'non_academic' or is_csg:
-            org_course_code = None  # not tied to a course
-
-        if not errors:
-            org = Organization.objects.filter(name__iexact=org_name).first()
-            if not org:
-                org = Organization.objects.create(
-                    name=org_name,
-                    full_name=org_full_name,
-                    course_code=org_course_code,
-                    description=org_description or None,
-                    org_type=org_type,
-                )
-            else:
-                # keep existing; optionally update type/description if blank
-                updates = []
-                if org_description and not org.description:
-                    org.description = org_description
-                    updates.append('description')
-                if org_type and org.org_type != org_type:
-                    org.org_type = org_type
-                    updates.append('org_type')
-                if org_course_code and not org.course_code:
-                    org.course_code = org_course_code
-                    updates.append('course_code')
-                if updates:
-                    org.save(update_fields=updates + ['date_created'] if False else updates)
 
     if errors:
-        for e in errors:
-            messages.error(request, e)
-        context = {
-            **_sidebar_context(),
-            'account_types': ACCOUNT_TYPES,
-            'staff_role_choices': STAFF_ROLE_CHOICES,
-            'preview_staff_id': _generate_staff_id(
-                _staff_prefix(user_role) if is_staff_role and user_role else 'STF'
-            ),
-            'form_data': {
-                'first_name': first_name,
-                'last_name': last_name,
-                'email': email,
-                'student_no': student_no_raw,
-                'phone_number': phone or '',
-            },
-        }
-        return render(
-            request,
-            'UTrade_app/management/admin/add_accounts.html',
-            context,
-        )
+        return _render_form_errors(request, errors, account_type, f)
 
     try:
         with transaction.atomic():
+            if is_staff_role:
+                student_no = _generate_staff_id(_staff_prefix(user_role))
+
             user = User(
                 student_no=student_no,
                 email=email,
-                first_name=first_name,
-                last_name=last_name,
-                suffix=suffix,
-                gender=gender,
+                first_name=f['first_name'],
+                last_name=f['last_name'],
+                suffix=f['suffix'] or None,
+                gender=f['gender'],
                 user_role=user_role,
                 phone_number=phone,
-                course=course if is_student_like else None,
-                section=section if is_student_like else None,
-                position=position,
+                course=course,
+                section=section,
                 status='verified' if mark_verified else 'unverified',
-                is_email_verified=is_email_verified,
+                is_email_verified=skip_otp,
                 has_agreed_to_terms=True,
             )
-
-            # Skip OTP checked → still store a random OTP for future auth use
-            if is_email_verified:
+            if skip_otp:
+                # Random OTP is still stored for future use, as before.
                 user.otp_code = get_random_string(6, '0123456789')
                 user.otp_expiry = timezone.now() + timedelta(days=365)
-
-            if is_org:
-                user.is_officer = True
-                user.officer_status = 'verified' if mark_verified else 'pending'
-                user.organization = org.name if org else None
-                user.org_link = org
-
             if is_staff_role:
                 user.is_staff = True
 
             user.set_password(password)
-            user.username = (email.split('@')[0] if email else student_no)[:70]
+            user.username = (email.split('@')[0] or student_no)[:70]
             user.save()
 
             log_action(
@@ -2264,21 +2187,109 @@ def _handle_create_account(request):
                 details=(
                     f'Created {account_type} account · ID={student_no} · '
                     f'email={email} · role={user_role}'
-                    + (f' · org={org.name}' if org else '')
-                    + (f' · otp_assigned={bool(user.otp_code)}' if is_email_verified else '')
                 ),
             )
-
-        messages.success(
-            request,
-            f'Account created for {user.get_full_name() or user.student_no} '
-            f'({student_no}). Role: {user.get_user_role_display()}.'
-        )
-        return redirect('add_accounts')
-
     except Exception as exc:
-        messages.error(request, f'Failed to create account: {exc}')
-        return redirect('add_accounts')
+        logger.exception('Account creation failed')
+        return _render_form_errors(
+            request, [f'Failed to create account: {exc}'], account_type, f
+        )
+
+    messages.success(
+        request,
+        f'Account created for {user.get_full_name()} ({student_no}). '
+        f'Role: {user.get_user_role_display()}.'
+    )
+    return redirect('add_accounts')
+
+
+# ---------------------------------------------------------------------------
+# Organization (own login + accountable student)
+# ---------------------------------------------------------------------------
+
+def _create_org(request, f, email, password, errors):
+    org_name = f['org_name']
+    org_full_name = f['org_full_name']
+    org_type = (f['org_type'] or 'academic').lower()
+    org_course_code = f['org_course_code'] or None
+    description = f['org_description']
+    manager_no = f['manager_student_no']
+
+    if org_type not in ('academic', 'non_academic'):
+        errors.append('Invalid organization type.')
+    if not org_name:
+        errors.append('Organization acronym / short name is required.')
+    if not org_full_name:
+        errors.append('Full organization name is required.')
+
+    is_csg = org_name.upper() == 'CSG'
+    if org_type == 'academic' and not is_csg and not org_course_code:
+        errors.append('Course code is required for academic organizations (except CSG).')
+    if org_type == 'non_academic' or is_csg:
+        org_course_code = None
+
+    # The accountable student must already exist and be verified.
+    manager = None
+    if not re.fullmatch(r'\d{9}', manager_no):
+        errors.append("Enter the accountable student's 9-digit student number.")
+    else:
+        manager = User.objects.filter(student_no=manager_no, user_role='student').first()
+        if not manager:
+            errors.append('No student account was found with that student number.')
+        elif (manager.status or '').lower() != 'verified':
+            errors.append(
+                'That student is not verified yet. Only a verified student '
+                'can manage an organization account.'
+            )
+
+    org = Organization.objects.filter(name__iexact=org_name).first() if org_name else None
+    if org and User.objects.filter(org_link=org, is_org_account=True).exists():
+        errors.append(
+            f'{org.name} already has an organization account. '
+            f'Reassign its manager instead of creating a second login.'
+        )
+
+    if errors:
+        return _render_form_errors(request, errors, 'organization', f)
+
+    try:
+        with transaction.atomic():
+            if not org:
+                org = Organization.objects.create(
+                    name=org_name,
+                    full_name=org_full_name,
+                    course_code=org_course_code,
+                    description=description or None,
+                    org_type=org_type,
+                )
+            org_user, _pw = create_org_account(
+                org, manager, assigned_by=request.user, enforce=True,
+                email=email, password=password,
+            )
+            log_action(
+                user=request.user,
+                action='Org Account Created',
+                item_type='Organization',
+                item_name=org.name,
+                details=(
+                    f'Login ID={org_user.student_no} · email={email} · '
+                    f'manager={manager.get_full_name()} ({manager.student_no})'
+                ),
+            )
+    except ValidationError as exc:
+        return _render_form_errors(request, list(exc.messages), 'organization', f)
+    except Exception as exc:
+        logger.exception('Org account creation failed')
+        return _render_form_errors(
+            request, [f'Failed to create account: {exc}'], 'organization', f
+        )
+
+    messages.success(
+        request,
+        f'Organization account created for {org.name}. Login ID: {org_user.student_no}. '
+        f'Accountable student: {manager.get_full_name()} ({manager.student_no}).'
+    )
+    return redirect('add_accounts')
 
 
 @login_required

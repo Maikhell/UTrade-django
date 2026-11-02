@@ -1,0 +1,140 @@
+{% load humanize %}
+<div class="wf-card">
+  {% if tab.rows %}
+  <table class="wf-table">
+    <thead>
+      <tr>
+        {% if tab.selectable %}
+          <th class="wf-th-check">
+            <input type="checkbox" class="form-check-input" data-wf-all
+                   onchange="toggleAll('{{ tab.key }}', this.checked)" aria-label="Select all">
+          </th>
+        {% endif %}
+        <th>{{ noun|title }}</th>
+        <th>Buyer</th>
+        <th>Items</th>
+        <th>Total</th>
+        <th>{% if tab.key == 'rejected' %}Reason{% else %}Est. pickup{% endif %}</th>
+        <th>Status</th>
+        <th class="text-end">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in tab.rows %}
+      <tr>
+        {% if tab.selectable %}
+        <td class="wf-check-cell" data-label="">
+          <input type="checkbox" class="form-check-input wf-check {{ tab.key }}-check" value="{{ row.id }}"
+                 aria-label="Select {{ row.wf_ref }}">
+        </td>
+        {% endif %}
+
+        <td data-label="{{ noun|title }}">
+          <div class="wf-cell">
+            <div class="fw-bold">{{ row.wf_ref }}</div>
+            <div class="wf-sub">{{ row.created_at|date:"M d, Y" }} · {{ row.created_at|timesince }} ago</div>
+          </div>
+        </td>
+
+        <td data-label="Buyer">
+          <div class="wf-cell">
+            <div class="fw-semibold">{{ row.wf_buyer_name }}</div>
+            <div class="wf-sub">{{ row.wf_buyer_no }}{% if row.wf_org and row.wf_org != "—" %} · {{ row.wf_org }}{% endif %}</div>
+          </div>
+        </td>
+
+        <td data-label="Items">
+          <div class="wf-cell">
+            {% for line in row.wf_lines|slice:":2" %}
+              <div class="wf-line">
+                <span class="wf-thumb">
+                  {% if line.image %}<img src="{{ line.image }}" alt="">{% else %}<i class="bi bi-image"></i>{% endif %}
+                </span>
+                <span class="wf-line-text">
+                  <span class="fw-semibold">{{ line.name }}</span>
+                  <small>{% if line.variant %}{{ line.variant }} · {% endif %}×{{ line.qty }}</small>
+                </span>
+              </div>
+            {% endfor %}
+            {% if row.wf_lines|length > 2 %}
+              <div class="wf-more">+{{ row.wf_lines|length|add:"-2" }} more</div>
+            {% endif %}
+          </div>
+        </td>
+
+        <td data-label="Total">
+          <div class="wf-cell">
+            <div class="fw-bold text-success">₱{{ row.wf_amount|floatformat:2|intcomma }}</div>
+            <div class="wf-sub">{{ row.wf_qty }} item{{ row.wf_qty|pluralize }}</div>
+          </div>
+        </td>
+
+        <td data-label="{% if tab.key == 'rejected' %}Reason{% else %}Est. pickup{% endif %}">
+          <div class="wf-cell">
+            {% if tab.key == 'rejected' %}
+              <span class="text-danger small">{{ row.wf_reason|default:"—" }}{% if row.wf_reason_note %} – {{ row.wf_reason_note }}{% endif %}</span>
+            {% elif row.wf_est %}
+              <span class="wf-eta"><i class="bi bi-hourglass-split"></i> {{ row.wf_est }}</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </div>
+        </td>
+
+        <td data-label="Status">
+          <div class="wf-cell">
+            <span class="wf-chip is-{{ row.wf_key }}"><span class="wf-dot"></span>{{ row.wf_label }}</span>
+            {% if row.wf_paid %}<span class="wf-chip is-paid ms-1"><i class="bi bi-check-circle-fill"></i> Paid</span>{% endif %}
+          </div>
+        </td>
+
+        <td class="wf-actions" data-label="">
+          <div class="wf-cell wf-cell-actions">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                    data-bs-target="#wfModal{{ row.id }}">
+              <i class="bi bi-eye"></i><span class="wf-btn-text">Details</span>
+            </button>
+
+            {% if row.wf_key == 'incoming' %}
+              <button type="button" class="btn btn-sm btn-success" onclick="singleAction({{ row.id }}, 'accept')">Accept</button>
+              <button type="button" class="btn btn-sm btn-danger" onclick="singleAction({{ row.id }}, 'reject')">Reject</button>
+
+            {% elif row.wf_mid %}
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown" aria-expanded="false">Update</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  {% if row.wf_key != 'processing' %}<li><button type="button" class="dropdown-item" onclick="singleAction({{ row.id }}, 'processing')">Processing</button></li>{% endif %}
+                  {% if row.wf_key != 'awaiting' %}<li><button type="button" class="dropdown-item" onclick="singleAction({{ row.id }}, 'awaiting_payment')">Awaiting payment</button></li>{% endif %}
+                  {% if row.wf_key != 'stocks' %}<li><button type="button" class="dropdown-item" onclick="singleAction({{ row.id }}, 'waiting_stocks')">Waiting for stocks</button></li>{% endif %}
+                  <li><hr class="dropdown-divider"></li>
+                  <li><button type="button" class="dropdown-item" onclick="singleAction({{ row.id }}, 'set_estimate')">Set estimated pickup</button></li>
+                </ul>
+              </div>
+              <button type="button" class="btn btn-sm btn-success" onclick="singleAction({{ row.id }}, 'ready')">Ready</button>
+
+            {% elif row.wf_key == 'ready' %}
+              <button type="button" class="btn btn-sm btn-outline-success" onclick="singleAction({{ row.id }}, 'set_estimate')">Est.</button>
+              <button type="button" class="btn btn-sm btn-success" onclick="singleAction({{ row.id }}, 'complete')">Completed</button>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if tab.count > tab.rows|length %}
+    <div class="wf-limit">
+      Showing the latest {{ tab.rows|length }} of {{ tab.count }} {{ noun_plural }}. Use the filters to narrow the list.
+    </div>
+  {% endif %}
+
+  {% else %}
+    <div class="wf-empty">
+      <i class="bi {{ tab.icon }}"></i>
+      <h6>No {{ tab.label|lower }} {{ noun_plural }}</h6>
+      <p>{{ noun_plural|capfirst }} will appear here as they move through the workflow.</p>
+    </div>
+  {% endif %}
+</div>

@@ -1,0 +1,108 @@
+{% load humanize %}
+<div class="modal fade wf-modal" id="wfModal{{ row.id }}" tabindex="-1"
+     aria-labelledby="wfModalLabel{{ row.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-sm-down">
+    <div class="modal-content">
+
+      <div class="modal-header wf-mhead is-{{ row.wf_key }}">
+        <div>
+          <div class="wf-mkind">{{ noun|title }}</div>
+          <h5 class="modal-title" id="wfModalLabel{{ row.id }}">{{ row.wf_ref }}</h5>
+          <div class="wf-msub">Requested {{ row.created_at|date:"M d, Y · h:i A" }}</div>
+        </div>
+        <div class="d-flex align-items-start gap-2">
+          <span class="wf-chip is-{{ row.wf_key }}"><span class="wf-dot"></span>{{ row.wf_label }}</span>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+
+        {% if row.wf_step %}
+        <section class="wf-msec">
+          <h6 class="wf-mtitle">Progress</h6>
+          <ol class="wf-steps">
+            {% for label in steps %}
+            <li class="wf-step{% if forloop.counter < row.wf_step %} is-done{% elif forloop.counter == row.wf_step %} is-current{% endif %}">
+              <span class="wf-step-dot">{% if forloop.counter < row.wf_step %}<i class="bi bi-check-lg"></i>{% else %}{{ forloop.counter }}{% endif %}</span>
+              <span class="wf-step-label">
+                {{ label }}
+                {% if forloop.counter == 3 and row.wf_step == 3 %}<small>{{ row.wf_label }}</small>{% endif %}
+              </span>
+            </li>
+            {% endfor %}
+          </ol>
+        </section>
+        {% elif row.wf_key == 'rejected' %}
+        <div class="wf-alert">
+          <i class="bi bi-x-octagon"></i>
+          <div>
+            <strong>This {{ noun }} was rejected.</strong>
+            <div>{{ row.wf_reason|default:"No reason provided." }}{% if row.wf_reason_note %} – {{ row.wf_reason_note }}{% endif %}</div>
+          </div>
+        </div>
+        {% endif %}
+
+        <section class="wf-msec">
+          <h6 class="wf-mtitle">Summary</h6>
+          <div class="wf-info-grid">
+            <div class="wf-info"><span class="wf-info-label">Total</span><span class="wf-info-value text-success">₱{{ row.wf_amount|floatformat:2|intcomma }}</span></div>
+            <div class="wf-info"><span class="wf-info-label">Quantity</span><span class="wf-info-value">{{ row.wf_qty }}</span></div>
+            <div class="wf-info"><span class="wf-info-label">Payment</span><span class="wf-info-value">{{ row.wf_payment }}</span></div>
+            <div class="wf-info"><span class="wf-info-label">Pickup location</span><span class="wf-info-value">{{ row.wf_location|default:"To be confirmed" }}</span></div>
+            <div class="wf-info"><span class="wf-info-label">Estimated pickup</span><span class="wf-info-value">{{ row.wf_est|default:"Not set yet" }}</span></div>
+            <div class="wf-info"><span class="wf-info-label">Last updated</span><span class="wf-info-value">{{ row.updated_at|date:"M d, Y · h:i A" }}</span></div>
+          </div>
+          {% if row.wf_buyer_note %}<div class="wf-note"><span>Buyer note</span>{{ row.wf_buyer_note }}</div>{% endif %}
+          {% if row.wf_seller_note %}<div class="wf-note"><span>Seller note</span>{{ row.wf_seller_note }}</div>{% endif %}
+        </section>
+
+        <section class="wf-msec">
+          <h6 class="wf-mtitle">Buyer</h6>
+          <div class="wf-info-grid">
+            <div class="wf-info"><span class="wf-info-label">Name</span><span class="wf-info-value">{{ row.wf_buyer_name }}</span></div>
+            <div class="wf-info"><span class="wf-info-label">Student no.</span><span class="wf-info-value">{{ row.wf_buyer_no|default:"—" }}</span></div>
+            <div class="wf-info"><span class="wf-info-label">Course / section</span><span class="wf-info-value">{{ row.wf_course|default:"—" }}{% if row.wf_section %} · {{ row.wf_section }}{% endif %}</span></div>
+            <div class="wf-info"><span class="wf-info-label">Contact</span><span class="wf-info-value">{{ row.wf_buyer.phone_number|default:"—" }}</span></div>
+            <div class="wf-info wf-info-wide"><span class="wf-info-label">Email</span><span class="wf-info-value text-break">{{ row.wf_buyer.email|default:"—" }}</span></div>
+          </div>
+        </section>
+
+        <section class="wf-msec">
+          <h6 class="wf-mtitle">Items</h6>
+          <div class="wf-items">
+            {% for line in row.wf_lines %}
+            <div class="wf-line wf-line-lg">
+              <span class="wf-thumb wf-thumb-lg">
+                {% if line.image %}<img src="{{ line.image }}" alt="">{% else %}<i class="bi bi-image"></i>{% endif %}
+              </span>
+              <span class="wf-line-text">
+                <span class="fw-semibold">{{ line.name }}</span>
+                <small>{% if line.variant %}{{ line.variant }} · {% endif %}{{ line.qty }} × ₱{{ line.price|floatformat:2|intcomma }}</small>
+              </span>
+              <span class="fw-bold">₱{{ line.total|floatformat:2|intcomma }}</span>
+            </div>
+            {% empty %}
+              <div class="text-muted small">No items.</div>
+            {% endfor %}
+          </div>
+          <div class="wf-totals"><span>Total</span><strong>₱{{ row.wf_amount|floatformat:2|intcomma }}</strong></div>
+        </section>
+      </div>
+
+      <div class="modal-footer wf-mfoot">
+        {% if row.wf_key == 'incoming' %}
+          <button type="button" class="btn btn-outline-danger btn-sm" onclick="modalAction('wfModal{{ row.id }}', {{ row.id }}, 'reject')">Reject</button>
+          <button type="button" class="btn btn-success btn-sm" onclick="modalAction('wfModal{{ row.id }}', {{ row.id }}, 'accept')">Accept</button>
+        {% elif row.wf_mid %}
+          <button type="button" class="btn btn-outline-success btn-sm" onclick="modalAction('wfModal{{ row.id }}', {{ row.id }}, 'set_estimate')">Set estimated pickup</button>
+          <button type="button" class="btn btn-success btn-sm" onclick="modalAction('wfModal{{ row.id }}', {{ row.id }}, 'ready')">Mark ready for pickup</button>
+        {% elif row.wf_key == 'ready' %}
+          <button type="button" class="btn btn-outline-success btn-sm" onclick="modalAction('wfModal{{ row.id }}', {{ row.id }}, 'set_estimate')">Set estimated pickup</button>
+          <button type="button" class="btn btn-success btn-sm" onclick="modalAction('wfModal{{ row.id }}', {{ row.id }}, 'complete')">Mark completed</button>
+        {% endif %}
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

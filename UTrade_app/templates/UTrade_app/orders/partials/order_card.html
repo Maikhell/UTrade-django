@@ -67,7 +67,10 @@
     {% endfor %}
 
     {% if order.in_flight %}
-      {% include "UTrade_app/orders/partials/steps.html" with steps=order_steps current=order.step sub="" sub_at=0 %}
+      {% include "UTrade_app/orders/partials/steps.html" with steps=order_steps current=order.step sub=order.ui_label sub_at=3 %}
+      {% if order.estimated_pickup %}
+        <div class="oc-eta"><i class="bi bi-hourglass-split"></i> Estimated ready: <strong>{{ order.estimated_pickup }}</strong></div>
+      {% endif %}
     {% elif order.status == 'Cancelled' %}
       <div class="oc-alert oc-alert--cancelled">
         <i class="bi bi-slash-circle"></i>
@@ -76,7 +79,10 @@
     {% elif order.status == 'Rejected' %}
       <div class="oc-alert oc-alert--rejected">
         <i class="bi bi-x-octagon"></i>
-        <div><strong>Rejected by the seller.</strong> {{ order.rejection_reason|default:"No reason provided." }}</div>
+        <div>
+          <strong>Rejected.</strong>
+          {{ order.rejection_reason|default:"No reason provided." }}{% if order.rejection_note %} — {{ order.rejection_note }}{% endif %}
+        </div>
       </div>
     {% endif %}
   </div>

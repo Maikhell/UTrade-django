@@ -1,0 +1,267 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'UTrade_app/css/management_workflow.css' %}" />
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
+  <a href="{% url 'user.account' %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back to Account</span>
+  </a>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+
+    <div class="col-12 d-md-none mb-3">
+      <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
+              type="button" data-bs-toggle="offcanvas" data-bs-target="#sellerSidebar">
+        <i class="bi bi-list"></i> Staff Menu
+      </button>
+    </div>
+
+    {# ========== SIDEBAR ========== #}
+    <div class="col-md-3 col-lg-2">
+      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm" tabindex="-1" id="sellerSidebar">
+        <div class="offcanvas-header d-md-none">
+          <h5 class="offcanvas-title fw-bold">Staff</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+          <div class="seller-sidebar p-3">
+            <div class="mb-4">
+              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
+              <div class="d-flex flex-column gap-2 small">
+                <div class="d-flex justify-content-between"><span>{{ noun_plural|title }}</span><strong>{{ total|default:0 }}</strong></div>
+                <div class="d-flex justify-content-between"><span>Incoming</span><strong>{{ incoming_count }}</strong></div>
+                <div class="d-flex justify-content-between"><span>Completed</span><strong>{{ completed_count }}</strong></div>
+              </div>
+            </div>
+            <hr class="my-3 opacity-25">
+            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-briefcase"></i> CBRGU Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 text-success"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'active_listings' %}"><i class="bi bi-check2-square text-success"></i> Active Listings</a></li>
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'remittance_management' %}"><i class="bi bi-cash-stack text-success"></i> Remittance</a></li>
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'cbrgu_products' %}"><i class="bi bi-box-seam text-success"></i> Products</a></li>
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-cart-fill"></i> Orders
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link {% if kind == 'order' %}active{% else %}text-dark{% endif %} d-flex align-items-center gap-2 rounded-3 py-1" href="{% url 'management_orders' %}">
+                    <i class="bi bi-inbox text-success"></i> Orders
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link sidebar-link {% if kind == 'preorder' %}active{% else %}text-dark{% endif %} d-flex align-items-center gap-2 rounded-3 py-1" href="{% url 'management_preorders' %}">
+                    <i class="bi bi-calendar-check text-success"></i> Pre-Orders
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-shield-lock"></i> Settings
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'logs_reports' %}"><i class="bi bi-journal-text"></i> Logs and Reports</a></li>
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_prohibited_words' %}"><i class="bi bi-exclamation-triangle"></i> Prohibited Items</a></li>
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_categories' %}"><i class="bi bi-tags text-success"></i> Categories</a></li>
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_pickup_spots' %}"><i class="bi bi-geo-alt"></i> Pickup Spots</a></li>
+              </ul>
+            </div>
+
+            <div class="mb-3">
+              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
+                <i class="bi bi-shield-lock"></i> Admin Panel
+              </div>
+              <ul class="nav flex-column gap-1 ms-3 mt-1">
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_accounts' %}"><i class="bi bi-person-add"></i> Add Accounts</a></li>
+                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'all_users' %}"><i class="bi bi-people"></i> All Users</a></li>
+              </ul>
+            </div>
+
+            <hr class="my-3 opacity-25">
+            <div class="d-grid gap-2">
+              <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
+                <i class="bi bi-plus-lg me-1"></i> Add New Product
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ========== MAIN ========== #}
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
+
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+          <h2 class="fw-bold mb-0 text-success">{{ title }}</h2>
+          <p class="text-muted mb-0 small">{{ subtitle }}</p>
+        </div>
+        <a href="{% url 'generate.report.pdf' %}?report_type=all_products"
+           class="btn btn-success rounded-pill px-4 shadow-sm">
+          <i class="bi bi-file-earmark-pdf me-1"></i> Generate Report
+        </a>
+      </div>
+
+      {# Stats #}
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-xl-3">
+          <div class="wf-stat">
+            <span class="wf-stat-ico is-incoming"><i class="bi bi-inbox"></i></span>
+            <div><div class="wf-stat-label">Incoming</div><div class="wf-stat-num">{{ stats.incoming }}</div></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="wf-stat">
+            <span class="wf-stat-ico is-processing"><i class="bi bi-gear"></i></span>
+            <div><div class="wf-stat-label">In progress</div><div class="wf-stat-num">{{ stats.in_progress }}</div></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="wf-stat">
+            <span class="wf-stat-ico is-ready"><i class="bi bi-bag-check"></i></span>
+            <div><div class="wf-stat-label">Ready for pickup</div><div class="wf-stat-num">{{ stats.ready }}</div></div>
+          </div>
+        </div>
+        <div class="col-6 col-xl-3">
+          <div class="wf-stat">
+            <span class="wf-stat-ico is-completed"><i class="bi bi-clipboard-check"></i></span>
+            <div><div class="wf-stat-label">Completed</div><div class="wf-stat-num">{{ stats.completed }}</div></div>
+          </div>
+        </div>
+      </div>
+
+      {# Tabs #}
+      <ul class="nav nav-tabs wf-tabs flex-nowrap" role="tablist">
+        {% for tab in tabs %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link{% if forloop.first %} active{% endif %}" id="{{ tab.key }}-tab"
+                  data-bs-toggle="tab" data-bs-target="#{{ tab.key }}-pane" type="button" role="tab"
+                  aria-controls="{{ tab.key }}-pane" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+            <i class="bi {{ tab.icon }}"></i>
+            <span>{{ tab.label }}</span>
+            <span class="wf-pill is-{{ tab.key }}">{{ tab.count }}</span>
+          </button>
+        </li>
+        {% endfor %}
+      </ul>
+
+      {# Filters #}
+      <form method="GET" action="{{ page_url }}" class="wf-filter">
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-lg-4">
+            <label class="form-label" for="wf-search">Search</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="text" id="wf-search" name="search" class="form-control"
+                     placeholder="ID, buyer, product, student no…" value="{{ current_filters.search }}">
+            </div>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="wf-from">From</label>
+            <input type="date" id="wf-from" name="date_from" class="form-control" value="{{ current_filters.date_from }}">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="wf-to">To</label>
+            <input type="date" id="wf-to" name="date_to" class="form-control" value="{{ current_filters.date_to }}">
+          </div>
+          <div class="col-12 col-lg-2">
+            <label class="form-label" for="wf-org">Organization</label>
+            <select id="wf-org" name="organization" class="form-select">
+              <option value="">All</option>
+              {% for org in org_options %}
+                <option value="{{ org }}" {% if current_filters.organization == org %}selected{% endif %}>{{ org }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-lg-2 d-flex gap-2">
+            <button type="submit" class="btn btn-success flex-grow-1"><i class="bi bi-funnel"></i> Filter</button>
+            <a href="{{ page_url }}" class="btn btn-outline-success" aria-label="Reset filters"><i class="bi bi-arrow-clockwise"></i></a>
+          </div>
+        </div>
+      </form>
+
+      {# Panes #}
+      <div class="tab-content">
+        {% for tab in tabs %}
+        <div class="tab-pane fade{% if forloop.first %} show active{% endif %}" id="{{ tab.key }}-pane"
+             role="tabpanel" aria-labelledby="{{ tab.key }}-tab" tabindex="0">
+
+          {% if tab.selectable %}
+          <div class="wf-batch">
+            <span class="wf-batch-count" data-wf-count="{{ tab.key }}">Select up to 20</span>
+            <div class="wf-batch-actions">
+              {% if tab.key == 'incoming' %}
+                <button type="button" class="btn btn-sm btn-success" data-wf-needs disabled onclick="batchAction('incoming','accept')">
+                  <i class="bi bi-check-lg"></i> Accept selected
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" data-wf-needs disabled onclick="batchAction('incoming','reject')">
+                  <i class="bi bi-x-lg"></i> Reject selected
+                </button>
+              {% elif tab.key == 'ready' %}
+                <button type="button" class="btn btn-sm btn-success" data-wf-needs disabled onclick="batchAction('ready','complete')">
+                  <i class="bi bi-clipboard-check"></i> Mark completed
+                </button>
+              {% else %}
+                <button type="button" class="btn btn-sm btn-outline-success" data-wf-needs disabled onclick="batchSetEstimate('{{ tab.key }}')">
+                  <i class="bi bi-hourglass-split"></i> Set est. pickup
+                </button>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-wf-needs disabled>
+                    Move to…
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end">
+                    {% if tab.key != 'processing' %}<li><button type="button" class="dropdown-item" onclick="batchAction('{{ tab.key }}','processing')">Processing</button></li>{% endif %}
+                    {% if tab.key != 'awaiting' %}<li><button type="button" class="dropdown-item" onclick="batchAction('{{ tab.key }}','awaiting_payment')">Awaiting payment</button></li>{% endif %}
+                    {% if tab.key != 'stocks' %}<li><button type="button" class="dropdown-item" onclick="batchAction('{{ tab.key }}','waiting_stocks')">Waiting for stocks</button></li>{% endif %}
+                  </ul>
+                </div>
+                <button type="button" class="btn btn-sm btn-success" data-wf-needs disabled onclick="batchAction('{{ tab.key }}','ready')">
+                  <i class="bi bi-bag-check"></i> Ready for pickup
+                </button>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% include "UTrade_app/management/partials/_workflow_table.html" %}
+        </div>
+        {% endfor %}
+      </div>
+    </main>
+  </div>
+</div>
+
+{# Detail dialogs (top level so tab transitions can't trap them) #}
+{% for row in all_rows %}
+  {% include "UTrade_app/management/partials/_workflow_modal.html" %}
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.WF_CONFIG = { noun: '{{ noun }}', batchUrl: '{{ batch_url }}' };
+</script>
+<script src="{% static 'UTrade_app/js/management_workflow.js' %}"></script>
+{% endblock %}

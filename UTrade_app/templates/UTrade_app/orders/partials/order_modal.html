@@ -23,7 +23,10 @@
         {% if order.step %}
           <section class="oc-msec">
             <h6 class="oc-mtitle">Progress</h6>
-            {% include "UTrade_app/orders/partials/steps.html" with steps=order_steps current=order.step sub="" sub_at=0 %}
+            {% include "UTrade_app/orders/partials/steps.html" with steps=order_steps current=order.step sub=order.ui_label sub_at=3 %}
+            {% if order.estimated_pickup and order.in_flight %}
+              <div class="oc-eta"><i class="bi bi-hourglass-split"></i> Estimated ready: <strong>{{ order.estimated_pickup }}</strong></div>
+            {% endif %}
           </section>
         {% elif order.status == 'Cancelled' %}
           <div class="oc-alert oc-alert--cancelled">
@@ -40,6 +43,7 @@
             <div>
               <strong>This order was rejected.</strong>
               <div>{{ order.rejection_reason|default:"No reason provided." }}</div>
+              {% if order.rejection_note %}<div class="mt-1">{{ order.rejection_note }}</div>{% endif %}
             </div>
           </div>
         {% endif %}
@@ -61,6 +65,10 @@
             <div class="oc-info">
               <span class="oc-info-label">Pickup location</span>
               <span class="oc-info-value">{{ order.pickup_location|default:order.meetup_location|default:"To be confirmed" }}</span>
+            </div>
+            <div class="oc-info">
+              <span class="oc-info-label">Estimated ready</span>
+              <span class="oc-info-value">{{ order.estimated_pickup|default:"To be confirmed" }}</span>
             </div>
             {% if order.pickup_time %}
             <div class="oc-info">

@@ -8,8 +8,11 @@ class Order(models.Model):
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Paid', 'Paid'),
-        ('Delivered', 'Delivered'),
         ('Accepted', 'Accepted'),
+        ('Processing', 'Processing'),
+        ('Awaiting Payment', 'Awaiting Payment'),
+        ('Waiting for Stocks', 'Waiting for Stocks'),
+        ('Delivered', 'Ready for Pickup'),   # stored value kept as "Delivered"
         ('Completed', 'Completed'),
         ('Cancelled', 'Cancelled'),
         ('Rejected', 'Rejected'),
@@ -35,6 +38,8 @@ class Order(models.Model):
     REJECTION_CHOICES = [
         ('Out of stock', 'Item(s) out of stock'),
         ('Pricing/Listing error', 'Pricing or product listing error'),
+        ('Buyer request', 'Buyer requested cancellation'),
+        ('Unable to fulfill', 'Unable to fulfill order'),
         ('Other', 'Other'),
     ]
 
@@ -50,10 +55,19 @@ class Order(models.Model):
     rejection_reason = models.CharField(
         max_length=100, choices=REJECTION_CHOICES, null=True, blank=True
     )
+    rejection_note = models.TextField(null=True, blank=True)  # for "Other"
     cancellation_reason = models.CharField(
         max_length=100, choices=CANCELLATION_CHOICES, null=True, blank=True
     )
     cancellation_note = models.TextField(null=True, blank=True)
+
+    # Same field and wording as PreOrderRequest.estimated_pickup
+    estimated_pickup = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="e.g. 1 day, 1-2 days, or custom text",
+    )
 
     meetup_location = models.CharField(max_length=255, blank=True, null=True)
     pickup_time = models.DateTimeField(blank=True, null=True)

@@ -27,7 +27,7 @@ from ..models import (
 # ---------------------------------------------------------------------------
 # Order / pre-order progress, used by the "My Purchases" page
 # ---------------------------------------------------------------------------
-ORDER_STEPS = ['Placed', 'Accepted', 'Ready for pickup', 'Completed']
+ORDER_STEPS = ['Placed', 'Accepted', 'In progress', 'Ready for pickup', 'Completed']
 PREORDER_STEPS = ['Requested', 'Accepted', 'In progress', 'Ready for pickup', 'Completed']
 
 # status -> (css key, label, step)
@@ -36,8 +36,11 @@ ORDER_STATUS_META = {
     'Pending': ('pending', 'Pending', 1),
     'Paid': ('pending', 'Paid · awaiting seller', 1),
     'Accepted': ('accepted', 'Accepted', 2),
-    'Delivered': ('ready', 'Ready for pickup', 3),
-    'Completed': ('completed', 'Completed', 5),
+    'Processing': ('progress', 'Processing', 3),
+    'Awaiting Payment': ('progress', 'Awaiting payment', 3),
+    'Waiting for Stocks': ('progress', 'Waiting for stocks', 3),
+    'Delivered': ('ready', 'Ready for pickup', 4),
+    'Completed': ('completed', 'Completed', 6),
     'Cancelled': ('cancelled', 'Cancelled', 0),
     'Rejected': ('rejected', 'Rejected', 0),
 }
@@ -62,6 +65,9 @@ PREORDER_IN_PROGRESS = {
     'AWAITING_PAYMENT', 'WAITING_STOCKS',
 }
 
+# Order statuses that always belong to the "In Progress" tab
+ORDER_IN_PROGRESS = ('Pending', 'Paid', 'Processing', 'Awaiting Payment', 'Waiting for Stocks')
+
 
 def _decorate(obj, meta, kind, n_steps, status):
     """Attach display info (colour key, label, step) used by the templates."""
@@ -72,6 +78,11 @@ def _decorate(obj, meta, kind, n_steps, status):
     obj.step = step
     obj.in_flight = 1 <= step <= n_steps
     return obj
+
+
+def _is_management_order(order):
+    """CBRGU orders follow the full workflow, so "Accepted" is still in progress."""
+    return bool(order.seller_id and getattr(order.seller, 'user_role', '') == 'management')
 
 
 @login_required
@@ -228,7 +239,7 @@ def order_history(request):
         .order_by('-created_at')
     )
     for o in orders:
-        _decorate(o, ORDER_STATUS_META, 'order', len(ORDER_STEPS), (o.status or '').title())
+        _decorate(o, ORDER_STATUS_META, 'order', len(ORDER_STEPS), o.status)
 
     preorders = list(
         PreOrderRequest.objects.filter(buyer=request.user)
@@ -245,10 +256,17 @@ def order_history(request):
         _decorate(po, PREORDER_STATUS_META, 'preorder', len(PREORDER_STEPS), (po.status or '').upper())
 
     # ---- Orders by tab ----
-    active_orders = [o for o in orders if o.status in ('Pending', 'Paid')]
-    pickup_orders = [o for o in orders if o.status in ('Accepted', 'Delivered')]
+    active_orders = [
+        o for o in orders
+        if o.status in ORDER_IN_PROGRESS
+        or (o.status == 'Accepted' and _is_management_order(o))
+    ]
+    pickup_orders = [
+        o for o in orders
+        if o.status == 'Delivered'
+        or (o.status == 'Accepted' and not _is_management_order(o))
+    ]
     completed = [o for o in orders if o.status == 'Completed']
-    # Cancelled AND rejected orders used to be missing from every tab
     ended = [o for o in orders if o.status in ('Cancelled', 'Rejected')]
 
     needs_rating = [o for o in completed if not o.is_rated]

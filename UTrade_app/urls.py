@@ -4,10 +4,10 @@ from .views import (
     admin_views, cart_views, order_views, chat_views,
     organization_views, management_views, alumni_views,
     otplink_views, reports_views, osas_sds_views, password_reset_views,
-    org_account_views,
+    org_account_views,management_workflow_views
 )
 
-urlpatterns = [
+urlpatterns = [ 
 
     # =========================================================================
     # Authentication & Basic User Access
@@ -144,10 +144,10 @@ urlpatterns = [
     # =========================================================================
     # Management – Orders & Pre-Orders
     # =========================================================================
-    path('management/orders/', management_views.management_orders, name='management_orders'),
-    path('management/orders/batch/', management_views.management_orders_batch, name='management_orders_batch'),
-    path('management/preorders/', management_views.management_preorders, name='management_preorders'),
-    path('management/preorders/batch/', management_views.management_preorders_batch, name='management_preorders_batch'),
+    path('management/orders/', management_workflow_views.management_orders, name='management_orders'),
+    path('management/orders/batch/', management_workflow_views.management_orders_batch, name='management_orders_batch'),
+    path('management/preorders/', management_workflow_views.management_preorders, name='management_preorders'),
+    path('management/preorders/batch/', management_workflow_views.management_preorders_batch, name='management_preorders_batch'),
 
     # =========================================================================
     # Management – Remittance

@@ -30,7 +30,8 @@ class User(AbstractUser):
         ('org_officer', 'Organization Officer'),
         ('osas_sds', 'OSAS SDS'),
         ('cbrgu_staff', 'CBRGU Staff'),
-        ('management', 'Management')
+        ('management', 'Management'),
+        ('cashier', 'Cashier')
     ]
     
     user_role = models.CharField(

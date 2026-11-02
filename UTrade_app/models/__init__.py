@@ -15,5 +15,6 @@ from .product_models import (
     PreOrderRequest,
     StagedProduct,
     StagedVariant, 
-    StagedImage
+    StagedImage,
+    SellerReview
 )

@@ -1,6 +1,7 @@
 from django.db import models
 from .base import BaseItem, MeetupLocation
 from django.db.models import Avg, Sum 
+from django.core.validators import MinValueValidator, MaxValueValidator
 from .user_models import User
 from .orders_models import Order, OrderItem
 from .organization_models import Organization
@@ -217,6 +218,32 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.product.name} ({self.rating}★)"
+
+
+class SellerReview(models.Model):
+    """
+    A buyer's rating of a SELLER (not a product), given on a completed order.
+    One rating per buyer, per seller, per order. For organization sellers the
+    seller is the org account, so the rating belongs to the organization.
+    """
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='seller_reviews')
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_reviews')
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_reviews_given')
+    rating = models.PositiveSmallIntegerField(
+        choices=[(i, i) for i in range(1, 6)],
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('order', 'seller', 'reviewer')
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['seller', '-created_at'])]
+
+    def __str__(self):
+        return f"{self.reviewer} rated seller {self.seller} {self.rating}★ (order #{self.order_id})"
       
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True )

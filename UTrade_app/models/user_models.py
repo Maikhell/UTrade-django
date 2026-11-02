@@ -4,7 +4,7 @@ from .organization_models import Organization
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 from django.templatetags.static import static
-from django.db.models import Q
+from django.db.models import Q, Avg
 
 def user_profile_path(instance, filename):
     return f'profiles/student_{instance.student_no}/{filename}'
@@ -126,6 +126,22 @@ class User(AbstractUser):
         return self.managed_org_accounts.filter(is_active=True).select_related(
             'org_account', 'org_account__org_link'
         )
+
+    @property
+    def seller_rating_summary(self):
+        """{'avg': 4.6, 'count': 12} from buyers' SellerReview ratings (one query)."""
+        agg = self.seller_reviews.aggregate(avg=Avg('rating'), n=models.Count('id'))
+        avg = agg['avg']
+        return {'avg': round(avg, 1) if avg else 0.0, 'count': agg['n'] or 0}
+
+    @property
+    def seller_rating_avg(self):
+        return self.seller_rating_summary['avg']
+
+    @property
+    def seller_rating_count(self):
+        return self.seller_rating_summary['count']
+
     @property
     def get_short_name(self):
         if self.display_name and self.display_name.strip():
@@ -201,34 +217,33 @@ class UserReport(models.Model):
         return f"Report #{self.id} on {self.reported_user} by {self.reporter}"
     
 class OrgAccountManager(models.Model):
-        """Which student is accountable for an org account. History is kept."""
-        org_account = models.ForeignKey(
-            User, on_delete=models.CASCADE, related_name='manager_history'
-        )
-        student = models.ForeignKey(
-            User, on_delete=models.PROTECT, related_name='managed_org_accounts'
-        )
-        # Snapshot so the record still reads correctly if the student renames/changes ID.
-        student_name = models.CharField(max_length=150)
-        student_no = models.CharField(max_length=20)
-        position = models.CharField(max_length=50, blank=True)
-        assigned_by = models.ForeignKey(
-            User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
-        )
-        assigned_at = models.DateTimeField(auto_now_add=True)
-        ended_at = models.DateTimeField(null=True, blank=True)
-        is_active = models.BooleanField(default=True)
-    
-        class Meta:
-            ordering = ['-assigned_at']
-            constraints = [
-                models.UniqueConstraint(
-                    fields=['org_account'],
-                    condition=Q(is_active=True),
-                    name='one_active_manager_per_org_account',
-                )
-            ]
-    
-        def __str__(self):
-            return f"{self.org_account} <- {self.student_name} ({self.student_no})"
-    
+    """Which student is accountable for an org account. History is kept."""
+    org_account = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='manager_history'
+    )
+    student = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name='managed_org_accounts'
+    )
+    # Snapshot so the record still reads correctly if the student renames/changes ID.
+    student_name = models.CharField(max_length=150)
+    student_no = models.CharField(max_length=20)
+    position = models.CharField(max_length=50, blank=True)
+    assigned_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+'
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-assigned_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['org_account'],
+                condition=Q(is_active=True),
+                name='one_active_manager_per_org_account',
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.org_account} <- {self.student_name} ({self.student_no})"

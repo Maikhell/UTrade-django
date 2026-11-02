@@ -18,6 +18,7 @@ from ..models import (
     Order,
     OrderItem,
     Review,
+    SellerReview,
     ProductVariant,
     ChatMessage,
     Conversation,
@@ -83,6 +84,55 @@ def _decorate(obj, meta, kind, n_steps, status):
 def _is_management_order(order):
     """CBRGU orders follow the full workflow, so "Accepted" is still in progress."""
     return bool(order.seller_id and getattr(order.seller, 'user_role', '') == 'management')
+
+
+# ---------------------------------------------------------------------------
+# Ratings: product ratings (Review) + seller ratings (SellerReview)
+# ---------------------------------------------------------------------------
+def _parse_rating(raw):
+    """'4' -> 4; anything that is not a whole number from 1 to 5 -> None."""
+    try:
+        value = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return None
+    return value if 1 <= value <= 5 else None
+
+
+def _order_sellers(order):
+    """Distinct sellers of the items in this order (falls back to order.seller)."""
+    sellers = {}
+    for item in order.items.all():
+        variant = item.product_variant
+        product = variant.product if variant else None
+        seller = product.seller if product else None
+        if seller:
+            sellers[seller.id] = seller
+    if not sellers and order.seller_id:
+        sellers[order.seller_id] = order.seller
+    return list(sellers.values())
+
+
+def _attach_seller_ratings(order, buyer):
+    """
+    Adds to the order, for the templates:
+      order.seller_rows     [{'seller': User, 'review': SellerReview | None}, ...]
+      order.sellers_pending the rows the buyer has not rated yet
+      order.rate_pending    True while the buyer can still rate the products or a seller
+    """
+    order.seller_rows = []
+    order.sellers_pending = []
+    order.rate_pending = False
+    if order.status != 'Completed':
+        return order
+
+    mine = {r.seller_id: r for r in order.seller_reviews.all() if r.reviewer_id == buyer.id}
+    for seller in _order_sellers(order):
+        if seller.id == buyer.id:
+            continue  # you cannot rate yourself
+        order.seller_rows.append({'seller': seller, 'review': mine.get(seller.id)})
+    order.sellers_pending = [row for row in order.seller_rows if row['review'] is None]
+    order.rate_pending = (not order.is_rated) or bool(order.sellers_pending)
+    return order
 
 
 @login_required
@@ -235,11 +285,13 @@ def order_history(request):
             'items__product_variant__product__seller',
             'items__product_variant__product__images',
             'order_reviews',
+            'seller_reviews',
         )
         .order_by('-created_at')
     )
     for o in orders:
         _decorate(o, ORDER_STATUS_META, 'order', len(ORDER_STEPS), o.status)
+        _attach_seller_ratings(o, request.user)
 
     preorders = list(
         PreOrderRequest.objects.filter(buyer=request.user)
@@ -269,8 +321,9 @@ def order_history(request):
     completed = [o for o in orders if o.status == 'Completed']
     ended = [o for o in orders if o.status in ('Cancelled', 'Rejected')]
 
-    needs_rating = [o for o in completed if not o.is_rated]
-    already_rated = [o for o in completed if o.is_rated]
+    # "Needs rating" now also covers sellers that have not been rated yet
+    needs_rating = [o for o in completed if o.rate_pending]
+    already_rated = [o for o in completed if not o.rate_pending]
     history_orders = needs_rating + already_rated + ended
 
     # ---- Pre-orders by tab ----
@@ -291,7 +344,7 @@ def order_history(request):
     history_items = sorted(
         history_orders + preorder_history,
         key=lambda x: (
-            0 if (x.kind == 'order' and x.status == 'Completed' and not x.is_rated) else 1,
+            0 if (x.kind == 'order' and getattr(x, 'rate_pending', False)) else 1,
             -x.created_at.timestamp(),
         ),
     )
@@ -487,33 +540,79 @@ def cancel_order(request, order_id):
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
 
+
 @login_required
+@transaction.atomic
 def submit_review(request, order_id):
-    if request.method == 'POST':
-        order = get_object_or_404(Order, id=order_id, user=request.user)
+    """
+    One form, two kinds of rating on a completed order:
+      - the products   (fields: rating, comment)
+      - each seller    (fields: seller_rating_<seller_id>, seller_comment_<seller_id>)
+    Every part is optional on its own, but at least one rating is required.
+    """
+    if request.method != 'POST':
+        return redirect('order_history')
 
-        if order.status != 'Completed':
-            messages.error(request, "You can only rate completed orders.")
+    order = get_object_or_404(
+        Order.objects.prefetch_related(
+            'items__product_variant__product__seller', 'order_reviews', 'seller_reviews'
+        ),
+        id=order_id,
+        user=request.user,
+    )
+
+    if order.status != 'Completed':
+        messages.error(request, "You can only rate completed orders.")
+        return redirect('order_history')
+
+    saved = 0
+
+    # ---- Product rating (only while the order is not rated yet) ----
+    product_raw = (request.POST.get('rating') or '').strip()
+    if product_raw and not order.is_rated:
+        rating_value = _parse_rating(product_raw)
+        if rating_value is None:
+            messages.error(request, "Product rating must be from 1 to 5 stars.")
             return redirect('order_history')
-
-        rating_value = request.POST.get('rating')
-        comment = request.POST.get('comment')
-
+        comment = (request.POST.get('comment') or '').strip()[:1000]
         for item in order.items.all():
             Review.objects.update_or_create(
                 order=order,
                 product=item.product_variant.product,
                 user=request.user,
-                defaults={
-                    'rating': rating_value,
-                    'comment': comment,
-                },
+                defaults={'rating': rating_value, 'comment': comment},
             )
+        saved += 1
 
+    # ---- Seller ratings ----
+    # Only sellers that really sold something in this order can be rated.
+    for seller in _order_sellers(order):
+        if seller.id == request.user.id:
+            continue
+        raw = (request.POST.get(f'seller_rating_{seller.id}') or '').strip()
+        if not raw:
+            continue
+        seller_rating = _parse_rating(raw)
+        if seller_rating is None:
+            messages.error(request, "Seller rating must be from 1 to 5 stars.")
+            return redirect('order_history')
+        SellerReview.objects.update_or_create(
+            order=order,
+            seller=seller,
+            reviewer=request.user,
+            defaults={
+                'rating': seller_rating,
+                'comment': (request.POST.get(f'seller_comment_{seller.id}') or '').strip()[:1000],
+            },
+        )
+        saved += 1
+
+    if not saved:
+        messages.warning(request, "Please choose a star rating first.")
+    else:
         messages.success(request, "Thank you for your review!")
-        return redirect('order_history')
-
     return redirect('order_history')
+
 
 @login_required
 def generate_receipt(request, order_id):

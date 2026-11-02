@@ -4,7 +4,7 @@
     <div class="oc-head-left">
       <span class="oc-kind"><i class="bi bi-bag-check"></i> Order</span>
       <span class="oc-chip st-{{ order.ui_class }}"><span class="oc-dot"></span>{{ order.ui_label }}</span>
-      {% if order.status == 'Completed' and not order.is_rated %}
+      {% if order.rate_pending %}
         <span class="oc-chip st-rate"><i class="bi bi-star"></i> Needs rating</span>
       {% endif %}
     </div>
@@ -123,7 +123,7 @@
         <a href="{% url 'generate_receipt' order.id %}" class="btn btn-outline-dark btn-sm">
           <i class="bi bi-download"></i> Receipt
         </a>
-        {% if not order.is_rated %}
+        {% if order.rate_pending %}
           <button type="button" class="btn btn-warning btn-sm fw-bold"
                   data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}">
             <i class="bi bi-star-fill"></i> Rate

@@ -1,6 +1,6 @@
 from django.db import models
 from .base import BaseItem, MeetupLocation
-from django.db.models import Avg, Sum 
+from django.db.models import Avg, Sum, Q
 from django.core.validators import MinValueValidator, MaxValueValidator
 from .user_models import User
 from .orders_models import Order, OrderItem
@@ -206,15 +206,28 @@ class ProductImage(models.Model):
     def __str__(self):
         return f"Image for {self.product.name}"
 class Review(models.Model):
+    """A buyer's rating of a PRODUCT, from a completed order OR a completed pre-order."""
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
     order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='order_reviews', null=True) 
+    preorder = models.ForeignKey(
+        'PreOrderRequest', on_delete=models.CASCADE, related_name='preorder_reviews',
+        null=True, blank=True,
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)]) 
+    quick_feedback = models.CharField(max_length=80, blank=True)   # label of the chosen dropdown preset
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = ('product', 'user', 'order') 
+        constraints = [
+            models.UniqueConstraint(
+                fields=['product', 'user', 'preorder'],
+                condition=Q(preorder__isnull=False),
+                name='uniq_review_per_preorder',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.user.username} - {self.product.name} ({self.rating}★)"
@@ -222,28 +235,49 @@ class Review(models.Model):
 
 class SellerReview(models.Model):
     """
-    A buyer's rating of a SELLER (not a product), given on a completed order.
-    One rating per buyer, per seller, per order. For organization sellers the
-    seller is the org account, so the rating belongs to the organization.
+    A buyer's rating of a SELLER (not a product), given on a completed order OR a
+    completed pre-order (exactly one of `order` / `preorder` is set).
+    One rating per buyer, per seller, per order / pre-order. For organization sellers
+    the seller is the org account, so the rating belongs to the organization.
     """
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='seller_reviews')
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name='seller_reviews',
+        null=True, blank=True,
+    )
+    preorder = models.ForeignKey(
+        'PreOrderRequest', on_delete=models.CASCADE, related_name='seller_reviews',
+        null=True, blank=True,
+    )
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_reviews')
     reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='seller_reviews_given')
     rating = models.PositiveSmallIntegerField(
         choices=[(i, i) for i in range(1, 6)],
         validators=[MinValueValidator(1), MaxValueValidator(5)],
     )
+    quick_feedback = models.CharField(max_length=80, blank=True)   # label of the chosen dropdown preset
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('order', 'seller', 'reviewer')
         ordering = ['-created_at']
         indexes = [models.Index(fields=['seller', '-created_at'])]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['order', 'seller', 'reviewer'],
+                condition=Q(order__isnull=False),
+                name='uniq_sellerreview_order',
+            ),
+            models.UniqueConstraint(
+                fields=['preorder', 'seller', 'reviewer'],
+                condition=Q(preorder__isnull=False),
+                name='uniq_sellerreview_preorder',
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.reviewer} rated seller {self.seller} {self.rating}★ (order #{self.order_id})"
+        ref = f"order #{self.order_id}" if self.order_id else f"pre-order #{self.preorder_id}"
+        return f"{self.reviewer} rated seller {self.seller} {self.rating}★ ({ref})"
       
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True )

@@ -1,0 +1,90 @@
+{% comment %}
+  Reusable rating block: quick-rating dropdown + stars + the buyer's own feedback.
+  Include with:
+    rp_rating_name, rp_quick_name, rp_comment_name   (form field names)
+    rp_options                                       (product_quick_options / seller_quick_options)
+    rp_aria, rp_comment_placeholder
+{% endcomment %}
+<div class="rg">
+  <label class="d-block mb-2">
+    <span class="form-label small fw-semibold d-block mb-1">Quick rating</span>
+    <select name="{{ rp_quick_name }}" class="form-select form-select-sm rg-quick">
+      <option value="">Choose a quick rating, or tap the stars</option>
+      {% for o in rp_options %}
+        <option value="{{ o.key }}" data-stars="{{ o.stars }}">{{ o.display }}</option>
+      {% endfor %}
+    </select>
+  </label>
+
+  <div class="text-center">
+    <div class="d-flex justify-content-center gap-1" role="radiogroup" aria-label="{{ rp_aria }}">
+      {% for value in "12345" %}
+        <button type="button" class="rg-star btn btn-link p-1 fs-2 text-warning text-decoration-none"
+                data-value="{{ value }}" aria-label="{{ value }} stars">
+          <i class="bi bi-star"></i>
+        </button>
+      {% endfor %}
+    </div>
+    <input type="hidden" name="{{ rp_rating_name }}" class="rg-value" value="">
+    <small class="rg-label text-muted">Select a rating</small>
+  </div>
+
+  <label class="d-block mt-2">
+    <span class="form-label small fw-semibold d-block mb-1">Your own feedback <span class="text-muted fw-normal">(optional)</span></span>
+    <textarea name="{{ rp_comment_name }}" class="form-control" rows="2" maxlength="1000"
+              placeholder="{{ rp_comment_placeholder }}"></textarea>
+  </label>
+</div>
+
+<script>
+/* Shared handler for every rating block on the page. Registered once, even though
+   this partial is included many times. */
+(function () {
+  if (window.__utRateInit) return;
+  window.__utRateInit = true;
+
+  var LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very good', 5: 'Excellent' };
+
+  function refreshSubmit(form) {
+    var any = Array.prototype.some.call(form.querySelectorAll('.rg-value'), function (i) { return i.value; });
+    var btn = form.querySelector('.rg-submit');
+    if (btn) btn.disabled = !any;
+  }
+
+  function setRating(group, n) {
+    group.querySelector('.rg-value').value = n || '';
+    group.querySelectorAll('.rg-star i').forEach(function (icon, idx) {
+      var on = idx < n;
+      icon.classList.toggle('bi-star-fill', on);
+      icon.classList.toggle('bi-star', !on);
+    });
+    var label = group.querySelector('.rg-label');
+    if (label) label.textContent = n ? (n + ' / 5 · ' + LABELS[n]) : 'Select a rating';
+    var form = group.closest('form');
+    if (form) refreshSubmit(form);
+  }
+
+  // Tapping a star. If it no longer matches the chosen preset, clear the preset.
+  document.addEventListener('click', function (e) {
+    var star = e.target.closest('.rg-star');
+    if (!star) return;
+    var group = star.closest('.rg');
+    if (!group) return;
+    var n = parseInt(star.dataset.value, 10);
+    var sel = group.querySelector('.rg-quick');
+    var opt = sel && sel.selectedOptions[0];
+    if (opt && opt.dataset.stars && parseInt(opt.dataset.stars, 10) !== n) sel.value = '';
+    setRating(group, n);
+  });
+
+  // Choosing a preset fills in the stars (choosing the placeholder clears them).
+  document.addEventListener('change', function (e) {
+    var sel = e.target.closest ? e.target.closest('.rg-quick') : null;
+    if (!sel) return;
+    var group = sel.closest('.rg');
+    if (!group) return;
+    var opt = sel.selectedOptions[0];
+    setRating(group, opt && opt.dataset.stars ? parseInt(opt.dataset.stars, 10) : 0);
+  });
+})();
+</script>

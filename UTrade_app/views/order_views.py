@@ -82,21 +82,8 @@ def _decorate(obj, meta, kind, n_steps, status):
 
 
 def _is_management_order(order):
-    """
-    Management and organization sellers use the full workflow
-    (Accepted -> Processing -> ... -> Ready for pickup), so for them "Accepted" is
-    still in progress. Student sellers only have Accepted -> Completed, so their
-    accepted orders stay under "To Pickup".
-    """
-    seller = getattr(order, 'seller', None)
-    if not seller:
-        return False
-    role = getattr(seller, 'user_role', '') or ''
-    if role == 'management':
-        return True
-    return bool(getattr(seller, 'org_link_id', None)) and (
-        role == 'org_officer' or getattr(seller, 'is_officer', False)
-    )
+    """CBRGU orders follow the full workflow, so "Accepted" is still in progress."""
+    return bool(order.seller_id and getattr(order.seller, 'user_role', '') == 'management')
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +96,49 @@ def _parse_rating(raw):
     except (TypeError, ValueError):
         return None
     return value if 1 <= value <= 5 else None
+
+
+# ---- Quick-rating presets (the dropdown in the rate modals) ----------------------
+# (key, stars, label). Picking one fills in the stars; the buyer can still tap the
+# stars to change them and always gets a free-text box for their own feedback.
+# Edit these lists to change the dropdown; the server only accepts keys listed here.
+PRODUCT_QUICK_FEEDBACK = [
+    ('p5_described', 5, 'Exactly as described'),
+    ('p5_quality',   5, 'Great quality'),
+    ('p5_value',     5, 'Worth the price'),
+    ('p4_good',      4, 'Good, minor flaws'),
+    ('p3_okay',      3, 'Okay, average'),
+    ('p2_below',     2, 'Below expectations'),
+    ('p1_poor',      1, 'Not as described'),
+]
+SELLER_QUICK_FEEDBACK = [
+    ('s5_friendly',  5, 'Friendly and easy to deal with'),
+    ('s5_ontime',    5, 'On time at the meetup'),
+    ('s5_replies',   5, 'Fast replies'),
+    ('s4_good',      4, 'Good overall'),
+    ('s3_okay',      3, 'Okay, average'),
+    ('s2_slow',      2, 'Late or slow to reply'),
+    ('s1_poor',      1, 'Unreliable, poor experience'),
+]
+_PRODUCT_QUICK = {k: (stars, label) for k, stars, label in PRODUCT_QUICK_FEEDBACK}
+_SELLER_QUICK = {k: (stars, label) for k, stars, label in SELLER_QUICK_FEEDBACK}
+
+
+def _quick_options(presets):
+    """Rows for the dropdown: key, stars and the text shown to the buyer."""
+    return [
+        {'key': k, 'stars': stars, 'display': f"{'★' * stars}{'☆' * (5 - stars)}  {label}"}
+        for k, stars, label in presets
+    ]
+
+
+def _quick_label(key, table, rating):
+    """
+    Preset key -> its label, or '' when the key is unknown or does not match the
+    final star rating (e.g. the buyer picked a preset and then changed the stars).
+    """
+    entry = table.get((key or '').strip())
+    return entry[1] if entry and entry[0] == rating else ''
 
 
 def _order_sellers(order):
@@ -128,24 +158,64 @@ def _order_sellers(order):
 def _attach_seller_ratings(order, buyer):
     """
     Adds to the order, for the templates:
-      order.seller_rows     [{'seller': User, 'review': SellerReview | None}, ...]
+      order.seller_rows     [{'seller', 'review', 'rating_field', 'quick_field', 'comment_field'}, ...]
       order.sellers_pending the rows the buyer has not rated yet
+      order.product_review  the buyer's product rating for this order (or None)
       order.rate_pending    True while the buyer can still rate the products or a seller
     """
     order.seller_rows = []
     order.sellers_pending = []
+    order.product_review = None
     order.rate_pending = False
     if order.status != 'Completed':
         return order
 
+    order.product_review = next(
+        (r for r in order.order_reviews.all() if r.user_id == buyer.id), None
+    )
     mine = {r.seller_id: r for r in order.seller_reviews.all() if r.reviewer_id == buyer.id}
     for seller in _order_sellers(order):
         if seller.id == buyer.id:
             continue  # you cannot rate yourself
-        order.seller_rows.append({'seller': seller, 'review': mine.get(seller.id)})
+        order.seller_rows.append({
+            'seller': seller,
+            'review': mine.get(seller.id),
+            'rating_field': f'seller_rating_{seller.id}',
+            'quick_field': f'seller_quick_{seller.id}',
+            'comment_field': f'seller_comment_{seller.id}',
+        })
     order.sellers_pending = [row for row in order.seller_rows if row['review'] is None]
     order.rate_pending = (not order.is_rated) or bool(order.sellers_pending)
     return order
+
+
+def _attach_preorder_ratings(po, buyer):
+    """
+    Same idea for a pre-order (one product, one seller). Adds:
+      po.product_review / po.seller_review   the buyer's existing ratings (or None)
+      po.can_rate_product / po.can_rate_seller
+      po.rate_pending
+    """
+    po.product_review = None
+    po.seller_review = None
+    po.can_rate_product = False
+    po.can_rate_seller = False
+    po.rate_pending = False
+    if (po.status or '').upper() != 'COMPLETED':
+        return po
+
+    po.product_review = next(
+        (r for r in po.preorder_reviews.all() if r.user_id == buyer.id), None
+    )
+    po.seller_review = next(
+        (r for r in po.seller_reviews.all()
+         if r.reviewer_id == buyer.id and r.seller_id == po.seller_id), None
+    )
+    has_product = bool(po.product_variant_id and po.product_variant.product_id)
+    po.can_rate_product = has_product and po.product_review is None
+    po.can_rate_seller = bool(po.seller_id) and po.seller_id != buyer.id and po.seller_review is None
+    po.rate_pending = po.can_rate_product or po.can_rate_seller
+    return po
 
 
 @login_required
@@ -314,11 +384,16 @@ def order_history(request):
             'product_variant__product',
             'product_variant__product__seller',
         )
-        .prefetch_related('product_variant__product__images')
+        .prefetch_related(
+            'product_variant__product__images',
+            'preorder_reviews',
+            'seller_reviews',
+        )
         .order_by('-created_at')
     )
     for po in preorders:
         _decorate(po, PREORDER_STATUS_META, 'preorder', len(PREORDER_STEPS), (po.status or '').upper())
+        _attach_preorder_ratings(po, request.user)
 
     # ---- Orders by tab ----
     active_orders = [
@@ -357,7 +432,7 @@ def order_history(request):
     history_items = sorted(
         history_orders + preorder_history,
         key=lambda x: (
-            0 if (x.kind == 'order' and getattr(x, 'rate_pending', False)) else 1,
+            0 if getattr(x, 'rate_pending', False) else 1,
             -x.created_at.timestamp(),
         ),
     )
@@ -385,6 +460,9 @@ def order_history(request):
         'history_total': len(history_items),
         'order_steps': ORDER_STEPS,
         'preorder_steps': PREORDER_STEPS,
+        # quick-rating dropdowns
+        'product_quick_options': _quick_options(PRODUCT_QUICK_FEEDBACK),
+        'seller_quick_options': _quick_options(SELLER_QUICK_FEEDBACK),
     }
     return render(request, 'UTrade_app/orders/history.html', context)
 
@@ -559,8 +637,9 @@ def cancel_order(request, order_id):
 def submit_review(request, order_id):
     """
     One form, two kinds of rating on a completed order:
-      - the products   (fields: rating, comment)
-      - each seller    (fields: seller_rating_<seller_id>, seller_comment_<seller_id>)
+      - the products   (fields: rating, quick, comment)
+      - each seller    (fields: seller_rating_<id>, seller_quick_<id>, seller_comment_<id>)
+    `quick` is the dropdown preset; `comment` is the buyer's own feedback.
     Every part is optional on its own, but at least one rating is required.
     """
     if request.method != 'POST':
@@ -588,12 +667,13 @@ def submit_review(request, order_id):
             messages.error(request, "Product rating must be from 1 to 5 stars.")
             return redirect('order_history')
         comment = (request.POST.get('comment') or '').strip()[:1000]
+        quick = _quick_label(request.POST.get('quick'), _PRODUCT_QUICK, rating_value)
         for item in order.items.all():
             Review.objects.update_or_create(
                 order=order,
                 product=item.product_variant.product,
                 user=request.user,
-                defaults={'rating': rating_value, 'comment': comment},
+                defaults={'rating': rating_value, 'comment': comment, 'quick_feedback': quick},
             )
         saved += 1
 
@@ -615,7 +695,82 @@ def submit_review(request, order_id):
             reviewer=request.user,
             defaults={
                 'rating': seller_rating,
+                'quick_feedback': _quick_label(
+                    request.POST.get(f'seller_quick_{seller.id}'), _SELLER_QUICK, seller_rating
+                ),
                 'comment': (request.POST.get(f'seller_comment_{seller.id}') or '').strip()[:1000],
+            },
+        )
+        saved += 1
+
+    if not saved:
+        messages.warning(request, "Please choose a star rating first.")
+    else:
+        messages.success(request, "Thank you for your review!")
+    return redirect('order_history')
+
+
+@login_required
+@transaction.atomic
+def submit_preorder_review(request, preorder_id):
+    """
+    Rate a COMPLETED pre-order: the product (rating, quick, comment) and/or the
+    seller (seller_rating, seller_quick, seller_comment). At least one is required.
+    """
+    if request.method != 'POST':
+        return redirect('order_history')
+
+    po = get_object_or_404(
+        PreOrderRequest.objects
+        .select_related('seller', 'product_variant__product')
+        .prefetch_related('preorder_reviews', 'seller_reviews'),
+        id=preorder_id,
+        buyer=request.user,
+    )
+
+    if (po.status or '').upper() != 'COMPLETED':
+        messages.error(request, "You can only rate completed pre-orders.")
+        return redirect('order_history')
+
+    saved = 0
+
+    # ---- Product ----
+    product = po.product_variant.product if po.product_variant_id else None
+    product_done = any(r.user_id == request.user.id for r in po.preorder_reviews.all())
+    product_raw = (request.POST.get('rating') or '').strip()
+    if product_raw and product and not product_done:
+        rating_value = _parse_rating(product_raw)
+        if rating_value is None:
+            messages.error(request, "Product rating must be from 1 to 5 stars.")
+            return redirect('order_history')
+        Review.objects.update_or_create(
+            preorder=po,
+            product=product,
+            user=request.user,
+            defaults={
+                'rating': rating_value,
+                'quick_feedback': _quick_label(request.POST.get('quick'), _PRODUCT_QUICK, rating_value),
+                'comment': (request.POST.get('comment') or '').strip()[:1000],
+            },
+        )
+        saved += 1
+
+    # ---- Seller ----
+    seller = po.seller
+    seller_raw = (request.POST.get('seller_rating') or '').strip()
+    if seller_raw and seller and seller.id != request.user.id:
+        seller_rating = _parse_rating(seller_raw)
+        if seller_rating is None:
+            messages.error(request, "Seller rating must be from 1 to 5 stars.")
+            return redirect('order_history')
+        SellerReview.objects.update_or_create(
+            preorder=po,
+            seller=seller,
+            reviewer=request.user,
+            defaults={
+                'rating': seller_rating,
+                'quick_feedback': _quick_label(request.POST.get('seller_quick'), _SELLER_QUICK, seller_rating),
+                'comment': (request.POST.get('seller_comment') or '').strip()[:1000],
             },
         )
         saved += 1

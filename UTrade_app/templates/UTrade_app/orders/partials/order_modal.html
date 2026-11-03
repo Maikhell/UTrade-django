@@ -160,10 +160,18 @@
           </div>
         </section>
 
-        {# ===== Your seller ratings (completed orders) ===== #}
-        {% if order.status == 'Completed' and order.seller_rows %}
+        {# ===== Your ratings (completed orders) ===== #}
+        {% if order.status == 'Completed' %}
         <section class="oc-msec">
-          <h6 class="oc-mtitle">Seller rating</h6>
+          <h6 class="oc-mtitle">Your ratings</h6>
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 {% if order.seller_rows %}border-bottom{% endif %}">
+            <div class="oc-seller"><i class="bi bi-box-seam"></i> <span class="oc-seller-name">Products</span></div>
+            {% if order.product_review %}
+              {% include "UTrade_app/orders/partials/rating_readonly.html" with rr=order.product_review %}
+            {% else %}
+              <span class="small text-muted">Not rated yet</span>
+            {% endif %}
+          </div>
           {% for row in order.seller_rows %}
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 {% if not forloop.last %}border-bottom{% endif %}">
               <div class="oc-seller">
@@ -171,12 +179,7 @@
                 <span class="oc-seller-name">{{ row.seller.get_full_name|default:row.seller.username }}</span>
               </div>
               {% if row.review %}
-                <div class="text-end">
-                  <span class="text-warning" role="img" aria-label="{{ row.review.rating }} out of 5 stars">
-                    {% for i in "12345" %}<i class="bi {% if forloop.counter <= row.review.rating %}bi-star-fill{% else %}bi-star{% endif %}"></i>{% endfor %}
-                  </span>
-                  {% if row.review.comment %}<div class="small text-muted">{{ row.review.comment }}</div>{% endif %}
-                </div>
+                {% include "UTrade_app/orders/partials/rating_readonly.html" with rr=row.review %}
               {% else %}
                 <span class="small text-muted">Not rated yet</span>
               {% endif %}
@@ -222,29 +225,14 @@
 
         <div class="modal-body">
 
-          {# ---- Products ---- #}
           {% if not order.is_rated %}
           <section class="mb-4">
             <h6 class="fw-bold mb-1"><i class="bi bi-box-seam me-1"></i> The products</h6>
             <p class="text-muted small mb-2">Applies to every product in this order.</p>
-            <div class="rg text-center">
-              <div class="d-flex justify-content-center gap-1" role="radiogroup" aria-label="Product rating">
-                {% for value in "12345" %}
-                  <button type="button" class="rg-star btn btn-link p-1 fs-2 text-warning text-decoration-none"
-                          data-value="{{ value }}" aria-label="{{ value }} stars">
-                    <i class="bi bi-star"></i>
-                  </button>
-                {% endfor %}
-              </div>
-              <input type="hidden" name="rating" class="rg-value" value="">
-              <small class="rg-label text-muted">Select a rating</small>
-            </div>
-            <textarea name="comment" class="form-control mt-2" rows="2" maxlength="1000"
-                      placeholder="Comment about the products (optional)"></textarea>
+            {% include "UTrade_app/orders/partials/rating_picker.html" with rp_rating_name="rating" rp_quick_name="quick" rp_comment_name="comment" rp_options=product_quick_options rp_aria="Product rating" rp_comment_placeholder="Tell others more about the products" %}
           </section>
           {% endif %}
 
-          {# ---- One block per seller that is still unrated ---- #}
           {% for row in order.sellers_pending %}
           <section class="mb-3 {% if not order.is_rated or not forloop.first %}pt-3 border-top{% endif %}">
             <h6 class="fw-bold mb-1">
@@ -252,23 +240,9 @@
               {{ row.seller.get_full_name|default:row.seller.username }}
             </h6>
             <p class="text-muted small mb-2">
-              How was your experience with this seller? Think of communication, meetup and whether the item matched the listing.
+              How was dealing with this seller? Think of communication, the meetup and whether the item matched the listing.
             </p>
-            <div class="rg text-center">
-              <div class="d-flex justify-content-center gap-1" role="radiogroup"
-                   aria-label="Rating for {{ row.seller.get_full_name|default:row.seller.username }}">
-                {% for value in "12345" %}
-                  <button type="button" class="rg-star btn btn-link p-1 fs-2 text-warning text-decoration-none"
-                          data-value="{{ value }}" aria-label="{{ value }} stars">
-                    <i class="bi bi-star"></i>
-                  </button>
-                {% endfor %}
-              </div>
-              <input type="hidden" name="seller_rating_{{ row.seller.id }}" class="rg-value" value="">
-              <small class="rg-label text-muted">Select a rating</small>
-            </div>
-            <textarea name="seller_comment_{{ row.seller.id }}" class="form-control mt-2" rows="2" maxlength="1000"
-                      placeholder="Comment about the seller (optional)"></textarea>
+            {% include "UTrade_app/orders/partials/rating_picker.html" with rp_rating_name=row.rating_field rp_quick_name=row.quick_field rp_comment_name=row.comment_field rp_options=seller_quick_options rp_aria="Seller rating" rp_comment_placeholder="Tell others more about this seller" %}
           </section>
           {% endfor %}
 
@@ -283,43 +257,4 @@
     </div>
   </div>
 </div>
-
-<script>
-/* Star pickers for the rate modal. One shared, delegated handler (guarded so it
-   is only registered once even though this partial is included per order). */
-(function () {
-  if (window.__utRateInit) return;
-  window.__utRateInit = true;
-
-  var LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very good', 5: 'Excellent' };
-
-  function paint(group, n) {
-    group.querySelectorAll('.rg-star i').forEach(function (icon, idx) {
-      var on = idx < n;
-      icon.classList.toggle('bi-star-fill', on);
-      icon.classList.toggle('bi-star', !on);
-    });
-  }
-
-  function refreshSubmit(form) {
-    var any = Array.prototype.some.call(form.querySelectorAll('.rg-value'), function (i) { return i.value; });
-    var btn = form.querySelector('.rg-submit');
-    if (btn) btn.disabled = !any;
-  }
-
-  document.addEventListener('click', function (e) {
-    var star = e.target.closest('.rg-star');
-    if (!star) return;
-    var group = star.closest('.rg');
-    if (!group) return;
-    var n = parseInt(star.dataset.value, 10);
-    group.querySelector('.rg-value').value = n;
-    paint(group, n);
-    var label = group.querySelector('.rg-label');
-    if (label) label.textContent = n + ' / 5 · ' + LABELS[n];
-    var form = group.closest('form');
-    if (form) refreshSubmit(form);
-  });
-})();
-</script>
 {% endif %}

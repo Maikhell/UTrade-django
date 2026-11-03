@@ -66,7 +66,7 @@ urlpatterns = [
     path('order/<int:order_id>/rate/', order_views.submit_review, name='submit_rating'),
     path('order/receipt/<int:order_id>/', order_views.generate_receipt, name='generate_receipt'),
     path('orders/cancel/<int:order_id>/', order_views.cancel_order, name='cancel_order'),
-
+    path('order/preorder/<int:preorder_id>/rate/', order_views.submit_preorder_review, name='submit_preorder_rating'),
     # =========================================================================
     # Pre-Orders (Seller + Buyer)
     # =========================================================================

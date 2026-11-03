@@ -5,6 +5,9 @@
     <div class="oc-head-left">
       <span class="oc-kind oc-kind--pre"><i class="bi bi-clock-history"></i> Pre-order</span>
       <span class="oc-chip st-{{ po.ui_class }}"><span class="oc-dot"></span>{{ po.ui_label }}</span>
+      {% if po.rate_pending %}
+        <span class="oc-chip st-rate"><i class="bi bi-star"></i> Needs rating</span>
+      {% endif %}
     </div>
     <div class="oc-meta">Req #{{ po.id }}<span class="oc-sep">·</span>{{ po.created_at|date:"M d, Y" }}</div>
   </header>
@@ -108,6 +111,14 @@
         <a href="{% url 'generate_preorder_receipt' po.id %}" class="btn btn-outline-dark btn-sm">
           <i class="bi bi-download"></i> Receipt
         </a>
+        {% if po.rate_pending %}
+          <button type="button" class="btn btn-warning btn-sm fw-bold"
+                  data-bs-toggle="modal" data-bs-target="#preorderRateModal{{ po.id }}">
+            <i class="bi bi-star-fill"></i> Rate
+          </button>
+        {% else %}
+          <span class="oc-chip st-completed"><i class="bi bi-check2-circle"></i> Rated</span>
+        {% endif %}
       {% endif %}
     </div>
   </footer>

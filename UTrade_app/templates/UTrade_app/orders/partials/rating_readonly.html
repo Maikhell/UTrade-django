@@ -1,0 +1,8 @@
+{# Shows an existing rating. Include with: rr=<Review or SellerReview> #}
+<div class="text-end">
+  <span class="text-warning" role="img" aria-label="{{ rr.rating }} out of 5 stars">
+    {% for i in "12345" %}<i class="bi {% if forloop.counter <= rr.rating %}bi-star-fill{% else %}bi-star{% endif %}"></i>{% endfor %}
+  </span>
+  {% if rr.quick_feedback %}<div><span class="badge text-bg-light border fw-normal">{{ rr.quick_feedback }}</span></div>{% endif %}
+  {% if rr.comment %}<div class="small text-muted">{{ rr.comment }}</div>{% endif %}
+</div>

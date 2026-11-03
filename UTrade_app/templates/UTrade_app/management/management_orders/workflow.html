@@ -20,95 +20,12 @@
 <div class="container-fluid">
   <div class="row">
 
-    <div class="col-12 d-md-none mb-3">
-      <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
-              type="button" data-bs-toggle="offcanvas" data-bs-target="#sellerSidebar">
-        <i class="bi bi-list"></i> Staff Menu
-      </button>
-    </div>
-
-    {# ========== SIDEBAR ========== #}
-    <div class="col-md-3 col-lg-2">
-      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm" tabindex="-1" id="sellerSidebar">
-        <div class="offcanvas-header d-md-none">
-          <h5 class="offcanvas-title fw-bold">Staff</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body p-0">
-          <div class="seller-sidebar p-3">
-            <div class="mb-4">
-              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
-              <div class="d-flex flex-column gap-2 small">
-                <div class="d-flex justify-content-between"><span>{{ noun_plural|title }}</span><strong>{{ total|default:0 }}</strong></div>
-                <div class="d-flex justify-content-between"><span>Incoming</span><strong>{{ incoming_count }}</strong></div>
-                <div class="d-flex justify-content-between"><span>Completed</span><strong>{{ completed_count }}</strong></div>
-              </div>
-            </div>
-            <hr class="my-3 opacity-25">
-            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
-
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-briefcase"></i> CBRGU Panel
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 text-success"></i> Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'active_listings' %}"><i class="bi bi-check2-square text-success"></i> Active Listings</a></li>
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'remittance_management' %}"><i class="bi bi-cash-stack text-success"></i> Remittance</a></li>
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'cbrgu_products' %}"><i class="bi bi-box-seam text-success"></i> Products</a></li>
-              </ul>
-            </div>
-
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-cart-fill"></i> Orders
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link {% if kind == 'order' %}active{% else %}text-dark{% endif %} d-flex align-items-center gap-2 rounded-3 py-1" href="{% url 'management_orders' %}">
-                    <i class="bi bi-inbox text-success"></i> Orders
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link {% if kind == 'preorder' %}active{% else %}text-dark{% endif %} d-flex align-items-center gap-2 rounded-3 py-1" href="{% url 'management_preorders' %}">
-                    <i class="bi bi-calendar-check text-success"></i> Pre-Orders
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-shield-lock"></i> Settings
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'logs_reports' %}"><i class="bi bi-journal-text"></i> Logs and Reports</a></li>
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_prohibited_words' %}"><i class="bi bi-exclamation-triangle"></i> Prohibited Items</a></li>
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_categories' %}"><i class="bi bi-tags text-success"></i> Categories</a></li>
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_pickup_spots' %}"><i class="bi bi-geo-alt"></i> Pickup Spots</a></li>
-              </ul>
-            </div>
-
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-shield-lock"></i> Admin Panel
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_accounts' %}"><i class="bi bi-person-add"></i> Add Accounts</a></li>
-                <li class="nav-item"><a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'all_users' %}"><i class="bi bi-people"></i> All Users</a></li>
-              </ul>
-            </div>
-
-            <hr class="my-3 opacity-25">
-            <div class="d-grid gap-2">
-              <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
-                <i class="bi bi-plus-lg me-1"></i> Add New Product
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    {# Sidebar differs per role; everything else is shared #}
+    {% if scope == 'organization' %}
+      {% include "UTrade_app/management/partials/_workflow_sidebar_organization.html" %}
+    {% else %}
+      {% include "UTrade_app/management/partials/_workflow_sidebar_management.html" %}
+    {% endif %}
 
     {# ========== MAIN ========== #}
     <main class="col-md-9 col-lg-10 px-3 px-md-4">
@@ -118,10 +35,12 @@
           <h2 class="fw-bold mb-0 text-success">{{ title }}</h2>
           <p class="text-muted mb-0 small">{{ subtitle }}</p>
         </div>
+        {% if scope == 'management' %}
         <a href="{% url 'generate.report.pdf' %}?report_type=all_products"
            class="btn btn-success rounded-pill px-4 shadow-sm">
           <i class="bi bi-file-earmark-pdf me-1"></i> Generate Report
         </a>
+        {% endif %}
       </div>
 
       {# Stats #}
@@ -190,8 +109,8 @@
             <label class="form-label" for="wf-org">Organization</label>
             <select id="wf-org" name="organization" class="form-select">
               <option value="">All</option>
-              {% for org in org_options %}
-                <option value="{{ org }}" {% if current_filters.organization == org %}selected{% endif %}>{{ org }}</option>
+              {% for o in org_options %}
+                <option value="{{ o }}" {% if current_filters.organization == o %}selected{% endif %}>{{ o }}</option>
               {% endfor %}
             </select>
           </div>

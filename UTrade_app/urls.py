@@ -4,7 +4,7 @@ from .views import (
     admin_views, cart_views, order_views, chat_views,
     organization_views, management_views, alumni_views,
     otplink_views, reports_views, osas_sds_views, password_reset_views,
-    org_account_views,management_workflow_views
+    org_account_views,management_workflow_views, organization_workflow_views
 )
 
 urlpatterns = [ 
@@ -110,10 +110,12 @@ urlpatterns = [
     path('organization/product/<int:product_id>/list/', organization_views.org_list_product, name='org_list_product'),
     path('organization/variant/<int:pk>/delete/', organization_views.org_variant_delete, name='org_variant_delete'),
     path('organization/product/<int:pk>/update/', organization_views.OrgProductUpdateView.as_view(), name='org_product_update'),
-    path('organization/orders/', organization_views.organization_orders, name='organization_orders'),
-    path('organization/orders/batch/', organization_views.organization_orders_batch, name='organization_orders_batch'),
-    path('organization/preorders/', organization_views.organization_preorders, name='organization_preorders'),
-    path('organization/preorders/batch/', organization_views.organization_preorders_batch, name='organization_preorders_batch'),
+    
+    path('organization/orders/', organization_workflow_views.organization_orders, name='organization_orders'),
+    path('organization/orders/batch/', organization_workflow_views.organization_orders_batch, name='organization_orders_batch'),
+    path('organization/preorders/', organization_workflow_views.organization_preorders, name='organization_preorders'),
+    path('organization/preorders/batch/', organization_workflow_views.organization_preorders_batch, name='organization_preorders_batch'),
+    
     path('organization/remittance/', organization_views.org_remittance_view, name='org_remittance_view'),
     path('organization/pending-verification/', organization_views.org_pending_verification, name='org_pending_verification'),
     path('organization/update/<str:item_type>/<int:item_id>/', organization_views.update_status_org, name='update_status_org'),

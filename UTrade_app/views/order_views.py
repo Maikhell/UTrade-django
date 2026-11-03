@@ -82,8 +82,21 @@ def _decorate(obj, meta, kind, n_steps, status):
 
 
 def _is_management_order(order):
-    """CBRGU orders follow the full workflow, so "Accepted" is still in progress."""
-    return bool(order.seller_id and getattr(order.seller, 'user_role', '') == 'management')
+    """
+    Management and organization sellers use the full workflow
+    (Accepted -> Processing -> ... -> Ready for pickup), so for them "Accepted" is
+    still in progress. Student sellers only have Accepted -> Completed, so their
+    accepted orders stay under "To Pickup".
+    """
+    seller = getattr(order, 'seller', None)
+    if not seller:
+        return False
+    role = getattr(seller, 'user_role', '') or ''
+    if role == 'management':
+        return True
+    return bool(getattr(seller, 'org_link_id', None)) and (
+        role == 'org_officer' or getattr(seller, 'is_officer', False)
+    )
 
 
 # ---------------------------------------------------------------------------

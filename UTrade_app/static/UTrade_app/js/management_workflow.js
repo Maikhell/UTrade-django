@@ -69,6 +69,10 @@
     refreshCounts();
   };
 
+  function showError(text) {
+    return Swal.fire({ title: 'Something went wrong', text: text, icon: 'error', confirmButtonColor: '#198754' });
+  }
+
   // ---------- server call ----------
   async function postBatch(action, ids, extra) {
     if (!ids.length) {
@@ -80,8 +84,10 @@
       return;
     }
     var body = Object.assign({ action: action, order_ids: ids }, extra || {});
+
+    var res, raw;
     try {
-      var res = await fetch(cfg.batchUrl, {
+      res = await fetch(cfg.batchUrl, {
         method: 'POST',
         headers: {
           'X-CSRFToken': CSRF,
@@ -90,15 +96,24 @@
         },
         body: JSON.stringify(body)
       });
-      var data = await res.json();
-      if (data.success) {
-        await Swal.fire({ title: 'Done', text: data.message || 'Updated.', icon: 'success', confirmButtonColor: '#198754' });
-        location.reload();
-      } else {
-        Swal.fire({ title: 'Error', text: data.message || 'Failed.', icon: 'error', confirmButtonColor: '#198754' });
-      }
+      raw = await res.text();
     } catch (err) {
-      Swal.fire({ title: 'Error', text: 'Could not reach the server.', icon: 'error', confirmButtonColor: '#198754' });
+      showError('Could not reach the server. Check your connection and try again.');
+      return;
+    }
+
+    var data = null;
+    try { data = JSON.parse(raw); } catch (err) { data = null; }
+
+    if (data && data.success) {
+      await Swal.fire({ title: 'Done', text: data.message || 'Updated.', icon: 'success', confirmButtonColor: '#198754' });
+      location.reload();
+    } else if (data) {
+      Swal.fire({ title: 'Error', text: data.message || 'Failed.', icon: 'error', confirmButtonColor: '#198754' });
+    } else if (res.redirected || res.status === 401 || res.status === 403) {
+      showError('Your session may have expired. Refresh the page and sign in again.');
+    } else {
+      showError('The server returned an unexpected response (status ' + res.status + '). Nothing was changed.');
     }
   }
 

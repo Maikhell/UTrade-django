@@ -21,23 +21,22 @@ from django.db.models.functions import TruncDate
 import re
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from ..course_utils import COURSE_CHOICES, VALID_COURSE_CODES
-from ..utils import send_otp_email, get_seller_owner_type_filter, log_action
 from ..utils import is_allowed_email
 from django import forms
 import logging
 logger = logging.getLogger(__name__)
-from ..utils import send_otp_email, get_seller_owner_type_filter
+from ..utils import send_otp_email, get_seller_owner_type_filter,log_action
 from django.views.generic import (
     CreateView,
     DeleteView,
+    
     DetailView,
     ListView,
     TemplateView,
     UpdateView,
 )
 from xhtml2pdf import pisa
-from ..course_utils import COURSE_CHOICES
+from ..course_utils import COURSE_CHOICES, VALID_COURSE_CODES
 from ..forms import UserProfileForm, UserRegistrationForm
 from ..models import (
     MeetupLocation,

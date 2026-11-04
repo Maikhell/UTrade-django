@@ -345,18 +345,43 @@ def submit_preorder_request(request, variant_id):
 @login_required
 def order_success(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
-
-    if order.payment_method == "GCASH":
-        order.status = "Paid"
-        order.save(update_fields=['status'])
-
+ 
+    # Every order created by the same checkout (one per seller)
+    if order.checkout_batch:
+        batch_qs = Order.objects.filter(user=request.user, checkout_batch=order.checkout_batch)
+    else:
+        batch_qs = Order.objects.filter(pk=order.pk)
+ 
+    batch_qs.filter(payment_method='GCASH', status='Pending').update(
+        status='Paid', updated_at=timezone.now()
+    )
+ 
     CartItem.objects.filter(
         cart__user=request.user,
-        variant__orderitem__order=order,
+        variant__orderitem__order__in=batch_qs,
     ).delete()
-
+ 
+    orders = list(
+        batch_qs
+        .select_related('seller', 'seller__org_link')
+        .prefetch_related(
+            Prefetch(
+                'items',
+                queryset=OrderItem.objects.select_related('product_variant__product')
+                .prefetch_related('product_variant__product__images'),
+            )
+        )
+        .order_by('id')
+    )
+    for o in orders:
+        for it in o.items.all():
+            it.line_total = it.price * it.quantity
+ 
     return render(request, 'UTrade_app/orders/success.html', {
         'order': order,
+        'orders': orders,
+        'grand_total': sum((o.total_amount for o in orders), Decimal('0.00')),
+        'all_paid': bool(orders) and all((o.status or '').lower() == 'paid' for o in orders),
     })
 
 

@@ -69,7 +69,7 @@
                     <div class="min-w-0">
                       <div class="d-flex flex-wrap align-items-center gap-2">
                         <span class="ct-seller-name">{{ s.first_name }} {{ s.last_name }}{% if s.suffix %} {{ s.suffix }}{% endif %}</span>
-                        {% include 'UTrade_app/cart/partials/seller_badge.html' with person=s %}
+                        {% include 'UTrade_app/partials/seller_badge.html' with person=s %}
                       </div>
                       {% if s.user_role == 'student' %}
                         <span class="ct-seller-sub">@{{ s.username|default:s.student_no }}</span>
@@ -78,21 +78,17 @@
                   </div>
 
                   {% if s.user_role == 'management' or s.user_role == 'cbrgu_staff' %}
-                    {# CBRGU: name and email only #}
+                    {# CBRGU: name only (emails are private) #}
                     <div class="ct-info-grid">
-                      <div class="ct-info">
+                      <div class="ct-info" style="grid-column: 1 / -1;">
                         <span class="ct-info-label">Name</span>
                         <span class="ct-info-value">{{ s.get_full_name|default:s.display_name|default:"—" }}</span>
                       </div>
-                      <div class="ct-info">
-                        <span class="ct-info-label">Email</span>
-                        <span class="ct-info-value">{{ s.email|default:"—" }}</span>
-                      </div>
                     </div>
 
-                  {% elif s.user_role == 'org_officer' %}
+                  {% elif s.is_org_account or s.user_role == 'org_officer' %}
                     {# Organization: org name + handler's full name (never the student number) #}
-                    {% with rec=s.current_manager_record %}
+                    {% with rec=s.active_manager %}
                     <div class="ct-info-grid">
                       <div class="ct-info">
                         <span class="ct-info-label">Organization</span>
@@ -101,14 +97,8 @@
                       <div class="ct-info">
                         <span class="ct-info-label">Handled by</span>
                         <span class="ct-info-value">
-                          {% if rec %}{{ rec.student_name }}
-                          {% elif s.last_name %}{{ s.first_name }} {{ s.last_name }}
-                          {% else %}—{% endif %}
+                          {% if rec %}{{ rec.student_name }}{% elif not s.is_org_account and s.last_name %}{{ s.first_name }} {{ s.last_name }}{% else %}Not assigned yet{% endif %}
                         </span>
-                      </div>
-                      <div class="ct-info" style="grid-column: 1 / -1;">
-                        <span class="ct-info-label">Email</span>
-                        <span class="ct-info-value">{{ s.email|default:"—" }}</span>
                       </div>
                     </div>
                     {% endwith %}
@@ -121,16 +111,12 @@
                         <span class="ct-info-value">{{ s.student_no|default:"—" }}</span>
                       </div>
                       <div class="ct-info">
-                        <span class="ct-info-label">Course</span>
+                        <span class="ct-info-label">Program</span>
                         <span class="ct-info-value">{{ s.course|default:"—" }}{% if s.section %} · {{ s.section }}{% endif %}</span>
                       </div>
                       <div class="ct-info">
                         <span class="ct-info-label">Contact</span>
                         <span class="ct-info-value">{{ s.phone_number|default:"—" }}</span>
-                      </div>
-                      <div class="ct-info" style="grid-column: span 2;">
-                        <span class="ct-info-label">Email</span>
-                        <span class="ct-info-value">{{ s.email|default:"—" }}</span>
                       </div>
                       <div class="ct-info">
                         <span class="ct-info-label">Role</span>
@@ -256,16 +242,9 @@
                 <div class="ct-info"><span class="ct-info-label">Student number</span><span class="ct-info-value">{{ user.student_no|default:"—" }}</span></div>
                 <div class="ct-info"><span class="ct-info-label">Gender</span><span class="ct-info-value">{{ user.gender|default:"—" }}</span></div>
                 <div class="ct-info"><span class="ct-info-label">Role</span><span class="ct-info-value">{{ user.get_user_role_display|default:user.user_role }}</span></div>
-                <div class="ct-info"><span class="ct-info-label">Course</span><span class="ct-info-value">{{ user.course|default:"—" }}</span></div>
+                <div class="ct-info"><span class="ct-info-label">Program</span><span class="ct-info-value">{{ user.course|default:"—" }}</span></div>
                 <div class="ct-info"><span class="ct-info-label">Section</span><span class="ct-info-value">{{ user.section|default:"—" }}</span></div>
                 <div class="ct-info"><span class="ct-info-label">Contact number</span><span class="ct-info-value">{{ user.phone_number|default:"—" }}</span></div>
-                <div class="ct-info" style="grid-column: span 2;">
-                  <span class="ct-info-label">Email</span>
-                  <span class="ct-info-value">
-                    {{ user.email|default:"—" }}
-                    {% if user.is_email_verified %}<span class="ct-chip ct-chip--green ms-1">Verified email</span>{% endif %}
-                  </span>
-                </div>
                 <div class="ct-info">
                   <span class="ct-info-label">Organization</span>
                   <span class="ct-info-value">

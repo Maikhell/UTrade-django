@@ -1,5 +1,5 @@
 {% extends 'UTrade_app/base.html' %}
-{% load static %}
+{% load static course_tags %}
 
 {% block title %}Edit Profile{% endblock %}
 
@@ -8,6 +8,7 @@
 {% endblock %}
 
 {% block content %}
+{% get_course_choices as course_choices %}
 <nav aria-label="breadcrumb" class="mb-4">
   <a href="#" onclick="history.back(); return false;"
      class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
@@ -24,7 +25,9 @@
 
           <!-- LEFT: Photo + Role badge -->
           <div class="col-md-4 bg-light border-end p-4 text-center">
-            <h6 class="fw-bold text-muted mb-4 text-uppercase small">Profile Photo</h6>
+            <h6 class="fw-bold text-muted mb-4 text-uppercase small">
+              {% if user.user_role == 'org_officer' %}Organization Logo{% else %}Profile Photo{% endif %}
+            </h6>
             <div class="position-relative d-inline-block mb-3">
               <img id="profile_preview"
                    src="{{ user.profile_pic_url }}"
@@ -44,10 +47,10 @@
               {% elif user.user_role == 'campus_admin' %}
                 <span class="badge bg-primary rounded-pill px-3 py-2 text-uppercase fw-bold"
                       style="font-size:0.65rem; letter-spacing:1px;">Campus Admin</span>
-              {% elif user.is_org_account %}
+              {% elif user.user_role == 'org_officer' %}
                 <span class="badge bg-info text-dark rounded-pill px-3 py-2 text-uppercase fw-bold"
                       style="font-size:0.65rem; letter-spacing:1px;">
-                  {{ user.org_link.name|default:user.organization|default:"Organization" }} Organization
+                  {{ user.org_link.name|default:user.organization|default:"Organization" }} Account
                 </span>
               {% elif user.user_role == 'alumni_assoc' %}
                 <span class="badge bg-danger rounded-pill px-3 py-2 text-uppercase fw-bold"
@@ -69,56 +72,47 @@
           <div class="col-md-8 p-4 p-md-5">
             <h4 class="fw-bold mb-1">Account Settings</h4>
             <p class="text-muted small mb-4">
-              {% if user.is_org_account %}Manage your organization's account details.{% else %}Update your university identity and contact information.{% endif %}
+              {% if user.user_role == 'org_officer' %}
+                Update your organization's details and contact information.
+              {% else %}
+                Update your university identity and contact information.
+              {% endif %}
             </p>
 
-            {# data-reverify="1" only for VERIFIED STUDENT accounts #}
+            {# data-reverify="1" ONLY for verified STUDENT accounts #}
             <form method="POST" enctype="multipart/form-data" id="profileForm"
-                  data-reverify="{% if user.status|lower == 'verified' and user.user_role == 'student' %}1{% endif %}">
+                  data-reverify="{% if user.user_role == 'student' %}{% if user.status|lower == 'verified' %}1{% endif %}{% endif %}">
               {% csrf_token %}
               <input type="file" name="image" id="id_profile_picture" class="d-none" onchange="previewAvatar(event)" />
               <input type="hidden" name="confirm_reverify" id="confirm_reverify" value="" />
 
               <div class="row g-3">
 
-                {# ===== Org account: who is accountable (read-only) ===== #}
-                {% if user.is_org_account %}
-                  <div class="col-12">
-                    {% if manager %}
-                      <div class="alert alert-info border-0 small mb-0">
-                        <i class="bi bi-person-badge-fill me-2"></i>
-                        Managed by <strong>{{ manager.student_name }}</strong>
-                        ({{ manager.student_no }}){% if manager.position %}, {{ manager.position }}{% endif %}
-                        &middot; since {{ manager.assigned_at|date:"M d, Y" }}.
-                        Only CBRGU can change the manager.
-                      </div>
-                    {% else %}
-                      <div class="alert alert-warning border-0 small mb-0">
-                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        No student is currently assigned to manage this account. Please contact CBRGU.
-                      </div>
-                    {% endif %}
-                  </div>
-                {% endif %}
+                {% if user.user_role == 'org_officer' %}
+                  {# Org accounts keep their name; posted so nothing is blanked #}
+                  <input type="hidden" name="first_name" value="{{ user.first_name }}" />
+                  <input type="hidden" name="last_name" value="{{ user.last_name }}" />
 
-                {# ===== Student: org accounts they are accountable for ===== #}
-                {% if managed_accounts %}
+                  <!-- Accountable manager (read-only, changed by CBRGU only) -->
                   <div class="col-12">
-                    <div class="alert alert-secondary border-0 small mb-0">
-                      <i class="bi bi-people-fill me-2"></i>
-                      You are accountable for:
-                      <ul class="mb-0 mt-1">
-                        {% for m in managed_accounts %}
-                          <li><strong>{{ m.org_account.org_link.name|default:m.org_account.student_no }}</strong>
-                              (login ID {{ m.org_account.student_no }})</li>
-                        {% endfor %}
-                      </ul>
-                      Sign in with the organization's own account to use the organization panel.
+                    <div class="card border-0 bg-light rounded-4 p-3">
+                      <h6 class="fw-bold mb-2"><i class="bi bi-person-badge me-1"></i> Account Manager</h6>
+                      {% if manager_record %}
+                        <div class="fw-semibold">{{ manager_record.student_name }}</div>
+                        <div class="small text-muted">
+                          Student No. {{ manager_record.student_no }}
+                          {% if manager_record.position %} · {{ manager_record.position }}{% endif %}
+                          · since {{ manager_record.assigned_at|date:"M d, Y" }}
+                        </div>
+                      {% else %}
+                        <div class="small text-danger">No student is linked to this account yet. Please contact CBRGU.</div>
+                      {% endif %}
+                      <div class="form-text mt-2" style="font-size:0.75rem;">
+                        This student is accountable for actions taken on this account. Only CBRGU can change the manager.
+                      </div>
                     </div>
                   </div>
-                {% endif %}
-
-                {% if not user.is_org_account %}
+                {% else %}
                   <!-- First / Last Name -->
                   <div class="col-md-6">
                     <label class="form-label small fw-bold text-secondary">First Name <span class="text-danger">*</span></label>
@@ -159,27 +153,33 @@
                   </div>
                 {% endif %}
 
-                <!-- ID field (label changes by role) -->
+                <!-- ID field -->
                 <div class="col-md-6">
-                  {% if user.is_org_account %}
-                    <label class="form-label small fw-bold text-secondary">Organization Login ID</label>
-                  {% elif user.user_role == 'management' %}
+                  {% if user.user_role == 'management' %}
                     <label class="form-label small fw-bold text-secondary">Staff ID <span class="text-danger">*</span></label>
                   {% elif user.user_role == 'campus_admin' %}
                     <label class="form-label small fw-bold text-secondary">Campus Admin ID <span class="text-danger">*</span></label>
+                  {% elif user.user_role == 'org_officer' %}
+                    <label class="form-label small fw-bold text-secondary">Organization Login ID</label>
                   {% else %}
                     <label class="form-label small fw-bold text-secondary">Student Number <span class="text-danger">*</span></label>
                   {% endif %}
-                  <input type="text" name="student_no" class="form-control rounded-3"
-                         value="{{ user.student_no }}" required
-                         {% if user.is_org_account %}readonly{% endif %}
-                         {% if user.user_role == 'student' %}pattern="\d{9}" maxlength="9" inputmode="numeric" title="Student number must be exactly 9 digits"{% else %}maxlength="20"{% endif %}
-                         data-track data-label="Student number" data-original="{{ user.student_no }}" />
-                  <div class="form-text mt-1" style="font-size:0.75rem;">This is also your login ID.</div>
+
+                  {% if user.user_role == 'org_officer' %}
+                    <input type="text" name="student_no" class="form-control rounded-3 bg-light"
+                           value="{{ user.student_no }}" readonly />
+                    <div class="form-text mt-1" style="font-size:0.75rem;">Contact CBRGU to change your login ID.</div>
+                  {% else %}
+                    <input type="text" name="student_no" class="form-control rounded-3"
+                           value="{{ user.student_no }}" required
+                           {% if user.user_role == 'student' %}pattern="\d{9}" maxlength="9" inputmode="numeric" title="Student number must be exactly 9 digits"{% else %}maxlength="20"{% endif %}
+                           data-track data-label="Student number" data-original="{{ user.student_no }}" />
+                    <div class="form-text mt-1" style="font-size:0.75rem;">This is also your login ID.</div>
+                  {% endif %}
                 </div>
 
-                <!-- Contact / Course / Section – students and alumni only -->
-                {% if user.user_role != 'management' and user.user_role != 'campus_admin' and not user.is_org_account %}
+                <!-- Contact -->
+                {% if user.user_role != 'management' and user.user_role != 'campus_admin' %}
                   <div class="col-md-6">
                     <label class="form-label small fw-bold text-secondary">
                       Contact Number <span class="text-danger">*</span>
@@ -188,21 +188,24 @@
                            value="{{ user.phone_number|default:'' }}"
                            placeholder="09XXXXXXXXX" required />
                   </div>
+                {% endif %}
 
+                <!-- Course / Section (not for management, admin, or org accounts) -->
+                {% if user.user_role != 'management' and user.user_role != 'campus_admin' and user.user_role != 'org_officer' %}
                   <div class="col-md-10">
                     <label class="form-label small fw-bold text-secondary">
-                      Course / Major <span class="text-danger">*</span>
+                      Program / Major <span class="text-danger">*</span>
                     </label>
                     <select name="course" class="form-select rounded-3" required
-                            data-track data-label="Course" data-original="{{ user.course|default:'' }}">
-                      <option value="" disabled {% if not user.course %}selected{% endif %}>Select your course</option>
+                            data-track data-label="Program" data-original="{{ user.course|default:'' }}">
+                      <option value="" disabled {% if not user.course %}selected{% endif %}>Select your program</option>
                       {% for code, label in course_choices %}
                         <option value="{{ code }}" {% if user.course == code %}selected{% endif %}>{{ code }} | {{ label }}</option>
                       {% endfor %}
                     </select>
-                    {% if user.course == 'BSBM' or user.course == 'BSE' or user.course == 'BSED' %}
+                    {% if user.course == 'BSBM' or user.course == 'BSE' %}
                       <div class="form-text text-danger" style="font-size:0.75rem;">
-                        Your course has been split into majors. Please choose your major.
+                        Your program has been split into majors. Please choose your major.
                       </div>
                     {% endif %}
                   </div>
@@ -219,24 +222,27 @@
 
                 <!-- Email -->
                 <div class="col-12">
-                  <label class="form-label small fw-bold text-secondary">Email Address <span class="text-danger">*</span></label>
+                  <label class="form-label small fw-bold text-secondary">
+                    {% if user.user_role == 'org_officer' %}Organization Email{% else %}Email Address{% endif %}
+                    <span class="text-danger">*</span>
+                  </label>
                   <input type="email" name="email" class="form-control rounded-3"
                          value="{{ user.email }}" required
                          data-track data-label="Email" data-original="{{ user.email }}" />
                 </div>
 
-                {% if user.status|lower == 'verified' and user.user_role == 'student' %}
+                {% if user.user_role == 'student' and user.status|lower == 'verified' %}
                   <div class="col-12">
                     <div class="alert alert-warning border-0 small mb-0">
                       <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                      Changing your <strong>name, suffix, student number, email, course or section</strong>
+                      Changing your <strong>name, suffix, student number, email, program or section</strong>
                       will set your account to <strong>Pending</strong> until it is re-verified.
                     </div>
                   </div>
                 {% endif %}
 
-                <!-- ========== ORGANIZATION DETAILS ========== -->
-                {% if user.is_org_account or user.user_role == 'alumni_assoc' %}
+                <!-- ========== ORGANIZATION DETAILS (org account / alumni association) ========== -->
+                {% if user.user_role == 'org_officer' or user.user_role == 'alumni_assoc' %}
                   <div class="col-12"><hr class="my-2"></div>
                   <div class="col-12">
                     <h6 class="fw-bold text-uppercase text-muted small mb-3">Organization Details</h6>
@@ -261,7 +267,26 @@
                   </div>
                 {% endif %}
 
-                <!-- ========== VERIFICATION (students / alumni only) ========== -->
+                <!-- ========== ORGANIZATIONS THIS STUDENT MANAGES ========== -->
+                {% if user.user_role == 'student' and managed_accounts %}
+                  <div class="col-12">
+                    <div class="card border-0 bg-light rounded-4 p-3">
+                      <h6 class="fw-bold mb-2"><i class="bi bi-diagram-3 me-1"></i> Organization accounts you manage</h6>
+                      {% for rec in managed_accounts %}
+                        <div class="small">
+                          <span class="fw-semibold">{{ rec.org_account.org_link.name|default:rec.org_account.display_name }}</span>
+                          · login ID {{ rec.org_account.student_no }}
+                          {% if rec.position %}· {{ rec.position }}{% endif %}
+                        </div>
+                      {% endfor %}
+                      <div class="form-text mt-2" style="font-size:0.75rem;">
+                        You are accountable for actions taken on these accounts. Sign in with the organization's login ID to use them.
+                      </div>
+                    </div>
+                  </div>
+                {% endif %}
+
+                <!-- ========== VERIFICATION (students / alumni) ========== -->
                 {% if user.user_role == 'student' or user.user_role == 'alumni' %}
                   <div class="col-12">
                     <div class="card border-0 shadow-sm rounded-4 mt-3 bg-light">
@@ -341,7 +366,7 @@
 </div>
 {% endif %}
 
-{# Officer application modal – normal student accounts only #}
+{# Officer application modal – students only #}
 {% if user.user_role == 'student' %}
 <div class="modal fade" id="officerRegistrationModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -351,10 +376,14 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div class="alert alert-danger border-0 small mb-4">
+        <div class="alert alert-danger border-0 small mb-3">
           <i class="bi bi-exclamation-octagon-fill me-2"></i>
-          <strong>STRICT WARNING:</strong> Only elected or officially appointed student officers shall sign up.
+          <strong>STRICT WARNING:</strong> Only elected or officially appointed student officers shall apply.
         </div>
+        <p class="small text-muted mb-4">
+          If approved, CBRGU will give your organization its own separate login and register you as the
+          student accountable for it. Your personal account stays a normal student account.
+        </p>
         <form action="{% url 'register_officer' %}" method="POST" enctype="multipart/form-data">
           {% csrf_token %}
           <div class="mb-3">

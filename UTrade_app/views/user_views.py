@@ -19,6 +19,10 @@ from django.shortcuts import render
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models.functions import TruncDate
 import re
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from ..course_utils import COURSE_CHOICES, VALID_COURSE_CODES
+from ..utils import send_otp_email, get_seller_owner_type_filter, log_action
 from ..utils import is_allowed_email
 from django import forms
 import logging
@@ -57,6 +61,7 @@ REVERIFY_FIELDS = (
     ('section', 'Section'),
 )
 ORG_LOCKED_FIELDS = ('first_name', 'last_name', 'student_no')
+NO_STUDENT_FIELDS = ('management', 'campus_admin', 'org_officer')
 def _norm(field, value):
     value = (value or '').strip()
     return value.lower() if field == 'email' else value
@@ -162,115 +167,141 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     success_url = reverse_lazy('user.profile')
     success_message = "Your profile has been updated successfully!"
  
-    def get_object(self, queryset=None):
+    def get_object(self):
         return self.request.user
  
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
-        context['org'] = user.org_link
-        context['course_choices'] = COURSE_CHOICES          # <- fills the dropdown
-        context['manager'] = user.active_manager             # org accounts
-        context['managed_accounts'] = (
-            user.managed_accounts if user.user_role == 'student' else []
-        )
+        context['org'] = getattr(user, 'org_link', None)
+        if user.user_role == 'org_officer':
+            # The student accountable for this organization account
+            context['manager_record'] = user.active_manager
+        elif user.user_role == 'student':
+            # Organization accounts this student is accountable for
+            context['managed_accounts'] = user.managed_accounts
         return context
- 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        user = self.request.user
-        if self.request.method == 'POST' and user.is_org_account:
-            data = self.request.POST.copy()
-            for f in ORG_LOCKED_FIELDS:
-                data[f] = getattr(user, f) or ''
-            kwargs['data'] = data
-        return kwargs
  
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
-        user = self.object
-        # Snapshot BEFORE the form validates (validation mutates the instance).
-        self._original = {f: (getattr(user, f) or '') for f, _ in REVERIFY_FIELDS}
-        self._was_verified = (user.status or '').lower() == 'verified'
- 
         form = self.get_form()
         if form.is_valid():
             return self.form_valid(form)
-        messages.error(request, "Validation failed. Please check your inputs.")
+        messages.error(self.request, "Validation failed. Please check your inputs.")
         return self.form_invalid(form)
  
-    def _reject(self, text):
-        # Nothing has been saved yet, so just go back to the page.
-        messages.error(self.request, text)
-        return redirect('user.profile')
- 
-    def form_valid(self, form):
-        user = form.instance
+    # ------------------------------------------------------------------
+    def _validate_identity(self, user, original, role):
         post = self.request.POST
+        errors = []
+ 
+        # ---- Student / staff number (org login ID can't be self-edited) ----
+        if role == 'org_officer':
+            student_no = original.student_no
+        else:
+            student_no = post.get('student_no', original.student_no).strip()
+        if student_no != original.student_no:
+            if role == 'student':
+                if not re.fullmatch(r'\d{9}', student_no):
+                    errors.append("Student number must be exactly 9 digits.")
+            elif not re.fullmatch(r'[A-Za-z0-9\-]{1,20}', student_no):
+                errors.append("ID may only contain letters, numbers, and hyphens (max 20).")
+            if not errors and User.objects.exclude(pk=user.pk).filter(
+                student_no__iexact=student_no
+            ).exists():
+                errors.append("That student number is already registered.")
+        user.student_no = student_no
+ 
+        # ---- Email ----
+        email = post.get('email', original.email).strip().lower()
+        if email != (original.email or '').lower():
+            try:
+                validate_email(email)
+            except ValidationError:
+                errors.append("Please enter a valid email address.")
+            else:
+                if User.objects.exclude(pk=user.pk).filter(email__iexact=email).exists():
+                    errors.append("That email address is already registered.")
+        user.email = email
+ 
+        # ---- Course must be one of the current options ----
+        if role not in NO_STUDENT_FIELDS:
+            course = post.get('course', '').strip()
+            if course and course not in VALID_COURSE_CODES:
+                errors.append("Please choose your program / major from the list.")
+ 
+        return errors
+ 
+    # ------------------------------------------------------------------
+    def form_valid(self, form):
+        user = form.instance          # already mutated by form validation
         role = user.user_role
-        is_org = user.is_org_account
-        is_student = role == 'student'
+        post = self.request.POST
+        original = User.objects.get(pk=user.pk)   # the account before this edit
  
         if 'image' in self.request.FILES:
             user.image = self.request.FILES['image']
  
-        if not is_org:
-            user.suffix = post.get('suffix', '').strip() or None
+        if role != 'org_officer':
+            user.suffix = post.get('suffix', '') or None
             user.gender = post.get('gender', '') or None
+        else:
+            # Org accounts keep their name; never blank it from a missing field.
+            user.first_name = original.first_name
+            user.last_name = original.last_name
  
-        # ---- Email (not part of UserProfileForm, so handled here) ----
-        email = post.get('email', '').strip().lower()
-        if not email:
-            return self._reject("Email is required.")
-        if email != self._original['email'].strip().lower():
-            if User.objects.filter(email__iexact=email).exclude(pk=user.pk).exists():
-                return self._reject("That email is already registered.")
-            if is_student and not is_allowed_email(email):
-                return self._reject("Use a Gmail or official @cvsu.edu.ph email address.")
-        user.email = email
- 
-        # ---- Student-style fields ----
-        if not is_org and role not in ('management', 'campus_admin'):
+        if role not in ('management', 'campus_admin'):
             user.phone_number = post.get('phone_number', '').strip() or None
-            user.course = post.get('course', '').strip() or None
-            user.section = post.get('section', '').strip() or None
             if not user.phone_number:
-                return self._reject("Contact number is required.")
-            if not user.course:
-                return self._reject("Course is required.")
-            if not user.section:
-                return self._reject("Section is required.")
+                messages.error(self.request, "Contact number is required.")
+                return self.form_invalid(form)
  
-        if is_student and not re.fullmatch(r'\d{9}', user.student_no or ''):
-            return self._reject("Student number must be exactly 9 digits.")
+            if role != 'org_officer':
+                user.course = post.get('course', '').strip() or None
+                user.section = post.get('section', '').strip() or None
+                if not user.course:
+                    messages.error(self.request, "Program is required.")
+                    return self.form_invalid(form)
+                if not user.section:
+                    messages.error(self.request, "Section is required.")
+                    return self.form_invalid(form)
  
-        # ---- Re-verification: verified STUDENT accounts only ----
-        if is_student and self._was_verified:
-            current = {f: getattr(user, f) for f, _ in REVERIFY_FIELDS}
+        errors = self._validate_identity(user, original, role)
+        if errors:
+            for err in errors:
+                messages.error(self.request, err)
+            return self.form_invalid(form)
+ 
+        # ---- Re-verification: STUDENT accounts only ----
+        reverify = False
+        changed = []
+        if original.user_role == 'student' and (original.status or '').strip().lower() == 'verified':
             changed = [
-                label for f, label in REVERIFY_FIELDS
-                if _norm(f, current[f]) != _norm(f, self._original[f])
+                label for field, label in REVERIFY_FIELDS
+                if _norm(field, getattr(user, field, '')) != _norm(field, getattr(original, field, ''))
             ]
-            if changed:
-                user.status = 'pending'
-                messages.info(
-                    self.request,
-                    "Your account is now Pending until it is verified again."
-                )
+            reverify = bool(changed)
  
-        # ---- Organization details (org accounts / alumni association) ----
-        if is_org or role == 'alumni_assoc':
+        if reverify:
+            if post.get('confirm_reverify') != '1':
+                messages.error(
+                    self.request,
+                    "Please confirm that your account will be set to Pending "
+                    "for re-verification before saving these changes.",
+                )
+                return self.form_invalid(form)
+            user.status = 'Pending'
+ 
+        # ---- Organization details (org account / alumni association) ----
+        if role in ('org_officer', 'alumni_assoc'):
             org = user.org_link
             org_name = post.get('org_name', '').strip()
             org_full_name = post.get('org_full_name', '').strip()
             org_description = post.get('org_description', '').strip()
  
             if org:
-                if org_name and org_name != org.name:
-                    if Organization.objects.filter(name=org_name).exclude(pk=org.pk).exists():
-                        return self._reject("Another organization already uses that name.")
+                if org_name:
                     org.name = org_name
-                    user.organization = org_name
                 if org_full_name:
                     org.full_name = org_full_name
                 org.description = org_description
@@ -280,11 +311,29 @@ class UserProfileView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
                     name=org_name,
                     full_name=org_full_name or org_name,
                     description=org_description,
+                    course_code=user.course or '',
                 )
                 user.org_link = org
                 user.organization = org_name
  
-        return super().form_valid(form)
+        response = super().form_valid(form)
+ 
+        if reverify:
+            messages.warning(
+                self.request,
+                "You changed your " + ", ".join(changed).lower() + ". "
+                "Your account is now Pending re-verification. "
+                "Upload an updated COR if your document no longer matches.",
+            )
+            log_action(
+                user=user,
+                action='Profile Changed – Re-verification',
+                item_type='User',
+                item_name=str(user),
+                details='Changed: ' + ', '.join(changed) + '. Status set to Pending.',
+            )
+        return response
+ 
             
 
 

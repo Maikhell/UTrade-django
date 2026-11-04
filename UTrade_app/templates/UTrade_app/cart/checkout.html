@@ -69,7 +69,7 @@
                     <div class="min-w-0">
                       <div class="d-flex flex-wrap align-items-center gap-2">
                         <span class="ct-seller-name">{{ s.first_name }} {{ s.last_name }}{% if s.suffix %} {{ s.suffix }}{% endif %}</span>
-                        {% include 'UTrade_app/partials/seller_badge.html' with person=s %}
+                        {% include 'UTrade_app/cart/partials/seller_badge.html' with person=s %}
                       </div>
                       {% if s.user_role == 'student' %}
                         <span class="ct-seller-sub">@{{ s.username|default:s.student_no }}</span>

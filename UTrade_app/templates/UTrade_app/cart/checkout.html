@@ -3,347 +3,476 @@
 
 {% block title %}Checkout - UTrade{% endblock %}
 
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/cart.css' %}" />
+{% endblock %}
+
 {% block content %}
-<nav aria-label="breadcrumb" class="mb-4">
-  <a href="#" onclick="history.back(); return false;"
-     class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
-    <i class="bi bi-arrow-left" aria-hidden="true"></i>
-    <span>Go Back</span>
-  </a>
-</nav>
+<div class="container py-3 py-md-4">
+  <div class="ct-wrap">
 
-<div class="container py-5">
-  <form action="{% url 'place_order' %}" method="POST" id="place-order-form">
-    {% csrf_token %}
-
-    {# localize off: ids must be plain digits (no thousands separators) #}
-    {% localize off %}
-      {# Primary: individual fields #}
-      {% for item in items %}
-        <input type="hidden" name="item_ids" value="{{ item.id }}">
-      {% endfor %}
-
-      {# Fallback: single comma-separated value #}
-      <input type="hidden" name="items" value="{% for item in items %}{{ item.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
-    {% endlocalize %}
-
-    <div class="row g-4">
-      <div class="col-lg-8">
-
-        {% for group in seller_groups %}
-          <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-            <div class="d-flex align-items-center justify-content-between mb-3">
-              <h5 class="fw-bold mb-0">
-                <i class="bi bi-shop text-success me-2"></i>
-                Order for {{ group.seller_name }}
-              </h5>
-              <span class="fw-bold text-success">₱{{ group.subtotal }}</span>
-            </div>
-            <p class="small text-muted mb-3">
-              These items will be placed as a separate order for this seller only.
-            </p>
-
-            {# —— Seller details —— #}
-            <div class="bg-light rounded-3 p-3 mb-3">
-              <div class="d-flex align-items-center gap-3 mb-2">
-                {% if group.seller.image %}
-                  <img src="{{ group.seller.image.url }}" class="rounded-circle border"
-                       style="width:48px;height:48px;object-fit:cover;" alt="">
-                {% else %}
-                  <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center border"
-                       style="width:48px;height:48px;">
-                    <i class="bi bi-person fs-5"></i>
-                  </div>
-                {% endif %}
-                <div>
-                  <div class="fw-bold">
-                    {{ group.seller.first_name }} {{ group.seller.last_name }}{% if group.seller.suffix %} {{ group.seller.suffix }}{% endif %}
-                  </div>
-                  <div class="small text-muted">@{{ group.seller.username|default:group.seller.student_no }}</div>
-                </div>
-              </div>
-              <div class="row g-2 small">
-                <div class="col-md-4">
-                  <span class="text-muted d-block" style="font-size:0.7rem;">Student / Staff ID</span>
-                  <strong>{{ group.seller.student_no|default:"—" }}</strong>
-                </div>
-                <div class="col-md-4">
-                  <span class="text-muted d-block" style="font-size:0.7rem;">Course</span>
-                  <strong>{{ group.seller.course|default:"—" }}{% if group.seller.section %} · {{ group.seller.section }}{% endif %}</strong>
-                </div>
-                <div class="col-md-4">
-                  <span class="text-muted d-block" style="font-size:0.7rem;">Contact</span>
-                  <strong>{{ group.seller.phone_number|default:"—" }}</strong>
-                </div>
-                <div class="col-md-6">
-                  <span class="text-muted d-block" style="font-size:0.7rem;">Email</span>
-                  <strong class="text-break">{{ group.seller.email|default:"—" }}</strong>
-                </div>
-                <div class="col-md-6">
-                  <span class="text-muted d-block" style="font-size:0.7rem;">Role</span>
-                  <strong>{{ group.seller.get_user_role_display|default:group.seller.user_role }}</strong>
-                </div>
-              </div>
-            </div>
-
-            {% for item in group.items %}
-              <div class="d-flex align-items-start py-3 border-bottom border-light">
-                {% if item.variant.assigned_image %}
-                  <img src="{{ item.variant.assigned_image.image.url }}"
-                       class="rounded-3 shadow-sm"
-                       style="width: 80px; height: 80px; object-fit: cover;" alt="" />
-                {% elif item.variant.product.images.first %}
-                  <img src="{{ item.variant.product.images.first.image.url }}"
-                       class="rounded-3 shadow-sm"
-                       style="width: 80px; height: 80px; object-fit: cover;" alt="" />
-                {% else %}
-                  <img src="{% static 'UTrade_app/images/default-product.png' %}"
-                       class="rounded-3 shadow-sm"
-                       style="width: 80px; height: 80px; object-fit: cover;" alt="" />
-                {% endif %}
-
-                <div class="ms-3 flex-grow-1">
-                  <h6 class="fw-bold mb-0">{{ item.variant.product.name }}</h6>
-                  <div class="mb-2 mt-1">
-                    <span class="badge bg-light text-dark border rounded-pill fw-normal">
-                      {{ item.variant.variant_name }}
-                    </span>
-                    <span class="small text-muted ms-2">Qty: {{ item.quantity }}</span>
-                  </div>
-                  {% if item.variant.product.meetup_location_text %}
-                    <div class="small text-muted mb-1">
-                      <i class="bi bi-geo-alt-fill text-danger me-1"></i>
-                      {{ item.variant.product.meetup_location_text }}
-                    </div>
-                  {% endif %}
-                  {% if item.variant.flaws_description %}
-                    <div class="alert alert-warning py-2 px-3 mb-0 rounded-3" style="font-size: 0.8rem;">
-                      <strong>Condition:</strong> {{ item.variant.flaws_description }}
-                    </div>
-                  {% else %}
-                    <div class="text-success small">
-                      <i class="bi bi-check-circle-fill me-1"></i> No reported flaws
-                    </div>
-                  {% endif %}
-                </div>
-                <div class="text-end">
-                  <span class="fw-bold text-success fs-5">₱{{ item.get_cost }}</span>
-                </div>
-              </div>
-            {% endfor %}
-
-            {# —— Payment method for THIS seller's order —— #}
-            <div class="mt-4">
-              <h6 class="fw-bold mb-2">Payment Method</h6>
-              <div class="row g-2">
-                {% if group.can_use_gcash %}
-                  <div class="col-md-6">
-                    <label class="payment-option w-100 h-100">
-                      <input type="radio" name="payment_method_{{ group.seller_id|unlocalize }}" value="GCASH" class="d-none" checked />
-                      <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
-                        <i class="bi bi-lightning-charge-fill text-warning mb-2 h4"></i>
-                        <div class="fw-bold small">Online GCash</div>
-                        <small class="text-muted" style="font-size: 0.6rem;">Instant Verification</small>
-                      </div>
-                    </label>
-                  </div>
-                {% endif %}
-                {% if group.can_use_cop %}
-                  <div class="col-md-6">
-                    <label class="payment-option w-100 h-100">
-                      <input type="radio" name="payment_method_{{ group.seller_id|unlocalize }}" value="COP" class="d-none"
-                             {% if not group.can_use_gcash %}checked{% endif %} />
-                      <div class="p-3 border rounded-3 text-center cursor-pointer option-box h-100 d-flex flex-column align-items-center justify-content-center">
-                        <i class="bi bi-cash-stack h4 text-success mb-2"></i>
-                        <div class="fw-bold small">Cash on Pickup</div>
-                        <small class="text-muted" style="font-size: 0.6rem;">Pay at meet-up</small>
-                      </div>
-                    </label>
-                  </div>
-                {% endif %}
-                {% if group.has_payment_conflict %}
-                  <div class="col-12">
-                    <div class="alert alert-danger mb-0" style="font-size: 0.8rem;">
-                      <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                      The items from this seller have conflicting payment methods. Please remove some items from your cart and order them separately.
-                    </div>
-                  </div>
-                {% endif %}
-              </div>
-            </div>
-          </div>
-        {% empty %}
-          <div class="alert alert-warning">No items to checkout.</div>
-        {% endfor %}
-
-        {# —— Buyer details —— #}
-        <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
-          <div class="d-flex align-items-center justify-content-between mb-4">
-            <div class="d-flex align-items-center">
-              <div class="bg-primary-subtle p-2 rounded-3 me-3">
-                <i class="bi bi-person-badge text-primary fs-4"></i>
-              </div>
-              <h5 class="fw-bold mb-0">Buyer details</h5>
-            </div>
-            {% if user.status == 'verified' %}
-              <span class="badge bg-success-subtle text-success rounded-pill px-3">
-                <i class="bi bi-patch-check-fill me-1"></i> Verified
-              </span>
-            {% else %}
-              <span class="badge bg-warning-subtle text-warning rounded-pill px-3">
-                <i class="bi bi-clock-history me-1"></i> {{ user.status|title }}
-              </span>
-            {% endif %}
-          </div>
-
-          <div class="d-flex align-items-center gap-3 mb-3">
-            <img src="{{ user.profile_pic_url }}" class="rounded-circle border"
-                 style="width:56px;height:56px;object-fit:cover;" alt="">
-            <div>
-              <div class="fw-bold">
-                {{ user.first_name }} {{ user.last_name }}{% if user.suffix %} {{ user.suffix }}{% endif %}
-              </div>
-              <div class="small text-muted">@{{ user.display_name|default:user.username }}</div>
-            </div>
-          </div>
-
-          <div class="row g-3 small">
-            <div class="col-md-4">
-              <span class="text-muted d-block" style="font-size:0.7rem;">Student number</span>
-              <strong>{{ user.student_no|default:"—" }}</strong>
-            </div>
-            <div class="col-md-4">
-              <span class="text-muted d-block" style="font-size:0.7rem;">Gender</span>
-              <strong>{{ user.gender|default:"—" }}</strong>
-            </div>
-            <div class="col-md-4">
-              <span class="text-muted d-block" style="font-size:0.7rem;">Role</span>
-              <strong>{{ user.get_user_role_display|default:user.user_role }}</strong>
-            </div>
-            <div class="col-md-4">
-              <span class="text-muted d-block" style="font-size:0.7rem;">Course</span>
-              <strong>{{ user.course|default:"—" }}</strong>
-            </div>
-            <div class="col-md-4">
-              <span class="text-muted d-block" style="font-size:0.7rem;">Section</span>
-              <strong>{{ user.section|default:"—" }}</strong>
-            </div>
-            <div class="col-md-4">
-              <span class="text-muted d-block" style="font-size:0.7rem;">Contact number</span>
-              <strong>{{ user.phone_number|default:"—" }}</strong>
-            </div>
-            <div class="col-md-6">
-              <span class="text-muted d-block" style="font-size:0.7rem;">Email</span>
-              <strong class="text-break">{{ user.email|default:"—" }}</strong>
-              {% if user.is_email_verified %}
-                <span class="badge bg-success-subtle text-success border border-success-subtle ms-1">Verified email</span>
-              {% endif %}
-            </div>
-            <div class="col-md-6">
-              <span class="text-muted d-block" style="font-size:0.7rem;">Organization</span>
-              <strong>
-                {% if user.org_link %}
-                  {{ user.org_link.name }} ({{ user.org_link.course_code }})
-                {% else %}
-                  {{ user.org_acronym|default:"—" }}
-                {% endif %}
-              </strong>
-            </div>
-          </div>
-
-          {% if user.status == 'unverified' or user.status == 'pending' %}
-            <div class="mt-3 p-2 bg-warning-subtle rounded-3 border border-warning-subtle">
-              <small class="text-dark fw-medium" style="font-size: 0.75rem;">
-                <i class="bi bi-exclamation-circle-fill me-1"></i>
-                Your account is not fully verified. Sellers may prioritize verified students.
-              </small>
-            </div>
-          {% endif %}
-
-          <div class="mt-3 p-2 bg-light rounded-3">
-            <small class="text-muted" style="font-size: 0.75rem;">
-              <i class="bi bi-info-circle me-1"></i>
-              This information will be shared with each seller to help identify you during the meetup.
-            </small>
-          </div>
-        </div>
+    <div class="ct-page-head">
+      <a href="#" onclick="history.back(); return false;" class="ct-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i> Go back
+      </a>
+      <div class="ct-title-row">
+        <h1 class="ct-title">Checkout</h1>
       </div>
+      <p class="ct-sub">Review your order, choose how you will pay, and place it.</p>
+      <ol class="ct-steps" aria-label="Checkout progress">
+        <li class="ct-step is-done"><span class="ct-step-dot"><i class="bi bi-check-lg"></i></span><span class="ct-step-label">Cart</span></li>
+        <li class="ct-step is-current"><span class="ct-step-dot">2</span><span class="ct-step-label">Checkout</span></li>
+        <li class="ct-step"><span class="ct-step-dot">3</span><span class="ct-step-label">Done</span></li>
+      </ol>
+    </div>
 
-      <div class="col-lg-4">
-        <div class="card border-0 shadow-lg rounded-4 p-4 sticky-top" style="top: 100px;">
-          <h5 class="fw-bold mb-4">Summary Total</h5>
+    <form action="{% url 'place_order' %}" method="POST" id="place-order-form">
+      {% csrf_token %}
+
+      {# localize off: ids must be plain digits (no thousands separators) #}
+      {% localize off %}
+        {% for item in items %}
+          <input type="hidden" name="item_ids" value="{{ item.id }}">
+        {% endfor %}
+        <input type="hidden" name="items" value="{% for item in items %}{{ item.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+      {% endlocalize %}
+
+      <div class="row g-3 g-lg-4">
+
+        <!-- ===== Left column ===== -->
+        <div class="col-lg-8">
+
           {% for group in seller_groups %}
-            <div class="d-flex justify-content-between mb-2 small">
-              <span class="text-muted">{{ group.seller_name }}</span>
-              <span class="fw-medium">₱{{ group.subtotal }}</span>
+            {% with s=group.seller %}
+            <div class="ct-card ct-seller-card"
+                 data-seller-name="{{ group.seller_name }}"
+                 data-subtotal="{{ group.subtotal|unlocalize }}"
+                 data-seller-id="{{ group.seller_id|unlocalize }}">
+
+              <div class="ct-card-head">
+                <div class="ct-card-head-left">
+                  <i class="bi bi-shop text-success" aria-hidden="true"></i>
+                  <div class="min-w-0">
+                    <p class="ct-seller-name">Order for {{ group.seller_name }}</p>
+                    <span class="ct-seller-sub">A separate order for this seller only</span>
+                  </div>
+                </div>
+                <strong class="text-success">₱{{ group.subtotal|floatformat:2 }}</strong>
+              </div>
+
+              <div class="ct-card-body">
+
+                {# —— Seller details (differs by account type) —— #}
+                <div class="ct-panel">
+                  <div class="d-flex align-items-center gap-3 mb-3">
+                    <img src="{{ s.profile_pic_url }}" class="ct-avatar ct-avatar--lg" alt="">
+                    <div class="min-w-0">
+                      <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="ct-seller-name">{{ s.first_name }} {{ s.last_name }}{% if s.suffix %} {{ s.suffix }}{% endif %}</span>
+                        {% include 'UTrade_app/cart/partials/seller_badge.html' with person=s %}
+                      </div>
+                      {% if s.user_role == 'student' %}
+                        <span class="ct-seller-sub">@{{ s.username|default:s.student_no }}</span>
+                      {% endif %}
+                    </div>
+                  </div>
+
+                  {% if s.user_role == 'management' or s.user_role == 'cbrgu_staff' %}
+                    {# CBRGU: name and email only #}
+                    <div class="ct-info-grid">
+                      <div class="ct-info">
+                        <span class="ct-info-label">Name</span>
+                        <span class="ct-info-value">{{ s.get_full_name|default:s.display_name|default:"—" }}</span>
+                      </div>
+                      <div class="ct-info">
+                        <span class="ct-info-label">Email</span>
+                        <span class="ct-info-value">{{ s.email|default:"—" }}</span>
+                      </div>
+                    </div>
+
+                  {% elif s.user_role == 'org_officer' %}
+                    {# Organization: org name + handler's full name (never the student number) #}
+                    {% with rec=s.current_manager_record %}
+                    <div class="ct-info-grid">
+                      <div class="ct-info">
+                        <span class="ct-info-label">Organization</span>
+                        <span class="ct-info-value">{{ s.org_link.full_name|default:s.org_link.name|default:s.organization|default:"—" }}</span>
+                      </div>
+                      <div class="ct-info">
+                        <span class="ct-info-label">Handled by</span>
+                        <span class="ct-info-value">
+                          {% if rec %}{{ rec.student_name }}
+                          {% elif s.last_name %}{{ s.first_name }} {{ s.last_name }}
+                          {% else %}—{% endif %}
+                        </span>
+                      </div>
+                      <div class="ct-info" style="grid-column: 1 / -1;">
+                        <span class="ct-info-label">Email</span>
+                        <span class="ct-info-value">{{ s.email|default:"—" }}</span>
+                      </div>
+                    </div>
+                    {% endwith %}
+
+                  {% else %}
+                    {# Regular student seller #}
+                    <div class="ct-info-grid ct-info-grid--3">
+                      <div class="ct-info">
+                        <span class="ct-info-label">Student number</span>
+                        <span class="ct-info-value">{{ s.student_no|default:"—" }}</span>
+                      </div>
+                      <div class="ct-info">
+                        <span class="ct-info-label">Course</span>
+                        <span class="ct-info-value">{{ s.course|default:"—" }}{% if s.section %} · {{ s.section }}{% endif %}</span>
+                      </div>
+                      <div class="ct-info">
+                        <span class="ct-info-label">Contact</span>
+                        <span class="ct-info-value">{{ s.phone_number|default:"—" }}</span>
+                      </div>
+                      <div class="ct-info" style="grid-column: span 2;">
+                        <span class="ct-info-label">Email</span>
+                        <span class="ct-info-value">{{ s.email|default:"—" }}</span>
+                      </div>
+                      <div class="ct-info">
+                        <span class="ct-info-label">Role</span>
+                        <span class="ct-info-value">{{ s.get_user_role_display|default:s.user_role }}</span>
+                      </div>
+                    </div>
+                  {% endif %}
+                </div>
+
+                {# —— Items —— #}
+                {% for item in group.items %}
+                  <div class="ct-item">
+                    <div class="ct-thumb">
+                      {% if item.variant.assigned_image %}
+                        <img src="{{ item.variant.assigned_image.image.url }}" alt="">
+                      {% elif item.variant.product.images.first %}
+                        <img src="{{ item.variant.product.images.first.image.url }}" alt="">
+                      {% else %}
+                        <img src="{% static 'UTrade_app/images/default-product.png' %}" alt="">
+                      {% endif %}
+                    </div>
+
+                    <div class="ct-item-main">
+                      <h2 class="ct-item-name">{{ item.variant.product.name }}</h2>
+                      <div class="ct-chips">
+                        <span class="ct-chip ct-chip--green">{{ item.variant.variant_name }}</span>
+                        <span class="ct-chip">Qty {{ item.quantity }}</span>
+                      </div>
+                      {% if item.variant.product.meetup_location_text %}
+                        <div class="ct-meta">
+                          <i class="bi bi-geo-alt-fill text-danger me-1" aria-hidden="true"></i>
+                          {{ item.variant.product.meetup_location_text }}
+                        </div>
+                      {% endif %}
+                      {% if item.variant.flaws_description %}
+                        <p class="ct-flaw"><i class="bi bi-exclamation-circle-fill me-1" aria-hidden="true"></i>Condition: {{ item.variant.flaws_description }}</p>
+                      {% else %}
+                        <p class="ct-ok"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>No reported flaws</p>
+                      {% endif %}
+                    </div>
+
+                    <div class="ct-item-side">
+                      <div class="ct-price">₱{{ item.get_cost|floatformat:2 }}</div>
+                    </div>
+                  </div>
+                {% endfor %}
+
+                {# —— Payment method for THIS seller's order —— #}
+                <div class="mt-4">
+                  <p class="ct-section-title">Payment method</p>
+                  <div class="row g-2">
+                    {% if group.can_use_gcash %}
+                      <div class="col-sm-6">
+                        <label class="ct-pay">
+                          <input type="radio" name="payment_method_{{ group.seller_id|unlocalize }}" value="GCASH" checked />
+                          <div class="ct-pay-box">
+                            <i class="bi bi-lightning-charge-fill text-warning" aria-hidden="true"></i>
+                            <div class="ct-pay-title">Online GCash</div>
+                            <div class="ct-pay-sub">Instant verification</div>
+                          </div>
+                        </label>
+                      </div>
+                    {% endif %}
+                    {% if group.can_use_cop %}
+                      <div class="col-sm-6">
+                        <label class="ct-pay">
+                          <input type="radio" name="payment_method_{{ group.seller_id|unlocalize }}" value="COP"
+                                 {% if not group.can_use_gcash %}checked{% endif %} />
+                          <div class="ct-pay-box">
+                            <i class="bi bi-cash-stack text-success" aria-hidden="true"></i>
+                            <div class="ct-pay-title">Cash on Pickup</div>
+                            <div class="ct-pay-sub">Pay at the meet-up</div>
+                          </div>
+                        </label>
+                      </div>
+                    {% endif %}
+                    {% if group.has_payment_conflict %}
+                      <div class="col-12">
+                        <div class="ct-alert ct-alert--danger">
+                          <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                          <span>The items from this seller have conflicting payment methods. Remove some items from your cart and order them separately.</span>
+                        </div>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endwith %}
+          {% empty %}
+            <div class="ct-empty">
+              <i class="bi bi-bag-x" aria-hidden="true"></i>
+              <h6>No items to check out</h6>
+              <a href="{% url 'cart_detail' %}" class="btn btn-success rounded-pill px-4 fw-bold">Back to cart</a>
             </div>
           {% endfor %}
-          <div class="d-flex justify-content-between mb-3 text-success">
-            <span class="small">Campus Handling</span>
-            <span class="fw-bold small">FREE</span>
+
+          {# —— Buyer details (unchanged content) —— #}
+          <div class="ct-card ct-card--plain">
+            <div class="ct-card-head">
+              <div class="ct-card-head-left">
+                <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
+                <h2 class="ct-seller-name mb-0">Buyer details</h2>
+              </div>
+              {% if user.status == 'verified' %}
+                <span class="ct-verify ct-verify--ok"><i class="bi bi-patch-check-fill me-1"></i>Verified</span>
+              {% else %}
+                <span class="ct-verify ct-verify--wait"><i class="bi bi-clock-history me-1"></i>{{ user.status|title }}</span>
+              {% endif %}
+            </div>
+            <div class="ct-card-body">
+              <div class="d-flex align-items-center gap-3 mb-3">
+                <img src="{{ user.profile_pic_url }}" class="ct-avatar ct-avatar--lg" alt="">
+                <div>
+                  <div class="ct-seller-name">
+                    {{ user.first_name }} {{ user.last_name }}{% if user.suffix %} {{ user.suffix }}{% endif %}
+                  </div>
+                  <div class="ct-seller-sub">@{{ user.display_name|default:user.username }}</div>
+                </div>
+              </div>
+
+              <div class="ct-info-grid ct-info-grid--3">
+                <div class="ct-info"><span class="ct-info-label">Student number</span><span class="ct-info-value">{{ user.student_no|default:"—" }}</span></div>
+                <div class="ct-info"><span class="ct-info-label">Gender</span><span class="ct-info-value">{{ user.gender|default:"—" }}</span></div>
+                <div class="ct-info"><span class="ct-info-label">Role</span><span class="ct-info-value">{{ user.get_user_role_display|default:user.user_role }}</span></div>
+                <div class="ct-info"><span class="ct-info-label">Course</span><span class="ct-info-value">{{ user.course|default:"—" }}</span></div>
+                <div class="ct-info"><span class="ct-info-label">Section</span><span class="ct-info-value">{{ user.section|default:"—" }}</span></div>
+                <div class="ct-info"><span class="ct-info-label">Contact number</span><span class="ct-info-value">{{ user.phone_number|default:"—" }}</span></div>
+                <div class="ct-info" style="grid-column: span 2;">
+                  <span class="ct-info-label">Email</span>
+                  <span class="ct-info-value">
+                    {{ user.email|default:"—" }}
+                    {% if user.is_email_verified %}<span class="ct-chip ct-chip--green ms-1">Verified email</span>{% endif %}
+                  </span>
+                </div>
+                <div class="ct-info">
+                  <span class="ct-info-label">Organization</span>
+                  <span class="ct-info-value">
+                    {% if user.org_link %}
+                      {{ user.org_link.name }} ({{ user.org_link.course_code }})
+                    {% else %}
+                      {{ user.org_acronym|default:"—" }}
+                    {% endif %}
+                  </span>
+                </div>
+              </div>
+
+              {% if user.status == 'unverified' or user.status == 'pending' %}
+                <div class="ct-alert ct-alert--warn mt-3">
+                  <i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i>
+                  <span>Your account is not fully verified. Sellers may prioritize verified students.</span>
+                </div>
+              {% endif %}
+              <div class="ct-alert ct-alert--info mt-2">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                <span>This information will be shared with each seller to help identify you during the meetup.</span>
+              </div>
+            </div>
           </div>
-          <hr class="opacity-10" />
-          <div class="d-flex justify-content-between align-items-center mb-4">
-            <span class="h5 mb-0 fw-bold">Grand Total</span>
-            <span class="h4 mb-0 fw-bold text-success">₱{{ total_price }}</span>
-          </div>
-          <button type="submit"
-                  id="place-order-btn"
-                  class="btn btn-success btn-lg w-100 py-3 fw-bold rounded-3 shadow-sm"
-                  {% if has_payment_conflict %}disabled{% endif %}>
-            Place Order{% if seller_groups|length > 1 %}s ({{ seller_groups|length }} sellers){% endif %}
-          </button>
-          <p class="text-muted mt-3 small text-center">
-            {% if seller_groups|length > 1 %}
-              You will create {{ seller_groups|length }} separate orders — one for each seller.
-            {% else %}
-              By placing an order, you agree to UTrade's student marketplace guidelines.
-            {% endif %}
-          </p>
         </div>
+
+        <!-- ===== Order summary ===== -->
+        <div class="col-lg-4">
+          <div class="ct-card ct-summary">
+            <div class="ct-card-head">
+              <h2 class="ct-seller-name mb-0">Order Summary</h2>
+              <span class="ct-count">{{ items|length }} item{{ items|length|pluralize }}</span>
+            </div>
+            <div class="ct-card-body">
+              <ul class="ct-sum-list" style="max-height:none;">
+                {% for group in seller_groups %}
+                  <li class="ct-sum-seller">{{ group.seller_name }}</li>
+                  {% for item in group.items %}
+                    <li class="ct-sum-item">
+                      <div>
+                        <span class="ct-sum-name">{{ item.variant.product.name }}</span>
+                        <span class="ct-sum-sub">{{ item.variant.variant_name }} · {{ item.quantity }} × ₱{{ item.variant.price|floatformat:2 }}</span>
+                      </div>
+                      <span class="ct-sum-amt">₱{{ item.get_cost|floatformat:2 }}</span>
+                    </li>
+                  {% endfor %}
+                  {% if seller_groups|length > 1 %}
+                    <li class="ct-sum-item">
+                      <span class="ct-sum-sub">Seller subtotal</span>
+                      <span class="ct-sum-amt">₱{{ group.subtotal|floatformat:2 }}</span>
+                    </li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
+
+              <div class="ct-sum-row">
+                <span>Subtotal</span>
+                <strong>₱{{ total_price|floatformat:2 }}</strong>
+              </div>
+              <div class="ct-totals">
+                <span>Grand Total</span>
+                <strong id="grand-total" data-total="{{ total_price|unlocalize }}">₱{{ total_price|floatformat:2 }}</strong>
+              </div>
+
+              <button type="submit" id="place-order-btn" data-label="Place Order"
+                      class="btn btn-success w-100 ct-cta shadow-sm"
+                      {% if has_payment_conflict %}disabled{% endif %}>
+                Place Order{% if seller_groups|length > 1 %}s ({{ seller_groups|length }} sellers){% endif %}
+              </button>
+              <p class="ct-note">
+                {% if seller_groups|length > 1 %}
+                  You will create {{ seller_groups|length }} separate orders, one for each seller.
+                {% else %}
+                  By placing an order, you agree to UTrade's student marketplace guidelines.
+                {% endif %}
+              </p>
+            </div>
+          </div>
+        </div>
+
       </div>
-    </div>
-  </form>
+    </form>
+  </div>
 </div>
+{% endblock %}
 
-<style>
-  .payment-option input:checked + .option-box {
-    border: 2px solid #198754 !important;
-    background-color: #f8fff9;
-  }
-  .cursor-pointer { cursor: pointer; }
-  .option-box { transition: all 0.2s ease; }
-  .option-box:hover { background-color: #f8f9fa; }
-</style>
-
+{% block extra_js %}
 <script>
-  // Prevent double submits: a second POST would find the cart lines already
-  // removed by the first one and bounce the buyer back to the cart.
-  (function () {
-    var form = document.getElementById('place-order-form');
-    var btn = document.getElementById('place-order-btn');
-    if (!form || !btn) return;
-    var submitted = false;
-    form.addEventListener('submit', function (e) {
-      if (submitted) {
-        e.preventDefault();
-        return;
-      }
-      submitted = true;
-      // Disable after the browser has captured the form data.
-      setTimeout(function () {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Placing order…';
-      }, 0);
+(function () {
+  var form = document.getElementById('place-order-form');
+  var btn = document.getElementById('place-order-btn');
+  if (!form || !btn) return;
+
+  var PAY = { GCASH: 'Online GCash', COP: 'Cash on Pickup' };
+  var confirmed = false;   // user pressed "Yes" in the dialog
+  var submitted = false;   // blocks a second POST (cart lines are removed by the first)
+
+  function money(n) {
+    return '₱' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // One entry per seller card: name, subtotal and the chosen payment method.
+  function collectOrders() {
+    var out = [];
+    document.querySelectorAll('.ct-seller-card').forEach(function (card) {
+      var id = card.getAttribute('data-seller-id');
+      var picked = form.querySelector('input[name="payment_method_' + id + '"]:checked');
+      out.push({
+        name: card.getAttribute('data-seller-name') || 'Seller',
+        subtotal: parseFloat(card.getAttribute('data-subtotal')) || 0,
+        pay: picked ? (PAY[picked.value] || picked.value) : '—'
+      });
     });
-    // If the user comes back via the browser's back button, re-enable the form.
-    window.addEventListener('pageshow', function (ev) {
-      if (ev.persisted) {
-        submitted = false;
-        btn.disabled = false;
-        btn.textContent = btn.getAttribute('data-label') || 'Place Order';
-      }
+    return out;
+  }
+
+  // Built with DOM nodes so seller names can never inject HTML.
+  function buildDialogBody(orders, total) {
+    var wrap = document.createElement('div');
+
+    var lead = document.createElement('p');
+    lead.className = 'mb-2';
+    lead.textContent = orders.length > 1
+      ? 'This will create ' + orders.length + ' separate orders:'
+      : 'Please confirm your order:';
+    wrap.appendChild(lead);
+
+    var list = document.createElement('ul');
+    list.className = 'list-unstyled text-start mb-3';
+    orders.forEach(function (o) {
+      var li = document.createElement('li');
+      li.className = 'd-flex justify-content-between gap-3 py-1 border-bottom';
+      var left = document.createElement('span');
+      var strong = document.createElement('strong');
+      strong.textContent = o.name;
+      var small = document.createElement('small');
+      small.className = 'd-block text-muted';
+      small.textContent = o.pay;
+      left.appendChild(strong);
+      left.appendChild(small);
+      var right = document.createElement('span');
+      right.className = 'fw-bold';
+      right.textContent = money(o.subtotal);
+      li.appendChild(left);
+      li.appendChild(right);
+      list.appendChild(li);
     });
-  })();
+    wrap.appendChild(list);
+
+    var tot = document.createElement('p');
+    tot.className = 'mb-0';
+    tot.appendChild(document.createTextNode('Grand total: '));
+    var ts = document.createElement('strong');
+    ts.textContent = money(total);
+    tot.appendChild(ts);
+    wrap.appendChild(tot);
+    return wrap;
+  }
+
+  function submitNow() {
+    confirmed = true;
+    if (form.requestSubmit) form.requestSubmit(btn); else form.submit();
+  }
+
+  form.addEventListener('submit', function (e) {
+    if (submitted) { e.preventDefault(); return; }
+
+    if (!confirmed) {
+      e.preventDefault();
+      var orders = collectOrders();
+      var totalEl = document.getElementById('grand-total');
+      var total = totalEl ? parseFloat(totalEl.getAttribute('data-total')) || 0 : 0;
+
+      if (window.Swal) {
+        Swal.fire({
+          icon: 'question',
+          title: 'Place your order?',
+          html: buildDialogBody(orders, total),
+          showCancelButton: true,
+          confirmButtonText: 'Yes, place order',
+          cancelButtonText: 'Review order',
+          confirmButtonColor: '#198754',
+          cancelButtonColor: '#6c757d'
+        }).then(function (r) { if (r.isConfirmed) submitNow(); });
+      } else if (window.confirm('Place your order(s)? Total: ' + money(total))) {
+        submitNow();
+      }
+      return;
+    }
+
+    // Confirmed: lock the button after the browser has captured the form data.
+    submitted = true;
+    setTimeout(function () {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Placing order…';
+    }, 0);
+  });
+
+  // Back button (bfcache): reset the form so it can be used again.
+  window.addEventListener('pageshow', function (ev) {
+    if (ev.persisted) {
+      submitted = false;
+      confirmed = false;
+      btn.disabled = false;
+      btn.textContent = btn.getAttribute('data-label') || 'Place Order';
+    }
+  });
+})();
 </script>
 {% endblock %}

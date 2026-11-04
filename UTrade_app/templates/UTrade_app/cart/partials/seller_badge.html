@@ -1,0 +1,6 @@
+{# Usage: {% include 'UTrade_app/partials/seller_badge.html' with person=seller_obj %} #}
+{% if person.user_role == 'management' or person.user_role == 'cbrgu_staff' %}
+  <span class="ct-role ct-role--cbrgu"><i class="bi bi-patch-check-fill" aria-hidden="true"></i>CBRGU</span>
+{% elif person.user_role == 'org_officer' %}
+  <span class="ct-role ct-role--org"><i class="bi bi-people-fill" aria-hidden="true"></i>{{ person.org_link.name|default:person.organization|default:"Organization" }}</span>
+{% endif %}

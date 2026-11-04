@@ -16,5 +16,6 @@ from .product_models import (
     StagedProduct,
     StagedVariant, 
     StagedImage,
-    SellerReview
+    SellerReview,
+    ReviewMedia
 )

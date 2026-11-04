@@ -12,6 +12,7 @@ from django.template.loader import render_to_string
 from weasyprint import HTML
 from django.contrib import messages
 from ..utils import accrue_platform_fee_for_order
+from ..review_media import MediaRejected, attach_media, prepare_media
 
 from ..models import (
     CartItem,
@@ -367,7 +368,7 @@ def order_history(request):
         .prefetch_related(
             'items__product_variant__product__seller',
             'items__product_variant__product__images',
-            'order_reviews',
+            'order_reviews__media',
             'seller_reviews',
         )
         .order_by('-created_at')
@@ -386,7 +387,7 @@ def order_history(request):
         )
         .prefetch_related(
             'product_variant__product__images',
-            'preorder_reviews',
+            'preorder_reviews__media',
             'seller_reviews',
         )
         .order_by('-created_at')
@@ -668,13 +669,26 @@ def submit_review(request, order_id):
             return redirect('order_history')
         comment = (request.POST.get('comment') or '').strip()[:1000]
         quick = _quick_label(request.POST.get('quick'), _PRODUCT_QUICK, rating_value)
+
+        # Photos / short video: validated and uploaded BEFORE anything is saved.
+        try:
+            media_items, media_warning = prepare_media(request.FILES.getlist('media'))
+        except MediaRejected as exc:
+            messages.error(request, f"{exc} Nothing was submitted, please try again.")
+            return redirect('order_history')
+
+        reviews = {}
         for item in order.items.all():
-            Review.objects.update_or_create(
+            review, _created = Review.objects.update_or_create(
                 order=order,
                 product=item.product_variant.product,
                 user=request.user,
                 defaults={'rating': rating_value, 'comment': comment, 'quick_feedback': quick},
             )
+            reviews[review.pk] = review
+        attach_media(list(reviews.values()), media_items)
+        if media_warning:
+            messages.warning(request, media_warning)
         saved += 1
 
     # ---- Seller ratings ----
@@ -743,7 +757,13 @@ def submit_preorder_review(request, preorder_id):
         if rating_value is None:
             messages.error(request, "Product rating must be from 1 to 5 stars.")
             return redirect('order_history')
-        Review.objects.update_or_create(
+        try:
+            media_items, media_warning = prepare_media(request.FILES.getlist('media'))
+        except MediaRejected as exc:
+            messages.error(request, f"{exc} Nothing was submitted, please try again.")
+            return redirect('order_history')
+
+        review, _created = Review.objects.update_or_create(
             preorder=po,
             product=product,
             user=request.user,
@@ -753,6 +773,9 @@ def submit_preorder_review(request, preorder_id):
                 'comment': (request.POST.get('comment') or '').strip()[:1000],
             },
         )
+        attach_media([review], media_items)
+        if media_warning:
+            messages.warning(request, media_warning)
         saved += 1
 
     # ---- Seller ----

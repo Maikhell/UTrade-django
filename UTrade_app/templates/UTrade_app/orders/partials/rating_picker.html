@@ -1,9 +1,11 @@
 {% comment %}
-  Reusable rating block: quick-rating dropdown + stars + the buyer's own feedback.
+  Reusable rating block: quick-rating dropdown + stars + the buyer's own feedback
+  (+ optional photos / short video).
   Include with:
     rp_rating_name, rp_quick_name, rp_comment_name   (form field names)
     rp_options                                       (product_quick_options / seller_quick_options)
     rp_aria, rp_comment_placeholder
+    rp_media_name                                    (optional: e.g. "media" shows the photo/video picker)
 {% endcomment %}
 <div class="rg">
   <label class="d-block mb-2">
@@ -34,6 +36,22 @@
     <textarea name="{{ rp_comment_name }}" class="form-control" rows="2" maxlength="1000"
               placeholder="{{ rp_comment_placeholder }}"></textarea>
   </label>
+
+  {% if rp_media_name %}
+  {# Limits below must match review_media.py (the server enforces them again). #}
+  <div class="rg-media mt-3" data-max-files="3" data-max-image-mb="10" data-max-video-mb="25" data-max-seconds="8">
+    <span class="form-label small fw-semibold d-block mb-1">
+      <i class="bi bi-camera me-1"></i>Add photos or a short video <span class="text-muted fw-normal">(optional)</span>
+    </span>
+    <input type="file" name="{{ rp_media_name }}" class="form-control form-control-sm rg-media-input"
+           accept="image/*,video/*" multiple>
+    <div class="form-text">
+      Up to 3 files · photos up to 10 MB · one video up to 8 seconds (25 MB max)
+    </div>
+    <div class="rg-media-error text-danger small mt-1" role="alert"></div>
+    <div class="rg-media-preview d-flex flex-wrap gap-2 mt-2"></div>
+  </div>
+  {% endif %}
 </div>
 
 <script>
@@ -44,6 +62,7 @@
   window.__utRateInit = true;
 
   var LABELS = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very good', 5: 'Excellent' };
+  var MB = 1024 * 1024;
 
   function refreshSubmit(form) {
     var any = Array.prototype.some.call(form.querySelectorAll('.rg-value'), function (i) { return i.value; });
@@ -85,6 +104,114 @@
     if (!group) return;
     var opt = sel.selectedOptions[0];
     setRating(group, opt && opt.dataset.stars ? parseInt(opt.dataset.stars, 10) : 0);
+  });
+
+  /* ---------- photos / video: quick checks in the browser ---------- */
+  // Length of a video in seconds, or null if the browser can't read it (the server then decides).
+  function readDuration(file) {
+    return new Promise(function (resolve) {
+      var v = document.createElement('video');
+      var url = URL.createObjectURL(file);
+      var finished = false;
+      function finish(d) {
+        if (finished) return;
+        finished = true;
+        URL.revokeObjectURL(url);
+        resolve(d);
+      }
+      v.preload = 'metadata';
+      v.onloadedmetadata = function () { finish(isFinite(v.duration) ? v.duration : null); };
+      v.onerror = function () { finish(null); };
+      setTimeout(function () { finish(null); }, 8000);
+      v.src = url;
+    });
+  }
+
+  function showPreview(files, box) {
+    box.innerHTML = '';
+    files.forEach(function (f) {
+      var wrap = document.createElement('div');
+      wrap.className = 'border rounded p-1 small text-muted d-flex align-items-center gap-2';
+      if (f.type.indexOf('image/') === 0) {
+        var img = document.createElement('img');
+        var url = URL.createObjectURL(f);
+        img.src = url;
+        img.alt = '';
+        img.style.cssText = 'width:48px;height:48px;object-fit:cover;border-radius:.35rem;';
+        img.onload = function () { URL.revokeObjectURL(url); };
+        wrap.appendChild(img);
+      } else {
+        var icon = document.createElement('i');
+        icon.className = 'bi bi-camera-video fs-4';
+        wrap.appendChild(icon);
+      }
+      var label = document.createElement('span');
+      label.textContent = f.name + ' · ' + (f.size / MB).toFixed(1) + ' MB';
+      wrap.appendChild(label);
+      box.appendChild(wrap);
+    });
+  }
+
+  document.addEventListener('change', function (e) {
+    var input = e.target.closest ? e.target.closest('.rg-media-input') : null;
+    if (!input) return;
+    var box = input.closest('.rg-media');
+    var err = box.querySelector('.rg-media-error');
+    var prev = box.querySelector('.rg-media-preview');
+    var maxFiles = parseInt(box.dataset.maxFiles, 10);
+    var maxImage = parseInt(box.dataset.maxImageMb, 10) * MB;
+    var maxVideo = parseInt(box.dataset.maxVideoMb, 10) * MB;
+    var maxSeconds = parseInt(box.dataset.maxSeconds, 10);
+
+    err.textContent = '';
+    prev.innerHTML = '';
+    var files = Array.prototype.slice.call(input.files);
+    if (!files.length) return;
+
+    function fail(msg) {
+      input.value = '';
+      prev.innerHTML = '';
+      err.textContent = msg;
+    }
+
+    if (files.length > maxFiles) return fail('You can add up to ' + maxFiles + ' files.');
+
+    var videos = [];
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      var isImage = f.type.indexOf('image/') === 0;
+      var isVideo = f.type.indexOf('video/') === 0;
+      if (!isImage && !isVideo) return fail('"' + f.name + '" is not a photo or a video.');
+      if (isImage && f.size > maxImage) return fail('"' + f.name + '" is larger than ' + (maxImage / MB) + ' MB.');
+      if (isVideo) {
+        videos.push(f);
+        if (f.size > maxVideo) return fail('The video is larger than ' + (maxVideo / MB) + ' MB.');
+      }
+    }
+    if (videos.length > 1) return fail('Please add only one video.');
+
+    (videos.length ? readDuration(videos[0]) : Promise.resolve(null)).then(function (d) {
+      if (d !== null && d > maxSeconds + 0.5) {
+        return fail('That video is ' + Math.round(d) + ' seconds long. The limit is ' + maxSeconds + ' seconds.');
+      }
+      showPreview(files, prev);
+    });
+  });
+
+  // Show progress while photos / video upload, and stop double submits.
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    if (!form.classList || !form.classList.contains('rate-form-v2')) return;
+    var hasMedia = Array.prototype.some.call(form.querySelectorAll('.rg-media-input'), function (i) {
+      return i.files && i.files.length;
+    });
+    var btn = form.querySelector('.rg-submit');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = hasMedia
+        ? '<span class="spinner-border spinner-border-sm me-1"></span> Uploading…'
+        : 'Submitting…';
+    }
   });
 })();
 </script>

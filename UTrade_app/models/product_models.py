@@ -279,6 +279,27 @@ class SellerReview(models.Model):
         ref = f"order #{self.order_id}" if self.order_id else f"pre-order #{self.preorder_id}"
         return f"{self.reviewer} rated seller {self.seller} {self.rating}★ ({ref})"
       
+class ReviewMedia(models.Model):
+    """A photo or a short video attached to a product Review (files live on Cloudinary)."""
+    IMAGE = 'image'
+    VIDEO = 'video'
+    MEDIA_TYPES = [(IMAGE, 'Image'), (VIDEO, 'Video')]
+
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name='media')
+    media_type = models.CharField(max_length=5, choices=MEDIA_TYPES)
+    url = models.URLField(max_length=500)
+    public_id = models.CharField(max_length=255, blank=True)      # needed to delete the file later
+    duration = models.FloatField(null=True, blank=True)           # seconds (videos only)
+    size_bytes = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.media_type} for review #{self.review_id}"
+
+
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True )
     created_at = models.DateTimeField(auto_now_add=True)

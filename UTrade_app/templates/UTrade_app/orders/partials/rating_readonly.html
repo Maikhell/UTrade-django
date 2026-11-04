@@ -5,4 +5,20 @@
   </span>
   {% if rr.quick_feedback %}<div><span class="badge text-bg-light border fw-normal">{{ rr.quick_feedback }}</span></div>{% endif %}
   {% if rr.comment %}<div class="small text-muted">{{ rr.comment }}</div>{% endif %}
+  {# Photos / video (product ratings only; seller ratings have no media) #}
+  {% if rr.media.all %}
+    <div class="d-flex flex-wrap justify-content-end gap-1 mt-1">
+      {% for m in rr.media.all %}
+        {% if m.media_type == 'video' %}
+          <video src="{{ m.url }}" controls preload="metadata" playsinline
+                 style="width:112px;height:84px;object-fit:cover;border-radius:.4rem;background:#000;"></video>
+        {% else %}
+          <a href="{{ m.url }}" target="_blank" rel="noopener">
+            <img src="{{ m.url }}" alt="Rating photo" loading="lazy"
+                 style="width:84px;height:84px;object-fit:cover;border-radius:.4rem;">
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
 </div>

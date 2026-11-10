@@ -12,15 +12,16 @@ from django.views.generic import CreateView, ListView, DetailView
 from ..forms import ProductForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from ..models import (
-    Product, Category, ProductImage, Wishlist, Cart, CartItem,
-    ProductVariant, MeetupLocation, ProhibitedWord, StagedProduct,
-    StagedVariant, StagedImage, CategoryAttribute, PreOrderRequest, Organization
-)
+       Product, Category, ProductImage, Wishlist, Cart, CartItem,
+       ProductVariant, MeetupLocation, ProhibitedWord, StagedProduct,
+       StagedVariant, StagedImage, CategoryAttribute, PreOrderRequest,
+       Organization, Review, SellerReview,
+   )
 from django.http import JsonResponse
 from django.utils import timezone
 import re
 import json
-from django.db.models import Q, F, Min
+from django.db.models import Q, F, Min, Sum, Count
 
 
 User = get_user_model()
@@ -956,46 +957,181 @@ def get_attributes(request, category_id):
     return JsonResponse({'attributes': list(attributes)})
 
 
-# ===================== STOREFRONT =====================
+def _safe_file_url(f):
+    """ImageField -> url, or '' when there is no file."""
+    try:
+        return f.url if f else ''
+    except ValueError:
+        return ''
+ 
+ 
+def _shop_identity(seller):
+    """What the shop header shows: kind, name, tagline, logo, 'member since'."""
+    role = getattr(seller, 'user_role', '')
+    org = getattr(seller, 'org_link', None)
+    is_org = getattr(seller, 'is_org_account', False) or role == 'org_officer'
+    full = (
+        seller.get_full_name()
+        or getattr(seller, 'display_name', None)
+        or seller.username
+        or str(seller.student_no)
+    )
+ 
+    if role in ('management', 'cbrgu_staff'):
+        kind, name, tagline = 'management', full, 'Official CBRGU shop'
+    elif is_org:
+        kind = 'org'
+        name = org.name if org else full
+        tagline = (org.full_name if org else '') or ''
+    else:
+        kind, name = 'student', full
+        tagline = ' · '.join(p for p in (seller.course, seller.section) if p)
+ 
+    logo_url = (_safe_file_url(org.logo) if (is_org and org) else '') or seller.profile_pic_url
+    member_since = org.date_created if (is_org and org) else seller.date_joined
+ 
+    return {
+        'shop_kind': kind,
+        'shop_name': name,
+        'shop_tagline': tagline,
+        'shop_description': (org.description if (is_org and org) else '') or '',
+        'shop_org': org if is_org else None,
+        'shop_logo_url': logo_url,
+        'member_since': member_since,
+    }
+ 
+ 
+def _rating_block(counts):
+    """counts = {5: n, 4: n, ...} -> average, count, star-fill % and the 5..1 bars."""
+    total = sum(counts.values())
+    avg = (sum(star * n for star, n in counts.items()) / total) if total else 0
+    return {
+        'count': total,
+        'avg': round(avg, 1) if total else 0,
+        'pct': round(avg / 5 * 100) if total else 0,
+        'dist': [
+            {
+                'star': s,
+                'count': counts.get(s, 0),
+                'pct': round(counts.get(s, 0) * 100 / total) if total else 0,
+            }
+            for s in (5, 4, 3, 2, 1)
+        ],
+    }
+ 
+ 
 class StorefrontView(ListView):
-    """Seller shop — same product grid as marketplace, filtered by seller."""
+    """Seller shop: same filter / sort / card layout as the marketplace, plus shop stats and reviews."""
     model = Product
     template_name = 'UTrade_app/seller/storefront.html'
     context_object_name = 'products'
     paginate_by = 15
-
+ 
     def get_seller(self):
-        return get_object_or_404(User, pk=self.kwargs['seller_id'])
-
+        # Cached so the queryset and the context don't each hit the database.
+        if not hasattr(self, '_seller'):
+            self._seller = get_object_or_404(
+                User.objects.select_related('org_link'), pk=self.kwargs['seller_id']
+            )
+        return self._seller
+ 
     def get_queryset(self):
         seller = self.get_seller()
         qs = (
             Product.objects.filter(status='Approved', seller=seller)
-            .select_related('category', 'seller')
+            .select_related('category', 'seller', 'related_org')
             .prefetch_related('images', 'variants')
         )
+ 
+        query = (self.request.GET.get('q') or '').strip()
         category_id = self.request.GET.get('category')
-        if category_id:
+        sort = self.request.GET.get('sort')
+ 
+        if query:
+            qs = qs.filter(
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(category__name__icontains=query)
+                | Q(product_code__icontains=query)
+            )
+        if category_id and category_id.isdigit():
             qs = qs.filter(category_id=category_id)
-        return qs.order_by('-created_at')
-
+ 
+        if sort == 'price_low':
+            qs = qs.annotate(min_price=Min('variants__price')).order_by('min_price', '-created_at')
+        elif sort == 'price_high':
+            qs = qs.annotate(min_price=Min('variants__price')).order_by(
+                F('min_price').desc(nulls_last=True), '-created_at'
+            )
+        elif sort == 'popular':
+            qs = qs.order_by('-sold', '-created_at')
+        else:
+            qs = qs.order_by('-created_at')
+ 
+        return qs.distinct()
+ 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         seller = self.get_seller()
+        request = self.request
+ 
+        category = request.GET.get('category')
+        query = (request.GET.get('q') or '').strip()
+ 
+        context.update(_shop_identity(seller))
         context['shop_seller'] = seller
+ 
+        # ---- Filters (same names as the marketplace so marketplace.js works) ----
         context['categories'] = Category.objects.filter(
-            products__seller=seller,
-            products__status='Approved',
-        ).distinct()
-        context['current_category'] = self.request.GET.get('category')
-
-        if self.request.user.is_authenticated:
+            products__seller=seller, products__status='Approved'
+        ).distinct().order_by('name')
+        context['current_category'] = category
+        context['current_category_obj'] = (
+            Category.objects.filter(pk=category).first() if category and category.isdigit() else None
+        )
+        context['current_sort'] = request.GET.get('sort') or ''
+        context['search_query'] = query
+        context['active_filter_count'] = sum(1 for v in (category,) if v)
+ 
+        params = request.GET.copy()
+        params.pop('page', None)
+        context['querystring'] = params.urlencode()
+ 
+        # ---- Shop stats ----
+        context['listings_count'] = Product.objects.filter(status='Approved', seller=seller).count()
+        context['total_sold'] = (
+            Product.objects.filter(seller=seller).aggregate(s=Sum('sold'))['s'] or 0
+        )
+ 
+        seller_counts = {
+            r['rating']: r['n']
+            for r in seller.seller_reviews.values('rating').annotate(n=Count('id')).order_by('rating')
+        }
+        product_counts = {
+            r['rating']: r['n']
+            for r in Review.objects.filter(product__seller=seller)
+            .values('rating').annotate(n=Count('id')).order_by('rating')
+        }
+        context['seller_rating'] = _rating_block(seller_counts)
+        context['product_rating'] = _rating_block(product_counts)
+ 
+        # ---- Latest reviews ----
+        context['seller_reviews'] = list(
+            seller.seller_reviews.select_related('reviewer').order_by('-created_at')[:10]
+        )
+        context['product_reviews'] = list(
+            Review.objects.filter(product__seller=seller)
+            .select_related('user', 'product')
+            .prefetch_related('media')
+            .order_by('-created_at')[:10]
+        )
+ 
+        # ---- Wishlist ----
+        if request.user.is_authenticated:
             context['user_wishlist_ids'] = set(
-                Wishlist.objects.filter(user=self.request.user).values_list(
-                    'product_id', flat=True
-                )
+                Wishlist.objects.filter(user=request.user).values_list('product_id', flat=True)
             )
         else:
             context['user_wishlist_ids'] = set()
-
+ 
         return context

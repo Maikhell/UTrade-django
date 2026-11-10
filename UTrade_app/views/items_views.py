@@ -10,6 +10,7 @@ from django.urls import reverse_lazy
 from django.views import View
 from django.views.generic import CreateView, ListView, DetailView
 from ..forms import ProductForm
+from decimal import Decimal, InvalidOperation
 from django.contrib.auth.mixins import LoginRequiredMixin
 from ..models import (
        Product, Category, ProductImage, Wishlist, Cart, CartItem,
@@ -109,7 +110,93 @@ def _validate_approval_letter_file(file):
         return False, 'File exceeds the 10 MB limit.'
 
     return True, None
+# ===================== IMAGES, SIZES AND SIZE TABLE =====================
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_SIZE_ROWS = 20
+MAX_SIZE_COLUMNS = 8
+MAX_VARIANTS = 30
 
+
+def _validate_image_file(file, label='Image'):
+    """JPG / PNG / WEBP, max 10 MB. Returns (ok, message)."""
+    if not file:
+        return True, None
+    content_type = (getattr(file, 'content_type', '') or '').lower()
+    name = (file.name or '').lower()
+    if (
+        content_type not in {'image/jpeg', 'image/jpg', 'image/png', 'image/webp'}
+        and not name.endswith(('.jpg', '.jpeg', '.png', '.webp'))
+    ):
+        return False, f'{label} must be a JPG, PNG or WEBP image.'
+    if file.size > MAX_IMAGE_BYTES:
+        return False, f'{label} exceeds the 10 MB limit.'
+    return True, None
+
+
+def _clean_text(value, limit):
+    return re.sub(r'\s+', ' ', str(value or '')).strip()[:limit]
+
+
+def _clean_sizes(raw):
+    """Unique size labels, 20 characters each."""
+    seen, out = set(), []
+    for item in raw or []:
+        size = _clean_text(item, 20)
+        if size and size.lower() not in seen:
+            seen.add(size.lower())
+            out.append(size)
+    return out
+
+
+def _split_sizes(text):
+    return _clean_sizes((text or '').split(','))
+
+
+def _clean_size_chart(raw):
+    """
+    Validate and tidy the size table sent by the browser:
+    {"columns": ["Height (cm)", ...], "rows": [{"size": "S", "values": ["160", ...]}]}
+    Returns a clean dict, or None when there is nothing usable.
+    """
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw) if isinstance(raw, str) else raw
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    columns, kept = [], []
+    for index, column in enumerate(data.get('columns') or []):
+        column = _clean_text(column, 30)
+        if (
+            column
+            and column.lower() not in [c.lower() for c in columns]
+            and len(columns) < MAX_SIZE_COLUMNS
+        ):
+            columns.append(column)
+            kept.append(index)
+
+    rows, seen = [], set()
+    for row in (data.get('rows') or [])[:MAX_SIZE_ROWS]:
+        if not isinstance(row, dict):
+            continue
+        size = _clean_text(row.get('size'), 20)
+        if not size or size.lower() in seen:
+            continue
+        seen.add(size.lower())
+        values = row.get('values') or []
+        rows.append({
+            'size': size,
+            'values': [
+                _clean_text(values[i] if i < len(values) else '', 20) for i in kept
+            ],
+        })
+
+    if not columns or not rows:
+        return None
+    return {'columns': columns, 'rows': rows}
 
 # ===================== LANDING / HELPERS =====================
 def landing_page(request):
@@ -316,10 +403,10 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     preferred_meetup_time_to=getattr(
                         staged_prod, 'preferred_meetup_time_to', None
                     ),
+                    size_chart=getattr(staged_prod, 'size_chart', None),
                 )
 
                 # ----- Attach approval letter to the PRODUCT -----
-                # Prefer a file uploaded on this submit; else use one stored on the staged item
                 letter_to_use = letter_file or getattr(staged_prod, 'approval_letter', None)
                 if letter_to_use and hasattr(new_product, 'approval_letter'):
                     new_product.approval_letter = letter_to_use
@@ -335,7 +422,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     except Exception as e:
                         print(f'Error linking location: {e}')
 
-                # Images
+                # Cover photo (older staged items may still have several images)
                 for staged_img in staged_prod.images.all():
                     ProductImage.objects.create(
                         product=new_product,
@@ -345,37 +432,49 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         new_product.image = staged_img.image
                         new_product.save(update_fields=['image'])
 
-                # Variants
+                # Variations
                 for v in staged_prod.variants.all():
-                    ProductVariant.objects.create(
+                    sizes_text = (
+                        getattr(v, 'variant_attribute', None)
+                        or getattr(v, 'attribute_value', None)
+                        or ''
+                    )
+                    variant = ProductVariant.objects.create(
                         product=new_product,
                         variant_name=v.variant_name,
                         price=v.price,
                         stocks=v.stocks,
-                        condition=v.condition,
+                        condition=v.condition or 'Brand New',
                         flaws_description=(
                             getattr(v, 'flaws', '')
                             or getattr(v, 'flaws_description', '')
+                            or ''
                         ),
-                        attribute_value=(
-                            getattr(v, 'variant_attribute', '')
-                            or getattr(v, 'attribute_value', '')
-                        ),
+                        attribute_value=sizes_text,
                     )
 
-                    attr_value = (
-                        getattr(v, 'variant_attribute', None)
-                        or getattr(v, 'attribute_value', None)
-                    )
-                    if staged_prod.category and attr_value:
-                        CategoryAttribute.objects.get_or_create(
-                            category=staged_prod.category,
-                            value=str(attr_value).strip(),
-                            defaults={
-                                'is_custom': True,
-                                'created_by': request.user,
-                            },
+                    # The variation's own image becomes its assigned image
+                    variant_image = getattr(v, 'image', None)
+                    if variant_image:
+                        product_image = ProductImage.objects.create(
+                            product=new_product,
+                            image=variant_image,
+                            variant=variant,
                         )
+                        variant.assigned_image = product_image
+                        variant.save(update_fields=['assigned_image'])
+
+                    # Remember each size as a quick-select suggestion for the category
+                    if staged_prod.category:
+                        for size in _split_sizes(sizes_text):
+                            CategoryAttribute.objects.get_or_create(
+                                category=staged_prod.category,
+                                value=size[:50],
+                                defaults={
+                                    'is_custom': True,
+                                    'created_by': request.user,
+                                },
+                            )
 
                 staged_prod.is_submitted = True
                 staged_prod.save(update_fields=['is_submitted'])
@@ -664,12 +763,18 @@ def toggle_wishlist(request, product_id):
 @require_POST
 def add_to_staging_ajax(request):
     """
-    Create a StagedProduct from the workshop form.
-    ALWAYS returns JSON – never an HTML error page.
-    Approval letter is stored on the StagedProduct (if field exists),
-    then copied onto Product on final submit.
+    Create a StagedProduct from the workshop form. ALWAYS returns JSON.
+
+      cover              the single cover photo (or keep_cover_id when editing)
+      variants           [{name, sizes[], price, stock, keepFrom}] as JSON, plus an
+                         optional variant_image_<index> file for each variation
+      size_chart         optional size table (JSON)
+      editing_id         replaces that staged item; its images are carried over
     """
     from datetime import datetime
+
+    def fail(message, status=400):
+        return JsonResponse({'status': 'error', 'message': message}, status=status)
 
     try:
         def check_text(text):
@@ -683,16 +788,12 @@ def add_to_staging_ajax(request):
             return None
 
         if check_text(request.POST.get('name')) or check_text(request.POST.get('description')):
-            return JsonResponse(
-                {'status': 'error', 'message': 'Prohibited content detected.'},
-                status=400,
-            )
+            return fail('Prohibited content detected.')
 
-        # Validate letter file if present (does NOT touch Organization)
         letter_file = request.FILES.get('approval_letter')
         ok, msg = _validate_approval_letter_file(letter_file)
         if not ok:
-            return JsonResponse({'status': 'error', 'message': msg}, status=400)
+            return fail(msg)
 
         location = (request.POST.get('location_options') or '').strip()
         available_days_raw = (request.POST.get('available_days') or '').strip()
@@ -706,22 +807,13 @@ def add_to_staging_ajax(request):
         }
 
         if not location:
-            return JsonResponse(
-                {'status': 'error', 'message': 'Campus meetup spot is required.'},
-                status=400,
-            )
+            return fail('Campus meetup spot is required.')
 
         day_list = [d.strip() for d in available_days_raw.split(',') if d.strip()]
         if not day_list:
-            return JsonResponse(
-                {'status': 'error', 'message': 'Please select at least one available day (Mon–Sat).'},
-                status=400,
-            )
+            return fail('Please select at least one available day (Mon–Sat).')
         if any(d not in ALLOWED_DAYS for d in day_list):
-            return JsonResponse(
-                {'status': 'error', 'message': 'Invalid day selected. Allowed: Monday–Saturday.'},
-                status=400,
-            )
+            return fail('Invalid day selected. Allowed: Monday–Saturday.')
 
         def parse_time(value):
             if not value:
@@ -738,133 +830,179 @@ def add_to_staging_ajax(request):
             t_from = parse_time(meetup_from)
             t_to = parse_time(meetup_to)
         except ValueError:
-            return JsonResponse(
-                {'status': 'error', 'message': 'Invalid time format. Use HH:MM.'},
-                status=400,
-            )
+            return fail('Invalid time format. Use HH:MM.')
 
         if not t_from or not t_to:
-            return JsonResponse(
-                {'status': 'error', 'message': 'Meetup time range is required.'},
-                status=400,
-            )
-
+            return fail('Meetup time range is required.')
         if not is_within_allowed(t_from):
-            return JsonResponse(
-                {'status': 'error', 'message': 'From time must be between 7:00 AM and 9:00 PM.'},
-                status=400,
-            )
-
+            return fail('From time must be between 7:00 AM and 9:00 PM.')
         if not is_within_allowed(t_to):
-            return JsonResponse(
-                {'status': 'error', 'message': 'To time must be between 7:00 AM and 9:00 PM.'},
-                status=400,
-            )
-
+            return fail('To time must be between 7:00 AM and 9:00 PM.')
         if t_from >= t_to:
-            return JsonResponse(
-                {'status': 'error', 'message': 'From time must be earlier than To time.'},
-                status=400,
-            )
+            return fail('From time must be earlier than To time.')
 
-        # Product code
-        if (
-            not product_code
-            or Product.objects.filter(product_code=product_code).exists()
-            or StagedProduct.objects.filter(product_code=product_code).exists()
-        ):
-            product_code = generate_next_product_code()
+        # ---------------- variations ----------------
+        try:
+            variants_data = json.loads(request.POST.get('variants', '[]'))
+        except json.JSONDecodeError:
+            variants_data = []
+        if not isinstance(variants_data, list) or not variants_data:
+            return fail('Add at least one variation.')
+        if len(variants_data) > MAX_VARIANTS:
+            return fail(f'You can add up to {MAX_VARIANTS} variations.')
+
+        parsed_variants = []
+        for index, v in enumerate(variants_data):
+            if not isinstance(v, dict):
+                return fail('Invalid variation data.')
+
+            name = _clean_text(v.get('name'), 100)
+            if not name:
+                return fail('Every variation needs a name.')
+
+            try:
+                price = Decimal(str(v.get('price'))).quantize(Decimal('0.01'))
+            except (InvalidOperation, ValueError, TypeError):
+                return fail(f'Invalid price for "{name}".')
+            if not (Decimal('0') < price < Decimal('100000000')):
+                return fail(f'The price for "{name}" must be greater than 0.')
+
+            try:
+                stock = int(v.get('stock'))
+            except (TypeError, ValueError):
+                return fail(f'Invalid stock for "{name}".')
+            if stock < 0 or stock > 100000:
+                return fail(f'Invalid stock for "{name}".')
+
+            sizes_text = ', '.join(_clean_sizes(v.get('sizes')))
+            if len(sizes_text) > 100:
+                return fail(f'Too many sizes for "{name}". Keep the list under 100 characters.')
+
+            image_file = request.FILES.get(f'variant_image_{index}')
+            ok, msg = _validate_image_file(image_file, f'The image for "{name}"')
+            if not ok:
+                return fail(msg)
+
+            keep_from = str(v.get('keepFrom') or '')
+            parsed_variants.append({
+                'name': name,
+                'price': price,
+                'stock': stock,
+                'sizes_text': sizes_text,
+                'image_file': image_file,
+                'keep_from': int(keep_from) if keep_from.isdigit() else None,
+            })
+
+        # ---------------- cover photo ----------------
+        cover_file = request.FILES.get('cover')
+        ok, msg = _validate_image_file(cover_file, 'The cover photo')
+        if not ok:
+            return fail(msg)
+
+        editing_id = str(request.POST.get('editing_id') or '')
+        old = None
+        if editing_id.isdigit():
+            old = StagedProduct.objects.filter(
+                pk=int(editing_id), seller=request.user, is_submitted=False
+            ).first()
+
+        keep_cover_id = str(request.POST.get('keep_cover_id') or '')
+        keep_cover_row = None
+        if old and not cover_file and keep_cover_id.isdigit():
+            keep_cover_row = old.images.filter(pk=int(keep_cover_id)).first()
+        if not cover_file and not keep_cover_row:
+            return fail('A cover photo is required.')
 
         category_id = request.POST.get('category')
         category = None
         if category_id and str(category_id).isdigit():
             category = Category.objects.filter(id=category_id).first()
 
-        staged_prod = StagedProduct.objects.create(
-            seller=request.user,
-            name=request.POST.get('name'),
-            description=request.POST.get('description') or '',
-            category=category,
-            product_code=product_code,
-            meetup_locations_list=location,
-            available_days=','.join(day_list),
-            preferred_meetup_time_from=t_from,
-            preferred_meetup_time_to=t_to,
-            owner_type=request.POST.get('owner_type', 'PERSONAL'),
-            accepted_payments=request.POST.get('payment') or 'BOTH',
-            pre_order=str(request.POST.get('pre_order')).lower() in ['true', 'on', '1', 'yes'],
-        )
+        replaced_id = old.id if old else None
 
-        # Attach letter to THIS staged product (field optional – only if migrated)
-        if letter_file and hasattr(staged_prod, 'approval_letter'):
-            staged_prod.approval_letter = letter_file
-            staged_prod.save(update_fields=['approval_letter'])
-
-        # Variants
-        try:
-            variants_data = json.loads(request.POST.get('variants', '[]'))
-        except json.JSONDecodeError:
-            variants_data = []
-
-        has_image_index = hasattr(StagedVariant, 'image_index')
-
-        for v in variants_data:
-            kwargs = dict(
-                staged_product=staged_prod,
-                variant_name=v.get('name', '') or 'Variant',
-                variant_attribute=v.get('attribute', '') or '',
-                price=v.get('price', 0) or 0,
-                stocks=v.get('stock', 0) or 0,
-                condition=v.get('condition', 'Brand New') or 'Brand New',
-                flaws=v.get('flaws', '') or '',
+        with transaction.atomic():
+            keep_cover_name = (
+                keep_cover_row.image.name if keep_cover_row and keep_cover_row.image else ''
             )
-            if has_image_index:
-                kwargs['image_index'] = v.get('imageIndex')
-            StagedVariant.objects.create(**kwargs)
+            keep_variant_images = {}
+            keep_letter_name = ''
+            if old:
+                keep_variant_images = {
+                    sv.pk: sv.image.name for sv in old.variants.all() if sv.image
+                }
+                keep_letter_name = old.approval_letter.name if old.approval_letter else ''
+                if not product_code:
+                    product_code = old.product_code or ''
+                old.delete()          # files stay in storage; the new item re-uses them
 
-        # Keep previously uploaded images (edit flow)
-        keep_ids = []
-        try:
-            keep_ids = json.loads(request.POST.get('keep_image_ids', '[]'))
-        except Exception:
-            pass
+            if (
+                not product_code
+                or Product.objects.filter(product_code=product_code).exists()
+                or StagedProduct.objects.filter(product_code=product_code).exists()
+            ):
+                product_code = generate_next_product_code()
 
-        if keep_ids:
-            for img_id in keep_ids:
-                try:
-                    old_img = StagedImage.objects.get(pk=img_id)
-                    StagedImage.objects.create(
-                        staged_product=staged_prod,
-                        image=old_img.image,
-                        is_main=old_img.is_main,
-                    )
-                except StagedImage.DoesNotExist:
-                    pass
-
-        # New gallery uploads
-        images = request.FILES.getlist('images')
-        for i, img in enumerate(images):
-            StagedImage.objects.create(
-                staged_product=staged_prod,
-                image=img,
-                is_main=(i == 0 and not keep_ids),
+            staged_prod = StagedProduct.objects.create(
+                seller=request.user,
+                name=_clean_text(request.POST.get('name'), 255),
+                description=request.POST.get('description') or '',
+                category=category,
+                product_code=product_code,
+                meetup_locations_list=location,
+                available_days=','.join(day_list),
+                preferred_meetup_time_from=t_from,
+                preferred_meetup_time_to=t_to,
+                owner_type=request.POST.get('owner_type', 'PERSONAL'),
+                accepted_payments=request.POST.get('payment') or 'BOTH',
+                pre_order=str(request.POST.get('pre_order')).lower() in ['true', 'on', '1', 'yes'],
+                size_chart=_clean_size_chart(request.POST.get('size_chart')),
             )
+
+            if letter_file and hasattr(staged_prod, 'approval_letter'):
+                staged_prod.approval_letter = letter_file
+                staged_prod.save(update_fields=['approval_letter'])
+            elif keep_letter_name and hasattr(staged_prod, 'approval_letter'):
+                staged_prod.approval_letter = keep_letter_name
+                staged_prod.save(update_fields=['approval_letter'])
+
+            for item in parsed_variants:
+                staged_variant = StagedVariant(
+                    staged_product=staged_prod,
+                    variant_name=item['name'],
+                    variant_attribute=item['sizes_text'],
+                    price=item['price'],
+                    stocks=item['stock'],
+                    condition='Brand New',
+                    flaws='',
+                )
+                if item['image_file']:
+                    staged_variant.image = item['image_file']
+                elif item['keep_from'] in keep_variant_images:
+                    staged_variant.image = keep_variant_images[item['keep_from']]
+                staged_variant.save()
+
+            if cover_file:
+                StagedImage.objects.create(
+                    staged_product=staged_prod, image=cover_file, is_main=True
+                )
+            elif keep_cover_name:
+                StagedImage.objects.create(
+                    staged_product=staged_prod, image=keep_cover_name, is_main=True
+                )
 
         return JsonResponse({
             'status': 'success',
             'staged_id': staged_prod.id,
+            'replaced_id': replaced_id,
             'product_code': product_code,
             'next_product_code': generate_next_product_code(),
-            'approval_letter_saved': bool(letter_file),
+            'approval_letter_saved': bool(letter_file or keep_letter_name),
         })
 
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JsonResponse({
-            'status': 'error',
-            'message': f'Server error: {str(e)}',
-        }, status=500)
+        return fail(f'Server error: {str(e)}', status=500)
 
 
 @login_required
@@ -878,26 +1016,26 @@ def get_staged_product_details(request, staged_id):
 
         images = []
         for img in product.images.all():
-            images.append({
-                'id': img.id,
-                'url': img.image.url,
-                'is_main': img.is_main,
-            })
+            try:
+                url = img.image.url
+            except ValueError:
+                continue
+            images.append({'id': img.id, 'url': url, 'is_main': img.is_main})
 
         variants = []
         for v in product.variants.all():
             image_url = None
-            idx = getattr(v, 'image_index', None)
-            if idx is not None and 0 <= idx < len(images):
-                image_url = images[idx]['url']
+            if getattr(v, 'image', None):
+                try:
+                    image_url = v.image.url
+                except ValueError:
+                    image_url = None
             variants.append({
+                'id': v.id,
                 'variant_name': v.variant_name,
                 'price': str(v.price),
                 'stocks': v.stocks,
-                'condition': v.condition,
-                'flaws': v.flaws or '',
-                'attribute_value': v.variant_attribute or '',
-                'image_index': idx,
+                'attribute_value': v.variant_attribute or '',   # available sizes, comma-separated
                 'image_url': image_url,
             })
 
@@ -924,6 +1062,7 @@ def get_staged_product_details(request, staged_id):
             ),
             'variants': variants,
             'images': images,
+            'size_chart': product.size_chart,
             'payment': product.accepted_payments,
         }
         return JsonResponse(data)

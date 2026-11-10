@@ -140,6 +140,11 @@ class StagedProduct(models.Model):
         null=True,
         help_text='JPG/PNG only, max 10 MB – carried over to Product on submit',
     )
+    
+    size_chart = models.JSONField(
+        null=True, blank=True,
+        help_text='Size table: {"columns": ["Height (cm)"], "rows": [{"size": "S", "values": ["160"]}]}',
+    )
     owner_type = models.CharField(max_length=15, choices=Product.OWNER_TYPE_CHOICES, default='PERSONAL')
     related_org = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True)
     product_code = models.CharField(
@@ -176,7 +181,8 @@ class StagedVariant(models.Model):
     condition = models.CharField(max_length=50, default="Brand New")
     flaws = models.TextField(blank=True, null=True)
     image_index = models.IntegerField(null=True, blank=True) 
-
+    image = models.ImageField(upload_to='products/staged/variants/', null=True, blank=True)
+    
 class StagedImage(models.Model):
     staged_product = models.ForeignKey(StagedProduct, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='products/staged/')

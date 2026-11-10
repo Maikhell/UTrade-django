@@ -31,27 +31,34 @@
 
     {# ========== LEFT: LISTING FORM ========== #}
     <div class="col-lg-7 col-xl-8">
+
+      <div id="editing_banner" class="ap-editing d-none" role="status">
+        <i class="bi bi-pencil-square"></i>
+        <span>Editing <strong id="editing_name"></strong>. Press <em>Add to list</em> to save your changes.</span>
+        <button type="button" class="btn btn-link btn-sm p-0 ms-auto fw-bold" onclick="cancelEdit()">Cancel</button>
+      </div>
+
       <form id="product_form" onsubmit="return false;" novalidate>
         {% csrf_token %}
 
-        {# ---------- Photos ---------- #}
+        {# ---------- Cover ---------- #}
         <section class="ap-card">
           <h2 class="ap-card-title">
-            <span class="ap-ico"><i class="bi bi-images"></i></span>
-            Product photos <span class="text-danger" aria-hidden="true">*</span>
+            <span class="ap-ico"><i class="bi bi-image"></i></span>
+            Product cover <span class="text-danger" aria-hidden="true">*</span>
           </h2>
-          <p class="ap-hint">Add at least one photo. The first photo is used as the cover.</p>
+          <p class="ap-hint">Add one cover photo. It's the main picture buyers see on the marketplace.</p>
 
           <label class="btn btn-outline-success fw-bold ap-upload">
-            <i class="bi bi-cloud-arrow-up me-1"></i> Select photos
-            <input type="file" id="image_input" class="d-none" accept="image/*" multiple
-                   onchange="previewMultipleImages(event)" />
+            <i class="bi bi-cloud-arrow-up me-1"></i> Select cover photo
+            <input type="file" id="image_input" class="d-none" accept="image/jpeg,image/png,image/webp"
+                   onchange="previewCover(event)" />
           </label>
 
-          <div id="image_preview_container" class="image-preview-grid mt-3">
+          <div id="image_preview_container" class="image-preview-grid ap-cover-preview mt-3">
             <div class="ap-empty">
               <i class="bi bi-cloud-upload"></i>
-              <span>No photos selected yet</span>
+              <span>No cover photo selected yet</span>
             </div>
           </div>
         </section>
@@ -105,7 +112,7 @@
                 Description <span class="opt-tag">(optional)</span>
               </label>
               <textarea id="description" rows="4" class="form-control"
-                        placeholder="Details, flaws, inclusions…"
+                        placeholder="Details, inclusions…"
                         oninput="validateProhibitedInput(this)"></textarea>
               <div id="description_prohibited_error" class="invalid-feedback small">
                 Contains restricted/prohibited words.
@@ -122,27 +129,12 @@
             </div>
 
             {# Shown by the page script for categories without variations #}
-            <div class="col-12 d-none" id="simple_price_section">
-              <div class="row g-3">
-                <div class="col-sm-6">
-                  <label for="price" class="form-label ap-label">
-                    Price (₱) <span class="text-danger" aria-hidden="true">*</span>
-                  </label>
-                  <input type="number" id="price" class="form-control" min="0" step="0.01"
-                         inputmode="decimal" placeholder="0.00" />
-                </div>
-                <div class="col-sm-6">
-                  <label for="simple_condition" class="form-label ap-label">
-                    Condition <span class="text-danger" aria-hidden="true">*</span>
-                  </label>
-                  <select id="simple_condition" class="form-select">
-                    <option value="Brand New">Brand New</option>
-                    <option value="Like New">Like New</option>
-                    <option value="Used - Good">Used - Good</option>
-                    <option value="Used - Fair">Used - Fair</option>
-                  </select>
-                </div>
-              </div>
+            <div class="col-sm-6 d-none" id="simple_price_section">
+              <label for="price" class="form-label ap-label">
+                Price (₱) <span class="text-danger" aria-hidden="true">*</span>
+              </label>
+              <input type="number" id="price" class="form-control" min="0" step="0.01"
+                     inputmode="decimal" placeholder="0.00" />
             </div>
           </div>
         </section>
@@ -154,86 +146,97 @@
             Product variations <span class="text-danger" aria-hidden="true">*</span>
           </h2>
           <p class="ap-hint">
-            Add at least one variation (size, color, edition…). Each one has its own price and stock.
+            Add at least one variation. Each one has its own sizes, image, price and stock.
           </p>
 
           <div id="size_suggestions_container" class="mb-3">
             <label id="quick_select_label" class="form-label small fw-bold text-success">
-              Quick Select <span class="text-muted fw-normal">(last 5 used)</span>:
+              Quick select sizes <span class="text-muted fw-normal">(last 5 used)</span>:
             </label>
             <div id="suggestion_buttons" class="d-flex flex-wrap gap-2">
-              <span class="text-muted small">Select a category to see available variations.</span>
+              <span class="text-muted small">Select a category to see suggested sizes.</span>
             </div>
             <div id="no_attributes_note" class="alert alert-info py-2 small d-none mt-2 mb-0">
-              <i class="bi bi-info-circle me-2"></i>No quick select yet.
-              Please input your own attributes.
+              <i class="bi bi-info-circle me-2"></i>No quick select yet. Type your own sizes below.
             </div>
           </div>
 
-          <div id="attribute_pills" class="mb-2"></div>
-
           <div class="ap-variant-box">
             <div class="row g-3">
-              <div class="col-md-6">
+              <div class="col-12">
                 <label for="variant_name" class="form-label ap-label">
                   Variation name <span class="text-danger" aria-hidden="true">*</span>
                 </label>
-                <input type="text" id="variant_name" class="form-control" placeholder="e.g. Large, Red" />
+                <input type="text" id="variant_name" class="form-control" maxlength="100"
+                       placeholder="e.g. Black, Floral Dress" />
               </div>
-              <div class="col-md-6">
-                <label for="variant_attribute" class="form-label ap-label">
-                  Attribute <span class="opt-tag">(optional)</span>
+
+              <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                  <label for="variant_size_input" class="form-label ap-label mb-0">
+                    Available sizes <span class="opt-tag">(optional)</span>
+                  </label>
+                  <a href="#" class="ap-link-sm" data-bs-toggle="modal" data-bs-target="#sizeTableModal">
+                    <i class="bi bi-rulers"></i> Size table
+                  </a>
+                </div>
+                <div class="ap-tags" onclick="document.getElementById('variant_size_input').focus()">
+                  <span id="variant_sizes_chips" class="ap-chips"></span>
+                  <input type="text" id="variant_size_input" maxlength="20" autocomplete="off"
+                         placeholder="Type a size, then press Enter"
+                         onkeydown="handleSizeKey(event)" onblur="commitSizeInput()" />
+                </div>
+                <div class="form-text">e.g. S, M, L, XL or 38, 39, 40. Leave empty if sizes don't apply.</div>
+
+                <div id="size_table_summary" class="ap-st-summary d-none">
+                  <i class="bi bi-check-circle-fill text-success me-1"></i>
+                  <span id="size_table_summary_text"></span>
+                  <button type="button" class="btn btn-link btn-sm p-0 ms-2" data-bs-toggle="modal"
+                          data-bs-target="#sizeTableModal">Edit</button>
+                  <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2"
+                          onclick="clearSavedSizeTable()">Remove</button>
+                </div>
+              </div>
+
+              <div class="col-12">
+                <label class="form-label ap-label d-block">
+                  Variant image <span class="opt-tag">(optional)</span>
                 </label>
-                <input type="text" id="variant_attribute" class="form-control"
-                       placeholder="e.g. XL, 32oz, Blue" />
+                <div class="d-flex align-items-center gap-3">
+                  <div id="variant_image_preview" class="ap-variant-thumb"><i class="bi bi-image"></i></div>
+                  <div>
+                    <label class="btn btn-outline-secondary btn-sm mb-0">
+                      <i class="bi bi-upload me-1"></i> Choose image
+                      <input type="file" id="variant_image_input" class="d-none"
+                             accept="image/jpeg,image/png,image/webp" onchange="previewVariantImage(event)" />
+                    </label>
+                    <button type="button" id="variant_image_clear" class="btn btn-link btn-sm text-danger d-none"
+                            onclick="clearVariantImage()">Remove</button>
+                    <div class="form-text mt-1">Shown when buyers pick this variation. The cover is used if empty.</div>
+                  </div>
+                </div>
               </div>
-              <div class="col-6 col-md-3">
+
+              <div class="col-6">
                 <label for="variant_price" class="form-label ap-label">
                   Price (₱) <span class="text-danger" aria-hidden="true">*</span>
                 </label>
                 <input type="number" id="variant_price" class="form-control" min="0" step="0.01"
                        inputmode="decimal" placeholder="0.00" />
               </div>
-              <div class="col-6 col-md-3">
+              <div class="col-6">
                 <label for="variant_stock" class="form-label ap-label">
                   Stock <span class="text-danger" aria-hidden="true">*</span>
                 </label>
                 <input type="number" id="variant_stock" class="form-control" min="0"
                        inputmode="numeric" placeholder="0" />
               </div>
-              <div class="col-md-6">
-                <label for="variant_condition" class="form-label ap-label">
-                  Condition <span class="text-danger" aria-hidden="true">*</span>
-                </label>
-                <select id="variant_condition" class="form-select" onchange="toggleCustomCondition(this)">
-                  <option value="Brand New">Brand New</option>
-                  <option value="Like New">Like New</option>
-                  <option value="Used - Good">Used - Good</option>
-                  <option value="Used - Fair">Used - Fair</option>
-                  <option value="Other">Other (Custom)</option>
-                </select>
-              </div>
-              <div class="col-12">
-                <label for="variant_flaws" class="form-label ap-label">
-                  Flaws <span class="opt-tag">(optional)</span>
-                </label>
-                <input type="text" id="variant_flaws" class="form-control"
-                       placeholder="Scratches, missing parts…" />
-              </div>
             </div>
 
-            <div class="row g-2 mt-1">
-              <div class="col-sm-6">
-                <button type="button" class="btn btn-outline-secondary w-100"
-                        onclick="openVariantImagePicker()">
-                  <i class="bi bi-image me-1"></i> Pick Image
-                </button>
-              </div>
-              <div class="col-sm-6">
-                <button type="button" class="btn btn-success w-100 fw-bold" onclick="addVariant()">
-                  <i class="bi bi-plus-circle me-1"></i> Add Variant
-                </button>
-              </div>
+            <div class="mt-3">
+              <button type="button" class="btn btn-success w-100 fw-bold" onclick="addVariant()">
+                <i class="bi bi-plus-circle me-1"></i> Add Variant
+              </button>
             </div>
           </div>
 
@@ -446,110 +449,56 @@
 
   </div>
 </div>
+
+{# ========== SIZE TABLE DIALOG ========== #}
+<div class="modal fade" id="sizeTableModal" tabindex="-1" aria-labelledby="sizeTableLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg modal-fullscreen-sm-down">
+    <div class="modal-content ap-modal">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title fw-bold" id="sizeTableLabel">
+            <i class="bi bi-rulers me-2 text-success"></i>Size table
+          </h5>
+          <div class="small text-muted">
+            Optional. Add measurements for each available size so buyers can pick the right fit.
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <div class="ap-label mb-2">Measurements</div>
+          <div id="size_presets" class="d-flex flex-wrap gap-2"></div>
+          <div class="input-group input-group-sm mt-2 ap-st-add">
+            <input type="text" id="size_custom_column" class="form-control" maxlength="30"
+                   placeholder="Custom measurement, e.g. Inseam (cm)" />
+            <button class="btn btn-outline-success" type="button" onclick="addCustomColumn()">Add</button>
+          </div>
+        </div>
+
+        <div id="size_table_msg" class="alert alert-warning small py-2 d-none" role="alert"></div>
+
+        <div id="size_table_host"></div>
+
+        <div class="input-group input-group-sm mt-3 ap-st-add">
+          <input type="text" id="size_new_row" class="form-control" maxlength="20"
+                 placeholder="Add a size, e.g. XL" />
+          <button class="btn btn-outline-success" type="button" onclick="addSizeRow()">Add size</button>
+        </div>
+        <div class="form-text">Sizes from your variations are added here automatically.</div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-link text-danger me-auto" onclick="clearSizeTable()">Clear table</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success fw-bold" onclick="saveSizeTable()">Save size table</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'UTrade_app/js/workshop.js' %}"></script>
-<script>
-/* Page-level glue that keeps the asterisks honest. workshop.js itself is unchanged. */
-(function () {
-  // 1) "Total stocks" is only required while it's editable (categories without variations)
-  var stocks = document.getElementById('stocks');
-  var stockReq = document.getElementById('stock_required');
-  var stockHint = document.getElementById('stock_hint');
-
-  function syncStockLabel() {
-    var editable = stocks && !stocks.readOnly;
-    if (stockReq) stockReq.classList.toggle('d-none', !editable);
-    if (stockHint) {
-      stockHint.textContent = editable
-        ? 'How many items you have in total.'
-        : 'Calculated automatically from your variations.';
-    }
-  }
-  if (stocks) {
-    new MutationObserver(syncStockLabel).observe(stocks, {
-      attributes: true,
-      attributeFilter: ['readonly']
-    });
-    syncStockLabel();
-  }
-
-  // 2) Editing a single-item listing: show its saved price/condition again
-  var simpleSection = document.getElementById('simple_price_section');
-  if (simpleSection) {
-    new MutationObserver(function () {
-      if (simpleSection.classList.contains('d-none')) return;
-      var vs = window.productVariants || [];
-      if (vs.length !== 1) return;
-      var priceEl = document.getElementById('price');
-      var condEl = document.getElementById('simple_condition');
-      if (priceEl && !priceEl.value) priceEl.value = vs[0].price;
-      if (condEl && vs[0].condition) condEl.value = vs[0].condition;
-    }).observe(simpleSection, { attributes: true, attributeFilter: ['class'] });
-  }
-
-  // 3) A variation must have a price (it used to silently default to ₱0)
-  var origAddVariant = window.addVariant;
-  if (typeof origAddVariant === 'function') {
-    window.addVariant = function () {
-      var nameEl = document.getElementById('variant_name');
-      var stockEl = document.getElementById('variant_stock');
-      var priceEl = document.getElementById('variant_price');
-      var hasBasics = nameEl && nameEl.value.trim() && stockEl && stockEl.value;
-
-      if (hasBasics) {
-        var price = parseFloat(priceEl && priceEl.value);
-        if (!(price > 0)) {
-          if (priceEl) { priceEl.classList.add('is-invalid'); priceEl.focus(); }
-          return Swal.fire(
-            'Price Required',
-            'Please enter a price greater than 0 for this variation.',
-            'warning'
-          );
-        }
-      }
-      return origAddVariant.apply(this, arguments);
-    };
-  }
-
-  // 4) Categories without variations: price + stock are required, and are saved
-  //    as one "Standard" variation (the server only stores price/stock on variations)
-  var origAddToStaging = window.addToStaging;
-  if (typeof origAddToStaging === 'function') {
-    window.addToStaging = function () {
-      var attrSection = document.getElementById('attributes_section');
-      var simpleMode = attrSection && attrSection.classList.contains('d-none');
-
-      if (simpleMode) {
-        var priceEl = document.getElementById('price');
-        var stocksEl = document.getElementById('stocks');
-        var condEl = document.getElementById('simple_condition');
-        var price = parseFloat(priceEl && priceEl.value);
-        var stock = parseInt(stocksEl && stocksEl.value, 10);
-
-        if (!(price > 0)) {
-          if (priceEl) { priceEl.classList.add('is-invalid'); priceEl.focus(); }
-          return Swal.fire('Price Required', 'Please enter a price greater than 0.', 'warning');
-        }
-        if (!(stock > 0)) {
-          if (stocksEl) { stocksEl.classList.add('is-invalid'); stocksEl.focus(); }
-          return Swal.fire('Stock Required', 'Please enter how many items are available.', 'warning');
-        }
-
-        window.productVariants = [{
-          name: 'Standard',
-          price: price,
-          stock: stock,
-          attribute: '',
-          condition: condEl ? condEl.value : 'Brand New',
-          flaws: '',
-          imageIndex: null
-        }];
-      }
-      return origAddToStaging.apply(this, arguments);
-    };
-  }
-})();
-</script>
 {% endblock %}

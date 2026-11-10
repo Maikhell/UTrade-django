@@ -309,6 +309,173 @@
   overflow: hidden;
 }
 
+/* ---------- Cover (one photo) ---------- */
+.ap-cover-preview { grid-template-columns: minmax(150px, 220px); }
+
+.ap-cover-remove {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(33, 37, 41, 0.75);
+  color: #fff;
+  font-size: 0.7rem;
+}
+.ap-cover-remove:hover { background: #dc3545; }
+
+/* ---------- Small link ---------- */
+.ap-link-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ut-green-dark);
+  text-decoration: none;
+}
+.ap-link-sm:hover { color: var(--ut-green); text-decoration: underline; }
+
+/* ---------- Sizes (chips input) ---------- */
+.ap-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 46px;
+  padding: 0.35rem 0.6rem;
+  background: #fff;
+  border: 1px solid #dfe5e2;
+  border-radius: 0.65rem;
+  cursor: text;
+}
+.ap-tags:focus-within {
+  border-color: var(--ut-green);
+  box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.2);
+}
+.ap-tags input {
+  flex: 1 1 140px;
+  min-width: 120px;
+  padding: 0.3rem 0.1rem;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 1rem;
+}
+.ap-chips { display: contents; }
+.ap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.35rem 0.2rem 0.7rem;
+  border: 1px solid #cfe8da;
+  border-radius: 50rem;
+  background: var(--ut-green-soft);
+  color: var(--ut-green-dark);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.ap-chip-x {
+  width: 1.2rem;
+  height: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 0.9rem;
+}
+.ap-chip-x:hover { background: rgba(25, 135, 84, 0.18); }
+
+/* ---------- Variant image + list ---------- */
+.ap-variant-thumb {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px dashed #cfd8d3;
+  border-radius: 0.75rem;
+  background: #f8faf9;
+  color: #adb5bd;
+  font-size: 1.4rem;
+}
+.ap-variant-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.ap-vthumb { flex: 0 0 44px; width: 44px; height: 44px; object-fit: cover; }
+.ap-vthumb-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f5f4;
+  color: #adb5bd;
+}
+.ap-vinfo { min-width: 0; }
+.ap-vsizes { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.15rem 0; }
+.ap-vsize {
+  padding: 0.05rem 0.45rem;
+  border-radius: 50rem;
+  background: #eef0f2;
+  color: #495057;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+/* ---------- Size table ---------- */
+.ap-st-summary { margin-top: 0.5rem; font-size: 0.82rem; color: #495057; }
+.ap-modal .modal-content { border: 0; border-radius: 1.1rem; overflow: hidden; }
+.ap-st-add { max-width: 380px; }
+.ap-st-wrap { overflow-x: auto; border: 1px solid #edf0ee; border-radius: 0.85rem; }
+.ap-st-table { width: 100%; min-width: 420px; border-collapse: collapse; }
+.ap-st-table th {
+  padding: 0.6rem;
+  background: #f6f8f7;
+  border-bottom: 1px solid #edf0ee;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #6c757d;
+  white-space: nowrap;
+}
+.ap-st-table td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #f1f3f2; }
+.ap-st-table tr:last-child td { border-bottom: 0; }
+.ap-st-th-x { padding: 0 0.15rem; border: 0; background: transparent; color: #dc3545; font-size: 0.8rem; }
+.ap-st-empty {
+  padding: 1.25rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #8a948f;
+  background: #f8faf9;
+  border: 1px dashed #cfd8d3;
+  border-radius: 0.85rem;
+}
+
+/* ---------- Editing a staged item ---------- */
+.ap-editing {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding: 0.7rem 1rem;
+  background: #e8f5ee;
+  border: 1px solid #cfe8da;
+  border-radius: 0.85rem;
+  color: #0f5132;
+  font-size: 0.88rem;
+}
+.staged-item.is-editing { outline: 2px solid var(--ut-green); outline-offset: 2px; }
 @media (min-width: 992px) {
   .ap-staging {
     position: sticky;

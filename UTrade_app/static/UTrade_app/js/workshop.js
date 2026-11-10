@@ -1,16 +1,65 @@
+/* ===================================================================
+   Seller workshop: add products
+   =================================================================== */
+
 if (typeof window.itemCount === "undefined") {
   window.itemCount = 0;
-  window.selectedFiles = [];
+  window.selectedFiles = []; // the cover photo: [File] or []
   window.allStagedProducts = [];
-  window.productVariants = [];
-  window.currentSelectedImageIndex = null;
+  window.productVariants = []; // { name, sizes[], price, stock, imageFile, imageUrl, keepFrom }
   window.PROHIBITED_WORDS = [];
-  window.existingImageUrls = [];
+  window.existingCover = null; // { id, url } while editing and the cover is unchanged
   window.editingStagedId = null;
+  window.sizeChart = null; // { columns: [], rows: [{ size, values: [] }] }
+  window.sizeDraft = { columns: [], rows: [] }; // working copy inside the size table dialog
+  window.currentSizes = []; // size chips in the variation form
+  window.variantImageFile = null;
   // Session flag for approval letter (true if already on file or uploaded this session)
-  window.approvalLetterOnFile = !!(
-    document.querySelector('#approval_letter_section img[alt="Current Approval Letter"]')
+  window.approvalLetterOnFile = !!document.querySelector(
+    '#approval_letter_section img[alt="Current Approval Letter"]'
   );
+}
+
+var MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+var SIZE_PRESETS = [
+  "Height (cm)", "Weight (kg)", "Chest (cm)", "Waist (cm)", "Hips (cm)",
+  "Shoulder (cm)", "Sleeve (cm)", "Length (cm)", "Foot length (cm)",
+];
+var SIZE_LIMITS = { rows: 20, cols: 8 };
+
+/* ===================== SMALL HELPERS ===================== */
+function escapeHtml(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+function csrfToken() {
+  var el = document.querySelector("[name=csrfmiddlewaretoken]");
+  return el ? el.value : "";
+}
+
+function normalizeSize(raw) {
+  return String(raw || "").trim().replace(/\s+/g, " ").slice(0, 20);
+}
+
+function splitSizes(text) {
+  return String(text || "").split(",").map(normalizeSize).filter(Boolean);
+}
+
+function checkImageFile(file, label) {
+  if (!file) return false;
+  var okType =
+    /^image\/(jpeg|png|webp)$/i.test(file.type) || /\.(jpe?g|png|webp)$/i.test(file.name);
+  if (!okType) {
+    Swal.fire("Invalid file", label + " must be a JPG, PNG or WEBP image.", "warning");
+    return false;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    Swal.fire("File too large", label + " exceeds the 10 MB limit.", "warning");
+    return false;
+  }
+  return true;
 }
 
 async function loadProhibitedWords() {
@@ -25,91 +74,498 @@ async function loadProhibitedWords() {
 }
 loadProhibitedWords();
 
-/* ===================== IMAGE PREVIEW ===================== */
-function previewMultipleImages(event) {
-  const container = document.getElementById("image_preview_container");
-  if (!container) return;
-
-  // Keep any previously restored existing images (edit mode)
-  const existingWrappers = Array.from(
-    container.querySelectorAll(".preview-wrapper[data-existing='1']")
+/* ===================== PRODUCT COVER (one photo) ===================== */
+function coverEmptyHtml() {
+  return (
+    '<div class="ap-empty"><i class="bi bi-cloud-upload"></i>' +
+    "<span>No cover photo selected yet</span></div>"
   );
-
-  container.innerHTML = "";
-  existingWrappers.forEach((w) => container.appendChild(w));
-
-  const newFiles = Array.from(event.target.files || []);
-  window.selectedFiles = newFiles;
-
-  newFiles.forEach((file, index) => {
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      const wrapper = document.createElement("div");
-      wrapper.className = "preview-wrapper animate__animated animate__fadeIn";
-      const isMain = existingWrappers.length === 0 && index === 0;
-      const badge = isMain ? '<span class="main-badge">COVER</span>' : "";
-      wrapper.innerHTML = `
-        ${badge}
-        <img src="${e.target.result}" class="preview-box ${isMain ? "is-main-image" : ""}">
-      `;
-      container.appendChild(wrapper);
-    };
-    reader.readAsDataURL(file);
-  });
 }
 
-/* ===================== ATTRIBUTE TAGS ===================== */
-function addTag(type) {
-  const input = document.getElementById(`${type}_input`);
-  const tagContainer = document.getElementById(`${type}_tags`);
-  const mainDisplay = document.getElementById("attribute_pills");
-  if (!input || !tagContainer || !mainDisplay) return;
+function renderCover(src) {
+  var container = document.getElementById("image_preview_container");
+  if (!container) return;
+  container.innerHTML =
+    '<div class="preview-wrapper">' +
+    '<span class="main-badge">COVER</span>' +
+    '<img src="' + escapeHtml(src) + '" class="preview-box is-main-image" alt="Cover photo">' +
+    '<button type="button" class="ap-cover-remove" onclick="removeCover()" ' +
+    'aria-label="Remove cover photo"><i class="bi bi-x-lg"></i></button>' +
+    "</div>";
+}
 
-  const val = input.value.trim();
-  if (!val) return;
-
-  if (!window.currentAttributes)
-    window.currentAttributes = { colors: [], sizes: [] };
-  if (!window.currentAttributes[`${type}s`])
-    window.currentAttributes[`${type}s`] = [];
-
-  if (!window.currentAttributes[`${type}s`].includes(val)) {
-    window.currentAttributes[`${type}s`].push(val);
-    const pillHtml = `
-      <span class="badge rounded-pill bg-light text-dark border p-2 me-1 mb-1">
-        ${val}
-        <i class="bi bi-x-circle-fill ms-1 text-danger cursor-pointer"
-           onclick="removeTag('${type}', '${val}', this)"></i>
-      </span>`;
-    mainDisplay.insertAdjacentHTML("beforeend", pillHtml);
-    tagContainer.insertAdjacentHTML("beforeend", pillHtml);
+function previewCover(event) {
+  var input = event.target;
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (!checkImageFile(file, "The cover photo")) {
+    input.value = "";
+    return;
   }
+  window.selectedFiles = [file];
+  window.existingCover = null;
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    renderCover(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeCover() {
+  window.selectedFiles = [];
+  window.existingCover = null;
+  var input = document.getElementById("image_input");
+  if (input) input.value = "";
+  var container = document.getElementById("image_preview_container");
+  if (container) container.innerHTML = coverEmptyHtml();
+}
+
+/* ===================== AVAILABLE SIZES (chips) ===================== */
+function renderSizeChips() {
+  var box = document.getElementById("variant_sizes_chips");
+  if (!box) return;
+  box.innerHTML = window.currentSizes
+    .map(function (size, i) {
+      return (
+        '<span class="ap-chip">' + escapeHtml(size) +
+        '<button type="button" class="ap-chip-x" onclick="removeSizeChip(' + i + ')" ' +
+        'aria-label="Remove ' + escapeHtml(size) + '"><i class="bi bi-x"></i></button></span>'
+      );
+    })
+    .join("");
+}
+
+function addSizeChip(raw) {
+  splitSizes(raw).forEach(function (size) {
+    var exists = window.currentSizes.some(function (s) {
+      return s.toLowerCase() === size.toLowerCase();
+    });
+    if (!exists) window.currentSizes.push(size);
+  });
+  renderSizeChips();
+}
+
+function removeSizeChip(index) {
+  window.currentSizes.splice(index, 1);
+  renderSizeChips();
+}
+
+function commitSizeInput() {
+  var input = document.getElementById("variant_size_input");
+  if (!input) return;
+  if (input.value.trim()) addSizeChip(input.value);
   input.value = "";
 }
 
-function removeTag(type, value, element) {
-  if (!window.currentAttributes) return;
-  window.currentAttributes[`${type}s`] = (
-    window.currentAttributes[`${type}s`] || []
-  ).filter((val) => val !== value);
-  if (element && element.parentElement) element.parentElement.remove();
-
-  const mainPills = document.getElementById("attribute_pills");
-  if (!mainPills) return;
-  mainPills.querySelectorAll(".badge").forEach((pill) => {
-    if (pill.innerText.trim().includes(value)) pill.remove();
-  });
+function handleSizeKey(event) {
+  if (event.key === "Enter" || event.key === ",") {
+    event.preventDefault();
+    commitSizeInput();
+  } else if (event.key === "Backspace" && !event.target.value && window.currentSizes.length) {
+    window.currentSizes.pop();
+    renderSizeChips();
+  }
 }
 
-function toggleCustomCondition(select) {
-  const customInput = document.getElementById("custom_condition_input");
-  if (!customInput) return;
-  if (select.value === "Other") {
-    customInput.classList.remove("d-none");
-    customInput.focus();
-  } else {
-    customInput.classList.add("d-none");
+/* ===================== VARIANT IMAGE ===================== */
+function clearVariantImage() {
+  window.variantImageFile = null;
+  var input = document.getElementById("variant_image_input");
+  if (input) input.value = "";
+  var preview = document.getElementById("variant_image_preview");
+  if (preview) preview.innerHTML = '<i class="bi bi-image"></i>';
+  var clear = document.getElementById("variant_image_clear");
+  if (clear) clear.classList.add("d-none");
+}
+
+function previewVariantImage(event) {
+  var input = event.target;
+  var file = input.files && input.files[0];
+  if (!file) return;
+  if (!checkImageFile(file, "The variant image")) {
+    input.value = "";
+    return;
   }
+  window.variantImageFile = file;
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    var preview = document.getElementById("variant_image_preview");
+    if (preview) preview.innerHTML = '<img src="' + escapeHtml(e.target.result) + '" alt="">';
+    var clear = document.getElementById("variant_image_clear");
+    if (clear) clear.classList.remove("d-none");
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ===================== VARIANTS ===================== */
+function renderVariantList() {
+  var list = document.getElementById("variant_list");
+  if (!list) return;
+  list.innerHTML = "";
+
+  (window.productVariants || []).forEach(function (variant, index) {
+    var div = document.createElement("div");
+    div.className =
+      "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white";
+
+    var thumb = variant.imageUrl
+      ? '<img src="' + escapeHtml(variant.imageUrl) + '" class="ap-vthumb rounded me-2 border" alt="">'
+      : '<span class="ap-vthumb ap-vthumb-empty rounded me-2 border"><i class="bi bi-image"></i></span>';
+
+    var sizes = (variant.sizes || [])
+      .map(function (s) {
+        return '<span class="ap-vsize">' + escapeHtml(s) + "</span>";
+      })
+      .join("");
+
+    div.innerHTML =
+      thumb +
+      '<div class="flex-grow-1 ap-vinfo">' +
+      '<div class="small fw-bold text-dark">' + escapeHtml(variant.name) + "</div>" +
+      (sizes ? '<div class="ap-vsizes">' + sizes + "</div>" : "") +
+      '<div class="text-muted" style="font-size:0.75rem;">₱' +
+      Number(variant.price).toFixed(2) + " | Stock: " + variant.stock + "</div>" +
+      "</div>" +
+      '<button type="button" class="btn-close" style="font-size:0.6rem;" ' +
+      'aria-label="Remove variation" onclick="removeVariant(' + index + ')"></button>';
+    list.appendChild(div);
+  });
+  updateTotalStock();
+}
+
+function addVariant() {
+  commitSizeInput(); // include a size that was typed but not confirmed yet
+
+  var nameInput = document.getElementById("variant_name");
+  var priceInput = document.getElementById("variant_price");
+  var stockInput = document.getElementById("variant_stock");
+  if (!nameInput || !priceInput || !stockInput) return;
+
+  var name = nameInput.value.trim();
+  if (!name || stockInput.value === "") {
+    Swal.fire("Missing Info", "Please provide a Variation Name and Stock.", "warning");
+    return;
+  }
+
+  var price = parseFloat(priceInput.value);
+  if (!(price > 0)) {
+    priceInput.classList.add("is-invalid");
+    priceInput.focus();
+    Swal.fire("Price Required", "Please enter a price greater than 0 for this variation.", "warning");
+    return;
+  }
+
+  var stock = parseInt(stockInput.value, 10);
+  if (Number.isNaN(stock) || stock < 0) {
+    stockInput.classList.add("is-invalid");
+    Swal.fire("Invalid Stock", "Stock must be 0 or more.", "warning");
+    return;
+  }
+
+  var duplicate = (window.productVariants || []).some(function (v) {
+    return v.name.toLowerCase() === name.toLowerCase();
+  });
+  if (duplicate) {
+    Swal.fire("Already Added", "A variation with this name already exists.", "warning");
+    return;
+  }
+
+  var sizes = window.currentSizes.slice();
+  if (sizes.join(", ").length > 100) {
+    Swal.fire("Too Many Sizes", "Keep the sizes list under 100 characters.", "warning");
+    return;
+  }
+
+  var imageFile = window.variantImageFile;
+  window.productVariants.push({
+    name: name,
+    sizes: sizes,
+    price: price,
+    stock: stock,
+    imageFile: imageFile,
+    imageUrl: imageFile ? URL.createObjectURL(imageFile) : null,
+    keepFrom: null,
+  });
+
+  renderVariantList();
+
+  // Ready for the next variation
+  nameInput.value = "";
+  priceInput.value = "";
+  stockInput.value = "";
+  window.currentSizes = [];
+  renderSizeChips();
+  clearVariantImage();
+  nameInput.focus();
+}
+
+function removeVariant(index) {
+  window.productVariants.splice(index, 1);
+  renderVariantList();
+}
+
+function updateTotalStock() {
+  var stocksEl = document.getElementById("stocks");
+  if (!stocksEl) return;
+  var total = (window.productVariants || []).reduce(function (sum, v) {
+    return sum + (v.stock || 0);
+  }, 0);
+  stocksEl.value = total;
+}
+
+function forceVariationMode() {
+  var attr = document.getElementById("attributes_section");
+  var simple = document.getElementById("simple_price_section");
+  var stocks = document.getElementById("stocks");
+  if (attr) attr.classList.remove("d-none");
+  if (simple) simple.classList.add("d-none");
+  if (stocks) stocks.readOnly = true;
+}
+
+/* ===================== SIZE TABLE (measurements per size) ===================== */
+function cloneChart(chart) {
+  if (!chart || !Array.isArray(chart.columns) || !Array.isArray(chart.rows)) {
+    return { columns: [], rows: [] };
+  }
+  return {
+    columns: chart.columns.slice(),
+    rows: chart.rows.map(function (r) {
+      return { size: r.size, values: (r.values || []).slice() };
+    }),
+  };
+}
+
+function setSizeMsg(text) {
+  var el = document.getElementById("size_table_msg");
+  if (!el) return;
+  if (!text) {
+    el.classList.add("d-none");
+    el.textContent = "";
+  } else {
+    el.textContent = text;
+    el.classList.remove("d-none");
+  }
+}
+
+function pushDraftRow(size) {
+  size = normalizeSize(size);
+  if (!size) return false;
+  var d = window.sizeDraft;
+  var exists = d.rows.some(function (r) {
+    return r.size.toLowerCase() === size.toLowerCase();
+  });
+  if (exists) return false;
+  if (d.rows.length >= SIZE_LIMITS.rows) {
+    setSizeMsg("You can add up to " + SIZE_LIMITS.rows + " sizes.");
+    return false;
+  }
+  d.rows.push({ size: size, values: d.columns.map(function () { return ""; }) });
+  return true;
+}
+
+function collectKnownSizes() {
+  var sizes = [];
+  (window.productVariants || []).forEach(function (v) {
+    (v.sizes || []).forEach(function (s) { sizes.push(s); });
+  });
+  (window.currentSizes || []).forEach(function (s) { sizes.push(s); });
+  return sizes;
+}
+
+function initSizeDraft() {
+  window.sizeDraft = cloneChart(window.sizeChart);
+  setSizeMsg("");
+  collectKnownSizes().forEach(function (s) { pushDraftRow(s); });
+  renderSizeTable();
+}
+
+function addColumn(name) {
+  name = String(name || "").trim().replace(/\s+/g, " ").slice(0, 30);
+  if (!name) return false;
+  var d = window.sizeDraft;
+  var exists = d.columns.some(function (c) { return c.toLowerCase() === name.toLowerCase(); });
+  if (exists) return false;
+  if (d.columns.length >= SIZE_LIMITS.cols) {
+    setSizeMsg("You can add up to " + SIZE_LIMITS.cols + " measurements.");
+    return false;
+  }
+  d.columns.push(name);
+  d.rows.forEach(function (r) { r.values.push(""); });
+  return true;
+}
+
+function removeColumn(index) {
+  var d = window.sizeDraft;
+  d.columns.splice(index, 1);
+  d.rows.forEach(function (r) { r.values.splice(index, 1); });
+  setSizeMsg("");
+  renderSizeTable();
+}
+
+function togglePresetColumn(presetIndex) {
+  var name = SIZE_PRESETS[presetIndex];
+  var d = window.sizeDraft;
+  var at = d.columns.findIndex(function (c) { return c.toLowerCase() === name.toLowerCase(); });
+  setSizeMsg("");
+  if (at >= 0) removeColumn(at);
+  else {
+    addColumn(name);
+    renderSizeTable();
+  }
+}
+
+function addCustomColumn() {
+  var input = document.getElementById("size_custom_column");
+  if (!input) return;
+  setSizeMsg("");
+  if (addColumn(input.value)) input.value = "";
+  renderSizeTable();
+}
+
+function addSizeRow() {
+  var input = document.getElementById("size_new_row");
+  if (!input) return;
+  setSizeMsg("");
+  input.value.split(",").forEach(function (s) { pushDraftRow(s); });
+  input.value = "";
+  renderSizeTable();
+}
+
+function removeSizeRow(index) {
+  window.sizeDraft.rows.splice(index, 1);
+  setSizeMsg("");
+  renderSizeTable();
+}
+
+function onSizeLabelInput(rowIndex, value) {
+  window.sizeDraft.rows[rowIndex].size = String(value || "").slice(0, 20);
+}
+
+function onSizeCellInput(rowIndex, colIndex, value) {
+  window.sizeDraft.rows[rowIndex].values[colIndex] = String(value || "").slice(0, 20);
+}
+
+function renderSizeTable() {
+  var d = window.sizeDraft;
+
+  var presets = document.getElementById("size_presets");
+  if (presets) {
+    presets.innerHTML = SIZE_PRESETS.map(function (name, i) {
+      var active = d.columns.some(function (c) { return c.toLowerCase() === name.toLowerCase(); });
+      return (
+        '<button type="button" class="btn btn-sm rounded-pill ' +
+        (active ? "btn-success" : "btn-outline-success") +
+        '" onclick="togglePresetColumn(' + i + ')">' +
+        (active ? '<i class="bi bi-check-lg me-1"></i>' : "") + escapeHtml(name) + "</button>"
+      );
+    }).join("");
+  }
+
+  var host = document.getElementById("size_table_host");
+  if (!host) return;
+
+  if (!d.columns.length) {
+    host.innerHTML =
+      '<div class="ap-st-empty">Pick the measurements you want to show above (height, weight, chest…).</div>';
+    return;
+  }
+  if (!d.rows.length) {
+    host.innerHTML =
+      '<div class="ap-st-empty">No sizes yet. Add sizes to your variations, or add one below.</div>';
+    return;
+  }
+
+  var head =
+    "<th>Size</th>" +
+    d.columns.map(function (c, i) {
+      return (
+        "<th>" + escapeHtml(c) +
+        ' <button type="button" class="ap-st-th-x" onclick="removeColumn(' + i + ')" ' +
+        'aria-label="Remove ' + escapeHtml(c) + '"><i class="bi bi-x-circle-fill"></i></button></th>'
+      );
+    }).join("") +
+    "<th></th>";
+
+  var body = d.rows.map(function (row, r) {
+    var cells = d.columns.map(function (c, ci) {
+      return (
+        '<td><input type="text" class="form-control form-control-sm" maxlength="20" value="' +
+        escapeHtml(row.values[ci] || "") + '" oninput="onSizeCellInput(' + r + "," + ci +
+        ',this.value)" aria-label="' + escapeHtml(row.size + " " + c) + '"></td>'
+      );
+    }).join("");
+    return (
+      '<tr><td><input type="text" class="form-control form-control-sm fw-bold" maxlength="20" value="' +
+      escapeHtml(row.size) + '" oninput="onSizeLabelInput(' + r + ',this.value)" aria-label="Size"></td>' +
+      cells +
+      '<td class="text-end"><button type="button" class="btn btn-sm text-danger p-0" ' +
+      'onclick="removeSizeRow(' + r + ')" aria-label="Remove ' + escapeHtml(row.size) +
+      '"><i class="bi bi-trash-fill"></i></button></td></tr>'
+    );
+  }).join("");
+
+  host.innerHTML =
+    '<div class="ap-st-wrap"><table class="ap-st-table"><thead><tr>' + head +
+    "</tr></thead><tbody>" + body + "</tbody></table></div>";
+}
+
+function updateSizeSummary() {
+  var box = document.getElementById("size_table_summary");
+  var text = document.getElementById("size_table_summary_text");
+  if (!box || !text) return;
+  var chart = window.sizeChart;
+  if (!chart) {
+    box.classList.add("d-none");
+    return;
+  }
+  var rows = chart.rows.length;
+  var cols = chart.columns.length;
+  text.textContent =
+    "Size table added: " + rows + " size" + (rows === 1 ? "" : "s") + " · " +
+    cols + " measurement" + (cols === 1 ? "" : "s");
+  box.classList.remove("d-none");
+}
+
+function saveSizeTable() {
+  var d = window.sizeDraft;
+  var seen = {};
+  var rows = [];
+  d.rows.forEach(function (r) {
+    var size = normalizeSize(r.size);
+    if (!size || seen[size.toLowerCase()]) return;
+    seen[size.toLowerCase()] = true;
+    rows.push({
+      size: size,
+      values: d.columns.map(function (c, i) {
+        return String(r.values[i] || "").trim().slice(0, 20);
+      }),
+    });
+  });
+
+  if (!d.columns.length && !rows.length) {
+    window.sizeChart = null;
+  } else if (!d.columns.length || !rows.length) {
+    setSizeMsg("Add at least one measurement and one size, or use Clear table.");
+    return;
+  } else {
+    window.sizeChart = { columns: d.columns.slice(), rows: rows };
+  }
+
+  updateSizeSummary();
+  var modalEl = document.getElementById("sizeTableModal");
+  var instance = modalEl && window.bootstrap ? bootstrap.Modal.getInstance(modalEl) : null;
+  if (instance) instance.hide();
+}
+
+function clearSizeTable() {
+  window.sizeDraft = { columns: [], rows: [] };
+  setSizeMsg("Table cleared. Press Save size table to apply.");
+  renderSizeTable();
+}
+
+function clearSavedSizeTable() {
+  window.sizeChart = null;
+  updateSizeSummary();
 }
 
 /* ===================== MEETUP DAYS + TIME RANGE ===================== */
@@ -268,6 +724,58 @@ async function refreshNextProductCode() {
   }
 }
 
+/* ===================== RESET / EDIT STATE ===================== */
+function showEditingBanner(name) {
+  var banner = document.getElementById("editing_banner");
+  var label = document.getElementById("editing_name");
+  if (label) label.textContent = name || "this item";
+  if (banner) banner.classList.remove("d-none");
+}
+
+function hideEditingBanner() {
+  var banner = document.getElementById("editing_banner");
+  if (banner) banner.classList.add("d-none");
+}
+
+function resetProductFormState() {
+  var form = document.getElementById("product_form");
+  if (form) form.reset();
+
+  window.selectedFiles = [];
+  window.existingCover = null;
+  window.productVariants = [];
+  window.currentSizes = [];
+  window.variantImageFile = null;
+  window.sizeChart = null;
+  window.editingStagedId = null;
+
+  document.querySelectorAll(".meetup-day").forEach(function (cb) { cb.checked = false; });
+
+  var preview = document.getElementById("image_preview_container");
+  if (preview) preview.innerHTML = coverEmptyHtml();
+  var variantList = document.getElementById("variant_list");
+  if (variantList) variantList.innerHTML = "";
+
+  renderSizeChips();
+  clearVariantImage();
+  updateSizeSummary();
+  hideEditingBanner();
+  document.querySelectorAll(".staged-item.is-editing").forEach(function (el) {
+    el.classList.remove("is-editing");
+  });
+
+  var categoryEl = document.getElementById("category");
+  if (categoryEl) {
+    categoryEl.value = "";
+    if (typeof handleCategoryChange === "function") handleCategoryChange(categoryEl);
+  }
+}
+
+function cancelEdit() {
+  resetProductFormState();
+  refreshNextProductCode();
+}
+
 /* ===================== ADD TO STAGING ===================== */
 async function addToStaging() {
   const nameEl = document.getElementById("name");
@@ -304,15 +812,7 @@ async function addToStaging() {
     return Swal.fire("Location Required", "Please enter a campus meetup spot.", "warning");
   }
 
-  if (typeof validateMeetupDays === "function") {
-    if (!validateMeetupDays(true)) {
-      return Swal.fire(
-        "Days Required",
-        "Please select at least one available day (Mon–Sat).",
-        "warning",
-      );
-    }
-  } else if (!getSelectedMeetupDays().length) {
+  if (!validateMeetupDays(true)) {
     return Swal.fire(
       "Days Required",
       "Please select at least one available day (Mon–Sat).",
@@ -336,11 +836,7 @@ async function addToStaging() {
     return Swal.fire("Time Required", "Please set both From and To meetup times.", "warning");
   }
 
-  const timeValid =
-    typeof validateMeetupTimeRange === "function"
-      ? validateMeetupTimeRange(true)
-      : true;
-  if (!timeValid) {
+  if (!validateMeetupTimeRange(true)) {
     return Swal.fire(
       "Invalid Time Range",
       "Time must be between 7:00 AM and 9:00 PM, and From must be earlier than To.",
@@ -361,23 +857,34 @@ async function addToStaging() {
     );
   }
 
-  let finalPrice, finalStocks;
+  // ---------- variations (or a single "Standard" variation for simple items) ----------
+  let variants, finalPrice, finalStocks;
   if (isVariantMode) {
     if (!window.productVariants || window.productVariants.length === 0) {
-      return Swal.fire("Variations Required", "Please add at least one variety.", "warning");
+      return Swal.fire("Variations Required", "Please add at least one variation.", "warning");
     }
-    finalPrice = window.productVariants[0].price;
-    finalStocks = window.productVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
+    variants = window.productVariants;
+    finalPrice = variants[0].price;
+    finalStocks = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
   } else {
-    finalPrice = priceEl?.value || 0;
-    finalStocks = stocksEl?.value || 0;
+    const price = parseFloat(priceEl && priceEl.value);
+    const stock = parseInt(stocksEl && stocksEl.value, 10);
+    if (!(price > 0)) {
+      if (priceEl) { priceEl.classList.add("is-invalid"); priceEl.focus(); }
+      return Swal.fire("Price Required", "Please enter a price greater than 0.", "warning");
+    }
+    if (Number.isNaN(stock) || stock < 0) {
+      if (stocksEl) { stocksEl.classList.add("is-invalid"); stocksEl.focus(); }
+      return Swal.fire("Stock Required", "Please enter how many items are available.", "warning");
+    }
+    variants = [{ name: "Standard", sizes: [], price: price, stock: stock, imageFile: null, keepFrom: null }];
+    finalPrice = price;
+    finalStocks = stock;
   }
 
-  // At least one image (new or existing)
-  const hasExistingImages =
-    document.querySelectorAll("#image_preview_container .preview-wrapper[data-existing='1']").length > 0;
-  if ((!window.selectedFiles || window.selectedFiles.length === 0) && !hasExistingImages) {
-    return Swal.fire("Photos Required", "Please select at least one photo.", "warning");
+  // ---------- cover photo ----------
+  if (!window.selectedFiles.length && !window.existingCover) {
+    return Swal.fire("Cover Photo Required", "Please add a cover photo.", "warning");
   }
 
   const categoryId = categoryEl ? categoryEl.value : "";
@@ -404,15 +911,31 @@ async function addToStaging() {
 
   const paymentEl = document.querySelector('input[name="payment"]:checked');
   formData.append("payment", paymentEl ? paymentEl.value : "COP");
-  formData.append("variants", JSON.stringify(window.productVariants || []));
 
-  // Existing image IDs to keep (edit mode)
-  if (window.existingImageUrls && window.existingImageUrls.length) {
-    formData.append(
-      "keep_image_ids",
-      JSON.stringify(window.existingImageUrls.map((i) => i.id).filter(Boolean)),
-    );
+  formData.append(
+    "variants",
+    JSON.stringify(
+      variants.map((v) => ({
+        name: v.name,
+        sizes: v.sizes || [],
+        price: v.price,
+        stock: v.stock,
+        keepFrom: v.keepFrom || null,
+      })),
+    ),
+  );
+  variants.forEach((v, i) => {
+    if (v.imageFile) formData.append("variant_image_" + i, v.imageFile);
+  });
+
+  if (window.selectedFiles[0]) {
+    formData.append("cover", window.selectedFiles[0]);
+  } else if (window.existingCover) {
+    formData.append("keep_cover_id", window.existingCover.id);
   }
+
+  if (window.sizeChart) formData.append("size_chart", JSON.stringify(window.sizeChart));
+  if (window.editingStagedId) formData.append("editing_id", window.editingStagedId);
 
   // Approval letter
   const approvalInput = document.getElementById("approval_letter");
@@ -420,23 +943,16 @@ async function addToStaging() {
     formData.append("approval_letter", approvalInput.files[0]);
   }
 
-  // New gallery images
-  window.selectedFiles.forEach((file) => {
-    formData.append("images", file);
-  });
-
   Swal.fire({
     title: "Saving to Staging...",
     allowOutsideClick: false,
     didOpen: () => Swal.showLoading(),
   });
 
-try {
+  try {
     const response = await fetch("/api/staged-product/add/", {
       method: "POST",
-      headers: {
-        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
-      },
+      headers: { "X-CSRFToken": csrfToken() },
       body: formData,
     });
 
@@ -449,7 +965,7 @@ try {
       console.error("Non-JSON response from server:", raw.slice(0, 1000));
       Swal.fire(
         "Server Error",
-        `Status ${response.status}. The server returned HTML instead of JSON.\n\nCheck the Django terminal for the traceback.`,
+        `Status ${response.status}. The server returned HTML instead of JSON.\n\nCheck the server log for the traceback.`,
         "error",
       );
       return;
@@ -471,14 +987,15 @@ try {
       window.approvalLetterOnFile = true;
     }
 
-    // Build card image
+    // Build card image from the cover preview
     const firstImg = document.querySelector("#image_preview_container img");
     const imageHtml = firstImg
-      ? `<img src="${firstImg.src}" class="rounded shadow-sm me-3" style="width:70px;height:70px;object-fit:cover;border:1px solid #dee2e6;">`
+      ? `<img src="${escapeHtml(firstImg.src)}" alt="" class="rounded shadow-sm me-3" style="width:70px;height:70px;object-fit:cover;border:1px solid #dee2e6;">`
       : `<div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width:70px;height:70px;border:1px solid #dee2e6;"><i class="bi bi-image text-muted"></i></div>`;
 
     const daysLabel = selectedDays.join(", ");
     const timeLabel = `${fromInput.value} – ${toInput.value}`;
+    const variantLabel = variants.length > 1 ? ` · ${variants.length} variations` : "";
 
     const itemCard = `
       <div class="card staged-item mb-3 p-3 bg-white border-0 shadow-sm animate__animated animate__fadeInRight" data-id="${dbId}">
@@ -486,32 +1003,38 @@ try {
           ${imageHtml}
           <div class="flex-grow-1">
             <div class="d-flex justify-content-between">
-              <h6 class="mb-0 fw-bold text-dark">${nameEl.value}</h6>
+              <h6 class="mb-0 fw-bold text-dark">${escapeHtml(nameEl.value.trim())}</h6>
               <div class="d-flex flex-column gap-2">
-                <button class="btn btn-sm text-danger p-0" onclick="removeItem(this, ${dbId})">
+                <button type="button" class="btn btn-sm text-danger p-0" onclick="removeItem(this, ${dbId})">
                   <i class="bi bi-trash-fill"></i>
                 </button>
-                <button class="btn btn-sm text-primary p-0" onclick="editItem(${dbId})">
+                <button type="button" class="btn btn-sm text-primary p-0" onclick="editItem(${dbId})">
                   <i class="bi bi-pencil-square"></i>
                 </button>
               </div>
             </div>
             <div class="mt-1">
-              <span class="badge bg-success-subtle text-success small">₱${finalPrice}</span>
-              <span class="text-muted small ms-1">Stock: ${finalStocks}</span>
+              <span class="badge bg-success-subtle text-success small">₱${Number(finalPrice).toFixed(2)}</span>
+              <span class="text-muted small ms-1">Stock: ${finalStocks}${variantLabel}</span>
               ${isPreOrder ? `<span class="badge bg-primary-subtle text-primary small ms-1">Pre-order</span>` : ""}
             </div>
           </div>
         </div>
-        <div class="small text-muted mb-2 text-truncate-2" style="font-size:0.85rem;">${descEl?.value || ""}</div>
+        <div class="small text-muted mb-2 text-truncate-2" style="font-size:0.85rem;">${escapeHtml(descEl?.value || "")}</div>
         <div class="d-flex flex-wrap gap-1 mb-2">
-          ${savedCode ? `<span class="badge bg-dark text-white fw-normal"><i class="bi bi-upc me-1"></i>${savedCode}</span>` : ""}
-          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-tag me-1"></i>${categoryName}</span>
-          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-geo-alt me-1"></i>${locationInput.value.trim()}</span>
-          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-calendar-week me-1"></i>${daysLabel}</span>
-          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-clock me-1"></i>${timeLabel}</span>
+          ${savedCode ? `<span class="badge bg-dark text-white fw-normal"><i class="bi bi-upc me-1"></i>${escapeHtml(savedCode)}</span>` : ""}
+          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-tag me-1"></i>${escapeHtml(categoryName)}</span>
+          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-geo-alt me-1"></i>${escapeHtml(locationInput.value.trim())}</span>
+          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-calendar-week me-1"></i>${escapeHtml(daysLabel)}</span>
+          <span class="badge bg-light text-dark border fw-normal"><i class="bi bi-clock me-1"></i>${escapeHtml(timeLabel)}</span>
         </div>
       </div>`;
+
+    // An edited item replaces its old card
+    if (result.replaced_id) {
+      const oldCard = document.querySelector(`.staged-item[data-id="${result.replaced_id}"]`);
+      if (oldCard) oldCard.remove();
+    }
 
     const stagingArea = document.getElementById("staging_area");
     if (stagingArea) {
@@ -522,39 +1045,11 @@ try {
     const countEl = document.getElementById("item_count");
     if (countEl) countEl.innerText = document.querySelectorAll(".staged-item").length;
 
-    // Reset form
-    const codeBeforeReset = result.next_product_code || null;
-    document.getElementById("product_form")?.reset();
-    window.selectedFiles = [];
-    window.productVariants = [];
-    window.currentSelectedImageIndex = null;
-    window.existingImageUrls = [];
-    window.editingStagedId = null;
-
-    document.querySelectorAll(".meetup-day").forEach((cb) => (cb.checked = false));
-
-    if (codeBeforeReset) {
-      setProductCodeValue(codeBeforeReset);
-    } else {
-      await refreshNextProductCode();
-    }
-
-    const previewContainer = document.getElementById("image_preview_container");
-    if (previewContainer) {
-      previewContainer.innerHTML = `
-        <div class="text-center py-5 text-muted small w-100">Item added successfully.</div>`;
-    }
-
-    const variantList = document.getElementById("variant_list");
-    if (variantList) variantList.innerHTML = "";
-
-    if (categoryEl) {
-      categoryEl.value = "";
-      if (typeof handleCategoryChange === "function") handleCategoryChange(categoryEl);
-    }
-
-    // Clear approval preview only if we already marked it on-file
-    // (the markApprovalLetterOnFile call above already handled the UI)
+    // Reset the form
+    const nextCode = result.next_product_code || null;
+    resetProductFormState();
+    if (nextCode) setProductCodeValue(nextCode);
+    else await refreshNextProductCode();
 
     Swal.fire({
       toast: true,
@@ -577,6 +1072,9 @@ async function editItem(stagedId) {
     const data = await response.json();
     if (data.error) throw new Error(data.error);
 
+    // Start clean, then fill the form. The saved item stays in the list until you
+    // press "Add to list" again (which replaces it), so cancelling loses nothing.
+    resetProductFormState();
     window.editingStagedId = stagedId;
 
     const nameEl = document.getElementById("name");
@@ -586,7 +1084,6 @@ async function editItem(stagedId) {
 
     if (data.product_code) setProductCodeValue(data.product_code);
 
-    // Category (no "other" path any more)
     const categorySelect = document.getElementById("category");
     if (categorySelect && data.category) {
       categorySelect.value = data.category;
@@ -596,10 +1093,7 @@ async function editItem(stagedId) {
     }
 
     const locationInput = document.getElementById("location_input");
-    if (locationInput) {
-      locationInput.value =
-        data.locations || data.location_options || data.meetup_locations_list || "";
-    }
+    if (locationInput) locationInput.value = data.locations || "";
 
     const days = (data.available_days || "")
       .split(",")
@@ -611,76 +1105,51 @@ async function editItem(stagedId) {
 
     const fromInput = document.getElementById("meetup_time_from");
     const toInput = document.getElementById("meetup_time_to");
-    if (fromInput && data.meetup_time_from) {
-      fromInput.value = String(data.meetup_time_from).slice(0, 5);
-    }
-    if (toInput && data.meetup_time_to) {
-      toInput.value = String(data.meetup_time_to).slice(0, 5);
-    }
+    if (fromInput && data.meetup_time_from) fromInput.value = String(data.meetup_time_from).slice(0, 5);
+    if (toInput && data.meetup_time_to) toInput.value = String(data.meetup_time_to).slice(0, 5);
 
-    // Pre-order
     const preOrderEl = document.getElementById("is_pre_order");
     if (preOrderEl) preOrderEl.checked = !!data.pre_order;
 
-    // ---------- Restore gallery images ----------
-    const container = document.getElementById("image_preview_container");
-    if (container) {
-      container.innerHTML = "";
-      window.existingImageUrls = [];
-      window.selectedFiles = [];
-
-      (data.images || []).forEach((img, idx) => {
-        window.existingImageUrls.push({
-          id: img.id,
-          url: img.url,
-          is_main: img.is_main,
-        });
-        const wrapper = document.createElement("div");
-        wrapper.className = "preview-wrapper";
-        wrapper.dataset.existing = "1";
-        wrapper.dataset.imageId = img.id || "";
-        const badge = img.is_main || idx === 0 ? '<span class="main-badge">COVER</span>' : "";
-        wrapper.innerHTML = `
-          ${badge}
-          <img src="${img.url}" class="preview-box ${img.is_main || idx === 0 ? "is-main-image" : ""}">
-        `;
-        container.appendChild(wrapper);
-      });
+    // ---------- cover ----------
+    const images = data.images || [];
+    const cover = images.find((i) => i.is_main) || images[0];
+    if (cover) {
+      window.existingCover = { id: cover.id, url: cover.url };
+      renderCover(cover.url);
     }
 
-    // ---------- Restore variants ----------
+    // ---------- variations ----------
     window.productVariants = (data.variants || []).map((v) => ({
-      name: v.variant_name || v.name,
-      price: v.price,
-      stock: v.stocks || v.stock,
-      condition: v.condition || "Brand New",
-      attribute: v.attribute_value || v.attribute || v.variant_attribute || "",
-      flaws: v.flaws || "",
-      imageIndex: v.image_index != null ? v.image_index : null,
+      name: v.variant_name,
+      sizes: splitSizes(v.attribute_value),
+      price: Number(v.price),
+      stock: Number(v.stocks),
+      imageFile: null,
       imageUrl: v.image_url || null,
+      keepFrom: v.id,
     }));
+    renderVariantList();
 
-    if (typeof renderVariantList === "function") {
-      renderVariantList();
+    const vs = window.productVariants;
+    const needsVariations = vs.length > 1 || vs.some((v) => v.sizes.length || v.imageUrl);
+    if (needsVariations) {
+      forceVariationMode();
+    } else if (vs.length === 1) {
+      const priceEl = document.getElementById("price");
+      if (priceEl) priceEl.value = vs[0].price;
     }
 
-    // Soft-delete the staged item so the user can re-add the edited version
-    await fetch(`/api/staged-product/delete/${stagedId}/`, {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
-      },
-    });
+    // ---------- size table ----------
+    window.sizeChart = data.size_chart || null;
+    updateSizeSummary();
 
+    // ---------- banner + highlight ----------
+    showEditingBanner(data.name);
     const card = document.querySelector(`.staged-item[data-id="${stagedId}"]`);
-    if (card) card.remove();
+    if (card) card.classList.add("is-editing");
 
-    const countEl = document.getElementById("item_count");
-    if (countEl) {
-      countEl.innerText = document.querySelectorAll(".staged-item").length;
-    }
-
-    document.getElementById("product_form")?.scrollIntoView({
+    document.getElementById("editing_banner")?.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
@@ -688,181 +1157,6 @@ async function editItem(stagedId) {
     console.error("Edit Error:", err);
     Swal.fire("Error", "Could not retrieve product data.", "error");
   }
-}
-
-/* ===================== VARIANT HELPERS ===================== */
-function renderVariantList() {
-  const listContainer = document.getElementById("variant_list");
-  if (!listContainer) return;
-  listContainer.innerHTML = "";
-
-  (window.productVariants || []).forEach((variant) => {
-    const div = document.createElement("div");
-    div.className =
-      "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white";
-
-    let thumbHtml = "";
-    if (variant.imageUrl) {
-      thumbHtml = `<img src="${variant.imageUrl}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
-    } else if (
-      variant.imageIndex != null &&
-      window.selectedFiles[variant.imageIndex]
-    ) {
-      const thumbUrl = URL.createObjectURL(
-        window.selectedFiles[variant.imageIndex],
-      );
-      thumbHtml = `<img src="${thumbUrl}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
-    } else if (
-      variant.imageIndex != null &&
-      window.existingImageUrls[variant.imageIndex]
-    ) {
-      thumbHtml = `<img src="${window.existingImageUrls[variant.imageIndex].url}" style="width:35px;height:35px;object-fit:cover;" class="rounded me-2 border">`;
-    }
-
-    div.innerHTML = `
-      ${thumbHtml}
-      <div class="flex-grow-1">
-        <div class="d-flex align-items-center">
-          <span class="small fw-bold text-dark">${variant.name}</span>
-          ${
-            variant.attribute
-              ? `<span class="badge bg-secondary-subtle text-secondary ms-2" style="font-size:0.6rem;">${variant.attribute}</span>`
-              : ""
-          }
-          <span class="badge bg-info-subtle text-info ms-1" style="font-size:0.6rem;">${variant.condition || ""}</span>
-        </div>
-        <div class="text-muted" style="font-size:0.7rem;">
-          ₱${variant.price} | Stock: ${variant.stock}
-          ${variant.flaws ? ` | <span class="text-danger">Flaw: ${variant.flaws}</span>` : ""}
-        </div>
-      </div>
-      <button type="button" class="btn-close" style="font-size:0.6rem;"
-              onclick="removeVariant(this, '${variant.name}')"></button>
-    `;
-    listContainer.appendChild(div);
-  });
-  updateTotalStock();
-}
-
-function addVariant() {
-  const nameInput = document.getElementById("variant_name");
-  const priceInput = document.getElementById("variant_price");
-  const stockInput = document.getElementById("variant_stock");
-  const attrInput = document.getElementById("variant_attribute");
-  const flawsInput = document.getElementById("variant_flaws");
-  const conditionSelect = document.getElementById("variant_condition");
-  const listContainer = document.getElementById("variant_list");
-
-  if (!nameInput || !stockInput || !listContainer) return;
-
-  const variantName = nameInput.value.trim();
-  const variantAttr = attrInput ? attrInput.value.trim() : "";
-  const stockValue = stockInput.value;
-
-  if (!variantName || !stockValue) {
-    Swal.fire("Missing Info", "Please provide a Variant Name and Stock.", "warning");
-    return;
-  }
-
-  const priceValue = parseFloat(priceInput?.value) || 0;
-  const conditionValue = conditionSelect ? conditionSelect.value : "Brand New";
-  const flawsValue = flawsInput ? flawsInput.value.trim() : "";
-
-  const variant = {
-    name: variantName,
-    price: priceValue,
-    stock: parseInt(stockValue, 10) || 0,
-    attribute: variantAttr,
-    condition: conditionValue,
-    flaws: flawsValue,
-    imageIndex: window.currentSelectedImageIndex,
-  };
-
-  if (!window.productVariants) window.productVariants = [];
-  window.productVariants.push(variant);
-
-  renderVariantList();
-
-  nameInput.value = "";
-  if (attrInput) attrInput.value = "";
-  if (priceInput) priceInput.value = "";
-  stockInput.value = "";
-  if (flawsInput) flawsInput.value = "";
-  if (conditionSelect) conditionSelect.value = "Brand New";
-
-  const imgBtn = document.querySelector('[onclick="openVariantImagePicker()"]');
-  if (imgBtn) imgBtn.innerHTML = `<i class="bi bi-image me-1"></i> Pick Image`;
-
-  window.currentSelectedImageIndex = null;
-}
-
-function openVariantImagePicker() {
-  const existing = window.existingImageUrls || [];
-  const newFiles = window.selectedFiles || [];
-
-  if (existing.length === 0 && newFiles.length === 0) {
-    return Swal.fire("No Photos", "Please upload product photos first!", "info");
-  }
-
-  let html = '<div class="row g-2">';
-  existing.forEach((img, index) => {
-    html += `
-      <div class="col-4">
-        <div class="position-relative">
-          <img src="${img.url}" class="img-thumbnail cursor-pointer border-2"
-               onclick="selectVariantImage(${index}, true)"
-               style="height:80px;width:100%;object-fit:cover;">
-          ${index === 0 ? '<span class="badge bg-dark position-absolute top-0 start-0 m-1" style="font-size:0.5rem;">Cover</span>' : ""}
-        </div>
-      </div>`;
-  });
-  newFiles.forEach((file, index) => {
-    const url = URL.createObjectURL(file);
-    const globalIdx = existing.length + index;
-    html += `
-      <div class="col-4">
-        <div class="position-relative">
-          <img src="${url}" class="img-thumbnail cursor-pointer border-2"
-               onclick="selectVariantImage(${globalIdx}, false)"
-               style="height:80px;width:100%;object-fit:cover;">
-        </div>
-      </div>`;
-  });
-  html += "</div>";
-
-  Swal.fire({
-    title: "Assign Image to Variant",
-    html: html,
-    showConfirmButton: false,
-    customClass: { popup: "rounded-4" },
-  });
-}
-
-function selectVariantImage(index, isExisting) {
-  window.currentSelectedImageIndex = index;
-  const btn = document.querySelector('[onclick="openVariantImagePicker()"]');
-  if (btn) {
-    btn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> Image Selected`;
-  }
-  Swal.close();
-}
-
-function removeVariant(btn, name) {
-  window.productVariants = (window.productVariants || []).filter(
-    (v) => v.name !== name,
-  );
-  if (btn && btn.parentElement) btn.parentElement.remove();
-  updateTotalStock();
-}
-
-function updateTotalStock() {
-  const stocksEl = document.getElementById("stocks");
-  if (!stocksEl) return;
-  const total = (window.productVariants || []).reduce(
-    (sum, v) => sum + (v.stock || 0),
-    0,
-  );
-  stocksEl.value = total;
 }
 
 /* ===================== PROHIBITED WORDS ===================== */
@@ -910,6 +1204,14 @@ function checkProhibitedContent(text) {
 
 /* ===================== SUBMIT TO ADMIN ===================== */
 async function submitToAdmin() {
+  if (window.editingStagedId) {
+    return Swal.fire(
+      "Finish editing first",
+      "Press Add to list to save your changes, or Cancel to discard them.",
+      "info",
+    );
+  }
+
   const stagedCount = document.querySelectorAll(".staged-item").length;
   if (stagedCount === 0) {
     return Swal.fire({
@@ -928,7 +1230,7 @@ async function submitToAdmin() {
     );
   }
 
-  const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]")?.value;
+  const csrftoken = csrfToken();
   if (!csrftoken) {
     return Swal.fire("Error", "CSRF Token missing. Check your HTML template!", "error");
   }
@@ -956,7 +1258,7 @@ async function submitToAdmin() {
   formData.append("action", "submit_staging");
   formData.append("total_products", stagedCount);
 
-  // Only send a new file if the user just selected one; otherwise backend uses the one already on the Organization
+  // Only send a new file if the user just selected one; otherwise backend uses the one already on file
   const approvalInput = document.getElementById("approval_letter");
   if (approvalInput && approvalInput.files && approvalInput.files[0]) {
     formData.append("approval_letter", approvalInput.files[0]);
@@ -999,6 +1301,9 @@ async function submitToAdmin() {
 async function removeItem(btn, productId) {
   const card = btn?.closest(".staged-item");
 
+  // If this is the item being edited, drop the edit as well
+  if (String(window.editingStagedId) === String(productId)) cancelEdit();
+
   // Optimistic UI
   if (card) card.remove();
   const remaining = document.querySelectorAll(".staged-item").length;
@@ -1016,16 +1321,14 @@ async function removeItem(btn, productId) {
   try {
     await fetch(`/api/staged-product/delete/${productId}/`, {
       method: "POST",
-      headers: {
-        "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
-      },
+      headers: { "X-CSRFToken": csrfToken() },
     });
   } catch (err) {
     console.error("Failed to delete staged product on server:", err);
   }
 }
 
-/* ===================== CATEGORY CHANGE (no "Other") ===================== */
+/* ===================== CATEGORY CHANGE ===================== */
 function handleCategoryChange(selectElement) {
   if (!selectElement || selectElement.selectedIndex === -1) {
     const attrSection = document.getElementById("attributes_section");
@@ -1055,11 +1358,9 @@ function handleCategoryChange(selectElement) {
   fetch(`/api/get-attributes/${selectedValue}/`)
     .then((response) => response.json())
     .then((data) => {
-      // Limit to the 5 most recently used attributes
+      // Limit to the 5 most recently used suggestions
       let attrs = data.attributes || [];
-      if (attrs.length > 5) {
-        attrs = attrs.slice(0, 5);
-      }
+      if (attrs.length > 5) attrs = attrs.slice(0, 5);
 
       if (attrs.length > 0) {
         if (attrSection) attrSection.classList.remove("d-none");
@@ -1076,13 +1377,11 @@ function handleCategoryChange(selectElement) {
               "btn btn-outline-success btn-sm rounded-pill px-3 suggestion-btn me-2 mb-2";
             btn.innerText = attr.value;
 
-            // *** FIX: Quick Select only fills the attribute field, NOT the variant name ***
+            // A suggestion adds a size chip to the variation being built
             btn.onclick = function () {
-              const attrField = document.getElementById("variant_attribute");
-              if (attrField) {
-                attrField.value = attr.value;
-                attrField.focus();
-              }
+              addSizeChip(attr.value);
+              const sizeInput = document.getElementById("variant_size_input");
+              if (sizeInput) sizeInput.focus();
             };
 
             suggestionButtons.appendChild(btn);
@@ -1110,28 +1409,6 @@ function handleCategoryChange(selectElement) {
     .catch((err) => {
       console.error("Error fetching attributes:", err);
     });
-}
-
-function useCustomAttribute() {
-  const input = document.getElementById("custom_attribute_input");
-  if (!input) return;
-  const val = input.value.trim();
-  if (!val) return;
-
-  let exists = false;
-  document.querySelectorAll("#suggestion_buttons .btn").forEach((btn) => {
-    if (btn.innerText === val) {
-      exists = true;
-      btn.click();
-    }
-  });
-
-  if (!exists) {
-    // Only put custom value into the attribute field
-    const attrField = document.getElementById("variant_attribute");
-    if (attrField) attrField.value = val;
-    input.value = "";
-  }
 }
 
 /* ===================== APPROVAL LETTER ===================== */
@@ -1217,7 +1494,6 @@ function markApprovalLetterOnFile(previewUrl) {
   const preview = document.getElementById("approval_preview");
   if (preview) preview.innerHTML = "";
 
-  // If the page originally showed the empty-state, inject an "on file" block
   const existingImg = section.querySelector('img[alt="Current Approval Letter"]');
   if (!existingImg && previewUrl) {
     const onFileHtml = `
@@ -1274,4 +1550,42 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".meetup-day").forEach((cb) => {
     cb.addEventListener("change", () => validateMeetupDays(true));
   });
+
+  // "Total stocks" only counts as required while it is editable (items without variations)
+  const stocks = document.getElementById("stocks");
+  const stockReq = document.getElementById("stock_required");
+  const stockHint = document.getElementById("stock_hint");
+  function syncStockLabel() {
+    const editable = stocks && !stocks.readOnly;
+    if (stockReq) stockReq.classList.toggle("d-none", !editable);
+    if (stockHint) {
+      stockHint.textContent = editable
+        ? "How many items you have in total."
+        : "Calculated automatically from your variations.";
+    }
+  }
+  if (stocks) {
+    new MutationObserver(syncStockLabel).observe(stocks, {
+      attributes: true,
+      attributeFilter: ["readonly"],
+    });
+    syncStockLabel();
+  }
+
+  // Size table dialog: load the working copy every time it opens
+  const sizeModal = document.getElementById("sizeTableModal");
+  if (sizeModal) sizeModal.addEventListener("show.bs.modal", initSizeDraft);
+
+  const customColumn = document.getElementById("size_custom_column");
+  if (customColumn) {
+    customColumn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); addCustomColumn(); }
+    });
+  }
+  const newRow = document.getElementById("size_new_row");
+  if (newRow) {
+    newRow.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); addSizeRow(); }
+    });
+  }
 });

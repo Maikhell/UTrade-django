@@ -1,7 +1,7 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}{{ shop_name }}'s Shop | UTrade{% endblock %}
+{% block title %}{% if shop_kind == 'management' %}CBRGU Official Shop{% else %}{{ shop_name }}'s Shop{% endif %} | UTrade{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'UTrade_app/css/marketplace.css' %}" />
@@ -21,7 +21,11 @@
   <section class="sf-hero" aria-label="Shop information">
     <div class="sf-cover"></div>
     <div class="sf-hero-body">
-      <img src="{{ shop_logo_url }}" class="sf-logo" alt="{{ shop_name }}">
+      {% if shop_kind == 'management' or not shop_logo_url %}
+        <div class="sf-logo sf-logo--icon" role="img" aria-label="{{ shop_name }}"><i class="bi bi-patch-check-fill"></i></div>
+      {% else %}
+        <img src="{{ shop_logo_url }}" class="sf-logo" alt="{{ shop_name }}">
+      {% endif %}
       <div class="sf-id">
         <div class="sf-name-row">
           <h1 class="sf-name">{{ shop_name }}</h1>
@@ -38,7 +42,9 @@
         {% if shop_description %}<p class="sf-desc">{{ shop_description|truncatewords:45 }}</p>{% endif %}
 
         <div class="sf-meta">
-          <span><i class="bi bi-calendar-check" aria-hidden="true"></i>{% if shop_kind == 'org' %}Established{% else %}Member since{% endif %} {{ member_since|date:"M Y" }}</span>
+          {% if member_since %}
+            <span><i class="bi bi-calendar-check" aria-hidden="true"></i>{% if shop_kind == 'org' %}Established{% else %}Member since{% endif %} {{ member_since|date:"M Y" }}</span>
+          {% endif %}
           {% if shop_org %}
             <span><i class="bi bi-diagram-3" aria-hidden="true"></i>{{ shop_org.get_org_type_display }} organization</span>
           {% endif %}
@@ -192,7 +198,7 @@
           {% endif %}
 
           {# ----- Product grid ----- #}
-          <div class="row row-cols-2 row-cols-md-3 row-cols-xl-3 g-3 g-md-4">
+          <div class="row row-cols-2 row-cols-md-3 row-cols-xl-4 g-3 g-md-4">
             {% for product in products %}
               <div class="col">
                 <article class="card mp-card h-100 position-relative">
@@ -209,7 +215,13 @@
                     {% endwith %}
 
                     <div class="mp-badges">
-                      <span class="mp-tag mp-tag--category">{{ product.category.name|default:'Item' }}</span>
+                      {% if product.seller.user_role == 'management' or product.seller.user_role == 'cbrgu_staff' or product.seller.user_role == 'admin' %}
+                        <span class="mp-tag mp-tag--official">Official</span>
+                      {% elif product.owner_type == 'ORGANIZATION' %}
+                        <span class="mp-tag mp-tag--org">{{ product.related_org.name|default:"Organization" }}</span>
+                      {% else %}
+                        <span class="mp-tag mp-tag--category">{{ product.category.name|default:'Item' }}</span>
+                      {% endif %}
                       {% if product.pre_order %}
                         <span class="mp-tag mp-tag--preorder"><i class="bi bi-clock-history"></i> Pre-order</span>
                       {% endif %}
@@ -226,6 +238,18 @@
                   </div>
 
                   <div class="card-body">
+                    {% if product.seller.user_role == 'management' or product.seller.user_role == 'cbrgu_staff' or product.seller.user_role == 'admin' %}
+                      <div class="mp-seller text-primary">
+                        <i class="bi bi-patch-check-fill"></i>
+                        {{ product.seller.organization|default:'Campus Official' }}
+                      </div>
+                    {% elif product.owner_type == 'ORGANIZATION' %}
+                      <div class="mp-seller text-info-emphasis">
+                        <i class="bi bi-people-fill"></i>
+                        {{ product.related_org.name|default:product.seller.org_link.name|default:product.seller.organization|default:'Student Org' }}
+                      </div>
+                    {% endif %}
+
                     {% if not user.is_authenticated %}
                       <a href="javascript:void(0)" onclick="showLoginPrompt()" class="stretched-link text-decoration-none">
                         <h2 class="mp-name">{{ product.name }}</h2>

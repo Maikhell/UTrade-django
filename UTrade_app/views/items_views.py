@@ -26,6 +26,7 @@ from django.db.models import Q, F, Min, Sum, Count
 
 User = get_user_model()
 
+CBRGU_ROLES = ('management', 'cbrgu_staff')
 
 def get_seller(self):
     return get_object_or_404(User, pk=self.kwargs['seller_id'])
@@ -957,6 +958,31 @@ def get_attributes(request, category_id):
     return JsonResponse({'attributes': list(attributes)})
 
 
+def _is_cbrgu(seller):
+    return getattr(seller, 'user_role', '') in CBRGU_ROLES
+ 
+ 
+def _shop_products(seller):
+    """
+    Every product that belongs to this shop.
+    CBRGU shop  -> all products listed by CBRGU members (or marked MANAGEMENT).
+    Any other   -> the seller's own products.
+    """
+    if _is_cbrgu(seller):
+        return Product.objects.filter(
+            Q(owner_type='MANAGEMENT') | Q(seller__user_role__in=CBRGU_ROLES)
+        )
+    return Product.objects.filter(seller=seller)
+ 
+ 
+def _shop_seller_reviews(seller, products):
+    if _is_cbrgu(seller):
+        return SellerReview.objects.filter(
+            Q(seller__user_role__in=CBRGU_ROLES) | Q(seller_id__in=products.values('seller_id'))
+        )
+    return SellerReview.objects.filter(seller=seller)
+ 
+ 
 def _safe_file_url(f):
     """ImageField -> url, or '' when there is no file."""
     try:
@@ -977,9 +1003,19 @@ def _shop_identity(seller):
         or str(seller.student_no)
     )
  
-    if role in ('management', 'cbrgu_staff'):
-        kind, name, tagline = 'management', full, 'Official CBRGU shop'
-    elif is_org:
+    if _is_cbrgu(seller):
+        # The CBRGU shop is shared, so it never shows one staff member's name or photo.
+        return {
+            'shop_kind': 'management',
+            'shop_name': 'CBRGU',
+            'shop_tagline': 'Official shop · all CBRGU listings',
+            'shop_description': '',
+            'shop_org': None,
+            'shop_logo_url': '',
+            'member_since': None,
+        }
+ 
+    if is_org:
         kind = 'org'
         name = org.name if org else full
         tagline = (org.full_name if org else '') or ''
@@ -987,17 +1023,14 @@ def _shop_identity(seller):
         kind, name = 'student', full
         tagline = ' · '.join(p for p in (seller.course, seller.section) if p)
  
-    logo_url = (_safe_file_url(org.logo) if (is_org and org) else '') or seller.profile_pic_url
-    member_since = org.date_created if (is_org and org) else seller.date_joined
- 
     return {
         'shop_kind': kind,
         'shop_name': name,
         'shop_tagline': tagline,
         'shop_description': (org.description if (is_org and org) else '') or '',
         'shop_org': org if is_org else None,
-        'shop_logo_url': logo_url,
-        'member_since': member_since,
+        'shop_logo_url': (_safe_file_url(org.logo) if (is_org and org) else '') or seller.profile_pic_url,
+        'member_since': org.date_created if (is_org and org) else seller.date_joined,
     }
  
  
@@ -1038,7 +1071,8 @@ class StorefrontView(ListView):
     def get_queryset(self):
         seller = self.get_seller()
         qs = (
-            Product.objects.filter(status='Approved', seller=seller)
+            _shop_products(seller)
+            .filter(status='Approved')
             .select_related('category', 'seller', 'related_org')
             .prefetch_related('images', 'variants')
         )
@@ -1074,6 +1108,7 @@ class StorefrontView(ListView):
         context = super().get_context_data(**kwargs)
         seller = self.get_seller()
         request = self.request
+        shop_products = _shop_products(seller)
  
         category = request.GET.get('category')
         query = (request.GET.get('q') or '').strip()
@@ -1083,7 +1118,7 @@ class StorefrontView(ListView):
  
         # ---- Filters (same names as the marketplace so marketplace.js works) ----
         context['categories'] = Category.objects.filter(
-            products__seller=seller, products__status='Approved'
+            products__in=shop_products.filter(status='Approved')
         ).distinct().order_by('name')
         context['current_category'] = category
         context['current_category_obj'] = (
@@ -1097,33 +1132,31 @@ class StorefrontView(ListView):
         params.pop('page', None)
         context['querystring'] = params.urlencode()
  
-        # ---- Shop stats ----
-        context['listings_count'] = Product.objects.filter(status='Approved', seller=seller).count()
-        context['total_sold'] = (
-            Product.objects.filter(seller=seller).aggregate(s=Sum('sold'))['s'] or 0
-        )
+        # ---- Shop stats (the whole shop: for CBRGU that is every CBRGU member) ----
+        context['listings_count'] = shop_products.filter(status='Approved').count()
+        context['total_sold'] = shop_products.aggregate(s=Sum('sold'))['s'] or 0
+ 
+        seller_reviews_qs = _shop_seller_reviews(seller, shop_products)
+        product_reviews_qs = Review.objects.filter(product__in=shop_products)
  
         seller_counts = {
             r['rating']: r['n']
-            for r in seller.seller_reviews.values('rating').annotate(n=Count('id')).order_by('rating')
+            for r in seller_reviews_qs.values('rating').annotate(n=Count('id')).order_by('rating')
         }
         product_counts = {
             r['rating']: r['n']
-            for r in Review.objects.filter(product__seller=seller)
-            .values('rating').annotate(n=Count('id')).order_by('rating')
+            for r in product_reviews_qs.values('rating').annotate(n=Count('id')).order_by('rating')
         }
         context['seller_rating'] = _rating_block(seller_counts)
         context['product_rating'] = _rating_block(product_counts)
  
         # ---- Latest reviews ----
         context['seller_reviews'] = list(
-            seller.seller_reviews.select_related('reviewer').order_by('-created_at')[:10]
+            seller_reviews_qs.select_related('reviewer').order_by('-created_at')[:10]
         )
         context['product_reviews'] = list(
-            Review.objects.filter(product__seller=seller)
-            .select_related('user', 'product')
-            .prefetch_related('media')
-            .order_by('-created_at')[:10]
+            product_reviews_qs.select_related('user', 'product')
+            .prefetch_related('media').order_by('-created_at')[:10]
         )
  
         # ---- Wishlist ----

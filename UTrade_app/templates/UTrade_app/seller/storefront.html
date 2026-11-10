@@ -13,9 +13,12 @@
 {% block content %}
 <div class="container mp-page py-3 py-md-4">
 
-  <a href="{% url 'product.list' %}" class="btn btn-outline-secondary btn-sm rounded-pill d-inline-flex align-items-center gap-2 mb-3">
-    <i class="bi bi-arrow-left" aria-hidden="true"></i><span>Back to Marketplace</span>
-  </a>
+<nav aria-label="breadcrumb" class="mb-3 mb-md-4 px-2 px-md-0">
+<a href="#" onclick="history.back(); return false;" class="ap-back">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>
+      <span>Back to Marketplace</span>
+    </a>
+</nav>
 
   {# ========== SHOP HEADER ========== #}
   <section class="sf-hero" aria-label="Shop information">
@@ -48,7 +51,6 @@
           {% if shop_org %}
             <span><i class="bi bi-diagram-3" aria-hidden="true"></i>{{ shop_org.get_org_type_display }} organization</span>
           {% endif %}
-          <span><i class="bi bi-geo-alt" aria-hidden="true"></i>Campus meet-ups only</span>
         </div>
       </div>
     </div>

@@ -4,7 +4,19 @@
   --ut-green-dark: #146c43;
   --sf-star: #f5a623;
 }
+    .ap-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #6c757d;
+      text-decoration: none;
+    }
 
+    .ap-back:hover {
+      color: var(--ut-green);
+    }
 /* ---------- Shop header ---------- */
 .sf-hero {
   margin-bottom: 1rem; background: #fff; border: 1px solid #edf0ee;

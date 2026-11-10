@@ -24,3 +24,16 @@
     transform: scale(1.05);
     border-color: #198754 !important;
 }
+    .ap-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #6c757d;
+      text-decoration: none;
+    }
+
+    .ap-back:hover {
+      color: var(--ut-green);
+    }

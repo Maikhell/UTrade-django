@@ -25,7 +25,7 @@
           <h6 class="ch-thread-name">UTrade Helper</h6>
           <span class="ch-role ch-role--bot"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>Automated</span>
         </div>
-        <p class="ch-thread-preview">Ask about orders, payments, meetups and your account.</p>
+        <p class="ch-thread-preview">{% if request.user.is_org_account or request.user.user_role == 'org_officer' %}Ask about your shop, orders, fees and your account.{% else %}Ask about orders, payments, meetups and your account.{% endif %}</p>
       </div>
       <i class="bi bi-chevron-right text-muted" aria-hidden="true"></i>
     </a>
@@ -60,7 +60,7 @@
       <div class="ch-empty">
         <i class="bi bi-chat-dots" aria-hidden="true"></i>
         <h6>No messages yet</h6>
-        <p>Open a product and choose “Chat” to start a conversation with the seller, or ask the UTrade Helper above.</p>
+        <p>{% if request.user.is_org_account or request.user.user_role == 'org_officer' %}Buyers will message you here. You can also ask the UTrade Helper above.{% else %}Open a product and choose “Chat” to start a conversation with the seller, or ask the UTrade Helper above.{% endif %}</p>
       </div>
     {% endif %}
 

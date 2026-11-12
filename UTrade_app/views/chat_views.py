@@ -304,7 +304,6 @@ def chat_view(request, conversation_id):
             'product': conversation.product,
         },
     )
-    
 @login_required
 def helper_view(request):
     """The UTrade Helper page. ?product=<id> adds the 'About this item' questions."""
@@ -317,7 +316,10 @@ def helper_view(request):
         )
     return render(request, 'UTrade_app/chat/helper.html', {
         'product': product,
-        'menu': chat_bot.build_menu(product is not None),
+        # Only the questions this account type may ask (students buy only,
+        # organization accounts sell only).
+        'menu': chat_bot.build_menu(request.user, product is not None),
+        'helper_intro': chat_bot.intro_for(request.user),
     })
  
  
@@ -338,3 +340,4 @@ def helper_answer(request):
     if result is None:
         return JsonResponse({'success': False, 'message': 'Unknown question.'}, status=400)
     return JsonResponse({'success': True, **result})
+ 

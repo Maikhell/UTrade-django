@@ -52,7 +52,7 @@
         <div class="ch-msg">
           <span class="ch-sender">UTrade Helper</span>
           <div class="ch-bubble">
-            <span class="ch-bot-text">Hi{% if user.first_name %} {{ user.first_name }}{% endif %}! I'm the UTrade Helper. I can answer common questions about orders, meetups, selling and your account.{% if product %} I can also tell you about <strong>{{ product.name }}</strong>.{% endif %}
+            <span class="ch-bot-text">Hi{% if user.first_name %} {{ user.first_name }}{% endif %}! I'm the UTrade Helper. {{ helper_intro }}{% if product %} I can also tell you about <strong>{{ product.name }}</strong>.{% endif %}
 
 Choose a topic below to begin.</span>
           </div>

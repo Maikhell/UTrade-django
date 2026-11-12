@@ -86,7 +86,8 @@ urlpatterns = [
     path('start_chat/<int:product_id>/', chat_views.start_chat, name='start_chat'),
     path('chat/upload/', chat_views.upload_chat_attachment, name='chat_upload'),
     path('chat/report/<int:conversation_id>/', chat_views.report_conversation, name='chat.report'),
-
+    path('helper/', chat_views.helper_view, name='chat_helper'),
+    path('helper/answer/', chat_views.helper_answer, name='chat_helper_answer'),
     # =========================================================================
     # Admin (Campus Administration)
     # =========================================================================

@@ -1,0 +1,234 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static l10n %}
+
+{% block title %}UTrade Helper{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'UTrade_app/css/chat.css' %}">
+{% csrf_token %}
+
+<div class="container py-3">
+  <div class="ch-wrap">
+
+    <!-- Header -->
+    <div class="ch-card">
+      <div class="ch-head">
+        <div class="ch-head-left">
+          <a href="{% url 'inbox' %}" class="ch-head-back" aria-label="Back to inbox">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          </a>
+          <span class="ch-bot-avatar ch-head-avatar" aria-hidden="true"><i class="bi bi-robot"></i></span>
+          <div class="min-w-0">
+            <h1 class="ch-head-name">UTrade Helper</h1>
+            <div class="ch-head-sub">
+              <span class="ch-role ch-role--bot"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>Automated</span>
+              <small class="text-muted">Pick a question, get an instant answer</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if product %}
+      <a href="{% url 'product.detail' product.id %}" class="ch-product">
+        <div class="ch-product-thumb">
+          {% if product.images.first %}
+            <img src="{{ product.images.first.image.url }}" alt="">
+          {% elif product.image %}
+            <img src="{{ product.image.url }}" alt="">
+          {% endif %}
+        </div>
+        <div class="min-w-0">
+          <span class="ch-product-label">Asking about</span>
+          <span class="ch-product-name">{{ product.name }}</span>
+        </div>
+      </a>
+      {% endif %}
+    </div>
+
+    <!-- Conversation -->
+    <div id="helper-log" class="ch-log ch-log--helper" role="log" aria-live="polite" aria-relevant="additions">
+      <div class="ch-row ch-row--bot">
+        <span class="ch-bot-avatar ch-bot-avatar--sm" aria-hidden="true"><i class="bi bi-robot"></i></span>
+        <div class="ch-msg">
+          <span class="ch-sender">UTrade Helper</span>
+          <div class="ch-bubble">
+            <span class="ch-bot-text">Hi{% if user.first_name %} {{ user.first_name }}{% endif %}! I'm the UTrade Helper. I can answer common questions about orders, meetups, selling and your account.{% if product %} I can also tell you about <strong>{{ product.name }}</strong>.{% endif %}
+
+Choose a topic below to begin.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Choices (replaces the message box: only predetermined questions) -->
+    <div class="ch-choices" id="helper-choices" aria-label="Choose a question"></div>
+
+  </div>
+</div>
+
+{{ menu|json_script:"helper-menu" }}
+
+<script>
+(function () {
+  const menu = JSON.parse(document.getElementById('helper-menu').textContent);
+  const productId = "{% if product %}{{ product.id|unlocalize }}{% endif %}";
+  const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const answerUrl = "{% url 'chat_helper_answer' %}";
+  const inboxUrl = "{% url 'inbox' %}";
+
+  const log = document.getElementById('helper-log');
+  const choices = document.getElementById('helper-choices');
+  let busy = false;
+
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function icon(name) {
+    const i = el('i', 'bi ' + name);
+    i.setAttribute('aria-hidden', 'true');
+    return i;
+  }
+  function scrollDown() { log.scrollTop = log.scrollHeight; }
+
+  // ---- Bubbles (all text set with textContent, so nothing can inject HTML) ----
+  function userBubble(text) {
+    const row = el('div', 'ch-row ch-row--me');
+    const msg = el('div', 'ch-msg');
+    msg.appendChild(el('span', 'ch-sender', 'You'));
+    const bubble = el('div', 'ch-bubble');
+    bubble.appendChild(el('span', 'message-content', text));
+    msg.appendChild(bubble);
+    row.appendChild(msg);
+    log.appendChild(row);
+    scrollDown();
+  }
+
+  function botRow() {
+    const row = el('div', 'ch-row ch-row--bot');
+    const av = el('span', 'ch-bot-avatar ch-bot-avatar--sm');
+    av.setAttribute('aria-hidden', 'true');
+    av.appendChild(icon('bi-robot'));
+    const msg = el('div', 'ch-msg');
+    msg.appendChild(el('span', 'ch-sender', 'UTrade Helper'));
+    row.appendChild(av);
+    row.appendChild(msg);
+    return { row: row, msg: msg };
+  }
+
+  function typing() {
+    const b = botRow();
+    const bubble = el('div', 'ch-bubble');
+    const dots = el('span', 'ch-typing');
+    dots.setAttribute('aria-label', 'Helper is typing');
+    for (let i = 0; i < 3; i++) dots.appendChild(el('span'));
+    bubble.appendChild(dots);
+    b.msg.appendChild(bubble);
+    log.appendChild(b.row);
+    scrollDown();
+    return b.row;
+  }
+
+  function botBubble(text, links) {
+    const b = botRow();
+    const bubble = el('div', 'ch-bubble');
+    bubble.appendChild(el('span', 'ch-bot-text', text));
+
+    if (links && links.length) {
+      const wrap = el('div', 'ch-bot-links');
+      links.forEach(function (l) {
+        if (!l.url || l.url.charAt(0) !== '/') return;      // internal links only
+        const a = el('a', 'ch-bot-link');
+        a.href = l.url;
+        a.appendChild(icon(l.icon || 'bi-box-arrow-up-right'));
+        a.appendChild(document.createTextNode(l.label));
+        wrap.appendChild(a);
+      });
+      if (wrap.childNodes.length) bubble.appendChild(wrap);
+    }
+    b.msg.appendChild(bubble);
+    log.appendChild(b.row);
+    scrollDown();
+  }
+
+  // ---- Choice panel ----
+  function chipButton(label, iconName, onClick, extraClass) {
+    const b = el('button', 'ch-chip-btn' + (extraClass ? ' ' + extraClass : ''));
+    b.type = 'button';
+    if (iconName) b.appendChild(icon(iconName));
+    b.appendChild(document.createTextNode(label));
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function showTopics(title) {
+    choices.innerHTML = '';
+    choices.appendChild(el('p', 'ch-choices-title', title || 'Choose a topic'));
+    const list = el('div', 'ch-chip-list');
+    menu.forEach(function (t) {
+      list.appendChild(chipButton(t.title, t.icon, function () { showQuestions(t); }));
+    });
+    choices.appendChild(list);
+    choices.appendChild(footer());
+  }
+
+  function showQuestions(topic) {
+    choices.innerHTML = '';
+    const head = el('div', 'ch-choices-head');
+    head.appendChild(chipButton('Topics', 'bi-arrow-left', function () { showTopics(); }, 'ch-chip-btn--back'));
+    head.appendChild(el('p', 'ch-choices-title mb-0', topic.title));
+    choices.appendChild(head);
+
+    const list = el('div', 'ch-chip-list');
+    topic.questions.forEach(function (q) {
+      list.appendChild(chipButton(q.text, null, function () { ask(q); }));
+    });
+    choices.appendChild(list);
+    choices.appendChild(footer());
+  }
+
+  function footer() {
+    const f = el('p', 'ch-choices-foot');
+    f.appendChild(document.createTextNode('Need a person? '));
+    const a = el('a', null, 'Open your messages');
+    a.href = inboxUrl;
+    f.appendChild(a);
+    f.appendChild(document.createTextNode(' to chat with a seller or CBRGU.'));
+    return f;
+  }
+
+  // ---- Ask ----
+  async function ask(q) {
+    if (busy) return;
+    busy = true;
+    choices.classList.add('is-busy');
+    userBubble(q.text);
+    const t = typing();
+
+    let reply = { text: 'Sorry, I could not answer that right now. Please try again.', links: [] };
+    try {
+      const res = await fetch(answerUrl, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question_id: q.id, product_id: productId })
+      });
+      const data = await res.json();
+      if (data.success) reply = data;
+    } catch (e) { /* keep the fallback message */ }
+
+    // Short pause so the typing dots are visible
+    setTimeout(function () {
+      t.remove();
+      botBubble(reply.text, reply.links);
+      showTopics('Anything else? Choose a topic');
+      choices.classList.remove('is-busy');
+      busy = false;
+    }, 450);
+  }
+
+  showTopics();
+})();
+</script>
+{% endblock %}

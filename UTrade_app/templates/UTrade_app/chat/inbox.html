@@ -17,6 +17,19 @@
       <p class="ch-page-sub">Your conversations with sellers, buyers, and CBRGU.</p>
     </div>
 
+    {# ---- Pinned: UTrade Helper (always first, not affected by the search box) ---- #}
+    <a href="{% url 'chat_helper' %}" class="ch-card ch-bot-row" aria-label="Open UTrade Helper">
+      <span class="ch-bot-avatar ch-bot-avatar--lg" aria-hidden="true"><i class="bi bi-robot"></i></span>
+      <div class="ch-thread-main">
+        <div class="ch-thread-top">
+          <h6 class="ch-thread-name">UTrade Helper</h6>
+          <span class="ch-role ch-role--bot"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>Automated</span>
+        </div>
+        <p class="ch-thread-preview">Ask about orders, payments, meetups and your account.</p>
+      </div>
+      <i class="bi bi-chevron-right text-muted" aria-hidden="true"></i>
+    </a>
+
     {% if conversations %}
       <div class="ch-search">
         <i class="bi bi-search" aria-hidden="true"></i>
@@ -47,7 +60,7 @@
       <div class="ch-empty">
         <i class="bi bi-chat-dots" aria-hidden="true"></i>
         <h6>No messages yet</h6>
-        <p>Open a product and choose “Chat” to start a conversation with the seller.</p>
+        <p>Open a product and choose “Chat” to start a conversation with the seller, or ask the UTrade Helper above.</p>
       </div>
     {% endif %}
 

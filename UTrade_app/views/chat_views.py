@@ -12,6 +12,7 @@ from django.shortcuts import get_object_or_404, redirect
 import cloudinary.uploader
 from django.conf import settings
 
+from .. import chat_bot
 from ..models import Conversation, ChatMessage, UserReport, User, Product
 from ..utils import log_action
 
@@ -303,3 +304,37 @@ def chat_view(request, conversation_id):
             'product': conversation.product,
         },
     )
+    
+@login_required
+def helper_view(request):
+    """The UTrade Helper page. ?product=<id> adds the 'About this item' questions."""
+    product = None
+    pid = request.GET.get('product')
+    if pid and pid.isdigit():
+        product = (
+            Product.objects.select_related('seller')
+            .prefetch_related('images').filter(pk=int(pid)).first()
+        )
+    return render(request, 'UTrade_app/chat/helper.html', {
+        'product': product,
+        'menu': chat_bot.build_menu(product is not None),
+    })
+ 
+ 
+@login_required
+@require_POST
+def helper_answer(request):
+    """Answer one predetermined question. Only known question ids are accepted."""
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
+ 
+    result = chat_bot.answer(
+        (data.get('question_id') or '').strip(),
+        request.user,
+        data.get('product_id'),
+    )
+    if result is None:
+        return JsonResponse({'success': False, 'message': 'Unknown question.'}, status=400)
+    return JsonResponse({'success': True, **result})

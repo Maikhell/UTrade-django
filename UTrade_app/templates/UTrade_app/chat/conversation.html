@@ -30,7 +30,12 @@
             </div>
           </div>
         </div>
-
+        {% if conversation.product %}
+          <a href="{% url 'chat_helper' %}?product={{ conversation.product.id }}"
+            class="btn btn-outline-success btn-sm ch-head-btn px-3 me-1" aria-label="Ask the UTrade Helper">
+            <i class="bi bi-robot me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Ask Helper</span>
+          </a>
+        {% endif %}
         <button type="button" class="btn btn-outline-danger btn-sm ch-head-btn px-3" onclick="reportUser()" aria-label="Report user">
           <i class="bi bi-flag-fill me-1" aria-hidden="true"></i><span class="d-none d-sm-inline">Report user</span>
         </button>

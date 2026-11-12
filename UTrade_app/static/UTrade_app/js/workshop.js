@@ -13,7 +13,9 @@ if (typeof window.itemCount === "undefined") {
   window.sizeChart = null; // { columns: [], rows: [{ size, values: [] }] }
   window.sizeDraft = { columns: [], rows: [] }; // working copy inside the size table dialog
   window.currentSizes = []; // size chips in the variation form
-  window.variantImageFile = null;
+  window.variantImageFile = null; // a newly chosen image in the variation form
+  window.variantImageKeep = null; // { url, keepFrom }: the saved image of the variation being edited
+  window.editingVariantIndex = null; // index of the variation being edited in the form
   // Session flag for approval letter (true if already on file or uploaded this session)
   window.approvalLetterOnFile = !!document.querySelector(
     '#approval_letter_section img[alt="Current Approval Letter"]'
@@ -26,6 +28,7 @@ var SIZE_PRESETS = [
   "Shoulder (cm)", "Sleeve (cm)", "Length (cm)", "Foot length (cm)",
 ];
 var SIZE_LIMITS = { rows: 20, cols: 8 };
+var EMPTY_VARIANT_FORM = JSON.stringify(["", "", "", [], ""]);
 
 /* ===================== SMALL HELPERS ===================== */
 function escapeHtml(value) {
@@ -60,6 +63,10 @@ function checkImageFile(file, label) {
     return false;
   }
   return true;
+}
+
+function isBlobUrl(url) {
+  return typeof url === "string" && url.indexOf("blob:") === 0;
 }
 
 async function loadProhibitedWords() {
@@ -168,14 +175,26 @@ function handleSizeKey(event) {
 }
 
 /* ===================== VARIANT IMAGE ===================== */
-function clearVariantImage() {
-  window.variantImageFile = null;
+function resetVariantImageUi() {
   var input = document.getElementById("variant_image_input");
   if (input) input.value = "";
   var preview = document.getElementById("variant_image_preview");
   if (preview) preview.innerHTML = '<i class="bi bi-image"></i>';
   var clear = document.getElementById("variant_image_clear");
   if (clear) clear.classList.add("d-none");
+}
+
+function showVariantImagePreview(src) {
+  var preview = document.getElementById("variant_image_preview");
+  if (preview) preview.innerHTML = '<img src="' + escapeHtml(src) + '" alt="">';
+  var clear = document.getElementById("variant_image_clear");
+  if (clear) clear.classList.remove("d-none");
+}
+
+function clearVariantImage() {
+  window.variantImageFile = null;
+  window.variantImageKeep = null;
+  resetVariantImageUi();
 }
 
 function previewVariantImage(event) {
@@ -187,17 +206,77 @@ function previewVariantImage(event) {
     return;
   }
   window.variantImageFile = file;
+  window.variantImageKeep = null;
   var reader = new FileReader();
   reader.onload = function (e) {
-    var preview = document.getElementById("variant_image_preview");
-    if (preview) preview.innerHTML = '<img src="' + escapeHtml(e.target.result) + '" alt="">';
-    var clear = document.getElementById("variant_image_clear");
-    if (clear) clear.classList.remove("d-none");
+    showVariantImagePreview(e.target.result);
   };
   reader.readAsDataURL(file);
 }
 
 /* ===================== VARIANTS ===================== */
+function variantFormSnapshot() {
+  function val(id) {
+    var el = document.getElementById(id);
+    return el ? el.value.trim() : "";
+  }
+  var sizes = window.currentSizes.concat(splitSizes(val("variant_size_input")));
+  var image = window.variantImageFile
+    ? "new:" + window.variantImageFile.name + ":" + window.variantImageFile.size
+    : window.variantImageKeep
+      ? "keep:" + window.variantImageKeep.keepFrom
+      : "";
+  return JSON.stringify([val("variant_name"), val("variant_price"), val("variant_stock"), sizes, image]);
+}
+
+function variantSnapshot(v) {
+  var image = v.imageFile
+    ? "new:" + v.imageFile.name + ":" + v.imageFile.size
+    : v.keepFrom
+      ? "keep:" + v.keepFrom
+      : "";
+  return JSON.stringify([v.name, String(v.price), String(v.stock), v.sizes || [], image]);
+}
+
+/** True when the variation form holds changes that haven't been saved/added yet. */
+function isVariantFormDirty() {
+  var current = variantFormSnapshot();
+  if (window.editingVariantIndex !== null) {
+    var editing = window.productVariants[window.editingVariantIndex];
+    return !editing || current !== variantSnapshot(editing);
+  }
+  return current !== EMPTY_VARIANT_FORM;
+}
+
+function setVariantFormMode(variantName) {
+  var editing = variantName != null;
+  var note = document.getElementById("variant_editing_note");
+  var noteName = document.getElementById("variant_editing_name");
+  var cancel = document.getElementById("variant_cancel_btn");
+  var label = document.getElementById("variant_submit_label");
+  var icon = document.getElementById("variant_submit_icon");
+  if (note) note.classList.toggle("d-none", !editing);
+  if (noteName) noteName.textContent = editing ? variantName : "";
+  if (cancel) cancel.classList.toggle("d-none", !editing);
+  if (label) label.textContent = editing ? "Save changes" : "Add Variant";
+  if (icon) icon.className = editing ? "bi bi-check-circle me-1" : "bi bi-plus-circle me-1";
+}
+
+function resetVariantForm() {
+  window.editingVariantIndex = null;
+  ["variant_name", "variant_price", "variant_stock", "variant_size_input"].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.value = "";
+      el.classList.remove("is-invalid");
+    }
+  });
+  window.currentSizes = [];
+  renderSizeChips();
+  clearVariantImage();
+  setVariantFormMode(null);
+}
+
 function renderVariantList() {
   var list = document.getElementById("variant_list");
   if (!list) return;
@@ -205,8 +284,10 @@ function renderVariantList() {
 
   (window.productVariants || []).forEach(function (variant, index) {
     var div = document.createElement("div");
+    var editing = window.editingVariantIndex === index;
     div.className =
-      "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white";
+      "variant-card d-flex align-items-center p-2 mb-2 rounded shadow-sm border bg-white" +
+      (editing ? " is-editing" : "");
 
     var thumb = variant.imageUrl
       ? '<img src="' + escapeHtml(variant.imageUrl) + '" class="ap-vthumb rounded me-2 border" alt="">'
@@ -226,13 +307,17 @@ function renderVariantList() {
       '<div class="text-muted" style="font-size:0.75rem;">₱' +
       Number(variant.price).toFixed(2) + " | Stock: " + variant.stock + "</div>" +
       "</div>" +
+      '<button type="button" class="btn btn-sm text-success p-1 me-1" ' +
+      'aria-label="Edit ' + escapeHtml(variant.name) + '" onclick="editVariant(' + index + ')">' +
+      '<i class="bi bi-pencil-square"></i></button>' +
       '<button type="button" class="btn-close" style="font-size:0.6rem;" ' +
-      'aria-label="Remove variation" onclick="removeVariant(' + index + ')"></button>';
+      'aria-label="Remove ' + escapeHtml(variant.name) + '" onclick="removeVariant(' + index + ')"></button>';
     list.appendChild(div);
   });
   updateTotalStock();
 }
 
+/** Add a new variation, or save changes to the one being edited. */
 function addVariant() {
   commitSizeInput(); // include a size that was typed but not confirmed yet
 
@@ -262,8 +347,9 @@ function addVariant() {
     return;
   }
 
-  var duplicate = (window.productVariants || []).some(function (v) {
-    return v.name.toLowerCase() === name.toLowerCase();
+  var editIndex = window.editingVariantIndex;
+  var duplicate = (window.productVariants || []).some(function (v, i) {
+    return i !== editIndex && v.name.toLowerCase() === name.toLowerCase();
   });
   if (duplicate) {
     Swal.fire("Already Added", "A variation with this name already exists.", "warning");
@@ -276,31 +362,126 @@ function addVariant() {
     return;
   }
 
+  var previous = editIndex !== null ? window.productVariants[editIndex] : null;
+
+  // Image: a new file, the saved image of the variation being edited, or none
   var imageFile = window.variantImageFile;
-  window.productVariants.push({
+  var imageUrl = null;
+  var keepFrom = null;
+  if (imageFile) {
+    imageUrl =
+      previous && previous.imageFile === imageFile ? previous.imageUrl : URL.createObjectURL(imageFile);
+  } else if (window.variantImageKeep) {
+    imageUrl = window.variantImageKeep.url;
+    keepFrom = window.variantImageKeep.keepFrom;
+  }
+
+  // Free the old preview if it was replaced or removed
+  if (previous && previous.imageFile && previous.imageFile !== imageFile && isBlobUrl(previous.imageUrl)) {
+    URL.revokeObjectURL(previous.imageUrl);
+  }
+
+  var variant = {
     name: name,
     sizes: sizes,
     price: price,
     stock: stock,
     imageFile: imageFile,
-    imageUrl: imageFile ? URL.createObjectURL(imageFile) : null,
-    keepFrom: null,
-  });
+    imageUrl: imageUrl,
+    keepFrom: keepFrom,
+  };
 
+  if (previous) {
+    window.productVariants[editIndex] = variant;
+    Swal.fire({
+      toast: true,
+      position: "top-end",
+      icon: "success",
+      title: "Variation updated",
+      showConfirmButton: false,
+      timer: 1500,
+    });
+  } else {
+    window.productVariants.push(variant);
+  }
+
+  resetVariantForm();
+  renderVariantList();
+  nameInput.focus({ preventScroll: true });
+}
+
+/** Load a variation back into the form so it can be changed. */
+async function editVariant(index) {
+  var variant = (window.productVariants || [])[index];
+  if (!variant || window.editingVariantIndex === index) return;
+
+  if (isVariantFormDirty()) {
+    var switching = window.editingVariantIndex !== null;
+    var answer = await Swal.fire({
+      title: switching ? "Discard your changes?" : "Replace what you've typed?",
+      text: switching
+        ? "You have unsaved changes to the variation you were editing."
+        : "The variation you started typing hasn't been added yet.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#198754",
+      confirmButtonText: "Edit this one",
+      cancelButtonText: "Keep typing",
+    });
+    if (!answer.isConfirmed) return;
+  }
+
+  window.editingVariantIndex = index;
+
+  var nameEl = document.getElementById("variant_name");
+  var priceEl = document.getElementById("variant_price");
+  var stockEl = document.getElementById("variant_stock");
+  var sizeInput = document.getElementById("variant_size_input");
+  [nameEl, priceEl, stockEl].forEach(function (el) {
+    if (el) el.classList.remove("is-invalid");
+  });
+  if (nameEl) nameEl.value = variant.name;
+  if (priceEl) priceEl.value = variant.price;
+  if (stockEl) stockEl.value = variant.stock;
+  if (sizeInput) sizeInput.value = "";
+
+  window.currentSizes = (variant.sizes || []).slice();
+  renderSizeChips();
+
+  window.variantImageFile = variant.imageFile || null;
+  window.variantImageKeep =
+    !variant.imageFile && variant.keepFrom && variant.imageUrl
+      ? { url: variant.imageUrl, keepFrom: variant.keepFrom }
+      : null;
+  resetVariantImageUi();
+  if (variant.imageUrl) showVariantImagePreview(variant.imageUrl);
+
+  setVariantFormMode(variant.name);
   renderVariantList();
 
-  // Ready for the next variation
-  nameInput.value = "";
-  priceInput.value = "";
-  stockInput.value = "";
-  window.currentSizes = [];
-  renderSizeChips();
-  clearVariantImage();
-  nameInput.focus();
+  if (nameEl) {
+    nameEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    nameEl.focus({ preventScroll: true });
+  }
+}
+
+function cancelVariantEdit() {
+  resetVariantForm();
+  renderVariantList();
 }
 
 function removeVariant(index) {
+  var removed = window.productVariants[index];
+  if (removed && removed.imageFile && isBlobUrl(removed.imageUrl)) {
+    URL.revokeObjectURL(removed.imageUrl);
+  }
   window.productVariants.splice(index, 1);
+
+  if (window.editingVariantIndex === index) {
+    resetVariantForm(); // the variation being edited is gone
+  } else if (window.editingVariantIndex !== null && window.editingVariantIndex > index) {
+    window.editingVariantIndex -= 1;
+  }
   renderVariantList();
 }
 
@@ -744,8 +925,6 @@ function resetProductFormState() {
   window.selectedFiles = [];
   window.existingCover = null;
   window.productVariants = [];
-  window.currentSizes = [];
-  window.variantImageFile = null;
   window.sizeChart = null;
   window.editingStagedId = null;
 
@@ -756,8 +935,7 @@ function resetProductFormState() {
   var variantList = document.getElementById("variant_list");
   if (variantList) variantList.innerHTML = "";
 
-  renderSizeChips();
-  clearVariantImage();
+  resetVariantForm();
   updateSizeSummary();
   hideEditingBanner();
   document.querySelectorAll(".staged-item.is-editing").forEach(function (el) {
@@ -793,6 +971,15 @@ async function addToStaging() {
   const isVariantMode =
     attributesSection && !attributesSection.classList.contains("d-none");
   const isPreOrder = !!(preOrderElement && preOrderElement.checked);
+
+  // A half-finished variation edit would be lost silently, so ask for it to be saved first
+  if (isVariantMode && window.editingVariantIndex !== null) {
+    return Swal.fire(
+      "Save your variation first",
+      "You're editing a variation. Press Save changes (or Cancel) before adding the product to the list.",
+      "info",
+    );
+  }
 
   [nameEl, priceEl, stocksEl, locationInput, fromInput, toInput].forEach(
     (el) => el && el.classList.remove("is-invalid"),
@@ -1297,12 +1484,32 @@ async function submitToAdmin() {
   }
 }
 
-/* ===================== REMOVE STAGED ITEM (persistent) ===================== */
+/* ===================== REMOVE STAGED ITEM (asks first, then persists) ===================== */
 async function removeItem(btn, productId) {
   const card = btn?.closest(".staged-item");
+  const name = card?.querySelector("h6")?.textContent?.trim() || "this item";
+  const beingEdited = String(window.editingStagedId) === String(productId);
+
+  const answer = await Swal.fire({
+    title: "Remove from staging?",
+    html:
+      `<strong>${escapeHtml(name)}</strong> will be removed from your staging list.` +
+      (beingEdited
+        ? "<br>You're editing it right now, so your unsaved changes will be discarded too."
+        : "") +
+      "<br>This can't be undone.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#dc3545",
+    cancelButtonColor: "#6c757d",
+    confirmButtonText: "Yes, remove it",
+    cancelButtonText: "Keep it",
+    focusCancel: true,
+  });
+  if (!answer.isConfirmed) return;
 
   // If this is the item being edited, drop the edit as well
-  if (String(window.editingStagedId) === String(productId)) cancelEdit();
+  if (beingEdited) cancelEdit();
 
   // Optimistic UI
   if (card) card.remove();
@@ -1326,6 +1533,15 @@ async function removeItem(btn, productId) {
   } catch (err) {
     console.error("Failed to delete staged product on server:", err);
   }
+
+  Swal.fire({
+    toast: true,
+    position: "top-end",
+    icon: "success",
+    title: "Removed from staging",
+    showConfirmButton: false,
+    timer: 1500,
+  });
 }
 
 /* ===================== CATEGORY CHANGE ===================== */
@@ -1551,7 +1767,7 @@ document.addEventListener("DOMContentLoaded", () => {
     cb.addEventListener("change", () => validateMeetupDays(true));
   });
 
-  // "Total stocks" only counts as required while it is editable (items without variations)
+  // "Total stocks" only counts as required while it is editable (items without variants)
   const stocks = document.getElementById("stocks");
   const stockReq = document.getElementById("stock_required");
   const stockHint = document.getElementById("stock_hint");

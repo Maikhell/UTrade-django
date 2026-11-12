@@ -475,6 +475,25 @@
   color: #0f5132;
   font-size: 0.88rem;
 }
+/* ---------- Editing a variation ---------- */
+.variant-card.is-editing {
+  background: #f4fbf7 !important;
+  border-color: var(--ut-green) !important;
+  box-shadow: 0 0 0 2px rgba(25, 135, 84, 0.25) !important;
+}
+
+.ap-variant-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+  padding: 0.55rem 0.8rem;
+  background: #e8f5ee;
+  border: 1px solid #cfe8da;
+  border-radius: 0.7rem;
+  color: #0f5132;
+  font-size: 0.85rem;
+}
 .staged-item.is-editing { outline: 2px solid var(--ut-green); outline-offset: 2px; }
 @media (min-width: 992px) {
   .ap-staging {

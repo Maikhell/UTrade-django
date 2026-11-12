@@ -147,6 +147,7 @@
           </h2>
           <p class="ap-hint">
             Add at least one variation. Each one has its own sizes, image, price and stock.
+            Use the pencil on a variation to edit it.
           </p>
 
           <div id="size_suggestions_container" class="mb-3">
@@ -162,6 +163,12 @@
           </div>
 
           <div class="ap-variant-box">
+
+            <div id="variant_editing_note" class="ap-variant-note d-none" role="status">
+              <i class="bi bi-pencil-square"></i>
+              <span>Editing <strong id="variant_editing_name"></strong>. Save your changes or cancel.</span>
+            </div>
+
             <div class="row g-3">
               <div class="col-12">
                 <label for="variant_name" class="form-label ap-label">
@@ -233,9 +240,12 @@
               </div>
             </div>
 
-            <div class="mt-3">
-              <button type="button" class="btn btn-success w-100 fw-bold" onclick="addVariant()">
-                <i class="bi bi-plus-circle me-1"></i> Add Variant
+            <div class="mt-3 d-flex gap-2">
+              <button type="button" id="variant_cancel_btn" class="btn btn-outline-secondary d-none"
+                      onclick="cancelVariantEdit()">Cancel</button>
+              <button type="button" id="variant_submit_btn" class="btn btn-success flex-grow-1 fw-bold"
+                      onclick="addVariant()">
+                <i id="variant_submit_icon" class="bi bi-plus-circle me-1"></i><span id="variant_submit_label">Add Variant</span>
               </button>
             </div>
           </div>

@@ -146,9 +146,11 @@
                     <label class="form-label small fw-bold text-secondary">Gender <span class="text-danger">*</span></label>
                     <select name="gender" class="form-select rounded-3" required>
                       <option value="" disabled {% if not user.gender %}selected{% endif %}>Select Gender</option>
-                      <option value="Male"   {% if user.gender == "Male" %}selected{% endif %}>Male</option>
+                      <option value="Male" {% if user.gender == "Male" %}selected{% endif %}>Male</option>
                       <option value="Female" {% if user.gender == "Female" %}selected{% endif %}>Female</option>
-                      <option value="Other"  {% if user.gender == "Other" %}selected{% endif %}>Prefer not to say</option>
+                      <option value="Non-Binary" {% if user.gender == "Non-Binary" %}selected{% endif %}>Non-Binary</option>
+                      <option value="Other" {% if user.gender == "Other" %}selected{% endif %}>Other</option>
+                      <option value="Prefer not to say" {% if user.gender == "Prefer not to say" %}selected{% endif %}>Prefer not to say</option>
                     </select>
                   </div>
                 {% endif %}

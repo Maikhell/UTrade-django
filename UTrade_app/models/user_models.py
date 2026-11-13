@@ -24,6 +24,14 @@ class User(AbstractUser):
         help_text="Student number (digits) or Staff/Admin ID (alphanumeric)"
     )
     alumni = models.CharField(max_length=70, blank=True, null=True)
+    is_alumni = models.BooleanField(
+        default=False,
+        help_text="Confirmed at sign-up: the student number is old enough and they said they are an alumnus.",
+    )
+    alumni_expires_at = models.DateField(
+        null=True, blank=True,
+        help_text="Last day of alumni access (about 1 year after graduation). The account becomes inactive after this date.",
+    )
     ROLE_CHOICES = [
         ('student', 'Student'),
         ('campus_admin', 'Campus Admin'),

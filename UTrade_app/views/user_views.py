@@ -29,7 +29,6 @@ from ..utils import send_otp_email, get_seller_owner_type_filter,log_action
 from django.views.generic import (
     CreateView,
     DeleteView,
-    
     DetailView,
     ListView,
     TemplateView,
@@ -49,7 +48,10 @@ from ..models import (
     PreOrderRequest,
     ChatMessage,
 )
-
+from ..alumni_utils import (
+        ALUMNI_VALID_YEARS, MAX_ENTRY_AGE_YEARS, ACADEMIC_YEAR_END_MONTH, PROGRAM_YEARS,
+        academic_year_start, alumni_expiry, alumni_window_open, can_claim_alumni,
+    )
 REVERIFY_FIELDS = (
     ('first_name', 'First name'),
     ('last_name', 'Last name'),
@@ -65,17 +67,64 @@ def _norm(field, value):
     value = (value or '').strip()
     return value.lower() if field == 'email' else value
 
+"""
+Replace the class UserCreateView in views/user_views.py with the class below
+(from `class UserCreateView` down to, but NOT including, `class UserAccountView`),
+and replace the earlier alumni import line near the top of user_views.py with:
+
+    from ..alumni_utils import (
+        ALUMNI_VALID_YEARS, MAX_ENTRY_AGE_YEARS, ACADEMIC_YEAR_END_MONTH, PROGRAM_YEARS,
+        academic_year_start, alumni_expiry, alumni_window_open, can_claim_alumni,
+    )
+"""
+
+
 class UserCreateView(CreateView):
     model = User 
     form_class = UserRegistrationForm
     template_name = 'UTrade_app/accounts/register.html'
     success_url = reverse_lazy('verify_otp') 
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # The page's JavaScript reads these so it uses the same rules as the server.
+        context.update({
+            'program_years': PROGRAM_YEARS,
+            'alumni_valid_years': ALUMNI_VALID_YEARS,
+            'max_entry_years': MAX_ENTRY_AGE_YEARS,
+            'current_ay': academic_year_start(),
+            'ay_end_month': ACADEMIC_YEAR_END_MONTH,
+        })
+        return context
     
     def form_valid(self, form):
         user = form.save(commit=False)
-        
-        chosen_role = self.request.POST.get('user_role', 'student')
-        user.user_role = chosen_role if chosen_role in ['student', 'alumni'] else 'student'
+
+        # The sign-up dialog sends is_alumni=1 (and the older user_role=alumni).
+        # Never trust it on its own: the student number must really be that of a
+        # finished batch, and the alumni access window must still be open.
+        claims_alumni = (
+            self.request.POST.get('is_alumni') == '1'
+            or self.request.POST.get('user_role') == 'alumni'
+        )
+        user.is_alumni = False
+        user.alumni_expires_at = None
+        user.user_role = 'student'
+
+        if claims_alumni and can_claim_alumni(user.student_no):
+            if not alumni_window_open(user.student_no):
+                expiry = alumni_expiry(user.student_no)
+                form.add_error(
+                    'student_no',
+                    f"Alumni accounts stay active for {ALUMNI_VALID_YEARS} year(s) after graduation. "
+                    f"For your batch that ended on {expiry:%B %d, %Y}. "
+                    f"If you are still enrolled, choose “No, I'm still a student”.",
+                )
+                return self.form_invalid(form)
+            user.is_alumni = True
+            user.user_role = 'alumni'      # keeps the existing alumni-only features working
+            user.alumni_expires_at = alumni_expiry(user.student_no)
+
         user.is_active = False 
         user.status = 'unverified'
         

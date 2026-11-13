@@ -44,6 +44,18 @@ class Product(BaseItem):
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_listings')
     sold = models.IntegerField(default=0)
     pre_order = models.BooleanField(default=False)
+    AUDIENCE_GENERAL = 'GENERAL'
+    AUDIENCE_PRIVATE = 'PRIVATE'
+    AUDIENCE_CHOICES = [
+        (AUDIENCE_GENERAL, 'General (open to everyone)'),
+        (AUDIENCE_PRIVATE, "Private (the organization's program only)"),
+    ]
+    audience = models.CharField(
+        max_length=10,
+        choices=AUDIENCE_CHOICES,
+        default=AUDIENCE_GENERAL,
+        help_text="Private listings can only be bought by students of the selling organization's program.",
+    )
     approval_letter = models.ImageField(                 # ← new field
         upload_to='org_approval_letters/',
         blank=True,
@@ -123,7 +135,15 @@ class Product(BaseItem):
         if self.owner_type == 'ORGANIZATION' and self.related_org:
             return self.related_org.full_name
         return self.owner_name
+    @property
+    def is_private(self):
+        return self.audience == self.AUDIENCE_PRIVATE
 
+    @property
+    def restricted_course(self):
+        """Program code a private listing is limited to; None for general listings."""
+        from ..product_access import product_restriction_course
+        return product_restriction_course(self)
     def average_rating(self):
         avg = self.reviews.aggregate(Avg('rating'))['rating__avg']
         return round(avg, 1) if avg else 0.0
@@ -144,6 +164,11 @@ class StagedProduct(models.Model):
     size_chart = models.JSONField(
         null=True, blank=True,
         help_text='Size table: {"columns": ["Height (cm)"], "rows": [{"size": "S", "values": ["160"]}]}',
+    )
+    audience = models.CharField(
+        max_length=10,
+        choices=Product.AUDIENCE_CHOICES,
+        default=Product.AUDIENCE_GENERAL,
     )
     owner_type = models.CharField(max_length=15, choices=Product.OWNER_TYPE_CHOICES, default='PERSONAL')
     related_org = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True)

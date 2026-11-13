@@ -366,6 +366,22 @@
             </div>
           </div>
 
+          {# Only academic organization sellers get this (not Management, CSG or non-academic orgs) #}
+          {% if private_course %}
+          <div class="ap-option mb-3">
+            <div class="form-check form-switch mb-0">
+              <input type="checkbox" class="form-check-input" role="switch" id="is_private" name="is_private" />
+              <label class="form-check-label fw-bold" for="is_private">
+                <i class="bi bi-lock-fill me-1 text-success"></i> Private listing: {{ private_course }} students only
+              </label>
+            </div>
+            <div class="form-text mt-1">
+              Off: any student can order or pre-order this item. On: only <strong>{{ private_course }}</strong>
+              students can. Everyone can still see it in the marketplace.
+            </div>
+          </div>
+          {% endif %}
+
           {% if request.user.is_officer %}
           <div class="ap-option mb-3" id="approval_letter_section">
             <label for="approval_letter" class="form-label ap-label d-block">
@@ -444,6 +460,7 @@
                   ₱{{ first_variant.price|default:'0' }}
                   {% endwith %}
                   {% if item.product_code %}· {{ item.product_code }}{% endif %}
+                  {% if item.audience == 'PRIVATE' %}· <i class="bi bi-lock-fill"></i> Private{% endif %}
                 </div>
               </div>
             </div>

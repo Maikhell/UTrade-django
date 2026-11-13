@@ -16,6 +16,7 @@ from django.db import transaction
 from django.db.models import Sum, F
 from django.urls import reverse
 from django.utils import timezone
+from ..product_access import blocked_cart_reason, purchase_block_reason
 
 import requests
 
@@ -171,7 +172,19 @@ def add_to_cart(request, variant_id):
     if not request.user.is_authenticated:
         return JsonResponse({"success": False, "message": "Please login first"}, status=401)
 
-    variant = get_object_or_404(ProductVariant, id=variant_id)
+    variant = get_object_or_404(
+        ProductVariant.objects.select_related(
+            "product__seller__org_link",
+            "product__related_org",
+        ),
+        id=variant_id,
+    )
+
+    # Private listings: only students of the organization's program can buy them
+    reason = purchase_block_reason(request.user, variant.product)
+    if reason:
+        return JsonResponse({"success": False, "message": reason}, status=403)
+
     cart, _ = Cart.objects.get_or_create(user=request.user)
 
     cart_item, item_created = CartItem.objects.get_or_create(cart=cart, variant=variant)
@@ -278,6 +291,8 @@ def checkout_view(request):
         "variant",
         "variant__product",
         "variant__product__seller",
+        "variant__product__seller__org_link",
+        "variant__product__related_org",
         "variant__assigned_image",
     ).prefetch_related("variant__product__images")
 
@@ -292,6 +307,12 @@ def checkout_view(request):
 
     if not cart_items:
         messages.warning(request, "No items selected for checkout.")
+        return redirect("cart_detail")
+
+    # Private listings: stop before the payment step if the buyer's program doesn't match
+    blocked = blocked_cart_reason(request.user, cart_items)
+    if blocked:
+        messages.error(request, blocked)
         return redirect("cart_detail")
 
     seller_groups = _group_cart_items_by_seller(cart_items)
@@ -353,6 +374,8 @@ def place_order(request):
                     "variant",
                     "variant__product",
                     "variant__product__seller",
+                    "variant__product__seller__org_link",
+                    "variant__product__related_org",
                 )
             )
 
@@ -371,6 +394,14 @@ def place_order(request):
                     messages.info(request, "Your order was already placed. See it below.")
                     return redirect("order_history")
                 messages.error(request, "Selected items are no longer in your cart.")
+                return redirect("cart_detail")
+
+            # Private listings: only students of the organization's program can buy them.
+            # Nothing has been created or locked yet, so this is a clean stop.
+            blocked = blocked_cart_reason(request.user, cart_items)
+            if blocked:
+                logger.info("place_order blocked for user %s: %s", request.user.pk, blocked)
+                messages.error(request, blocked)
                 return redirect("cart_detail")
 
             # Lock the variant rows so stock can't be oversold by concurrent checkouts.

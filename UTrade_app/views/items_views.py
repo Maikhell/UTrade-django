@@ -23,7 +23,14 @@ from django.utils import timezone
 import re
 import json
 from django.db.models import Q, F, Min, Sum, Count
-
+from ..product_access import (
+    AUDIENCE_GENERAL,
+    AUDIENCE_PRIVATE,
+    first_purchase_block,
+    product_restriction_course,
+    purchase_block_reason,
+    seller_restriction_course,
+)
 
 User = get_user_model()
 
@@ -273,6 +280,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         ).prefetch_related('images', 'variants')
         context['next_product_code'] = generate_next_product_code()
         context['organization'] = self._get_user_organization(self.request.user)
+        context['private_course'] = seller_restriction_course(self.request.user)
         return context
 
     def is_content_prohibited(self, text):
@@ -404,6 +412,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         staged_prod, 'preferred_meetup_time_to', None
                     ),
                     size_chart=getattr(staged_prod, 'size_chart', None),
+                    audience=(
+                        getattr(staged_prod, 'audience', AUDIENCE_GENERAL)
+                        if seller_restriction_course(request.user)
+                        else AUDIENCE_GENERAL
+                    ),
                 )
 
                 # ----- Attach approval letter to the PRODUCT -----
@@ -534,7 +547,8 @@ class ProductDetailView(DetailView):
             context['in_wishlist'] = Wishlist.objects.filter(
                 user=self.request.user, product=product
             ).exists()
-
+        context['restricted_course'] = product_restriction_course(product)
+        context['purchase_block_reason'] = purchase_block_reason(self.request.user, product)
         return context
 
 
@@ -546,6 +560,15 @@ class BatchAddToCartView(LoginRequiredMixin, View):
 
             if not items:
                 return JsonResponse({'success': False, 'message': 'No items selected.'}, status=400)
+
+            # Private listings can only be bought by students of the organization's program
+            variant_ids = [i.get('variant_id') for i in items if i.get('variant_id')]
+            chosen = ProductVariant.objects.filter(id__in=variant_ids).select_related(
+                'product__seller__org_link', 'product__related_org'
+            )
+            blocked = first_purchase_block(request.user, [v.product for v in chosen])
+            if blocked:
+                return JsonResponse({'success': False, 'message': blocked}, status=403)
 
             cart, _ = Cart.objects.get_or_create(user=request.user)
 
@@ -581,6 +604,15 @@ class BatchPreOrderView(LoginRequiredMixin, View):
             if not items:
                 return JsonResponse({'success': False, 'message': 'No items selected.'}, status=400)
 
+            # Private listings can only be bought by students of the organization's program
+            variant_ids = [i.get('variant_id') for i in items if i.get('variant_id')]
+            chosen = ProductVariant.objects.filter(id__in=variant_ids).select_related(
+                'product__seller__org_link', 'product__related_org'
+            )
+            blocked = first_purchase_block(request.user, [v.product for v in chosen])
+            if blocked:
+                return JsonResponse({'success': False, 'message': blocked}, status=403)
+
             for item in items:
                 variant_id = item.get('variant_id')
                 quantity = int(item.get('quantity', 1))
@@ -610,7 +642,7 @@ class ProductListView(ListView):
     def get_queryset(self):
         queryset = (
             Product.objects.filter(status='Approved')
-            .select_related('category', 'seller', 'related_org')
+            .select_related('category', 'seller', 'related_org', 'seller__org_link')
             .prefetch_related('images', 'variants')
         )
 
@@ -919,7 +951,11 @@ def add_to_staging_ajax(request):
             category = Category.objects.filter(id=category_id).first()
 
         replaced_id = old.id if old else None
-
+        audience = AUDIENCE_GENERAL
+        if (request.POST.get('audience') or '').strip().upper() == AUDIENCE_PRIVATE:
+            if not seller_restriction_course(request.user):
+                return fail('Only academic organizations can create private listings.')
+            audience = AUDIENCE_PRIVATE
         with transaction.atomic():
             keep_cover_name = (
                 keep_cover_row.image.name if keep_cover_row and keep_cover_row.image else ''
@@ -956,6 +992,7 @@ def add_to_staging_ajax(request):
                 accepted_payments=request.POST.get('payment') or 'BOTH',
                 pre_order=str(request.POST.get('pre_order')).lower() in ['true', 'on', '1', 'yes'],
                 size_chart=_clean_size_chart(request.POST.get('size_chart')),
+                audience=audience,
             )
 
             if letter_file and hasattr(staged_prod, 'approval_letter'):
@@ -1063,6 +1100,7 @@ def get_staged_product_details(request, staged_id):
             'variants': variants,
             'images': images,
             'size_chart': product.size_chart,
+            'audience': product.audience,
             'payment': product.accepted_payments,
         }
         return JsonResponse(data)

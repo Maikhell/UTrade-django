@@ -972,6 +972,10 @@ async function addToStaging() {
     attributesSection && !attributesSection.classList.contains("d-none");
   const isPreOrder = !!(preOrderElement && preOrderElement.checked);
 
+  // Only academic organization sellers have this switch (it isn't on the page for anyone else)
+  const privateEl = document.getElementById("is_private");
+  const isPrivate = !!(privateEl && privateEl.checked);
+
   // A half-finished variation edit would be lost silently, so ask for it to be saved first
   if (isVariantMode && window.editingVariantIndex !== null) {
     return Swal.fire(
@@ -1095,6 +1099,7 @@ async function addToStaging() {
   formData.append("meetup_time_to", toInput.value);
   formData.append("owner_type", ownerTypeEl?.value || "PERSONAL");
   formData.append("pre_order", isPreOrder ? "True" : "False");
+  if (privateEl) formData.append("audience", isPrivate ? "PRIVATE" : "GENERAL");
 
   const paymentEl = document.querySelector('input[name="payment"]:checked');
   formData.append("payment", paymentEl ? paymentEl.value : "COP");
@@ -1204,6 +1209,7 @@ async function addToStaging() {
               <span class="badge bg-success-subtle text-success small">₱${Number(finalPrice).toFixed(2)}</span>
               <span class="text-muted small ms-1">Stock: ${finalStocks}${variantLabel}</span>
               ${isPreOrder ? `<span class="badge bg-primary-subtle text-primary small ms-1">Pre-order</span>` : ""}
+              ${isPrivate ? `<span class="badge bg-warning-subtle text-warning-emphasis small ms-1"><i class="bi bi-lock-fill"></i> Private</span>` : ""}
             </div>
           </div>
         </div>
@@ -1297,6 +1303,9 @@ async function editItem(stagedId) {
 
     const preOrderEl = document.getElementById("is_pre_order");
     if (preOrderEl) preOrderEl.checked = !!data.pre_order;
+
+    const privateEl = document.getElementById("is_private");
+    if (privateEl) privateEl.checked = data.audience === "PRIVATE";
 
     // ---------- cover ----------
     const images = data.images || [];

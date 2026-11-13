@@ -16,6 +16,7 @@ from ..review_media import MediaRejected, attach_media, prepare_media
 from decimal import Decimal
 from django.db.models import Prefetch, Q
 from django.utils import timezone
+from ..product_access import purchase_block_reason
 
 from ..models import (
     CartItem,
@@ -324,7 +325,14 @@ def place_order(request):
 def submit_preorder_request(request, variant_id):
     if request.method == 'POST':
         try:
-            variant = ProductVariant.objects.select_related('product', 'product__seller').get(id=variant_id)
+            variant = ProductVariant.objects.select_related(
+                'product', 'product__seller', 'product__seller__org_link', 'product__related_org'
+            ).get(id=variant_id)
+
+            # Private listings: only students of the organization's program
+            reason = purchase_block_reason(request.user, variant.product)
+            if reason:
+                return JsonResponse({'success': False, 'message': reason}, status=403)
 
             PreOrderRequest.objects.create(
                 buyer=request.user,

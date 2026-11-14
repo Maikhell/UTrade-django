@@ -1,0 +1,19 @@
+{% comment %}
+  UTrade_app/templates/UTrade_app/accounts/partials/alumni_expiry.html
+  Time-limit pill for alumni accounts. Uses the signed-in `user`; prints nothing for
+  anyone who is not an alumnus with an expiry date.
+  Colours: more than 90 days left = green, 90 days or less = amber, 30 days or less = red.
+{% endcomment %}
+{% if user.is_alumni and user.alumni_expires_at %}
+  {% with days=user.alumni_days_left %}
+  <div class="d-inline-flex flex-wrap align-items-center justify-content-center gap-2 rounded-pill px-3 py-2 small fw-semibold"
+       style="{% if days <= 30 %}background:#fdecec;color:#b02a37;{% elif days <= 90 %}background:#fff4e0;color:#8a5a00;{% else %}background:#e8f5ee;color:#146c43;{% endif %}"
+       title="Alumni accounts stay active until about a year after graduation.">
+    <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+    <span>Access until {{ user.alumni_expires_at|date:"F j, Y" }}</span>
+    <span class="fw-normal">
+      {% if days > 1 %}· {{ days }} days left{% elif days == 1 %}· 1 day left{% elif days == 0 %}· ends today{% else %}· ended{% endif %}
+    </span>
+  </div>
+  {% endwith %}
+{% endif %}

@@ -364,7 +364,8 @@ class CartItem(models.Model):
     cart = models.ForeignKey(Cart, related_name='items', on_delete=models.CASCADE)
     variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)    
     quantity = models.PositiveBigIntegerField(default=1)
-
+    size = models.CharField(max_length=30, blank=True, default='')
+    
     def get_cost(self):
         return self.variant.price * self.quantity
 
@@ -376,7 +377,8 @@ class CartItem(models.Model):
     
     @property
     def display_name(self):
-        return f"{self.variant.product.name} ({self.variant.variant_name})"
+        extra = f", {self.size}" if self.size else ""
+        return f"{self.variant.product.name} ({self.variant.variant_name}{extra})"
 class PreOrderRequest(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Incoming'),
@@ -413,6 +415,7 @@ class PreOrderRequest(models.Model):
     help_text="e.g. 1 day, 1-2 days, or custom text",
 )
     quantity = models.PositiveIntegerField(default=1)
+    size = models.CharField(max_length=30, blank=True, default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
 
     rejection_reason = models.CharField(
@@ -438,3 +441,7 @@ class PreOrderRequest(models.Model):
 
     def get_total_price(self):
         return self.product_variant.price * self.quantity
+    @property
+    def display_name(self):
+        extra = f", {self.size}" if self.size else ""
+        return f"{self.variant.product.name} ({self.variant.variant_name}{extra})"

@@ -163,7 +163,7 @@ def _decorate_order(o, scope):
         product = variant.product if variant else None
         lines.append({
             'name': product.name if product else 'Deleted product',
-            'variant': variant.variant_name if variant else '',
+                'variant': _variant_label(variant, getattr(item, 'size', '')),
             'qty': item.quantity,
             'price': item.price,
             'total': item.get_cost(),
@@ -200,7 +200,7 @@ def _decorate_preorder(po):
     buyer = po.buyer
     line = {
         'name': product.name if product else 'Deleted product',
-        'variant': variant.variant_name if variant else '',
+        'variant': _variant_label(variant, getattr(po, 'size', '')),
         'qty': po.quantity,
         'price': variant.price if variant else 0,
         'total': po.get_total_price(),
@@ -664,3 +664,9 @@ def batch(request, kind, scope):
         'message': f'{updated} {noun}(s) updated.',
         'updated': updated,
     })
+    
+def _variant_label(variant, size=''):
+    name = variant.variant_name if variant else ''
+    if size:
+        return f'{name} · Size {size}' if name else f'Size {size}'
+    return name

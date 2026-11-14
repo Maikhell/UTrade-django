@@ -1,500 +1,640 @@
-// ================= GLOBAL SAFE INIT =================
-let variantData = [];
-const variantDataElement = document.getElementById("variant-data");
-if (variantDataElement) {
-  try {
-    variantData = JSON.parse(variantDataElement.textContent);
-  } catch (e) {
-    console.error("Variant JSON parse error:", e);
+/* ===================================================================
+   Product details: gallery, variation sheet, size guide, reviews
+   =================================================================== */
+(function () {
+  "use strict";
+
+  /* ---------- helpers ---------- */
+  function byId(id) {
+    return document.getElementById(id);
   }
-}
 
-// ================= WISHLIST =================
-async function toggleWishlist(
-  productId,
-  buttonElement,
-  isWishlistPage = false,
-) {
-  if (!buttonElement || typeof buttonElement.querySelector !== "function")
-    return;
+  function esc(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
 
-  const icon = buttonElement.querySelector("i");
-  const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]")?.value;
+  function money(n) {
+    return (
+      "\u20B1" +
+      Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    );
+  }
 
-  try {
-    const response = await fetch(`/wishlist/toggle/${productId}/`, {
+  function splitSizes(text) {
+    var seen = {};
+    var out = [];
+    String(text || "")
+      .split(",")
+      .forEach(function (part) {
+        var s = part.trim().replace(/\s+/g, " ");
+        if (s && !seen[s.toLowerCase()]) {
+          seen[s.toLowerCase()] = true;
+          out.push(s);
+        }
+      });
+    return out;
+  }
+
+  function csrf() {
+    var el = document.querySelector("[name=csrfmiddlewaretoken]");
+    return el ? el.value : "";
+  }
+
+  function readJson(id) {
+    var el = byId(id);
+    if (!el) return null;
+    try {
+      return JSON.parse(el.textContent);
+    } catch (e) {
+      console.error("Could not read " + id + ":", e);
+      return null;
+    }
+  }
+
+  /* ---------- page data ---------- */
+  var root = byId("pdRoot");
+  var PRODUCT = {
+    id: root ? root.dataset.productId : "",
+    name: root ? root.dataset.productName : "",
+    preOrder: root ? root.dataset.preOrder === "1" : false,
+    totalStock: root ? parseInt(root.dataset.totalStock, 10) || 0 : 0,
+  };
+
+  var variants = (readJson("variant-data") || []).map(function (v) {
+    return {
+      id: String(v.id),
+      name: v.name || "",
+      price: parseFloat(v.price) || 0,
+      stock: parseInt(v.stock, 10) || 0,
+      sizes: splitSizes(v.attribute),
+      image: (v.image_url || "").trim(),
+      ownImage: !!v.own_image,
+      condition: v.condition || "",
+      flaws: v.flaws || "",
+    };
+  });
+  var sizeChart = readJson("size-chart-data");
+  if (!sizeChart || !sizeChart.columns || !sizeChart.rows) sizeChart = null;
+
+  var state = { isPreOrder: false, variantId: null, size: "", qty: 1 };
+  var pagePreviewId = null;
+
+  function variantById(id) {
+    for (var i = 0; i < variants.length; i++) {
+      if (variants[i].id === String(id)) return variants[i];
+    }
+    return null;
+  }
+
+  function selectedVariant() {
+    return state.variantId ? variantById(state.variantId) : null;
+  }
+
+  /* ---------- wishlist ---------- */
+  async function toggleWishlist(productId, buttonElement, isWishlistPage) {
+    if (!buttonElement || typeof buttonElement.querySelector !== "function") return;
+    var icon = buttonElement.querySelector("i");
+
+    try {
+      var response = await fetch("/wishlist/toggle/" + productId + "/", {
+        method: "POST",
+        headers: { "X-CSRFToken": csrf(), "X-Requested-With": "XMLHttpRequest" },
+      });
+      var data = await response.json();
+
+      if (data.status === "success") {
+        if (data.action === "added") {
+          icon.classList.replace("bi-heart", "bi-heart-fill");
+          Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Added to Wishlist", showConfirmButton: false, timer: 1500 });
+        } else {
+          icon.classList.replace("bi-heart-fill", "bi-heart");
+          if (isWishlistPage) {
+            var card = byId("wishlist-item-" + productId);
+            if (card) {
+              card.style.transition = "0.3s";
+              card.style.opacity = "0";
+              card.style.transform = "scale(0.9)";
+              setTimeout(function () { card.remove(); }, 300);
+            }
+          }
+          Swal.fire({ toast: true, position: "top-end", icon: "info", title: "Removed from Wishlist", showConfirmButton: false, timer: 1500 });
+        }
+      }
+    } catch (e) {
+      Swal.fire("Oops!", "Something went wrong. Are you logged in?", "error");
+    }
+  }
+
+  /* ---------- lightbox (works above the sheet too) ---------- */
+  function openLightbox(src) {
+    if (!src) return;
+    Swal.fire({
+      imageUrl: src,
+      imageAlt: "Photo",
+      showConfirmButton: false,
+      showCloseButton: true,
+      width: "auto",
+      padding: "1rem",
+      customClass: { image: "pd-lightbox-img" },
+    });
+  }
+
+  /* ---------- gallery ---------- */
+  function setMainImage(url) {
+    var img = byId("mainDisplayImage");
+    if (!img || !url || img.getAttribute("src") === url) return;
+    img.style.opacity = "0";
+    setTimeout(function () {
+      img.src = url;
+      img.style.opacity = "1";
+    }, 150);
+  }
+
+  function markThumb(url, element) {
+    var thumbs = document.querySelectorAll("#thumbGallery .pd-thumb");
+    thumbs.forEach(function (t) {
+      t.classList.toggle("active", element ? t === element : t.dataset.src === url);
+    });
+  }
+
+  function changeImage(url, element) {
+    setMainImage(url);
+    markThumb(url, element || null);
+    var match = variants.filter(function (v) {
+      return v.ownImage && v.image === url;
+    })[0];
+    if (match) previewVariant(match.id, true);
+  }
+
+  /* ---------- page: variation strip, sizes, price preview ---------- */
+  function previewVariant(id, fromImage) {
+    var v = variantById(id);
+    if (!v) return;
+    pagePreviewId = v.id;
+    var price = byId("displayPrice");
+    if (price) price.textContent = money(v.price);
+    if (!fromImage && v.image) {
+      setMainImage(v.image);
+      markThumb(v.image, null);
+    }
+    renderStrip();
+  }
+
+  function renderStrip() {
+    var wrap = byId("pdVariationWrap");
+    var strip = byId("pdVariationStrip");
+    if (!wrap || !strip) return;
+    if (variants.length < 2) {
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+    strip.innerHTML = variants
+      .map(function (v) {
+        var cls = "pd-chip" + (pagePreviewId === v.id ? " is-selected" : "") + (v.stock <= 0 ? " is-soldout" : "");
+        return (
+          '<button type="button" class="' + cls + '" data-variant="' + esc(v.id) + '">' +
+          (v.image ? '<img src="' + esc(v.image) + '" alt="">' : "") +
+          "<span>" + esc(v.name) + "</span></button>"
+        );
+      })
+      .join("");
+  }
+
+  function renderPageSizes() {
+    var line = byId("pdSizesLine");
+    var list = byId("pdSizesList");
+    if (!line || !list) return;
+    var seen = {};
+    var all = [];
+    variants.forEach(function (v) {
+      v.sizes.forEach(function (s) {
+        if (!seen[s.toLowerCase()]) {
+          seen[s.toLowerCase()] = true;
+          all.push(s);
+        }
+      });
+    });
+    if (!all.length) {
+      line.hidden = true;
+      return;
+    }
+    line.hidden = false;
+    list.innerHTML = all
+      .map(function (s) {
+        return '<span class="pd-size-pill">' + esc(s) + "</span>";
+      })
+      .join("");
+    var guide = byId("pdSizeGuideLink");
+    if (guide) guide.hidden = !sizeChart;
+  }
+
+  /* ---------- size guide ---------- */
+  function sizeGuideHtml(activeSize) {
+    if (!sizeChart) return "";
+    var head =
+      "<th>Size</th>" +
+      sizeChart.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("");
+    var body = sizeChart.rows
+      .map(function (row) {
+        var active = activeSize && String(row.size).toLowerCase() === String(activeSize).toLowerCase();
+        return (
+          '<tr class="' + (active ? "is-active" : "") + '"><th scope="row">' + esc(row.size) + "</th>" +
+          sizeChart.columns
+            .map(function (c, i) { return "<td>" + esc((row.values || [])[i] || "—") + "</td>"; })
+            .join("") +
+          "</tr>"
+        );
+      })
+      .join("");
+    return (
+      '<div class="pd-guide-wrap"><table class="pd-guide"><thead><tr>' + head +
+      "</tr></thead><tbody>" + body + "</tbody></table></div>" +
+      '<p class="pd-guide-note">Measurements are provided by the seller and may vary slightly.</p>'
+    );
+  }
+
+  function openSizeGuide() {
+    if (!sizeChart) return;
+    byId("pdSizeGuideBody").innerHTML = sizeGuideHtml(state.size);
+    bootstrap.Modal.getOrCreateInstance(byId("pdSizeGuide")).show();
+  }
+
+  function toggleInlineGuide() {
+    var box = byId("sheetGuide");
+    if (!box || !sizeChart) return;
+    if (box.classList.contains("d-none")) {
+      box.innerHTML = sizeGuideHtml(state.size);
+      box.classList.remove("d-none");
+    } else {
+      box.classList.add("d-none");
+    }
+  }
+
+  /* ---------- variation sheet ---------- */
+  function isValid() {
+    var v = selectedVariant();
+    if (!v || v.stock <= 0) return false;
+    if (v.sizes.length && !state.size) return false;
+    return state.qty >= 1 && state.qty <= v.stock;
+  }
+
+  function hintText() {
+    var v = selectedVariant();
+    if (!v) return "Please select a variation.";
+    if (v.sizes.length && !state.size) return "Please select a size.";
+    return "";
+  }
+
+  function renderHeader() {
+    var v = selectedVariant();
+    var main = byId("mainDisplayImage");
+    var src = (v && v.image) || (main ? main.src : "");
+    var thumb = byId("sheetThumb");
+    if (thumb) {
+      if (src) {
+        thumb.src = src;
+        thumb.classList.remove("d-none");
+      } else {
+        thumb.classList.add("d-none");
+      }
+    }
+    var page = byId("displayPrice");
+    byId("sheetPrice").textContent = v ? money(v.price) : page ? page.textContent : "";
+    byId("sheetStock").textContent = "Stock: " + (v ? v.stock : PRODUCT.totalStock);
+
+    var bits = [];
+    if (v && variants.length > 1) bits.push(v.name);
+    if (state.size) bits.push(state.size);
+    byId("sheetSelected").textContent = bits.length ? "Selected: " + bits.join(" · ") : "";
+
+    // Only mention the condition when it matters (older listings)
+    var note = byId("sheetNote");
+    var lines = [];
+    if (v && v.condition && v.condition.toLowerCase() !== "brand new") lines.push("Condition: " + v.condition);
+    if (v && v.flaws) lines.push("Notes: " + v.flaws);
+    if (lines.length) {
+      note.innerHTML = lines.map(esc).join("<br>");
+      note.classList.remove("d-none");
+    } else {
+      note.classList.add("d-none");
+    }
+  }
+
+  function renderVariantChips() {
+    var block = byId("sheetVariantBlock");
+    var box = byId("sheetVariantChips");
+    if (variants.length < 2) {
+      block.classList.add("d-none");
+      return;
+    }
+    block.classList.remove("d-none");
+    box.innerHTML = variants
+      .map(function (v) {
+        var out = v.stock <= 0;
+        var cls = "pd-chip" + (state.variantId === v.id ? " is-selected" : "") + (out ? " is-disabled" : "");
+        return (
+          '<button type="button" class="' + cls + '" data-variant="' + esc(v.id) + '"' + (out ? " disabled" : "") + ">" +
+          (v.image ? '<img src="' + esc(v.image) + '" alt="">' : "") +
+          "<span>" + esc(v.name) + (out ? " · Sold out" : "") + "</span></button>"
+        );
+      })
+      .join("");
+  }
+
+  function renderSizeChips() {
+    var v = selectedVariant();
+    var block = byId("sheetSizeBlock");
+    if (!v || !v.sizes.length) {
+      block.classList.add("d-none");
+      return;
+    }
+    block.classList.remove("d-none");
+    byId("sheetSizeChips").innerHTML = v.sizes
+      .map(function (s) {
+        var on = state.size === s;
+        return '<button type="button" class="pd-size' + (on ? " is-selected" : "") + '" data-size="' + esc(s) + '">' + esc(s) + "</button>";
+      })
+      .join("");
+    var guideBtn = byId("sheetSizeGuideBtn");
+    if (guideBtn) guideBtn.hidden = !sizeChart;
+    var guide = byId("sheetGuide");
+    if (guide && !guide.classList.contains("d-none")) guide.innerHTML = sizeGuideHtml(state.size);
+  }
+
+  function renderQty() {
+    var v = selectedVariant();
+    var input = byId("sheetQty");
+    var max = v ? Math.max(v.stock, 1) : 99;
+    input.max = max;
+    input.value = state.qty;
+    byId("sheetQtyMinus").disabled = state.qty <= 1;
+    byId("sheetQtyPlus").disabled = state.qty >= max;
+  }
+
+  function renderFooter() {
+    var v = selectedVariant();
+    byId("sheetTotal").textContent = v ? money(v.price * state.qty) : "\u2014";
+    var btn = byId("sheetConfirm");
+    btn.disabled = !isValid();
+    btn.textContent = state.isPreOrder ? "Confirm Pre-order" : "Add to Cart";
+    btn.classList.toggle("btn-primary", state.isPreOrder);
+    btn.classList.toggle("btn-success", !state.isPreOrder);
+    byId("sheetHint").textContent = hintText();
+  }
+
+  function renderSheet() {
+    renderHeader();
+    renderVariantChips();
+    renderSizeChips();
+    renderQty();
+    renderFooter();
+  }
+
+  function selectVariant(id) {
+    var v = variantById(id);
+    if (!v || v.stock <= 0) return;
+    state.variantId = v.id;
+    state.size = v.sizes.length === 1 ? v.sizes[0] : "";
+    state.qty = Math.min(Math.max(1, state.qty), v.stock);
+    previewVariant(v.id); // keeps the page price and photo in step
+    renderSheet();
+  }
+
+  function selectSize(size) {
+    state.size = size;
+    renderSizeChips();
+    renderHeader();
+    renderFooter();
+  }
+
+  function setQty(n) {
+    var v = selectedVariant();
+    var max = v ? Math.max(v.stock, 1) : 99;
+    state.qty = Math.min(Math.max(1, n || 1), max);
+    renderQty();
+    renderFooter();
+  }
+
+  function openVariantSelector(productId, productName, isPreOrder, presetVariantId) {
+    // Older listings without any variation rows
+    if (!variants.length) {
+      var legacy = [{ variant_id: productId, quantity: 1 }];
+      if (isPreOrder) performPreOrderRequest(legacy);
+      else performAddToCart(legacy);
+      return;
+    }
+
+    state.isPreOrder = !!isPreOrder;
+    state.variantId = null;
+    state.size = "";
+    state.qty = 1;
+    var guide = byId("sheetGuide");
+    if (guide) guide.classList.add("d-none");
+
+    var preset = presetVariantId || pagePreviewId;
+    var presetVariant = preset ? variantById(preset) : null;
+    if (presetVariant && presetVariant.stock > 0) {
+      selectVariant(presetVariant.id);
+    } else if (variants.length === 1 && variants[0].stock > 0) {
+      selectVariant(variants[0].id);
+    }
+
+    var pickup = byId("pdPickupText");
+    byId("sheetPickup").textContent = pickup ? pickup.textContent.replace(/\s+/g, " ").trim() : "";
+
+    renderSheet();
+    bootstrap.Modal.getOrCreateInstance(byId("variantSheet")).show();
+  }
+
+  function confirmSelection() {
+    var v = selectedVariant();
+    if (!v || !isValid()) {
+      renderFooter();
+      return;
+    }
+    var payload = [{ variant_id: v.id, quantity: state.qty, size: state.size }];
+    var modal = bootstrap.Modal.getInstance(byId("variantSheet"));
+    if (modal) modal.hide();
+    if (state.isPreOrder) performPreOrderRequest(payload);
+    else performAddToCart(payload);
+  }
+
+  /* ---------- requests ---------- */
+  function postJson(url, body) {
+    return fetch(url, {
       method: "POST",
       headers: {
-        "X-CSRFToken": csrftoken,
+        "X-CSRFToken": csrf(),
+        "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
       },
+      body: JSON.stringify(body),
+    }).then(function (r) {
+      return r.json();
+    });
+  }
+
+  function performAddToCart(items) {
+    postJson("/cart/add-batch/", { items: items })
+      .then(function (data) {
+        if (data.success) {
+          var badge = byId("cart-count");
+          if (badge) {
+            badge.innerText = data.cart_count;
+            badge.style.display = "inline-block";
+          }
+          Swal.fire({ icon: "success", title: "Added to Cart!", timer: 1500, showConfirmButton: false });
+        } else {
+          Swal.fire({ icon: "error", title: "Error", text: data.message });
+        }
+      })
+      .catch(function () {
+        Swal.fire("Error", "Login required or network failure.", "error");
+      });
+  }
+
+  function performPreOrderRequest(items) {
+    postJson("/preorder/request-batch/", { items: items, status: "Pending" })
+      .then(function (data) {
+        if (data.success) {
+          Swal.fire({ icon: "success", title: "Pre-order Sent!", text: "Pending seller approval." });
+        } else {
+          Swal.fire({ icon: "error", title: "Error", text: data.message });
+        }
+      })
+      .catch(function () {
+        Swal.fire("Connection Error", "Try again later", "error");
+      });
+  }
+
+  function addToCart(productId) {
+    fetch("/cart/add/" + productId + "/", {
+      method: "POST",
+      headers: { "X-CSRFToken": csrf(), "X-Requested-With": "XMLHttpRequest" },
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.success) {
+          var badge = byId("cart-count");
+          if (badge) {
+            badge.innerText = data.cart_count;
+            badge.style.display = "inline-block";
+          }
+          Swal.fire({ toast: true, position: "top-end", icon: "success", title: "Added to Cart", timer: 1500, showConfirmButton: false });
+        } else {
+          Swal.fire({ icon: "error", title: "Error", text: data.message });
+        }
+      })
+      .catch(function () {
+        Swal.fire("Login Required", "", "warning");
+      });
+  }
+
+  function addToCartWithVariant(productId) {
+    var h1 = document.querySelector("h1");
+    openVariantSelector(productId, h1 ? h1.innerText : "Product", false);
+  }
+
+  function showLoginPrompt() {
+    var loginUrl = byId("login-url") ? byId("login-url").value : "";
+    Swal.fire({
+      title: "Login Required",
+      text: "You need to log in first.",
+      icon: "info",
+      showCancelButton: true,
+      confirmButtonText: "Login",
+    }).then(function (r) {
+      if (r.isConfirmed && loginUrl) window.location.href = loginUrl;
+    });
+  }
+
+  function showVerificationModal() {
+    var statusEl = byId("user-verification-status");
+    if (!statusEl) return;
+    var status = statusEl.value;
+    if (status === "unverified" || status === "Pending") {
+      var modalEl = byId("verificationModal");
+      if (modalEl) new bootstrap.Modal(modalEl).show();
+    }
+  }
+
+  /* ---------- reviews ---------- */
+  function initReviewFilters() {
+    var chips = document.querySelectorAll("[data-rv-filter]");
+    chips.forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        chips.forEach(function (c) { c.classList.remove("active"); });
+        chip.classList.add("active");
+        var f = chip.dataset.rvFilter;
+        var shown = 0;
+        document.querySelectorAll(".pd-review").forEach(function (rv) {
+          var ok = f === "all" || (f === "media" ? rv.dataset.media === "1" : rv.dataset.rating === f);
+          rv.hidden = !ok;
+          if (ok) shown++;
+        });
+        var empty = byId("pdReviewsEmpty");
+        if (empty) empty.hidden = shown !== 0;
+      });
+    });
+  }
+
+  /* ---------- wiring ---------- */
+  function init() {
+    renderStrip();
+    renderPageSizes();
+    initReviewFilters();
+
+    var strip = byId("pdVariationStrip");
+    if (strip) {
+      strip.addEventListener("click", function (e) {
+        var chip = e.target.closest("[data-variant]");
+        if (chip) previewVariant(chip.dataset.variant);
+      });
+    }
+
+    var pageGuide = byId("pdSizeGuideLink");
+    if (pageGuide) pageGuide.addEventListener("click", openSizeGuide);
+
+    var sheet = byId("variantSheet");
+    if (!sheet) return;
+
+    sheet.addEventListener("click", function (e) {
+      var chip = e.target.closest("[data-variant]");
+      if (chip && !chip.disabled) {
+        selectVariant(chip.dataset.variant);
+        return;
+      }
+      var size = e.target.closest("[data-size]");
+      if (size) selectSize(size.dataset.size);
     });
 
-    const data = await response.json();
-
-    if (data.status === "success") {
-      if (data.action === "added") {
-        icon.classList.replace("bi-heart", "bi-heart-fill");
-        Swal.fire({
-          toast: true,
-          position: "top-end",
-          icon: "success",
-          title: "Added to Wishlist",
-          showConfirmButton: false,
-          timer: 1500,
-        });
-      } else {
-        icon.classList.replace("bi-heart-fill", "bi-heart");
-
-        if (isWishlistPage) {
-          const card = document.getElementById(`wishlist-item-${productId}`);
-          if (card) {
-            card.style.transition = "0.3s";
-            card.style.opacity = "0";
-            card.style.transform = "scale(0.9)";
-            setTimeout(() => card.remove(), 300);
-          }
-        }
-
-        Swal.fire({
-          toast: true,
-          position: "top-end",
-          icon: "info",
-          title: "Removed from Wishlist",
-          showConfirmButton: false,
-          timer: 1500,
-        });
-      }
-    }
-  } catch {
-    Swal.fire("Oops!", "Something went wrong. Are you logged in?", "error");
-  }
-}
-
-// ================= IMAGE + VARIANT DISPLAY =================
-function updateProductDisplay(variant) {
-  if (!variant) return;
-
-  const priceEl = document.getElementById("displayPrice");
-  const detailsDiv = document.getElementById("variantDetails");
-  const flawsEl = document.getElementById("variantFlaws");
-  const conditionBadge = document.getElementById("variantConditionBadge");
-  const nameDisplay = document.getElementById("variantNameDisplay");
-  // ADDED: Attribute display element
-  const attrDisplay = document.getElementById("variantAttributeDisplay");
-
-  if (priceEl) priceEl.innerText = `₱${parseFloat(variant.price).toFixed(2)}`;
-  if (detailsDiv) detailsDiv.classList.remove("d-none");
-  if (nameDisplay) nameDisplay.innerText = variant.name;
-  if (conditionBadge) conditionBadge.innerText = variant.condition;
-  if (flawsEl) flawsEl.innerText = `Notes: ${variant.flaws}`;
-
-  // NEW: Logic to show the separated attribute (XL, Red, etc.)
-  if (attrDisplay) {
-    if (variant.attribute) {
-      attrDisplay.innerText = variant.attribute;
-      attrDisplay.classList.remove("d-none");
-    } else {
-      attrDisplay.classList.add("d-none");
-    }
+    byId("sheetQtyMinus").addEventListener("click", function () { setQty(state.qty - 1); });
+    byId("sheetQtyPlus").addEventListener("click", function () { setQty(state.qty + 1); });
+    byId("sheetQty").addEventListener("change", function (e) { setQty(parseInt(e.target.value, 10)); });
+    byId("sheetConfirm").addEventListener("click", confirmSelection);
+    byId("sheetSizeGuideBtn").addEventListener("click", toggleInlineGuide);
+    byId("sheetThumbBtn").addEventListener("click", function () {
+      var img = byId("sheetThumb");
+      if (img && img.src) openLightbox(img.src);
+    });
   }
 
-  const img = document.getElementById("mainDisplayImage");
-  if (img && variant.image_url) img.src = variant.image_url;
-}
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
 
-function changeImage(url, element = null) {
-  const mainImg = document.getElementById("mainDisplayImage");
-  if (mainImg) {
-    mainImg.style.opacity = "0";
-    setTimeout(() => {
-      mainImg.src = url;
-      mainImg.style.opacity = "1";
-    }, 200);
-  }
-
-  document.querySelectorAll(".thumbnail-wrapper").forEach((el) => {
-    el.classList.remove("border-success", "border-2");
-  });
-
-  if (element) {
-    element.classList.add("border-success", "border-2");
-  }
-
-  const matchedVariant = variantData.find((v) => v.image_url.includes(url));
-  if (matchedVariant) {
-    updateProductDisplay(matchedVariant);
-  }
-}
-
-// ================= VARIANT CHANGE =================
-function onVariantChange(variantId) {
-  const selectedVariant = variantData.find((v) => v.id == variantId);
-  if (selectedVariant) {
-    changeImage(selectedVariant.image_url);
-    updateProductDisplay(selectedVariant);
-  }
-}
-
-// ================= VARIANT SELECTOR =================
-function openVariantSelector(productId, productName, isPreOrder = false) {
-  if (!variantData || variantData.length === 0) {
-    isPreOrder
-      ? performPreOrderRequest([{ variant_id: productId, quantity: 1 }])
-      : performAddToCart([{ variant_id: productId, quantity: 1 }]);
-    return;
-  }
-
-  let optionsHtml = `<option value="">Choose a variant / size…</option>`;
-  let chipsHtml = "";
-
-  variantData.forEach((v) => {
-    const isOut = v.stock <= 0;
-    const label =
-      [v.name, v.attribute].filter(Boolean).join(" · ") || `Variant #${v.id}`;
-    const sizeLabel = v.attribute || v.name || label;
-    const imgUrl = (v.image_url || "").trim();
-
-    optionsHtml += `
-      <option value="${v.id}"
-              data-price="${v.price}"
-              data-stock="${v.stock}"
-              data-condition="${(v.condition || "").replace(/"/g, "&quot;")}"
-              data-name="${(v.name || "").replace(/"/g, "&quot;")}"
-              data-attr="${(v.attribute || "").replace(/"/g, "&quot;")}"
-              data-image="${imgUrl.replace(/"/g, "&quot;")}"
-              ${isOut ? "disabled" : ""}>
-        ${label} — ₱${parseFloat(v.price).toFixed(2)}${isOut ? " (Sold out)" : ` · ${v.stock} left`}
-      </option>`;
-
-    chipsHtml += `
-      <button type="button"
-              class="btn btn-sm rounded-pill variant-chip ${isOut ? "btn-outline-secondary opacity-50" : "btn-outline-dark"}"
-              data-id="${v.id}"
-              ${isOut ? "disabled" : ""}
-              style="min-width: 3rem; font-weight: 600;">
-        ${sizeLabel}
-      </button>`;
-  });
-
-  const html = `
-  <div class="text-start">
-    <div class="d-flex justify-content-center mb-3">
-      <div id="swalVariantImgWrap"
-           class="rounded-3 border bg-light d-flex align-items-center justify-content-center overflow-hidden"
-           style="width:120px;height:120px;">
-        <img id="swalVariantImg" src="" alt=""
-             class="w-100 h-100 d-none" style="object-fit:cover;" />
-        <i id="swalVariantImgPlaceholder" class="bi bi-image text-muted fs-2"></i>
-      </div>
-    </div>
-    <div class="text-start">
-      <label class="form-label small fw-bold text-secondary mb-1">Variants / sizes</label>
-      <select id="swalVariantSelect" class="form-select form-select-lg mb-3">
-        ${optionsHtml}
-      </select>
-
-      <div class="small text-muted mb-1">Quick select size</div>
-      <div id="swalVariantChips" class="d-flex flex-wrap gap-2 mb-3">
-        ${chipsHtml}
-      </div>
-
-      <div id="swalVariantInfo" class="p-3 bg-light rounded-3 small mb-3 d-none">
-        <div class="d-flex justify-content-between">
-          <span class="text-muted">Price</span>
-          <strong id="swalModalPrice" class="text-success"></strong>
-        </div>
-        <div class="d-flex justify-content-between">
-          <span class="text-muted">Stock</span>
-          <span id="swalModalStock"></span>
-        </div>
-        <div class="d-flex justify-content-between">
-          <span class="text-muted">Condition</span>
-          <span id="swalModalCondition"></span>
-        </div>
-      </div>
-
-      <label class="form-label small fw-bold text-secondary">Quantity</label>
-      <div class="input-group" style="max-width: 160px;">
-        <button type="button" class="btn btn-outline-secondary" id="swalQtyMinus">−</button>
-        <input type="number" id="swalVariantQty" class="form-control text-center" value="1" min="1" />
-        <button type="button" class="btn btn-outline-secondary" id="swalQtyPlus">+</button>
-      </div>
-    </div>
-  `;
-
-  Swal.fire({
-    title: isPreOrder
-      ? `Pre-order ${productName}`
-      : `Add to Cart — ${productName}`,
-    html,
-    showCancelButton: true,
-    confirmButtonText: isPreOrder ? "Confirm Pre-order" : "Add to Cart",
-    confirmButtonColor: isPreOrder ? "#0d6efd" : "#198754",
-    focusConfirm: false,
-    didOpen: () => {
-      const select = document.getElementById("swalVariantSelect");
-      const chips = document.getElementById("swalVariantChips");
-      const info = document.getElementById("swalVariantInfo");
-      const qtyInput = document.getElementById("swalVariantQty");
-
-      function highlightChip(id) {
-        chips.querySelectorAll(".variant-chip").forEach((btn) => {
-          const on = btn.dataset.id === String(id);
-          btn.classList.toggle("btn-success", on);
-          btn.classList.toggle("text-white", on);
-          btn.classList.toggle("btn-outline-dark", !on && !btn.disabled);
-        });
-      }
-      function setVariantPreview(url) {
-        const img = document.getElementById("swalVariantImg");
-        const placeholder = document.getElementById(
-          "swalVariantImgPlaceholder",
-        );
-        if (!img || !placeholder) return;
-
-        if (url) {
-          img.onload = () => {
-            img.classList.remove("d-none");
-            placeholder.classList.add("d-none");
-          };
-          img.onerror = () => {
-            img.classList.add("d-none");
-            placeholder.classList.remove("d-none");
-            img.removeAttribute("src");
-          };
-          img.src = url;
-        } else {
-          img.classList.add("d-none");
-          img.removeAttribute("src");
-          placeholder.classList.remove("d-none");
-        }
-      }
-      function syncFromSelect() {
-        const opt = select.selectedOptions[0];
-        if (!opt || !opt.value) {
-          info.classList.add("d-none");
-          highlightChip(null);
-          setVariantPreview(""); // show placeholder
-          return;
-        }
-
-        document.getElementById("swalModalPrice").textContent =
-          "₱" + parseFloat(opt.dataset.price || 0).toFixed(2);
-        document.getElementById("swalModalStock").textContent =
-          opt.dataset.stock || "—";
-        document.getElementById("swalModalCondition").textContent =
-          opt.dataset.condition || "—";
-        info.classList.remove("d-none");
-        highlightChip(opt.value);
-
-        setVariantPreview((opt.dataset.image || "").trim());
-
-        const max = parseInt(opt.dataset.stock, 10) || 1;
-        qtyInput.max = max;
-        if (parseInt(qtyInput.value, 10) > max) qtyInput.value = max;
-
-        onVariantChange(opt.value);
-      }
-
-      select.addEventListener("change", syncFromSelect);
-
-      chips.querySelectorAll(".variant-chip:not([disabled])").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          select.value = btn.dataset.id;
-          select.dispatchEvent(new Event("change"));
-        });
-      });
-
-      document.getElementById("swalQtyMinus").onclick = () => {
-        let v = parseInt(qtyInput.value, 10) || 1;
-        qtyInput.value = Math.max(1, v - 1);
-      };
-      document.getElementById("swalQtyPlus").onclick = () => {
-        let v = parseInt(qtyInput.value, 10) || 1;
-        const max = parseInt(qtyInput.max, 10) || 99;
-        qtyInput.value = Math.min(max, v + 1);
-      };
-    },
-    preConfirm: () => {
-      const select = document.getElementById("swalVariantSelect");
-      const qtyInput = document.getElementById("swalVariantQty");
-      if (!select || !select.value) {
-        Swal.showValidationMessage("Please select a variant / size.");
-        return false;
-      }
-      const qty = parseInt(qtyInput.value, 10) || 1;
-      const max = parseInt(select.selectedOptions[0]?.dataset.stock, 10) || 1;
-      if (qty < 1 || qty > max) {
-        Swal.showValidationMessage(`Quantity must be between 1 and ${max}.`);
-        return false;
-      }
-      return [{ variant_id: select.value, quantity: qty }];
-    },
-  }).then((result) => {
-    if (result.isConfirmed && result.value) {
-      isPreOrder
-        ? performPreOrderRequest(result.value)
-        : performAddToCart(result.value);
-    }
-  });
-}
-function toggleQtyInput(varId) {
-  const cb = document.getElementById(`check_var_${varId}`);
-  const qtyInput = document.getElementById(`qty_var_${varId}`);
-  const minusBtn = document.getElementById(`minus_btn_${varId}`);
-  const plusBtn = document.getElementById(`plus_btn_${varId}`);
-
-  const isEnabled = cb.checked;
-  if (qtyInput) qtyInput.disabled = !isEnabled;
-  if (minusBtn) minusBtn.disabled = !isEnabled;
-  if (plusBtn) plusBtn.disabled = !isEnabled;
-
-  // Optional: Auto update preview on main image
-  if (isEnabled) {
-    onVariantChange(varId);
-  }
-}
-
-function adjustQty(varId, delta) {
-  const input = document.getElementById(`qty_var_${varId}`);
-  if (!input || input.disabled) return;
-
-  let currentVal = parseInt(input.value) || 1;
-  const maxStock = parseInt(input.getAttribute("data-max-stock")) || 99;
-
-  currentVal += delta;
-  if (currentVal < 1) currentVal = 1;
-  if (currentVal > maxStock) currentVal = maxStock;
-
-  input.value = currentVal;
-}
-// ================= PREORDER =================
-function performAddToCart(items) {
-  const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]")?.value;
-
-  fetch(`/cart/add-batch/`, {
-    method: "POST",
-    headers: {
-      "X-CSRFToken": csrftoken,
-      "Content-Type": "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-    },
-    body: JSON.stringify({ items: items }),
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.success) {
-        const badge = document.getElementById("cart-count");
-        if (badge) {
-          badge.innerText = data.cart_count;
-          badge.style.display = "inline-block";
-        }
-        Swal.fire({
-          icon: "success",
-          title: "Added to Cart!",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      } else {
-        Swal.fire({ icon: "error", title: "Error", text: data.message });
-      }
-    })
-    .catch(() =>
-      Swal.fire("Error", "Login required or network failure.", "error"),
-    );
-}
-
-// ================= BATCH PREORDER =================
-function performPreOrderRequest(items) {
-  const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]")?.value;
-
-  fetch(`/preorder/request-batch/`, {
-    method: "POST",
-    headers: {
-      "X-CSRFToken": csrftoken,
-      "Content-Type": "application/json",
-      "X-Requested-With": "XMLHttpRequest",
-    },
-    body: JSON.stringify({ items: items, status: "Pending" }),
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.success) {
-        Swal.fire({
-          icon: "success",
-          title: "Pre-order Sent!",
-          text: "Pending seller approval.",
-        });
-      } else {
-        Swal.fire({ icon: "error", title: "Error", text: data.message });
-      }
-    })
-    .catch(() => Swal.fire("Connection Error", "Try again later", "error"));
-}
-// ================= SIMPLE ADD TO CART =================
-function addToCart(productId, buttonElement) {
-  const csrftoken = document.querySelector("[name=csrfmiddlewaretoken]")?.value;
-
-  fetch(`/cart/add/${productId}/`, {
-    method: "POST",
-    headers: {
-      "X-CSRFToken": csrftoken,
-      "X-Requested-With": "XMLHttpRequest",
-    },
-  })
-    .then((r) => r.json())
-    .then((data) => {
-      if (data.success) {
-        const badge = document.getElementById("cart-count");
-        if (badge) {
-          badge.innerText = data.cart_count;
-          badge.style.display = "inline-block";
-        }
-        Swal.fire({
-          toast: true,
-          position: "top-end",
-          icon: "success",
-          title: "Added to Cart",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-      } else {
-        Swal.fire({ icon: "error", title: "Error", text: data.message });
-      }
-    })
-    .catch(() => Swal.fire("Login Required", "", "warning"));
-}
-
-// ================= HELPERS =================
-function addToCartWithVariant(productId) {
-  const name = document.querySelector("h1")?.innerText || "Product";
-  openVariantSelector(productId, name);
-}
-
-function showLoginPrompt() {
-  const loginUrl = document.getElementById("login-url").value;
-  Swal.fire({
-    title: "Login Required",
-    text: "You need to log in first.",
-    icon: "info",
-    showCancelButton: true,
-    confirmButtonText: "Login",
-  }).then((r) => {
-    if (r.isConfirmed) window.location.href = loginUrl;
-  });
-}
-
-function showVerificationModal() {
-  const statusEl = document.getElementById("user-verification-status");
-  if (!statusEl) return;
-
-  const status = statusEl.value;
-  if (status === "unverified" || status === "Pending") {
-    const modalEl = document.getElementById("verificationModal");
-    if (modalEl) {
-      const modal = new bootstrap.Modal(modalEl);
-      modal.show();
-    }
-  }
-}
+  /* ---------- public functions used by inline onclick handlers ---------- */
+  window.toggleWishlist = toggleWishlist;
+  window.openLightbox = openLightbox;
+  window.changeImage = changeImage;
+  window.openVariantSelector = openVariantSelector;
+  window.openSizeGuide = openSizeGuide;
+  window.performAddToCart = performAddToCart;
+  window.performPreOrderRequest = performPreOrderRequest;
+  window.addToCart = addToCart;
+  window.addToCartWithVariant = addToCartWithVariant;
+  window.showLoginPrompt = showLoginPrompt;
+  window.showVerificationModal = showVerificationModal;
+})();

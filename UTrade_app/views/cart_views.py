@@ -16,7 +16,7 @@ from django.db import transaction
 from django.db.models import Sum, F
 from django.urls import reverse
 from django.utils import timezone
-from ..product_access import blocked_cart_reason, purchase_block_reason
+from ..product_access import blocked_cart_reason, purchase_block_reason, resolve_size
 
 import requests
 
@@ -184,11 +184,13 @@ def add_to_cart(request, variant_id):
     reason = purchase_block_reason(request.user, variant.product)
     if reason:
         return JsonResponse({"success": False, "message": reason}, status=403)
-
+    size, size_error = resolve_size(variant, request.POST.get("size"))
+    if size_error:
+        return JsonResponse({"success": False, "message": size_error}, status=400)
     cart, _ = Cart.objects.get_or_create(user=request.user)
 
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, variant=variant)
-
+    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, variant=variant, size=size)
+    
     if not item_created:
         if cart_item.quantity < variant.stocks:
             cart_item.quantity += 1
@@ -491,6 +493,7 @@ def place_order(request):
                         product_variant=variant,
                         quantity=item.quantity,
                         price=price,
+                        size=item.size,
                     )
                     ProductVariant.objects.filter(pk=variant.pk).update(
                         stocks=F("stocks") - item.quantity

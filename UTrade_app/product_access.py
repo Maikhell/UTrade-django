@@ -77,3 +77,25 @@ def first_purchase_block(user, products):
 def blocked_cart_reason(user, cart_items):
     """Same check for CartItem rows (used at checkout)."""
     return first_purchase_block(user, (item.variant.product for item in cart_items))
+def variant_sizes(variant):
+    """Sizes a seller listed for a variation (stored comma-separated)."""
+    return [s.strip() for s in (variant.attribute_value or '').split(',') if s.strip()]
+
+
+def resolve_size(variant, requested):
+    """
+    Returns (size, error). A variation without sizes always gives ''.
+    One size is picked automatically; several sizes need one chosen by the buyer.
+    """
+    sizes = variant_sizes(variant)
+    if not sizes:
+        return '', None
+    requested = (requested or '').strip()
+    if not requested:
+        if len(sizes) == 1:
+            return sizes[0], None
+        return '', f'Please choose a size for {variant.variant_name}.'
+    for size in sizes:
+        if size.lower() == requested.lower():
+            return size, None
+    return '', f'"{requested}" is not an available size for {variant.variant_name}.'

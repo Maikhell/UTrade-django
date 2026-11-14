@@ -1,215 +1,149 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static %}
 
-{% block title %}
-  {{ product.name }} | UTrade
+{% block title %}{{ product.name }} | UTrade{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/product_details.css' %}" />
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/product_page.css' %}" />
 {% endblock %}
 
 {% block content %}
-  {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'UTrade_app/css/product_details.css' %}" />
-  {% endblock %}
+{% csrf_token %}
+{% with total_stock=product.get_total_stock %}
 
-<nav aria-label="breadcrumb" class="mb-3 mb-md-4 px-2 px-md-0">
-<a href="{% url 'product.list' %}" class="ap-back">
+<div class="pd-page container py-3 py-md-4"
+     id="pdRoot"
+     data-product-id="{{ product.id }}"
+     data-product-name="{{ product.name }}"
+     data-pre-order="{% if product.pre_order %}1{% else %}0{% endif %}"
+     data-total-stock="{{ total_stock|stringformat:'d' }}">
+
+  {# ---------- top bar ---------- #}
+  <div class="pd-top">
+    <a href="{% url 'product.list' %}" class="ap-back">
       <i class="bi bi-arrow-left" aria-hidden="true"></i>
       <span>Back to Marketplace</span>
     </a>
-</nav>
-
-  {% csrf_token %}
-
-  <div class="container py-5">
-    <nav aria-label="breadcrumb" class="mb-4">
-      <ol class="breadcrumb">
-        <li class="breadcrumb-item">
-          <a href="{% url 'product.list' %}" class="text-decoration-none text-success">Marketplace</a>
-        </li>
-        <li class="breadcrumb-item active">{{ product.category.name }}</li>
+    <nav aria-label="breadcrumb" class="d-none d-md-block">
+      <ol class="breadcrumb mb-0 small">
+        <li class="breadcrumb-item"><a href="{% url 'product.list' %}" class="text-decoration-none text-success">Marketplace</a></li>
+        {% if product.category %}<li class="breadcrumb-item">{{ product.category.name }}</li>{% endif %}
+        <li class="breadcrumb-item active text-truncate" style="max-width: 260px;">{{ product.name }}</li>
       </ol>
     </nav>
+  </div>
 
-    <div class="row g-5">
-      {# ===================== LEFT: IMAGE + REVIEWS ===================== #}
-      <div class="col-lg-7">
-        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-3">
-          <div class="main-image-container bg-light d-flex align-items-center justify-content-center" style="height: 500px;">
-            {% if product.images.all %}
-              <img src="{{ product.images.first.image.url }}" class="img-fluid h-100" id="mainDisplayImage" style="object-fit: contain;" alt="{{ product.name }}" />
-            {% elif product.image %}
-              <img src="{{ product.image.url }}" class="img-fluid h-100" id="mainDisplayImage" style="object-fit: contain;" alt="{{ product.name }}" />
-            {% else %}
-              <i class="bi bi-image text-muted display-1"></i>
-            {% endif %}
+  {# ================= HERO: gallery + buy box ================= #}
+  <section class="pd-card">
+    <div class="row g-4 g-xl-5">
+
+      {# ---------- gallery ---------- #}
+      <div class="col-lg-6">
+        <div class="pd-gallery">
+          <div class="pd-main">
+            {% with first=product.images.first %}
+              {% if first %}
+                <img id="mainDisplayImage" src="{{ first.image.url }}" alt="{{ product.name }}">
+              {% elif product.image %}
+                <img id="mainDisplayImage" src="{{ product.image.url }}" alt="{{ product.name }}">
+              {% else %}
+                <i class="bi bi-image pd-noimg"></i>
+              {% endif %}
+            {% endwith %}
+            <button type="button" class="pd-zoom" onclick="openLightbox(document.getElementById('mainDisplayImage') && document.getElementById('mainDisplayImage').src)" aria-label="View larger photo">
+              <i class="bi bi-arrows-fullscreen"></i>
+            </button>
           </div>
-        </div>
 
-        {% if product.images.count > 1 %}
-          <div class="row g-2 overflow-auto flex-nowrap pb-2" id="thumbGallery">
-            {% for img in product.images.all %}
-              <div class="col-auto">
-                <div class="thumbnail-wrapper rounded-3 border {% if forloop.first %}border-success border-2{% endif %}"
-                     style="width: 80px; height: 80px; cursor: pointer; overflow: hidden;"
-                     onclick="changeImage('{{ img.image.url }}', this)">
-                  <img src="{{ img.image.url }}" class="w-100 h-100" style="object-fit: cover;" alt="Thumbnail" />
-                </div>
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
-
-        <div class="mt-4">
-          <h5 class="fw-bold mb-3">
-            <i class="bi bi-chat-left-quote me-2 text-success"></i>Ratings &amp; Reviews
-          </h5>
-          {% if reviews %}
-            <div class="d-flex flex-column gap-3">
-              {% for r in reviews %}
-                <div class="card border-0 bg-light rounded-3 p-3">
-                  <div class="d-flex justify-content-between align-items-start mb-1">
-                    <strong class="small">{{ r.user.get_full_name|default:r.user.username }}</strong>
-                    <span class="text-warning small">
-                      {% with rating=r.rating|default:0 %}
-                        {% for i in "12345" %}
-                          {% if forloop.counter <= rating %}
-                            <i class="bi bi-star-fill"></i>
-                          {% else %}
-                            <i class="bi bi-star"></i>
-                          {% endif %}
-                        {% endfor %}
-                      {% endwith %}
-                    </span>
-                  </div>
-                    <p class="mb-0 small text-secondary">
-                      {{ r.comment|default:"" }}
-                    </p>
-                  {% if r.created_at %}
-                    <small class="text-muted">{{ r.created_at|date:"M d, Y" }}</small>
-                  {% endif %}
-                </div>
+          {% if product.images.count > 1 %}
+            <div class="pd-thumbs" id="thumbGallery">
+              {% for img in product.images.all %}
+                <button type="button" class="pd-thumb{% if forloop.first %} active{% endif %}"
+                        data-src="{{ img.image.url }}"
+                        onclick="changeImage('{{ img.image.url|escapejs }}', this)"
+                        aria-label="Photo {{ forloop.counter }}">
+                  <img src="{{ img.image.url }}" alt="" loading="lazy">
+                </button>
               {% endfor %}
             </div>
-          {% else %}
-            <p class="text-muted small mb-0">No reviews yet for this product.</p>
           {% endif %}
         </div>
       </div>
 
-      {# ===================== RIGHT: DETAILS ===================== #}
-      <div class="col-lg-5">
-        <div class="ps-lg-3">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <div class="d-flex gap-2 flex-wrap">
-              <span class="badge bg-success-subtle text-success px-3 py-2 rounded-pill">{{ product.category.name }}</span>
-              {% if product.pre_order %}
-                <span class="badge bg-primary-subtle text-primary px-3 py-2 rounded-pill">
-                  <i class="bi bi-clock-history me-1"></i> Pre-order
-                </span>
-              {% endif %}
-              {% if restricted_course %}
-                <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2 rounded-pill">
-                  <i class="bi bi-lock-fill me-1"></i> {{ restricted_course }} only
-                </span>
-              {% endif %}
-            </div>
-            <small class="text-muted">
+      {# ---------- buy box ---------- #}
+      <div class="col-lg-6">
+        <div class="pd-buy">
+
+          <div class="pd-tags">
+            {% if product.category %}
+              <span class="pd-tag pd-tag--cat">{{ product.category.name }}</span>
+            {% endif %}
+            {% if product.pre_order %}
+              <span class="pd-tag pd-tag--pre"><i class="bi bi-clock-history"></i> Pre-order</span>
+            {% endif %}
+            {% if restricted_course %}
+              <span class="pd-tag pd-tag--private"><i class="bi bi-lock-fill"></i> {{ restricted_course }} only</span>
+            {% endif %}
+            <span class="pd-code ms-auto">
               {% if product.product_code %}{{ product.product_code }}{% else %}ID: #UT-{{ product.id }}{% endif %}
-            </small>
+            </span>
           </div>
 
-          <h1 class="fw-bold text-dark mb-1">{{ product.name }}</h1>
-          <p class="text-muted small mb-3">
-            Listed by <span class="fw-bold text-success">@{{ product.seller.get_full_name|default:product.seller.username }}</span>
-          </p>
+          <h1 class="pd-title">{{ product.name }}</h1>
 
-          <div class="d-flex align-items-center gap-3 mb-4 py-2 border-top border-bottom">
-            <div class="text-warning">
-              <span class="fw-bold">{{ product.average_rating|default:"—" }}</span>
-              <i class="bi bi-star-fill small"></i>
+          <div class="pd-ratingrow">
+            {% if review_summary.count %}
+              <a href="#reviews" class="pd-ratingval">{{ review_summary.avg|floatformat:1 }}</a>
+              <span class="pd-stars" style="--pct: {{ review_summary.pct }}%" aria-label="Rated {{ review_summary.avg|floatformat:1 }} out of 5"></span>
+              <span class="pd-sep"></span>
+              <a href="#reviews" class="pd-ratinglink"><strong>{{ review_summary.count }}</strong> Rating{{ review_summary.count|pluralize }}</a>
+            {% else %}
+              <span class="text-muted">No ratings yet</span>
+            {% endif %}
+            <span class="pd-sep"></span>
+            <span><strong>{{ product.sold|default:0 }}</strong> Sold</span>
+          </div>
+
+          <div class="pd-price">
+            <span class="pd-price-now" id="displayPrice">₱{{ product.get_price_range }}</span>
+            <span class="pd-price-note">
+              <span class="{% if total_stock < 5 %}text-danger fw-bold{% endif %}">{{ total_stock }}</span> available
+            </span>
+          </div>
+
+          {# variation preview strip (filled by the page script) #}
+          <div class="pd-row" id="pdVariationWrap" hidden>
+            <div class="pd-label">Variations</div>
+            <div class="pd-chips" id="pdVariationStrip"></div>
+          </div>
+
+          {# sizes line (filled by the page script) #}
+          <div class="pd-row" id="pdSizesLine" hidden>
+            <div class="pd-label-row">
+              <span class="pd-label mb-0">Sizes</span>
+              <button type="button" class="pd-link" id="pdSizeGuideLink" hidden>Size guide <i class="bi bi-chevron-right"></i></button>
             </div>
-            <div class="vr text-muted opacity-25"></div>
+            <div class="pd-size-pills" id="pdSizesList"></div>
+          </div>
+
+          {# pickup #}
+          <div class="pd-pickup">
+            <i class="bi bi-geo-alt-fill"></i>
             <div>
-              <span class="fw-bold text-dark">{{ product.sold|default:0 }}</span>
-              <span class="text-muted small ms-1">Sold</span>
-            </div>
-            <div class="vr text-muted opacity-25"></div>
-            <div>
-              <span class="fw-bold {% if product.get_total_stock < 5 %}text-danger{% else %}text-dark{% endif %}">
-                {{ product.get_total_stock }}
-              </span>
-              <span class="text-muted small ms-1">Total Available</span>
-            </div>
-          </div>
-
-          <h2 class="display-5 fw-bold text-success mb-4" id="displayPrice">₱{{ product.get_price_range }}</h2>
-
-          <div class="mb-4">
-            <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">Description</h6>
-            <p class="text-secondary" style="line-height: 1.7; white-space: pre-line;">{{ product.description }}</p>
-
-            <div id="variantDetails" class="mt-3 p-3 bg-light rounded-3 d-none animate__animated animate__fadeIn">
-              <div class="small fw-bold text-uppercase text-muted mb-1">Variant Details:</div>
-              <div class="d-flex align-items-center mb-2 flex-wrap gap-1">
-                <span id="variantConditionBadge" class="badge bg-warning text-dark me-2"></span>
-                <span id="variantNameDisplay" class="text-dark fw-bold"></span>
-                <span id="variantAttributeDisplay" class="badge bg-secondary-subtle text-secondary" style="font-size: 0.75rem;"></span>
+              <div class="pd-pickup-title">
+                Campus pickup{% if product.meetup_location_text %} · {{ product.meetup_location_text }}{% endif %}
               </div>
-              <p id="variantFlaws" class="text-danger small mb-0" style="font-style: italic;"></p>
-            </div>
-          </div>
-
-          {# Pickup availability #}
-          <div class="card border-0 shadow-sm rounded-4 mb-4">
-            <div class="card-body p-3">
-              <h6 class="fw-bold text-uppercase small text-muted border-bottom pb-2 mb-3">
-                <i class="bi bi-calendar2-check me-1 text-success"></i>
-                Pickup availability
-              </h6>
-
-              <div class="mb-3">
-                <div class="small text-muted fw-semibold mb-1">Meetup location</div>
-                {% if product.meetup_location_text %}
-                  <span class="badge bg-light text-dark border rounded-pill px-3 py-2">
-                    <i class="bi bi-geo-alt me-1 text-danger"></i>
-                    {{ product.meetup_location_text }}
-                  </span>
-                {% else %}
-                  <span class="text-muted small">Not specified</span>
-                {% endif %}
-              </div>
-
-              <div class="mb-3">
-                <div class="small text-muted fw-semibold mb-1">Available days</div>
-                {% if available_days_list %}
-                  <div class="d-flex flex-wrap gap-1">
-                    {% for day in available_days_list %}
-                      <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2">
-                        {{ day }}
-                      </span>
-                    {% endfor %}
-                  </div>
-                {% else %}
-                  <span class="text-muted small">Not specified</span>
-                {% endif %}
-              </div>
-
-              <div>
-                <div class="small text-muted fw-semibold mb-1">Available time</div>
+              <div class="pd-pickup-sub" id="pdPickupText">
+                {% if available_days_list %}{{ available_days_list|join:", " }}{% else %}Days not specified{% endif %}
                 {% if product.preferred_meetup_time_from and product.preferred_meetup_time_to %}
-                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 py-2">
-                    <i class="bi bi-clock me-1"></i>
-                    {{ product.preferred_meetup_time_from|time:"g:i A" }}
-                    –
-                    {{ product.preferred_meetup_time_to|time:"g:i A" }}
-                  </span>
-                {% else %}
-                  <span class="text-muted small">Not specified</span>
+                  · {{ product.preferred_meetup_time_from|time:"g:i A" }} – {{ product.preferred_meetup_time_to|time:"g:i A" }}
                 {% endif %}
               </div>
             </div>
           </div>
 
-          {# Private listing notice (organization products limited to one program) #}
+          {# private listing notice #}
           {% if restricted_course %}
             <div class="alert {% if purchase_block_reason %}alert-warning{% else %}alert-success{% endif %} d-flex align-items-start gap-2 rounded-4 py-2 px-3 small mb-3" role="note">
               <i class="bi bi-lock-fill mt-1"></i>
@@ -226,107 +160,296 @@
             </div>
           {% endif %}
 
-         <div class="d-grid gap-3">
-            {% if product.get_total_stock > 0 %}
-              {% if user.is_staff or user.is_superuser or user.user_role == 'management' or user.user_role == 'officer' %}
-                <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled>
-                  <i class="bi bi-cart-x me-2"></i> Purchasing Disabled
+          {# actions #}
+          <div class="pd-actions">
+            {% if total_stock > 0 %}
+              {% if user.is_staff or user.is_superuser or user.is_authenticated and user.user_role != 'student' %}
+                <button class="btn btn-secondary btn-lg w-100 pd-btn" disabled>
+                  <i class="bi bi-cart-x me-2"></i> Purchasing is for student accounts
                 </button>
               {% else %}
-                {# ===== One-line row: Wishlist (circle) + Main Action ===== #}
-                <div class="d-flex align-items-center gap-2">
-                  {% if user.is_authenticated %}
+                <div class="pd-action-row">
+                  {% if user.is_authenticated and user.user_role == 'student' %}
                     <button type="button"
-                            class="btn btn-outline-danger rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
-                            style="width: 52px; height: 52px;"
+                            class="btn btn-outline-danger pd-heart"
                             onclick="toggleWishlist({{ product.id }}, this)"
-                            title="Add to Wishlist">
+                            title="Add to Wishlist" aria-label="Add to wishlist">
                       <i class="bi {% if in_wishlist %}bi-heart-fill{% else %}bi-heart{% endif %} fs-5"></i>
                     </button>
                   {% endif %}
 
                   {% if purchase_block_reason %}
-                    {# Private listing and this student's program doesn't match #}
-                    <button type="button"
-                            class="btn btn-secondary btn-lg flex-grow-1 rounded-3 fw-bold py-3 shadow-sm"
-                            disabled>
+                    <button type="button" class="btn btn-secondary btn-lg flex-grow-1 pd-btn" disabled>
                       <i class="bi bi-lock-fill me-2"></i> {{ restricted_course }} students only
                     </button>
                   {% elif product.pre_order %}
-                    <button id="preOrderBtn"
+                    <button id="preOrderBtn" type="button"
                             onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', true)"
-                            class="btn btn-primary btn-lg flex-grow-1 rounded-3 fw-bold py-3 shadow-sm">
+                            class="btn btn-primary btn-lg flex-grow-1 pd-btn">
                       <i class="bi bi-calendar-check me-2"></i> Pre-order Now
                     </button>
                   {% else %}
-                    <button id="addToCartBtn"
+                    <button id="addToCartBtn" type="button"
                             onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', false)"
-                            class="btn btn-success btn-lg flex-grow-1 rounded-3 fw-bold py-3 shadow-sm">
+                            class="btn btn-success btn-lg flex-grow-1 pd-btn">
                       <i class="bi bi-cart-plus me-2"></i> Add to Cart
                     </button>
                   {% endif %}
                 </div>
 
-                {# Message Seller – full width below #}
                 <a href="{% url 'start_chat' product_id=product.id %}"
-                  class="btn btn-outline-primary btn-lg w-100 rounded-3 fw-bold py-3">
+                   class="btn btn-outline-primary btn-lg w-100 pd-btn">
                   <i class="bi bi-chat-dots me-2"></i> Message Seller
                 </a>
               {% endif %}
             {% else %}
-              <button class="btn btn-secondary btn-lg w-100 rounded-3 fw-bold py-3 shadow-sm" disabled>
+              <button class="btn btn-secondary btn-lg w-100 pd-btn" disabled>
                 <i class="bi bi-exclamation-octagon me-2"></i> Out of Stock
               </button>
             {% endif %}
           </div>
-
-          <div class="card mt-5 border-0 bg-light rounded-4 p-3 shadow-sm">
-            <div class="d-flex align-items-center">
-              {% if product.seller.image %}
-                <img src="{{ product.seller.image.url }}"
-                     class="rounded-circle me-3 border border-2 border-white"
-                     style="width: 55px; height: 55px; object-fit: cover;"
-                     alt="Seller" />
-              {% else %}
-                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-3 text-white fw-bold shadow-sm"
-                     style="width: 55px; height: 55px;">
-                  {{ product.seller.username|slice:':1'|upper }}
-                </div>
-              {% endif %}
-              <div>
-                <h6 class="mb-0 fw-bold">{{ product.seller.get_full_name|default:product.seller.username }}</h6>
-                <p class="small text-muted mb-0">Member since {{ product.seller.date_joined|date:'Y' }}</p>
-              </div>
-              <a href="{% url 'storefront' product.seller.id %}"
-                 class="btn btn-sm btn-outline-success ms-auto rounded-pill px-3">
-                View Shop
-              </a>
-            </div>
-          </div>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <script id="variant-data" type="application/json">
+  {# ================= SELLER CARD ================= #}
+  <section class="pd-card pd-seller">
+    <div class="pd-seller-main">
+      {% if product.seller.image %}
+        <img src="{{ product.seller.image.url }}" class="pd-seller-avatar" alt="Seller">
+      {% else %}
+        <div class="pd-seller-avatar pd-seller-avatar--initial">{{ product.seller.username|slice:':1'|upper }}</div>
+      {% endif %}
+
+      <div class="pd-seller-id">
+        <div class="pd-seller-name">{{ product.seller.get_full_name|default:product.seller.username }}</div>
+        {% if seller_info.badges %}
+          <div class="pd-badges">
+            {% for b in seller_info.badges %}
+              <span class="pd-badge pd-badge--{{ b.tone }}"><i class="bi {{ b.icon }}"></i> {{ b.label }}</span>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="pd-seller-meta">Member since {{ product.seller.date_joined|date:'Y' }}</div>
+      </div>
+
+      <div class="pd-seller-actions">
+        {% if user.is_authenticated and user.user_role == 'student' %}
+          <a href="{% url 'start_chat' product_id=product.id %}" class="btn btn-sm btn-outline-success rounded-pill px-3">
+            <i class="bi bi-chat-dots me-1"></i> Chat Now
+          </a>
+        {% endif %}
+        <a href="{% url 'storefront' product.seller.id %}" class="btn btn-sm btn-success rounded-pill px-3">
+          <i class="bi bi-shop me-1"></i> View Shop
+        </a>
+      </div>
+    </div>
+
+    <div class="pd-seller-stats">
+      <div class="pd-stat">
+        <div class="pd-stat-label">Rating</div>
+        {% if seller_info.count %}
+          <div class="pd-stat-value">
+            {{ seller_info.avg|floatformat:1 }}
+            <span class="pd-stars" style="--pct: {{ seller_info.pct }}%" aria-label="Seller rated {{ seller_info.avg|floatformat:1 }} out of 5"></span>
+          </div>
+          <div class="pd-stat-sub">{{ seller_info.count }} rating{{ seller_info.count|pluralize }}</div>
+        {% else %}
+          <div class="pd-stat-value text-muted">No ratings yet</div>
+        {% endif %}
+      </div>
+      <div class="pd-stat">
+        <div class="pd-stat-label">Products</div>
+        <div class="pd-stat-value">{{ seller_info.products }}</div>
+      </div>
+      <div class="pd-stat">
+        <div class="pd-stat-label">Items sold</div>
+        <div class="pd-stat-value">{{ seller_info.sold }}</div>
+      </div>
+    </div>
+  </section>
+
+  {# ================= DESCRIPTION ================= #}
+  <section class="pd-card">
+    <h2 class="pd-h2">Product Details</h2>
+    <dl class="pd-specs">
+      {% if product.category %}<div><dt>Category</dt><dd>{{ product.category.name }}</dd></div>{% endif %}
+      <div><dt>Product code</dt><dd>{% if product.product_code %}{{ product.product_code }}{% else %}#UT-{{ product.id }}{% endif %}</dd></div>
+      <div><dt>Stock</dt><dd>{{ total_stock }}</dd></div>
+      <div><dt>Sold</dt><dd>{{ product.sold|default:0 }}</dd></div>
+    </dl>
+    <h3 class="pd-h3">Description</h3>
+    <p class="pd-desc">{{ product.description|default:"No description provided." }}</p>
+  </section>
+
+  {# ================= RATINGS & REVIEWS ================= #}
+  <section class="pd-card" id="reviews">
+    <h2 class="pd-h2">Product Ratings</h2>
+
+    <div class="pd-rsum">
+      <div class="pd-rsum-score">
+        <div class="pd-rsum-num">{{ review_summary.avg|floatformat:1 }}<small>/5</small></div>
+        <span class="pd-stars pd-stars--lg" style="--pct: {{ review_summary.pct }}%"></span>
+        <div class="text-muted small mt-1">{{ review_summary.count }} rating{{ review_summary.count|pluralize }}</div>
+      </div>
+      <div class="pd-rsum-bars">
+        {% for row in review_summary.rows %}
+          <div class="pd-bar-row">
+            <span class="pd-bar-label">{{ row.stars }} <i class="bi bi-star-fill"></i></span>
+            <div class="pd-bar"><span style="width: {{ row.pct }}%"></span></div>
+            <span class="pd-bar-count">{{ row.count }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% if reviews %}
+      <div class="pd-filters" role="group" aria-label="Filter reviews">
+        <button type="button" class="pd-filter active" data-rv-filter="all">All</button>
+        <button type="button" class="pd-filter" data-rv-filter="media">With photos / videos ({{ review_summary.with_media }})</button>
+        <button type="button" class="pd-filter" data-rv-filter="5">5 ★</button>
+        <button type="button" class="pd-filter" data-rv-filter="4">4 ★</button>
+        <button type="button" class="pd-filter" data-rv-filter="3">3 ★</button>
+        <button type="button" class="pd-filter" data-rv-filter="2">2 ★</button>
+        <button type="button" class="pd-filter" data-rv-filter="1">1 ★</button>
+      </div>
+
+      <div class="pd-reviewlist">
+        {% for r in reviews %}
+          {% with media=r.media.all %}
+          <article class="pd-review" data-rating="{{ r.rating }}" data-media="{% if media %}1{% else %}0{% endif %}">
+            <div class="pd-rv-avatar">{{ r.user.get_full_name|default:r.user.username|slice:":1"|upper }}</div>
+            <div class="pd-rv-body">
+              <div class="pd-rv-name">{{ r.user.get_full_name|default:r.user.username }}</div>
+              <div class="pd-rv-line">
+                <span class="pd-stars" style="--pct: {% widthratio r.rating 5 100 %}%" aria-label="{{ r.rating }} out of 5"></span>
+                {% if r.created_at %}<span class="pd-rv-date">{{ r.created_at|date:"M d, Y" }}</span>{% endif %}
+              </div>
+              {% if r.quick_feedback %}<span class="pd-rv-tag">{{ r.quick_feedback }}</span>{% endif %}
+              {% if r.comment %}<p class="pd-rv-text">{{ r.comment }}</p>{% endif %}
+
+              {% if media %}
+                <div class="pd-rv-media">
+                  {% for m in media %}
+                    {% if m.media_type == 'video' %}
+                      <video class="pd-rv-video" src="{{ m.url }}" controls preload="metadata" playsinline></video>
+                    {% else %}
+                      <button type="button" class="pd-rv-img" onclick="openLightbox('{{ m.url|escapejs }}')" aria-label="View review photo">
+                        <img src="{{ m.url }}" alt="Review photo" loading="lazy">
+                      </button>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </article>
+          {% endwith %}
+        {% endfor %}
+        <p class="text-muted small text-center my-3" id="pdReviewsEmpty" hidden>No reviews match this filter.</p>
+      </div>
+    {% else %}
+      <p class="text-muted small mb-0 mt-3">No reviews yet for this product.</p>
+    {% endif %}
+  </section>
+</div>
+
+{# ================= VARIATION SHEET (add to cart / pre-order) ================= #}
+<div class="modal fade pd-sheet" id="variantSheet" tabindex="-1" aria-labelledby="sheetTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="pd-sheet-head">
+        <button type="button" class="pd-sheet-thumb" id="sheetThumbBtn" aria-label="View larger photo">
+          <img id="sheetThumb" alt="">
+          <i class="bi bi-arrows-angle-expand"></i>
+        </button>
+        <div class="pd-sheet-info">
+          <div class="visually-hidden" id="sheetTitle">Choose options for {{ product.name }}</div>
+          <div class="pd-sheet-price" id="sheetPrice"></div>
+          <div class="pd-sheet-stock" id="sheetStock"></div>
+          <div class="pd-sheet-sel" id="sheetSelected"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="pd-sheet-pickup">
+        <i class="bi bi-geo-alt-fill"></i>
+        <span id="sheetPickup"></span>
+      </div>
+
+      <div class="modal-body pd-sheet-body">
+        <div id="sheetVariantBlock">
+          <div class="pd-label">Variation</div>
+          <div class="pd-chips" id="sheetVariantChips"></div>
+        </div>
+
+        <div id="sheetSizeBlock" class="d-none">
+          <div class="pd-label-row">
+            <span class="pd-label mb-0">Size</span>
+            <button type="button" class="pd-link" id="sheetSizeGuideBtn" hidden>Size Guide <i class="bi bi-chevron-right"></i></button>
+          </div>
+          <div class="pd-sizes" id="sheetSizeChips"></div>
+          <div class="pd-guide-inline d-none" id="sheetGuide"></div>
+        </div>
+
+        <div class="pd-note d-none" id="sheetNote"></div>
+
+        <div class="pd-qty-row">
+          <span class="pd-label mb-0">Quantity</span>
+          <div class="pd-qty">
+            <button type="button" id="sheetQtyMinus" aria-label="Decrease quantity">−</button>
+            <input type="number" id="sheetQty" value="1" min="1" inputmode="numeric" aria-label="Quantity">
+            <button type="button" id="sheetQtyPlus" aria-label="Increase quantity">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pd-sheet-foot">
+        <div class="pd-sheet-total"><span>Total</span><strong id="sheetTotal">—</strong></div>
+        <button type="button" class="btn btn-success btn-lg w-100 pd-btn" id="sheetConfirm" disabled>Add to Cart</button>
+        <div class="pd-sheet-hint" id="sheetHint"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ================= SIZE GUIDE DIALOG (from the page) ================= #}
+<div class="modal fade pd-sheet" id="pdSizeGuide" tabindex="-1" aria-labelledby="pdSizeGuideTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="pdSizeGuideTitle"><i class="bi bi-rulers me-2 text-success"></i>Size guide</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="pdSizeGuideBody"></div>
+    </div>
+  </div>
+</div>
+
+<script id="variant-data" type="application/json">
 [
   {% for v in product.variants.all %}
-    {
-      "id": "{{ v.id }}",
-      "name": "{{ v.variant_name|escapejs }}",
-      "attribute": "{{ v.attribute_value|escapejs }}",
-      "price": "{{ v.price }}",
-      "stock": {{ v.stocks }},
-      "condition": "{{ v.condition|escapejs }}",
-      "flaws": "{{ v.flaws_description|default:'No major flaws reported.'|escapejs }}",
-      "image_url": "{% if v.assigned_image %}{{ v.assigned_image.image.url }}{% elif product.images.first %}{{ product.images.first.image.url }}{% endif %}"
-    }{% if not forloop.last %},{% endif %}
+  {
+    "id": "{{ v.id }}",
+    "name": "{{ v.variant_name|escapejs }}",
+    "attribute": "{{ v.attribute_value|escapejs }}",
+    "price": "{{ v.price|stringformat:'f' }}",
+    "stock": {{ v.stocks|stringformat:"d" }},
+    "condition": "{{ v.condition|escapejs }}",
+    "flaws": "{{ v.flaws_description|default:''|escapejs }}",
+    "own_image": {% if v.assigned_image %}true{% else %}false{% endif %},
+    "image_url": "{% if v.assigned_image %}{{ v.assigned_image.image.url }}{% elif product.images.first %}{{ product.images.first.image.url }}{% endif %}"
+  }{% if not forloop.last %},{% endif %}
   {% endfor %}
 ]
-  </script>
+</script>
+{{ product.size_chart|json_script:"size-chart-data" }}
+
+{% endwith %}
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{% static 'UTrade_app/js/product_details.js' %}"></script>
   <script src="{% static 'UTrade_app/js/marketplace.js' %}"></script>
+  <script src="{% static 'UTrade_app/js/product_details.js' %}"></script>
 {% endblock %}

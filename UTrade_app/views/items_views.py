@@ -29,8 +29,10 @@ from ..product_access import (
     first_purchase_block,
     product_restriction_course,
     purchase_block_reason,
+    resolve_size,
     seller_restriction_course,
 )
+from ..seller_stats import review_summary, seller_summary
 
 User = get_user_model()
 
@@ -514,8 +516,8 @@ class ProductDetailView(DetailView):
         return (
             super()
             .get_queryset()
-            .select_related('seller', 'category')
-            .prefetch_related('variants', 'images')
+            .select_related('seller', 'category', 'seller__org_link', 'related_org')
+            .prefetch_related('variants__assigned_image', 'images')
         )
 
     def get_context_data(self, **kwargs):
@@ -535,7 +537,9 @@ class ProductDetailView(DetailView):
 
         reviews = getattr(product, 'reviews', None)
         if reviews is not None:
-            context['reviews'] = reviews.select_related('user').order_by('-created_at')[:20]
+            context['reviews'] = (
+                reviews.select_related('user').prefetch_related('media').order_by('-created_at')[:20]
+            )
         else:
             from ..models import Review
             context['reviews'] = Review.objects.filter(
@@ -549,6 +553,8 @@ class ProductDetailView(DetailView):
             ).exists()
         context['restricted_course'] = product_restriction_course(product)
         context['purchase_block_reason'] = purchase_block_reason(self.request.user, product)
+        context['seller_info'] = seller_summary(product.seller, product)
+        context['review_summary'] = review_summary(product)
         return context
 
 
@@ -561,26 +567,39 @@ class BatchAddToCartView(LoginRequiredMixin, View):
             if not items:
                 return JsonResponse({'success': False, 'message': 'No items selected.'}, status=400)
 
-            # Private listings can only be bought by students of the organization's program
             variant_ids = [i.get('variant_id') for i in items if i.get('variant_id')]
-            chosen = ProductVariant.objects.filter(id__in=variant_ids).select_related(
-                'product__seller__org_link', 'product__related_org'
-            )
-            blocked = first_purchase_block(request.user, [v.product for v in chosen])
+            chosen = {
+                str(v.id): v
+                for v in ProductVariant.objects.filter(id__in=variant_ids).select_related(
+                    'product__seller__org_link', 'product__related_org'
+                )
+            }
+
+            # Private listings can only be bought by students of the organization's program
+            blocked = first_purchase_block(request.user, [v.product for v in chosen.values()])
             if blocked:
                 return JsonResponse({'success': False, 'message': blocked}, status=403)
 
+            # Check every item (and its size) before anything is added
+            prepared = []
+            for item in items:
+                variant = chosen.get(str(item.get('variant_id')))
+                if not variant:
+                    continue
+                quantity = int(item.get('quantity', 1))
+                size, size_error = resolve_size(variant, item.get('size'))
+                if size_error:
+                    return JsonResponse({'success': False, 'message': size_error}, status=400)
+                prepared.append((variant, quantity, size))
+
             cart, _ = Cart.objects.get_or_create(user=request.user)
 
-            for item in items:
-                variant_id = item.get('variant_id')
-                quantity = int(item.get('quantity', 1))
-
-                variant = ProductVariant.objects.filter(id=variant_id).first()
-                if not variant or variant.stocks < quantity:
+            for variant, quantity, size in prepared:
+                if variant.stocks < quantity:
                     continue
-
-                cart_item, created = CartItem.objects.get_or_create(cart=cart, variant=variant)
+                cart_item, created = CartItem.objects.get_or_create(
+                    cart=cart, variant=variant, size=size
+                )
                 if not created:
                     cart_item.quantity += quantity
                 else:
@@ -604,28 +623,38 @@ class BatchPreOrderView(LoginRequiredMixin, View):
             if not items:
                 return JsonResponse({'success': False, 'message': 'No items selected.'}, status=400)
 
-            # Private listings can only be bought by students of the organization's program
             variant_ids = [i.get('variant_id') for i in items if i.get('variant_id')]
-            chosen = ProductVariant.objects.filter(id__in=variant_ids).select_related(
-                'product__seller__org_link', 'product__related_org'
-            )
-            blocked = first_purchase_block(request.user, [v.product for v in chosen])
+            chosen = {
+                str(v.id): v
+                for v in ProductVariant.objects.filter(id__in=variant_ids).select_related(
+                    'product__seller__org_link', 'product__related_org'
+                )
+            }
+
+            blocked = first_purchase_block(request.user, [v.product for v in chosen.values()])
             if blocked:
                 return JsonResponse({'success': False, 'message': blocked}, status=403)
 
+            prepared = []
             for item in items:
-                variant_id = item.get('variant_id')
+                variant = chosen.get(str(item.get('variant_id')))
+                if not variant:
+                    continue
                 quantity = int(item.get('quantity', 1))
+                size, size_error = resolve_size(variant, item.get('size'))
+                if size_error:
+                    return JsonResponse({'success': False, 'message': size_error}, status=400)
+                prepared.append((variant, quantity, size))
 
-                variant = ProductVariant.objects.filter(id=variant_id).first()
-                if variant:
-                    PreOrderRequest.objects.create(
-                        buyer=request.user,
-                        product_variant=variant,
-                        seller=variant.product.seller,
-                        quantity=quantity,
-                        status=status,
-                    )
+            for variant, quantity, size in prepared:
+                PreOrderRequest.objects.create(
+                    buyer=request.user,
+                    product_variant=variant,
+                    seller=variant.product.seller,
+                    quantity=quantity,
+                    size=size,
+                    status=status,
+                )
 
             return JsonResponse({'success': True, 'message': 'Pre-orders created successfully.'})
 

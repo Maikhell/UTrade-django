@@ -171,7 +171,7 @@
                     style="font-size: 0.65rem; letter-spacing: 1px; background:#6f42c1; color:#fff;">
                 <i class="bi bi-mortarboard-fill me-1"></i> Alumni
               </span>
-              {% if user.status == 'verified' %}
+              {% elif user.status == 'verified' %}
                 <span class="badge bg-success rounded-pill px-3 py-2 text-uppercase fw-bold"
                       style="font-size: 0.65rem; letter-spacing: 1px">
                   <i class="bi bi-patch-check-fill me-1"></i> Verified

@@ -67,16 +67,6 @@ def _norm(field, value):
     value = (value or '').strip()
     return value.lower() if field == 'email' else value
 
-"""
-Replace the class UserCreateView in views/user_views.py with the class below
-(from `class UserCreateView` down to, but NOT including, `class UserAccountView`),
-and replace the earlier alumni import line near the top of user_views.py with:
-
-    from ..alumni_utils import (
-        ALUMNI_VALID_YEARS, MAX_ENTRY_AGE_YEARS, ACADEMIC_YEAR_END_MONTH, PROGRAM_YEARS,
-        academic_year_start, alumni_expiry, alumni_window_open, can_claim_alumni,
-    )
-"""
 
 
 class UserCreateView(CreateView):
@@ -91,7 +81,6 @@ class UserCreateView(CreateView):
         context.update({
             'program_years': PROGRAM_YEARS,
             'alumni_valid_years': ALUMNI_VALID_YEARS,
-            'max_entry_years': MAX_ENTRY_AGE_YEARS,
             'current_ay': academic_year_start(),
             'ay_end_month': ACADEMIC_YEAR_END_MONTH,
         })
@@ -102,7 +91,7 @@ class UserCreateView(CreateView):
 
         # The sign-up dialog sends is_alumni=1 (and the older user_role=alumni).
         # Never trust it on its own: the student number must really be that of a
-        # finished batch, and the alumni access window must still be open.
+        # batch that has finished the program.
         claims_alumni = (
             self.request.POST.get('is_alumni') == '1'
             or self.request.POST.get('user_role') == 'alumni'
@@ -112,15 +101,6 @@ class UserCreateView(CreateView):
         user.user_role = 'student'
 
         if claims_alumni and can_claim_alumni(user.student_no):
-            if not alumni_window_open(user.student_no):
-                expiry = alumni_expiry(user.student_no)
-                form.add_error(
-                    'student_no',
-                    f"Alumni accounts stay active for {ALUMNI_VALID_YEARS} year(s) after graduation. "
-                    f"For your batch that ended on {expiry:%B %d, %Y}. "
-                    f"If you are still enrolled, choose “No, I'm still a student”.",
-                )
-                return self.form_invalid(form)
             user.is_alumni = True
             user.user_role = 'alumni'      # keeps the existing alumni-only features working
             user.alumni_expires_at = alumni_expiry(user.student_no)

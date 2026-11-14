@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const data = (form && form.dataset) || {};
   const PROGRAM_YEARS = parseInt(data.programYears, 10) || 4;
   const ALUMNI_VALID_YEARS = parseInt(data.alumniValidYears, 10) || 1;
-  const MAX_ENTRY_AGE = parseInt(data.maxEntryYears, 10) || 6;
   const CURRENT_AY = parseInt(data.currentAy, 10) || new Date().getFullYear();  // start year of this academic year
   const AY_END_MONTH = parseInt(data.ayEndMonth, 10) || 7;                      // academic year ends in July
 
@@ -59,17 +58,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Returns {title, text, icon} when the entry year is not acceptable, otherwise null.
+  // Returns {title, text, icon} when this number may NOT register, otherwise null.
   function yearProblem(studentNo) {
     const info = entryInfo(studentNo);
     if (info.age < 0) {
       return { title: 'Invalid Number', text: 'Entry year cannot be in the future.', icon: 'error' };
     }
-    if (info.age > MAX_ENTRY_AGE) {
+    const ac = academicInfo(studentNo);
+    if (!ac.windowOpen) {
       return {
-        title: 'Invalid Student Number',
-        text: 'This student number is too old for registration.',
-        icon: 'warning'
+        title: 'Registration not allowed',
+        text:
+          'Student numbers starting with ' + ac.year + ' belong to a batch that has already graduated, ' +
+          'and alumni access ended on ' + formatDate(ac.expiry) + '. You are no longer a student, ' +
+          "so you can't sign up for UTrade.",
+        icon: 'error'
       };
     }
     return null;
@@ -153,7 +156,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ----- Alumni question (asked on submit, before the Terms modal) -----
-  // Returns 'ok' to carry on, or 'cancel' to stop the sign-up.
   async function resolveAlumniStatus() {
     const studentNo = studentInput.value.trim();
     const info = academicInfo(studentNo);
@@ -161,45 +163,12 @@ document.addEventListener('DOMContentLoaded', function () {
     if (info.level <= PROGRAM_YEARS) {          // still within the program: regular student
       setAlumni(false);
       alumniAnsweredFor = studentNo;
-      return 'ok';
+      return;
     }
-    if (alumniAnsweredFor === studentNo) return 'ok'; // already answered for this number
+    if (alumniAnsweredFor === studentNo) return; // already answered for this number
 
     const hasSwal = typeof Swal !== 'undefined';
     const expiryText = formatDate(info.expiry);
-
-    // Alumni access for this batch has already ended.
-    if (!info.windowOpen) {
-      let stillStudent;
-      if (hasSwal) {
-        const r = await Swal.fire({
-          title: 'Alumni access has ended',
-          html:
-            'Your student number starts with <b>' + info.year + '</b>. Alumni accounts stay active for ' +
-            ALUMNI_VALID_YEARS + ' year(s) after graduation, which ended on <b>' + expiryText +
-            '</b> for your batch, so alumni sign-up is no longer available.<br><br>' +
-            'Are you still enrolled as a student?',
-          icon: 'info',
-          showCancelButton: true,
-          confirmButtonText: "Yes, I'm still a student",
-          cancelButtonText: 'Cancel',
-          confirmButtonColor: '#198754',
-          cancelButtonColor: '#6c757d',
-          allowOutsideClick: false,
-          allowEscapeKey: false
-        });
-        stillStudent = r.isConfirmed;
-      } else {
-        stillStudent = window.confirm(
-          'Alumni access for the ' + info.year + ' batch ended on ' + expiryText +
-          '. Are you still enrolled as a student?'
-        );
-      }
-      if (!stillStudent) return 'cancel';
-      setAlumni(false);
-      alumniAnsweredFor = studentNo;
-      return 'ok';
-    }
 
     // Finished the program and still inside the alumni window: ask.
     let isAlumni;
@@ -230,7 +199,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     setAlumni(isAlumni);
     alumniAnsweredFor = studentNo;
-    return 'ok';
   }
 
   // ----- Confirm and submit -----
@@ -308,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function () {
           return;
         }
 
-        if (studentInput && (await resolveAlumniStatus()) === 'cancel') return;
+        if (studentInput) await resolveAlumniStatus();
 
         if (!termsAccepted) {
           openTermsModal();

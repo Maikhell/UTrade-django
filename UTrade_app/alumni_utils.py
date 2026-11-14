@@ -27,10 +27,6 @@ ALUMNI_VALID_YEARS = 1            # how long alumni keep the account after gradu
 ACADEMIC_YEAR_START_MONTH = 8     # August
 ACADEMIC_YEAR_END_MONTH = 7       # July
 
-# Student numbers whose entry year is more than this many calendar years back are
-# rejected at registration (unchanged from the old script).
-MAX_ENTRY_AGE_YEARS = 6
-
 
 def _today(today=None):
     return today or timezone.localdate()
@@ -77,3 +73,25 @@ def alumni_window_open(student_no, today=None):
 def alumni_signup_allowed(student_no, today=None):
     """Old enough to be an alumnus AND still inside the access window."""
     return can_claim_alumni(student_no, today) and alumni_window_open(student_no, today)
+
+
+def registration_problem(student_no, today=None):
+    """
+    Why this student number may NOT register, or None when it may.
+    A batch whose alumni window has ended is no longer a student body and is refused
+    outright (no "I'm still a student" way around it).
+    """
+    year = entry_year(student_no)
+    if year is None:
+        return None            # the form checks the 9 digits separately
+    today = _today(today)
+    if year > today.year:
+        return "That entry year is in the future. Please check your student number."
+    expiry = alumni_expiry(student_no)
+    if expiry < today:
+        return (
+            f"Student numbers starting with {year} belong to a batch that has already graduated, and "
+            f"alumni access ended on {expiry:%B %d, %Y}. You are no longer a student, so you can't "
+            f"sign up for UTrade."
+        )
+    return None

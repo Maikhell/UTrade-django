@@ -5,6 +5,7 @@ from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 from django.templatetags.static import static
 from django.db.models import Q, Avg
+from django.utils import timezone
 
 def user_profile_path(instance, filename):
     return f'profiles/student_{instance.student_no}/{filename}'
@@ -134,6 +135,13 @@ class User(AbstractUser):
         return self.managed_org_accounts.filter(is_active=True).select_related(
             'org_account', 'org_account__org_link'
         )
+
+    @property
+    def alumni_days_left(self):
+        """Days until alumni access ends (0 = last day, negative = ended), or None."""
+        if not (self.is_alumni and self.alumni_expires_at):
+            return None
+        return (self.alumni_expires_at - timezone.localdate()).days
 
     @property
     def seller_rating_summary(self):

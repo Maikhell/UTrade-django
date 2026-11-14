@@ -49,9 +49,9 @@ from ..models import (
     ChatMessage,
 )
 from ..alumni_utils import (
-        ALUMNI_VALID_YEARS, MAX_ENTRY_AGE_YEARS, ACADEMIC_YEAR_END_MONTH, PROGRAM_YEARS,
-        academic_year_start, alumni_expiry, alumni_window_open, can_claim_alumni,
-    )
+    ACADEMIC_YEAR_END_MONTH, ALUMNI_VALID_YEARS, PROGRAM_YEARS,
+    academic_year_start, alumni_expiry, can_claim_alumni,
+)
 REVERIFY_FIELDS = (
     ('first_name', 'First name'),
     ('last_name', 'Last name'),

@@ -106,6 +106,11 @@
                   <i class="bi bi-clock-history me-1"></i> Pre-order
                 </span>
               {% endif %}
+              {% if restricted_course %}
+                <span class="badge bg-warning-subtle text-warning-emphasis px-3 py-2 rounded-pill">
+                  <i class="bi bi-lock-fill me-1"></i> {{ restricted_course }} only
+                </span>
+              {% endif %}
             </div>
             <small class="text-muted">
               {% if product.product_code %}{{ product.product_code }}{% else %}ID: #UT-{{ product.id }}{% endif %}
@@ -204,6 +209,23 @@
             </div>
           </div>
 
+          {# Private listing notice (organization products limited to one program) #}
+          {% if restricted_course %}
+            <div class="alert {% if purchase_block_reason %}alert-warning{% else %}alert-success{% endif %} d-flex align-items-start gap-2 rounded-4 py-2 px-3 small mb-3" role="note">
+              <i class="bi bi-lock-fill mt-1"></i>
+              <div>
+                <strong>Private listing · {{ restricted_course }} students only.</strong>
+                {% if purchase_block_reason %}
+                  You can browse this item, but only {{ restricted_course }} students can order or pre-order it.
+                {% elif user.is_authenticated %}
+                  Your program matches, so you can order it.
+                {% else %}
+                  Sign in with a {{ restricted_course }} student account to order it.
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+
          <div class="d-grid gap-3">
             {% if product.get_total_stock > 0 %}
               {% if user.is_staff or user.is_superuser or user.user_role == 'management' or user.user_role == 'officer' %}
@@ -223,7 +245,14 @@
                     </button>
                   {% endif %}
 
-                  {% if product.pre_order %}
+                  {% if purchase_block_reason %}
+                    {# Private listing and this student's program doesn't match #}
+                    <button type="button"
+                            class="btn btn-secondary btn-lg flex-grow-1 rounded-3 fw-bold py-3 shadow-sm"
+                            disabled>
+                      <i class="bi bi-lock-fill me-2"></i> {{ restricted_course }} students only
+                    </button>
+                  {% elif product.pre_order %}
                     <button id="preOrderBtn"
                             onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', true)"
                             class="btn btn-primary btn-lg flex-grow-1 rounded-3 fw-bold py-3 shadow-sm">

@@ -1,0 +1,7 @@
+{# Needs: product, private_course. Corner tag on the card image, hidden unless the product is private. #}
+{% if private_course %}
+<span id="audBadge{{ product.id }}"
+      class="badge badge-private rounded-pill position-absolute top-0 start-0 m-2{% if product.audience != 'PRIVATE' %} d-none{% endif %}">
+  <i class="bi bi-lock-fill me-1"></i>{{ private_course }} only
+</span>
+{% endif %}

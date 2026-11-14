@@ -1,0 +1,15 @@
+{# Needs: product, private_course. Only organizations that can make private listings see it. #}
+{% if private_course %}
+<div class="audience-row form-check form-switch mb-2">
+  <input class="form-check-input audience-toggle" type="checkbox" role="switch"
+         id="aud{{ product.id }}"
+         data-product-id="{{ product.id }}"
+         data-name="{{ product.name }}"
+         data-course="{{ private_course }}"
+         data-url="{% url 'org_set_audience' product.id %}"
+         {% if product.audience == 'PRIVATE' %}checked{% endif %}>
+  <label class="form-check-label small fw-semibold" for="aud{{ product.id }}">
+    <i class="bi bi-lock-fill"></i> Private · {{ private_course }} only
+  </label>
+</div>
+{% endif %}

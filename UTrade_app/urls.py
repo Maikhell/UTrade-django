@@ -129,6 +129,7 @@ urlpatterns = [
     path("organization/users/", organization_views.org_users, name="org_users"),
     path("organization/users/message/", organization_views.org_message_user, name="org_message_user"),
     path("organization/users/report/", organization_views.org_report_user, name="org_report_user"),
+    path('organization/product/<int:product_id>/audience/', organization_views.org_set_audience, name='org_set_audience'),
     # =========================================================================
     # Management – Dashboard & Core
     # =========================================================================

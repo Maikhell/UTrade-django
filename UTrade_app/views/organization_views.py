@@ -24,6 +24,7 @@ from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
 from django.views.generic import UpdateView
 from xhtml2pdf import pisa
+from ..product_access import AUDIENCE_GENERAL, AUDIENCE_PRIVATE, seller_restriction_course
 
 from ..forms import ProductForm
 from ..models import (
@@ -123,6 +124,7 @@ def _sidebar_context(user):
         "total_income": total_income,
         "incoming_preorder_count": incoming_pre,
         "org": _require_org(user),
+        "private_course": seller_restriction_course(user),
     }
 
 
@@ -503,7 +505,48 @@ def org_list_product(request, product_id):
     )
     messages.success(request, f'“{product.name}” is now active on the marketplace.')
     return redirect("org_products")
+@login_required
+@user_passes_test(is_organization)
+@require_POST
+def org_set_audience(request, product_id):
+    """Switch one of this organization's products between General and Private.
+    Changing who can buy doesn't change the listing itself, so no re-approval is needed."""
+    product = get_object_or_404(_org_product_qs(request.user), id=product_id)
 
+    course = seller_restriction_course(request.user)
+    if not course:
+        return JsonResponse(
+            {"success": False,
+             "message": "Private listings are only available to academic organizations."},
+            status=403,
+        )
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        data = {}
+    wanted = (data.get("audience") or "").strip().upper()
+    if wanted not in (AUDIENCE_GENERAL, AUDIENCE_PRIVATE):
+        return JsonResponse({"success": False, "message": "Invalid audience."}, status=400)
+
+    if product.audience != wanted:
+        product.audience = wanted
+        product.save(update_fields=["audience"])
+        log_action(
+            user=request.user,
+            action="Product Audience Changed",
+            item_type="Product",
+            item_name=product.name,
+            details=f"ID:{product.id}; audience -> {wanted}"
+            + (f" ({course} only)" if wanted == AUDIENCE_PRIVATE else ""),
+        )
+
+    message = (
+        f"“{product.name}” is now private ({course} students only)."
+        if wanted == AUDIENCE_PRIVATE
+        else f"“{product.name}” is now open to every student."
+    )
+    return JsonResponse({"success": True, "audience": wanted, "message": message})
 
 # ---------------------------------------------------------------------------
 # Notification helpers (org-scoped wording)

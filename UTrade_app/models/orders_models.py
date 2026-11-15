@@ -16,8 +16,21 @@ class Order(models.Model):
         ('Completed', 'Completed'),
         ('Cancelled', 'Cancelled'),
         ('Rejected', 'Rejected'),
+        ('Returned', 'Returned'),
     ]
-
+    RETURN_REASON_CHOICES = [
+        ('Damaged', 'Item arrived damaged'),
+        ('Not as described', 'Not as described'),
+        ('Wrong item', 'Wrong item received'),
+        ('Defective', 'Defective / not working'),
+        ('Other', 'Other'),
+    ]
+    return_reason = models.CharField(max_length=100, choices=RETURN_REASON_CHOICES, null=True, blank=True)
+    return_note = models.TextField(null=True, blank=True)
+    return_requested_at = models.DateTimeField(null=True, blank=True)
+    returned_at = models.DateTimeField(null=True, blank=True)
+    return_response_note = models.TextField(null=True, blank=True) 
+    
     PAYMENT_METHODS = [
         ('GCASH', 'GCash (Online)'),
         ('COP', 'Cash on Pickup'),

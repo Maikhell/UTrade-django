@@ -207,4 +207,8 @@ urlpatterns = [
     path('forgot-password/', password_reset_views.forgot_password, name='forgot_password'),
     path('reset-password/verify/', password_reset_views.password_reset_verify, name='password_reset_verify'),
     path('reset-password/new/', password_reset_views.password_reset_new, name='password_reset_new'),
+    
+    path('order/<int:order_id>/return/', order_views.request_return, name='request_return'),
+    path('order/return/approve/<int:order_id>/', order_views.approve_return, name='approve_return'),
+    path('order/return/reject/<int:order_id>/', order_views.reject_return, name='reject_return'),
 ]

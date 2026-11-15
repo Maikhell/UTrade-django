@@ -2,6 +2,7 @@ import traceback
 import requests
 import base64
 import json
+from datetime import timedelta
 from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -37,7 +38,7 @@ ORDER_STEPS = ['Placed', 'Accepted', 'In progress', 'Ready for pickup', 'Complet
 PREORDER_STEPS = ['Requested', 'Accepted', 'In progress', 'Ready for pickup', 'Completed']
 
 # status -> (css key, label, step)
-# step 0 = ended early (cancelled / rejected); len(steps) + 1 = every step done
+# step 0 = ended early (cancelled / rejected / returned); len(steps) + 1 = every step done
 ORDER_STATUS_META = {
     'Pending': ('pending', 'Pending', 1),
     'Paid': ('pending', 'Paid · awaiting seller', 1),
@@ -49,6 +50,8 @@ ORDER_STATUS_META = {
     'Completed': ('completed', 'Completed', 6),
     'Cancelled': ('cancelled', 'Cancelled', 0),
     'Rejected': ('rejected', 'Rejected', 0),
+    'Return Requested': ('progress', 'Return requested', 0),
+    'Returned': ('returned', 'Returned', 0),
 }
 
 PREORDER_STATUS_META = {
@@ -71,8 +74,34 @@ PREORDER_IN_PROGRESS = {
     'AWAITING_PAYMENT', 'WAITING_STOCKS',
 }
 
-# Order statuses that always belong to the "In Progress" tab
+# Order statuses that always belong to the "In Progress" list (kept for the legacy context keys)
 ORDER_IN_PROGRESS = ('Pending', 'Paid', 'Processing', 'Awaiting Payment', 'Waiting for Stocks')
+
+RETURN_WINDOW_DAYS = 7  # buyer may request a return this long after completion
+
+# status -> tab key. This is the single source of truth for tab placement.
+ORDER_TAB = {
+    'Pending': 'to_pay',
+    'Awaiting Payment': 'to_pay',
+    'Paid': 'to_pickup',
+    'Accepted': 'to_pickup',
+    'Processing': 'to_pickup',
+    'Waiting for Stocks': 'to_pickup',
+    'Delivered': 'to_pickup',
+    'Completed': 'completed',
+    'Cancelled': 'cancelled',
+    'Rejected': 'cancelled',
+    'Return Requested': 'return',
+    'Returned': 'return',
+}
+PREORDER_TAB = {
+    'AWAITING_PAYMENT': 'to_pay',
+    'PENDING': 'to_pickup', 'ACCEPTED': 'to_pickup', 'APPROVED': 'to_pickup',
+    'PROCESSING': 'to_pickup', 'PREPARING': 'to_pickup',
+    'WAITING_STOCKS': 'to_pickup', 'READY': 'to_pickup',
+    'COMPLETED': 'completed',
+    'REJECTED': 'cancelled', 'DECLINED': 'cancelled', 'CANCELLED': 'cancelled',
+}
 
 
 def _decorate(obj, meta, kind, n_steps, status):
@@ -84,6 +113,23 @@ def _decorate(obj, meta, kind, n_steps, status):
     obj.step = step
     obj.in_flight = 1 <= step <= n_steps
     return obj
+
+
+def _tab_of(obj):
+    """Which tab an order / pre-order belongs to, based on its live status."""
+    if obj.kind == 'order':
+        return ORDER_TAB.get(obj.status, 'to_pickup')
+    return PREORDER_TAB.get((obj.status or '').upper(), 'to_pickup')
+
+
+def _attach_return_info(order):
+    """order.can_return: Completed, never returned/requested, inside the return window."""
+    order.can_return = (
+        order.status == 'Completed'
+        and not order.return_requested_at
+        and timezone.now() - order.updated_at <= timedelta(days=RETURN_WINDOW_DAYS)
+    )
+    return order
 
 
 def _is_management_order(order):
@@ -412,6 +458,7 @@ def order_history(request):
     for o in orders:
         _decorate(o, ORDER_STATUS_META, 'order', len(ORDER_STEPS), o.status)
         _attach_seller_ratings(o, request.user)
+        _attach_return_info(o)
 
     preorders = list(
         PreOrderRequest.objects.filter(buyer=request.user)
@@ -432,7 +479,7 @@ def order_history(request):
         _decorate(po, PREORDER_STATUS_META, 'preorder', len(PREORDER_STEPS), (po.status or '').upper())
         _attach_preorder_ratings(po, request.user)
 
-    # ---- Orders by tab ----
+    # ---- Legacy lists (kept so existing context keys keep working) ----
     active_orders = [
         o for o in orders
         if o.status in ORDER_IN_PROGRESS
@@ -446,12 +493,10 @@ def order_history(request):
     completed = [o for o in orders if o.status == 'Completed']
     ended = [o for o in orders if o.status in ('Cancelled', 'Rejected')]
 
-    # "Needs rating" now also covers sellers that have not been rated yet
     needs_rating = [o for o in completed if o.rate_pending]
     already_rated = [o for o in completed if not o.rate_pending]
     history_orders = needs_rating + already_rated + ended
 
-    # ---- Pre-orders by tab ----
     preorder_active = [po for po in preorders if (po.status or '').upper() in PREORDER_IN_PROGRESS]
     preorder_ready = [po for po in preorders if (po.status or '').upper() == 'READY']
     preorder_history = [
@@ -463,7 +508,6 @@ def order_history(request):
     def newest_first(items):
         return sorted(items, key=lambda x: x.created_at, reverse=True)
 
-    # Mixed lists (orders + pre-orders), one per tab
     active_items = newest_first(active_orders + preorder_active)
     pickup_items = newest_first(pickup_orders + preorder_ready)
     history_items = sorted(
@@ -473,6 +517,40 @@ def order_history(request):
             -x.created_at.timestamp(),
         ),
     )
+
+    # ---- Tabs: ALL / To Pay / To Pick Up / Completed / Cancelled / Return ----
+    all_items = newest_first(orders + preorders)   # ALL: every order, any status
+    by_tab = {k: [] for k in ('to_pay', 'to_pickup', 'completed', 'cancelled', 'return')}
+    for item in all_items:
+        by_tab[_tab_of(item)].append(item)
+
+    # Completed: unrated first, then newest (same behaviour as the old History tab)
+    by_tab['completed'].sort(
+        key=lambda x: (0 if getattr(x, 'rate_pending', False) else 1, -x.created_at.timestamp())
+    )
+
+    order_tabs = [
+        {'id': 'all', 'label': 'ALL', 'icon': 'bi-grid', 'items': all_items, 'badge': '',
+         'empty_icon': 'bi-inbox', 'empty_title': 'No orders yet',
+         'empty_text': 'Everything you order will show up here.'},
+        {'id': 'topay', 'label': 'To Pay', 'icon': 'bi-wallet2', 'items': by_tab['to_pay'], 'badge': 'oc-count--pending',
+         'empty_icon': 'bi-wallet2', 'empty_title': 'Nothing to pay',
+         'empty_text': 'Orders awaiting payment will appear here.'},
+        {'id': 'pickup', 'label': 'To Pick Up', 'icon': 'bi-bag-check', 'items': by_tab['to_pickup'], 'badge': 'oc-count--ready',
+         'empty_icon': 'bi-bag-check', 'empty_title': 'Nothing to pick up right now',
+         'empty_text': 'Paid, accepted and ready orders and pre-orders will appear here.'},
+        {'id': 'completed', 'label': 'Completed', 'icon': 'bi-check2-circle', 'items': by_tab['completed'], 'badge': '',
+         'empty_icon': 'bi-check2-circle', 'empty_title': 'No completed orders',
+         'empty_text': 'Completed orders will be listed here. You can rate or return them from here.'},
+        {'id': 'cancelled', 'label': 'Cancelled', 'icon': 'bi-x-circle', 'items': by_tab['cancelled'], 'badge': '',
+         'empty_icon': 'bi-x-circle', 'empty_title': 'No cancelled orders',
+         'empty_text': 'Cancelled and rejected orders will be listed here.'},
+        {'id': 'return', 'label': 'Return', 'icon': 'bi-arrow-return-left', 'items': by_tab['return'], 'badge': '',
+         'empty_icon': 'bi-arrow-return-left', 'empty_title': 'No returns',
+         'empty_text': 'Return requests and successfully returned products will appear here.'},
+    ]
+    for t in order_tabs:
+        t['count'] = len(t['items'])
 
     context = {
         # kept for backward compatibility
@@ -491,7 +569,7 @@ def order_history(request):
         'active_items': active_items,
         'pickup_items': pickup_items,
         'history_items': history_items,
-        'all_items': active_items + pickup_items + history_items,
+        'all_items': all_items,          # modals loop over this: every order, any status
         'active_count': len(active_items),
         'pickup_total': len(pickup_items),
         'history_total': len(history_items),
@@ -500,6 +578,9 @@ def order_history(request):
         # quick-rating dropdowns
         'product_quick_options': _quick_options(PRODUCT_QUICK_FEEDBACK),
         'seller_quick_options': _quick_options(SELLER_QUICK_FEEDBACK),
+        # tabs + returns
+        'order_tabs': order_tabs,
+        'return_reasons': Order.RETURN_REASON_CHOICES,
     }
     return render(request, 'UTrade_app/orders/history.html', context)
 
@@ -667,6 +748,96 @@ def cancel_order(request, order_id):
         return JsonResponse({'status': 'success', 'message': 'Order cancelled successfully.'})
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
+
+
+# ---------------------------------------------------------------------------
+# Returns: Completed -> Return Requested -> Returned (or back to Completed)
+# ---------------------------------------------------------------------------
+@login_required
+@require_POST
+@transaction.atomic
+def request_return(request, order_id):
+    """Buyer: Completed -> Return Requested (once, inside the return window)."""
+    order = get_object_or_404(Order.objects.select_for_update(), id=order_id, user=request.user)
+    _attach_return_info(order)
+
+    if not order.can_return:
+        return JsonResponse(
+            {'status': 'error', 'message': 'This order is not eligible for return.'}, status=400
+        )
+
+    reason = (request.POST.get('reason') or '').strip()
+    note = (request.POST.get('note') or '').strip()[:1000]
+    if reason not in dict(Order.RETURN_REASON_CHOICES):
+        return JsonResponse({'status': 'error', 'message': 'Please select a return reason.'}, status=400)
+    if reason == 'Other' and not note:
+        return JsonResponse({'status': 'error', 'message': 'Please describe the problem.'}, status=400)
+
+    order.status = 'Return Requested'
+    order.return_reason = reason
+    order.return_note = note
+    order.return_requested_at = timezone.now()
+    order.save(update_fields=['status', 'return_reason', 'return_note',
+                              'return_requested_at', 'updated_at'])
+
+    first_item = order.items.select_related('product_variant__product').first()
+    product = first_item.product_variant.product if first_item and first_item.product_variant else None
+    if product and order.seller_id:
+        conversation, _ = Conversation.objects.get_or_create(
+            product=product, buyer=request.user, seller=order.seller
+        )
+        ChatMessage.objects.create(
+            conversation=conversation, user=request.user, is_read=False,
+            content=(f"🚨 SYSTEM: Return requested for Order #{order.id}.\n"
+                     f"Reason: {order.get_return_reason_display()}"
+                     + (f"\nNote: {note}" if note else "")),
+        )
+    return JsonResponse({'status': 'success', 'message': 'Return request sent to the seller.'})
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def approve_return(request, order_id):
+    """Seller: Return Requested -> Returned. Restocks items and reverses sold counts."""
+    order = get_object_or_404(Order.objects.select_for_update(), id=order_id, seller=request.user)
+    if order.status != 'Return Requested':
+        messages.warning(request, "This order has no pending return request.")
+        return redirect('seller_inventory')
+
+    for item in order.items.select_related('product_variant__product'):
+        variant = item.product_variant
+        if variant:
+            variant.stocks += item.quantity
+            variant.save(update_fields=['stocks'])
+            product = variant.product
+            product.sold = max(0, product.sold - item.quantity)
+            product.save(update_fields=['sold'])
+
+    order.status = 'Returned'
+    order.returned_at = timezone.now()
+    order.save(update_fields=['status', 'returned_at', 'updated_at'])
+    # TODO: if accrue_platform_fee_for_order() created a ledger entry on completion,
+    # reverse it here with the matching helper in ..utils.
+    messages.success(request, f"Order #{order.id} has been marked as Returned.")
+    return redirect('seller_inventory')
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def reject_return(request, order_id):
+    """Seller: Return Requested -> back to Completed (buyer can't re-request)."""
+    order = get_object_or_404(Order.objects.select_for_update(), id=order_id, seller=request.user)
+    if order.status != 'Return Requested':
+        messages.warning(request, "This order has no pending return request.")
+        return redirect('seller_inventory')
+
+    order.status = 'Completed'
+    order.return_response_note = (request.POST.get('response_note') or '').strip()[:1000]
+    order.save(update_fields=['status', 'return_response_note', 'updated_at'])
+    messages.success(request, f"Return request for Order #{order.id} was declined.")
+    return redirect('seller_inventory')
 
 
 @login_required

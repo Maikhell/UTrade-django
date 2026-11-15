@@ -46,6 +46,22 @@
               {% if order.rejection_note %}<div class="mt-1">{{ order.rejection_note }}</div>{% endif %}
             </div>
           </div>
+        {% elif order.status == 'Return Requested' %}
+          <div class="oc-alert oc-alert--return">
+            <i class="bi bi-arrow-return-left"></i>
+            <div>
+              <strong>Return requested.</strong>
+              <div>Waiting for the seller to review your request.</div>
+            </div>
+          </div>
+        {% elif order.status == 'Returned' %}
+          <div class="oc-alert oc-alert--returned">
+            <i class="bi bi-check2-circle"></i>
+            <div>
+              <strong>This order was returned.</strong>
+              <div>The seller accepted your return and the items went back to stock.</div>
+            </div>
+          </div>
         {% endif %}
 
         <section class="oc-msec">
@@ -80,12 +96,34 @@
               <span class="oc-info-label">Last updated</span>
               <span class="oc-info-value">{{ order.updated_at|date:"M d, Y · h:i A" }}</span>
             </div>
+            {% if order.return_requested_at %}
+            <div class="oc-info">
+              <span class="oc-info-label">Return requested</span>
+              <span class="oc-info-value">{{ order.return_requested_at|date:"M d, Y · h:i A" }}</span>
+            </div>
+            <div class="oc-info">
+              <span class="oc-info-label">Return reason</span>
+              <span class="oc-info-value">{{ order.get_return_reason_display|default:"—" }}</span>
+            </div>
+            {% endif %}
+            {% if order.returned_at %}
+            <div class="oc-info">
+              <span class="oc-info-label">Returned on</span>
+              <span class="oc-info-value">{{ order.returned_at|date:"M d, Y · h:i A" }}</span>
+            </div>
+            {% endif %}
           </div>
           {% if order.buyer_note %}
             <div class="oc-note"><span>Your note</span>{{ order.buyer_note }}</div>
           {% endif %}
           {% if order.seller_note %}
             <div class="oc-note oc-note--seller"><span>Seller's note</span>{{ order.seller_note }}</div>
+          {% endif %}
+          {% if order.return_note %}
+            <div class="oc-note"><span>Your return note</span>{{ order.return_note }}</div>
+          {% endif %}
+          {% if order.return_response_note %}
+            <div class="oc-note oc-note--seller"><span>Seller's reply to your return</span>{{ order.return_response_note }}</div>
           {% endif %}
         </section>
 
@@ -198,6 +236,12 @@
             <button type="button" class="btn btn-warning btn-sm fw-bold"
                     data-bs-toggle="modal" data-bs-target="#rateModal{{ order.id }}">
               <i class="bi bi-star-fill"></i> Rate order
+            </button>
+          {% endif %}
+          {% if order.can_return %}
+            <button type="button" class="btn btn-outline-danger btn-sm"
+                    onclick="handleReturnOrder('{{ order.id }}')">
+              <i class="bi bi-arrow-return-left"></i> Return
             </button>
           {% endif %}
         {% endif %}

@@ -21,38 +21,27 @@
     <p class="oc-page-sub">Track your orders and pre-orders from request to pickup.</p>
   </header>
 
-  {# ========== TABS ========== #}
+  {# ========== TABS: ALL / To Pay / To Pick Up / Completed / Cancelled / Return ========== #}
   <ul class="nav nav-pills oc-tabs" id="orderTabs" role="tablist">
+    {% for tab in order_tabs %}
     <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="pending-tab" data-bs-toggle="pill" data-bs-target="#pending"
-              type="button" role="tab" aria-controls="pending" aria-selected="true">
-        <i class="bi bi-hourglass-split d-none d-sm-inline"></i>
-        <span>In Progress</span>
-        {% if active_count %}<span class="oc-count oc-count--pending">{{ active_count }}</span>{% endif %}
+      <button class="nav-link{% if forloop.first %} active{% endif %}" id="{{ tab.id }}-tab"
+              data-bs-toggle="pill" data-bs-target="#{{ tab.id }}"
+              type="button" role="tab" aria-controls="{{ tab.id }}"
+              aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+        <i class="bi {{ tab.icon }} d-none d-sm-inline"></i>
+        <span>{{ tab.label }}</span>
+        {% if tab.count %}<span class="oc-count {{ tab.badge }}">{{ tab.count }}</span>{% endif %}
       </button>
     </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="pickup-tab" data-bs-toggle="pill" data-bs-target="#pickup"
-              type="button" role="tab" aria-controls="pickup" aria-selected="false">
-        <i class="bi bi-bag-check d-none d-sm-inline"></i>
-        <span>To Pickup</span>
-        {% if pickup_total %}<span class="oc-count oc-count--ready">{{ pickup_total }}</span>{% endif %}
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="all-tab" data-bs-toggle="pill" data-bs-target="#all"
-              type="button" role="tab" aria-controls="all" aria-selected="false">
-        <i class="bi bi-clock-history d-none d-sm-inline"></i>
-        <span>History</span>
-        {% if history_total %}<span class="oc-count">{{ history_total }}</span>{% endif %}
-      </button>
-    </li>
+    {% endfor %}
   </ul>
 
   <div class="tab-content" id="orderTabsContent">
-
-    <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab" tabindex="0">
-      {% for item in active_items %}
+    {% for tab in order_tabs %}
+    <div class="tab-pane fade{% if forloop.first %} show active{% endif %}" id="{{ tab.id }}"
+         role="tabpanel" aria-labelledby="{{ tab.id }}-tab" tabindex="0">
+      {% for item in tab.items %}
         {% if item.kind == 'order' %}
           {% include "UTrade_app/orders/partials/order_card.html" with order=item %}
         {% else %}
@@ -60,45 +49,16 @@
         {% endif %}
       {% empty %}
         <div class="oc-empty">
-          <i class="bi bi-inbox"></i>
-          <h6>Nothing in progress</h6>
-          <p>Orders and pre-orders waiting for the seller will show up here.</p>
-          <a href="{% url 'product.list' %}" class="btn btn-success btn-sm fw-bold">Browse the marketplace</a>
+          <i class="bi {{ tab.empty_icon }}"></i>
+          <h6>{{ tab.empty_title }}</h6>
+          <p>{{ tab.empty_text }}</p>
+          {% if tab.id == 'all' %}
+            <a href="{% url 'product.list' %}" class="btn btn-success btn-sm fw-bold">Browse the marketplace</a>
+          {% endif %}
         </div>
       {% endfor %}
     </div>
-
-    <div class="tab-pane fade" id="pickup" role="tabpanel" aria-labelledby="pickup-tab" tabindex="0">
-      {% for item in pickup_items %}
-        {% if item.kind == 'order' %}
-          {% include "UTrade_app/orders/partials/order_card.html" with order=item %}
-        {% else %}
-          {% include "UTrade_app/orders/partials/preorder_card.html" with po=item %}
-        {% endif %}
-      {% empty %}
-        <div class="oc-empty">
-          <i class="bi bi-bag-check"></i>
-          <h6>Nothing to pick up right now</h6>
-          <p>Accepted orders and ready pre-orders will appear here.</p>
-        </div>
-      {% endfor %}
-    </div>
-
-    <div class="tab-pane fade" id="all" role="tabpanel" aria-labelledby="all-tab" tabindex="0">
-      {% for item in history_items %}
-        {% if item.kind == 'order' %}
-          {% include "UTrade_app/orders/partials/order_card.html" with order=item %}
-        {% else %}
-          {% include "UTrade_app/orders/partials/preorder_card.html" with po=item %}
-        {% endif %}
-      {% empty %}
-        <div class="oc-empty">
-          <i class="bi bi-clock-history"></i>
-          <h6>No history yet</h6>
-          <p>Completed, cancelled and rejected orders will be listed here.</p>
-        </div>
-      {% endfor %}
-    </div>
+    {% endfor %}
   </div>
 </div>
 
@@ -182,6 +142,46 @@
       const result = await response.json();
       if (result.status === 'success') {
         Swal.fire('Cancelled!', result.message, 'success').then(() => location.reload());
+      } else Swal.fire('Error', result.message, 'error');
+    } catch (e) {
+      Swal.fire('Error', 'Something went wrong.', 'error');
+    }
+  }
+
+  async function handleReturnOrder(orderId) {
+    // Close any open Bootstrap modal first so SweetAlert can take focus
+    document.querySelectorAll('.modal.show').forEach(m => bootstrap.Modal.getInstance(m)?.hide());
+
+    const reasons = {
+      {% for key, label in return_reasons %}'{{ key|escapejs }}': '{{ label|escapejs }}',{% endfor %}
+    };
+    const { value: form } = await Swal.fire({
+      title: 'Return this order?',
+      html: '<select id="rr-reason" class="swal2-select" style="width:90%"><option value="">Select a reason</option>' +
+            Object.entries(reasons).map(([k, v]) => `<option value="${k}">${v}</option>`).join('') +
+            '</select><textarea id="rr-note" class="swal2-textarea" placeholder="Tell the seller what went wrong"></textarea>',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Request return',
+      preConfirm: () => {
+        const reason = document.getElementById('rr-reason').value;
+        const note = document.getElementById('rr-note').value.trim();
+        if (!reason) { Swal.showValidationMessage('Please select a reason.'); return false; }
+        if (reason === 'Other' && !note) { Swal.showValidationMessage('Please describe the problem.'); return false; }
+        return { reason, note };
+      }
+    });
+    if (!form) return;
+    const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+    try {
+      const response = await fetch(`/order/${orderId}/return/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `reason=${encodeURIComponent(form.reason)}&note=${encodeURIComponent(form.note)}`
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        Swal.fire('Requested', result.message, 'success').then(() => location.reload());
       } else Swal.fire('Error', result.message, 'error');
     } catch (e) {
       Swal.fire('Error', 'Something went wrong.', 'error');

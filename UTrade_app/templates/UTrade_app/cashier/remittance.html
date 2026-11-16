@@ -1,0 +1,321 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static humanize %}
+
+{% block title %}Cashier | Remittance{% endblock %}
+
+{% block content %}
+<style>
+  .cs-wrap { max-width: 1280px; margin: 0 auto; }
+  .cs-card { background:#fff; border:1px solid #edf0ee; border-left:5px solid #198754; border-radius:1rem;
+             box-shadow:0 .25rem 1rem rgba(15,81,50,.05); overflow:hidden; }
+  .cs-stat { display:flex; align-items:center; gap:.9rem; padding:1rem 1.1rem; height:100%; }
+  .cs-stat-icon { width:44px; height:44px; flex:0 0 auto; display:flex; align-items:center; justify-content:center;
+                  border-radius:.9rem; background:#e8f5ee; color:#146c43; font-size:1.3rem; }
+  .cs-stat-label { font-size:.74rem; font-weight:600; color:#6c757d; }
+  .cs-stat-value { font-size:1.4rem; font-weight:800; line-height:1.15; color:#212529; }
+  .cs-tabs .nav-link { color:#495057; font-weight:600; border-radius:.65rem; }
+  .cs-tabs .nav-link.active { background:#198754; color:#fff; }
+  .cs-table th { font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#8a948f; }
+  .cs-receipt-no { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight:700; letter-spacing:.08em; }
+  .cs-digits { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:1.4rem;
+               letter-spacing:.35em; text-align:center; }
+  @media (max-width: 575.98px) { .cs-stat-value { font-size:1.15rem; } }
+</style>
+
+<div class="container py-3 py-md-4">
+  <div class="cs-wrap">
+
+    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary btn-sm rounded-pill d-inline-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i><span>Back to Account</span>
+    </a>
+
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+      <div>
+        <h1 class="h3 fw-bold mb-1">Platform Remittance</h1>
+        <p class="text-muted small mb-0">
+          Collect each organization's platform fee (3% of completed sales), issue the receipt and start the next 30-day cycle.
+        </p>
+      </div>
+      <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2">
+        <i class="bi bi-person-badge me-1"></i>{{ request.user.get_full_name|default:request.user.get_short_name }} · Cashier
+      </span>
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0 rounded-3" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <!-- Summary -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-lg-3"><div class="cs-card h-100"><div class="cs-stat">
+        <span class="cs-stat-icon"><i class="bi bi-cash-coin"></i></span>
+        <div><div class="cs-stat-label">To collect</div><div class="cs-stat-value">₱{{ summary.outstanding|floatformat:2|intcomma }}</div></div>
+      </div></div></div>
+      <div class="col-6 col-lg-3"><div class="cs-card h-100"><div class="cs-stat">
+        <span class="cs-stat-icon"><i class="bi bi-exclamation-octagon"></i></span>
+        <div><div class="cs-stat-label">Overdue cycles</div><div class="cs-stat-value">{{ summary.overdue }}</div></div>
+      </div></div></div>
+      <div class="col-6 col-lg-3"><div class="cs-card h-100"><div class="cs-stat">
+        <span class="cs-stat-icon"><i class="bi bi-receipt"></i></span>
+        <div><div class="cs-stat-label">Receipts today</div><div class="cs-stat-value">{{ summary.issued_today }}</div></div>
+      </div></div></div>
+      <div class="col-6 col-lg-3"><div class="cs-card h-100"><div class="cs-stat">
+        <span class="cs-stat-icon"><i class="bi bi-wallet2"></i></span>
+        <div><div class="cs-stat-label">Collected today</div><div class="cs-stat-value">₱{{ summary.collected_today|floatformat:2|intcomma }}</div></div>
+      </div></div></div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-pills cs-tabs gap-1 mb-3" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-active" type="button" role="tab">
+          <i class="bi bi-clock-history me-1"></i> Active remittances
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-receipts" type="button" role="tab">
+          <i class="bi bi-receipt me-1"></i> Receipts issued
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+
+      <!-- ============ ACTIVE ============ -->
+      <div class="tab-pane fade show active" id="tab-active" role="tabpanel">
+        <form method="get" class="mb-3">
+          <div class="input-group" style="max-width:380px;">
+            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+            <input type="search" name="q" value="{{ search }}" class="form-control" placeholder="Search organization" aria-label="Search organization">
+            {% if search %}<a href="{% url 'cashier_remittance' %}" class="btn btn-outline-secondary">Clear</a>{% endif %}
+          </div>
+        </form>
+
+        <div class="cs-card">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 cs-table">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-4 py-3">Organization</th>
+                  <th class="py-3">Cycle</th>
+                  <th class="py-3">Due date</th>
+                  <th class="text-end py-3">Sales</th>
+                  <th class="text-end py-3">Fee to collect (3%)</th>
+                  <th class="py-3">Status</th>
+                  <th class="text-center pe-4 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for org in page_obj %}
+                  <tr>
+                    <td class="ps-4">
+                      <div class="fw-semibold">{{ org.full_name }}</div>
+                      <div class="small text-muted">{{ org.name }}{% if org.course_code %} · {{ org.course_code }}{% endif %}</div>
+                    </td>
+                    <td class="small text-muted">
+                      {% if org.cycle_start %}{{ org.cycle_start|date:"M d" }} → {{ org.cycle_due|date:"M d, Y" }}{% else %}No active cycle{% endif %}
+                    </td>
+                    <td>
+                      {% if org.cycle_due %}
+                        <span class="fw-medium">{{ org.cycle_due|date:"M d, Y" }}</span>
+                        {% if org.status != 'PAID' and org.cycle_due < today %}<span class="badge text-bg-danger ms-1">Overdue</span>{% endif %}
+                      {% else %}—{% endif %}
+                    </td>
+                    <td class="text-end">₱{{ org.accumulated_sales|default:"0.00"|floatformat:2|intcomma }}</td>
+                    <td class="text-end">
+                      <span class="fw-bold {% if org.accumulated_fee and org.accumulated_fee > 0 %}text-success{% else %}text-muted{% endif %}">
+                        ₱{{ org.accumulated_fee|default:"0.00"|floatformat:2|intcomma }}
+                      </span>
+                    </td>
+                    <td>
+                      {% if org.status == 'OPEN' %}<span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3">Open</span>
+                      {% elif org.status == 'DUE' %}<span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3">Due</span>
+                      {% elif org.status == 'PAID' %}<span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3">Paid</span>
+                      {% else %}<span class="badge rounded-pill bg-light text-muted border px-3">No activity</span>{% endif %}
+                    </td>
+                    <td class="text-center pe-4">
+                      {% if org.latest_ledger_id and org.status != 'PAID' and org.accumulated_fee and org.accumulated_fee > 0 %}
+                        <button type="button" class="btn btn-sm btn-success rounded-pill px-3"
+                                data-bs-toggle="modal" data-bs-target="#payModal{{ org.latest_ledger_id }}">
+                          <i class="bi bi-check2-circle me-1"></i> Record payment
+                        </button>
+                      {% else %}
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" disabled>
+                          <i class="bi bi-check2-circle me-1"></i> Record payment
+                        </button>
+                      {% endif %}
+                    </td>
+                  </tr>
+
+                  {% if org.latest_ledger_id and org.status != 'PAID' and org.accumulated_fee and org.accumulated_fee > 0 %}
+                  <div class="modal fade" id="payModal{{ org.latest_ledger_id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content border-0 shadow-lg rounded-4">
+                        <form method="post" action="{% url 'record_platform_remittance' %}" class="pay-form">
+                          {% csrf_token %}
+                          <input type="hidden" name="ledger_id" value="{{ org.latest_ledger_id }}">
+
+                          <div class="modal-header border-0 pb-0">
+                            <h5 class="modal-title fw-bold">
+                              Record payment
+                              <span class="d-block small fw-normal text-muted mt-1">{{ org.full_name }} ({{ org.name }})</span>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+
+                          <div class="modal-body pt-3">
+                            <div class="bg-success-subtle rounded-3 p-3 mb-4">
+                              <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted small">Amount to collect</span>
+                                <span class="fs-4 fw-bold text-success">₱{{ org.accumulated_fee|floatformat:2|intcomma }}</span>
+                              </div>
+                              <div class="small text-muted mt-1">Cycle due {{ org.cycle_due|date:"M d, Y" }}</div>
+                            </div>
+
+                            <div class="mb-3">
+                              <label class="form-label fw-semibold" for="rno{{ org.latest_ledger_id }}">
+                                Receipt number <span class="text-danger">*</span>
+                              </label>
+                              <input type="text" id="rno{{ org.latest_ledger_id }}" name="receipt_no"
+                                     class="form-control form-control-lg rounded-3 cs-digits receipt-digits"
+                                     inputmode="numeric" pattern="\d{7}" minlength="7" maxlength="7"
+                                     placeholder="0000000" autocomplete="off" required>
+                              <div class="form-text">Exactly 7 digits. This number is printed on the receipt and can only be used once.</div>
+                            </div>
+
+                            <div class="mb-3">
+                              <label class="form-label fw-semibold">Received by</label>
+                              <input type="text" name="received_by" class="form-control rounded-3"
+                                     value="{{ request.user.get_full_name }}" maxlength="120">
+                            </div>
+
+                            <div class="mb-3">
+                              <label class="form-label fw-semibold">Notes (optional)</label>
+                              <textarea name="notes" class="form-control rounded-3" rows="2" placeholder="Any additional notes..."></textarea>
+                            </div>
+
+                            <div class="alert alert-info border-0 rounded-3 small mb-0">
+                              <div class="fw-medium mb-1">On confirmation the system will:</div>
+                              <ul class="mb-0 ps-3">
+                                <li>Mark this cycle as <strong>PAID</strong></li>
+                                <li>Issue the receipt with the number above</li>
+                                <li>Start a new open cycle today (+30 days)</li>
+                              </ul>
+                            </div>
+                          </div>
+
+                          <div class="modal-footer border-0 pt-0">
+                            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success rounded-pill px-4">
+                              <i class="bi bi-check2-circle me-1"></i> Confirm and generate receipt
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  {% endif %}
+                {% empty %}
+                  <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                      <i class="bi bi-inbox display-6 d-block mb-2 opacity-50"></i>
+                      {% if search %}No organization matches “{{ search }}”.{% else %}No organizations found.{% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+          <nav class="mt-4 d-flex justify-content-center" aria-label="Pages">
+            <ul class="pagination pagination-sm mb-0">
+              {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&q={{ search|urlencode }}{% endif %}">Previous</a></li>
+              {% endif %}
+              <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+              {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&q={{ search|urlencode }}{% endif %}">Next</a></li>
+              {% endif %}
+            </ul>
+          </nav>
+        {% endif %}
+      </div>
+
+      <!-- ============ RECEIPTS ============ -->
+      <div class="tab-pane fade" id="tab-receipts" role="tabpanel">
+        <div class="cs-card">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 cs-table">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-4 py-3">Receipt no.</th>
+                  <th class="py-3">Organization</th>
+                  <th class="py-3">Paid on</th>
+                  <th class="text-end py-3">Amount</th>
+                  <th class="py-3">Received by</th>
+                  <th class="py-3">Recorded by</th>
+                  <th class="text-center pe-4 py-3">Receipt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in receipts %}
+                  <tr>
+                    <td class="ps-4"><span class="cs-receipt-no">{{ r.receipt_no }}</span></td>
+                    <td class="fw-medium">{{ r.ledger.organization.name }}</td>
+                    <td class="text-muted">{{ r.payment_date|date:"M d, Y" }}</td>
+                    <td class="text-end fw-bold text-success">₱{{ r.amount_paid|floatformat:2|intcomma }}</td>
+                    <td>{{ r.management_rep_name|default:"—" }}</td>
+                    <td class="text-muted small">{{ r.recorded_by.get_full_name|default:r.recorded_by.get_short_name|default:"—" }}</td>
+                    <td class="text-center pe-4">
+                      <a href="{% url 'platform_fee_receipt' r.id %}" target="_blank" class="btn btn-sm btn-outline-success rounded-pill px-3">
+                        <i class="bi bi-printer me-1"></i> View / print
+                      </a>
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="7" class="text-center py-5 text-muted">
+                      <i class="bi bi-journal-x display-6 d-block mb-2 opacity-50"></i>No receipts issued yet.
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p class="small text-muted mt-2">Showing the 50 most recent receipts.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Receipt number: digits only, max 7
+  document.querySelectorAll('.receipt-digits').forEach(function (input) {
+    input.addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 7);
+    });
+  });
+
+  // Block a double click while the payment is being recorded
+  document.querySelectorAll('.pay-form').forEach(function (form) {
+    form.addEventListener('submit', function () {
+      const btn = form.querySelector('button[type="submit"]');
+      setTimeout(function () {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Recording…';
+      }, 0);
+    });
+  });
+});
+</script>
+{% endblock %}

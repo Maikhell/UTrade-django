@@ -595,110 +595,39 @@ def notify_org_remittance(request, ledger_id):
     messages.success(request, f"Notification successfully sent to {org.name} ({target_user.get_short_name}).")
     return redirect('remittance_management')
 
-
-@login_required
-@user_passes_test(is_management)
-@require_POST
-@transaction.atomic
-def record_platform_remittance(request):
-    """Action 2 + 3: Mark as Paid + auto-generate receipt and reset cycle."""
-    ledger_id = request.POST.get('ledger_id')
-    rep_name = (request.POST.get('management_rep_name') or '').strip()
-
-    if not rep_name:
-        messages.error(request, 'Management representative name is required.')
-        return redirect('remittance_management')
-
-    # Lock row to prevent race conditions from double submission
-    ledger = OrganizationPlatformLedger.objects.select_for_update().filter(
-        id=ledger_id
-    ).first()
-
-    if not ledger or ledger.status == OrganizationPlatformLedger.STATUS_PAID:
-        messages.warning(request, 'This remittance cycle is already marked as paid or does not exist.')
-        return redirect('remittance_management')
-
-    today = timezone.localdate()
-    receipt_no = f'PFR-{today.strftime("%Y%m%d")}-{uuid.uuid4().hex[:6].upper()}'
-
-    # Create remittance record
-    rem = PlatformFeeRemittance.objects.create(
-        ledger=ledger,
-        amount_paid=ledger.accumulated_fee,
-        payment_date=today,
-        due_date=ledger.cycle_due,
-        management_rep_name=rep_name,
-        recorded_by=request.user,
-        receipt_no=receipt_no,
-        notes=request.POST.get('notes', ''),
-    )
-
-    # Mark current cycle paid
-    ledger.status = OrganizationPlatformLedger.STATUS_PAID
-    ledger.save(update_fields=['status', 'updated_at'])
-
-    # Reset: create a fresh open cycle starting today (+30 days)
-    OrganizationPlatformLedger.objects.create(
-        organization=ledger.organization,
-        cycle_start=today,
-        cycle_due=today + timedelta(days=30),
-        status=OrganizationPlatformLedger.STATUS_OPEN,
-        accumulated_fee=Decimal('0.00'),
-        accumulated_sales=Decimal('0.00'),
-    )
-
-    messages.success(request, f'Remittance recorded. Receipt {receipt_no} generated.')
-    return redirect('platform_fee_receipt', remittance_id=rem.id)
-
-
-@login_required
-@user_passes_test(is_management)
-def platform_fee_receipt(request, remittance_id):
-    """View/print platform fee receipt."""
-    rem = get_object_or_404(
-        PlatformFeeRemittance.objects.select_related('ledger__organization', 'recorded_by'),
-        id=remittance_id,
-    )
-    return render(request, 'UTrade_app/reports/platform_fee_receipt.html', {
-        'rem': rem,
-        'org': rem.ledger.organization,
-    })
     
+def is_management_or_cashier(user):
+    return user.is_authenticated and getattr(user, 'user_role', None) in ('management', 'cashier')
+
+
 @login_required
+@user_passes_test(is_management_or_cashier)
 def remittance_logs_view(request):
-    # Fetch all ledgers that have been paid/settled
     paid_ledgers = (
         OrganizationPlatformLedger.objects
         .filter(status='PAID')
-        .select_related('organization')
+        .select_related('organization', 'remittance')      # remittance holds the 7-digit receipt no.
         .order_by('-updated_at')
     )
-    
-    context = {
-        'paid_ledgers': paid_ledgers
-    }
-    return render(request, 'UTrade_app/management/management_panel/remittance_logs.html', context)
+    return render(request, 'UTrade_app/management/management_panel/remittance_logs.html',
+                  {'paid_ledgers': paid_ledgers})
+
 
 @login_required
+@user_passes_test(is_management_or_cashier)
 def view_remittance_receipt(request, ledger_id):
-    """
-    Renders a printable invoice/receipt for a paid remittance ledger.
-    """
+    """Printable invoice/receipt for a paid remittance ledger."""
     ledger = get_object_or_404(
-        OrganizationPlatformLedger.objects.select_related('organization'),
-        id=ledger_id
+        OrganizationPlatformLedger.objects.select_related('organization', 'remittance'),
+        id=ledger_id,
     )
-    
-    # Fetch all itemized order fee lines attached to this ledger
     fee_lines = PlatformFeeLine.objects.filter(ledger=ledger).select_related('order')
-
-    context = {
+    return render(request, 'UTrade_app/reports/remittance_receipt.html', {
         'ledger': ledger,
         'fee_lines': fee_lines,
+        'remittance': getattr(ledger, 'remittance', None),   # None if no payment was recorded
         'printed_at': timezone.now(),
-    }
-    return render(request, 'UTrade_app/reports/remittance_receipt.html', context)
-
+    })
 @login_required
 @user_passes_test(is_management)
 def cbrgu_products(request):
@@ -2021,8 +1950,8 @@ def _staff_prefix(role):
     return {
         'campus_admin': 'ADM',
         'osas_sds': 'OSAS',
-        'management': 'MGT',
         'cbrgu_staff': 'CBR',
+        'cashier': 'CSH', 
     }.get(role, 'STF')
 
 

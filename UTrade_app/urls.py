@@ -5,7 +5,7 @@ from .views import (
     admin_views, cart_views, order_views, chat_views,
     organization_views, management_views, alumni_views,
     otplink_views, reports_views, osas_sds_views, password_reset_views,
-    org_account_views,management_workflow_views, organization_workflow_views,return_views,reports
+    org_account_views,management_workflow_views, organization_workflow_views,return_views,reports,cashier_views
 )
 from . import org_dashboard_analytics
 urlpatterns = [ 
@@ -160,8 +160,6 @@ urlpatterns = [
     # =========================================================================
     path('management/remittance/', management_views.remittance_management, name='remittance_management'),
     path('management/remittance/notify/<int:ledger_id>/', management_views.notify_org_remittance, name='notify_org_remittance'),
-    path('management/remittance/record/', management_views.record_platform_remittance, name='record_platform_remittance'),
-    path('management/remittance/receipt/<int:remittance_id>/', management_views.platform_fee_receipt, name='platform_fee_receipt'),
     path('remittance/logs/', management_views.remittance_logs_view, name='remittance_logs'),
     path('remittance/receipt/<int:ledger_id>/', management_views.view_remittance_receipt, name='view_remittance_receipt'),
 
@@ -223,4 +221,7 @@ urlpatterns = [
     path('management/payments/', management_views.management_payments, name='management_payments'),
     path('management/payments/<int:payment_id>/notify-seller/',
     management_views.notify_seller_payment, name='notify_seller_payment'),
+    path('cashier/remittance/', cashier_views.cashier_remittance, name='cashier_remittance'),
+    path('cashier/remittance/record/', cashier_views.record_platform_remittance, name='record_platform_remittance'),
+    path('cashier/remittance/receipt/<int:remittance_id>/', cashier_views.platform_fee_receipt, name='platform_fee_receipt'),
 ]

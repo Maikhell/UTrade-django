@@ -4,7 +4,7 @@
 {% load custom_filters %}
 
 {% block title %}
-  CBRGU | Logs and Reports
+  CBRGU | Online Payments
 {% endblock %}
 
 {% block extra_css %}
@@ -13,9 +13,7 @@
 
 {% block content %}
 <style>
-  /* ===== Same sidebar styles as Management Dashboard ===== */
-  
-
+  /* ===== Same sidebar styles as Management Dashboard / Logs & Reports ===== */
   @media (min-width: 1400px) {
     .container,
     .container-sm,
@@ -27,110 +25,208 @@
     }
   }
 
-  
   .hover-text-dark:hover { color: #212529 !important; }
   .table > :not(caption) > * > * { padding-top: 0.9rem; padding-bottom: 0.9rem; }
   .nav-link { transition: color 0.15s ease; }
-
-  .log-action-badge {
-    font-size: 0.75rem;
-    letter-spacing: 0.02em;
-  }
-  .report-status-badge {
-    min-width: 80px;
-    text-align: center;
-  }
-  .tab-pane { animation: fadeIn 0.2s ease; }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
 </style>
 
 <nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
-<a href="{% url 'user.account' %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
-  <i class="bi bi-arrow-left" aria-hidden="true"></i>
-  <span>Back to Account</span>
-</a>
+  <a href="{% url 'user.account' %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    <span>Back to Account</span>
+  </a>
 </nav>
 
 <div class="container-fluid">
   <div class="row">
-
     {% render_sidebar sidebar_role 'payments' %}
 
-<div class="col-md-9 col-lg-10">
-  {% csrf_token %}
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div>
-      <h1 class="h4 fw-bold mb-0">Online Payments</h1>
-      <p class="text-muted small mb-0">Successful GCash transactions · {{ total_count }} record{{ total_count|pluralize }} · ₱{{ total_amount|floatformat:2 }} total</p>
-    </div>
-    <form method="get" class="d-flex gap-2">
-      <input type="search" name="search" value="{{ search }}" class="form-control form-control-sm"
-             placeholder="Buyer, product, reference…">
-      <button class="btn btn-success btn-sm">Search</button>
-    </form>
-  </div>
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
 
-  <div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Date paid</th><th>Buyer</th><th>Course &amp; Section</th><th>Seller</th>
-            <th>Product</th><th class="text-end">Amount</th><th>Reference</th><th class="text-end">Seller notice</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for p in page_obj %}
-          <tr>
-            <td class="small">{{ p.paid_at|date:"M d, Y" }}<br><span class="text-muted">{{ p.paid_at|date:"g:i A" }}</span>
-              {% if p.id in new_ids %}<span class="badge bg-success ms-1">New</span>{% endif %}</td>
-            <td class="fw-semibold">{{ p.buyer_name }}</td>
-            <td class="small">{{ p.buyer_course }} {{ p.buyer_section }}</td>
-            <td class="small">{{ p.seller.get_full_name|default:p.seller.username }}</td>
-            <td class="small" style="max-width:240px;">{{ p.product_name }}</td>
-            <td class="text-end fw-bold text-success">₱{{ p.amount|floatformat:2 }}</td>
-            <td class="small text-muted">{{ p.reference_no }}</td>
-            <td class="text-end">
-              {% if p.seller_notified_at %}
-                <span class="badge bg-success-subtle text-success"><i class="bi bi-check2"></i> Notified</span>
-                <div class="text-muted" style="font-size:.7rem;">{{ p.seller_notified_at|date:"M d, g:i A" }}</div>
-              {% else %}
-                <button type="button" class="btn btn-outline-success btn-sm notify-seller-btn"
-                        data-url="{% url 'notify_seller_payment' p.id %}">
-                  <i class="bi bi-envelope me-1"></i> Notify Seller
-                </button>
-              {% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="8" class="text-center text-muted py-5">No online payments yet.</td></tr>
+      <!-- Header -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+          <h1 class="h3 fw-bold mb-1 text-dark">Online Payments</h1>
+          <p class="text-muted mb-0 small">
+            Successful GCash transactions · Audit trail of completed payments
+          </p>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 fw-medium">
+            <i class="bi bi-receipt me-1"></i>
+            {{ total_count|default:0 }} Record{{ total_count|pluralize }}
+          </span>
+          <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-medium">
+            <i class="bi bi-cash-coin me-1"></i>
+            ₱{{ total_amount|floatformat:2 }} total
+          </span>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0 rounded-3 mb-4" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
         {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
+      {% endif %}
 
-  {% if page_obj.has_other_pages %}
-  <nav class="mt-3"><ul class="pagination pagination-sm justify-content-center">
-    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search }}">Prev</a></li>{% endif %}
-    <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
-    {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search }}">Next</a></li>{% endif %}
-  </ul></nav>
-  {% endif %}
+      <!-- Main Card -->
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
+          <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+            <div>
+              <h2 class="h5 fw-bold mb-1">Payment Transactions</h2>
+              <p class="text-muted small mb-0">Buyer, seller, product and GCash reference details</p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <form method="get" class="d-flex gap-2">
+                <input type="search"
+                       name="search"
+                       value="{{ search }}"
+                       class="form-control form-control-sm rounded-pill"
+                       placeholder="Buyer, product, reference…"
+                       style="min-width: 200px;">
+                <button type="submit" class="btn btn-sm btn-outline-secondary rounded-pill">
+                  <i class="bi bi-search"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body p-0 mt-3">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr class="text-uppercase small text-muted fw-semibold">
+                  <th class="ps-4 py-3" style="min-width: 140px;">Date Paid</th>
+                  <th class="py-3">Buyer</th>
+                  <th class="py-3">Course & Section</th>
+                  <th class="py-3">Seller</th>
+                  <th class="py-3" style="min-width: 180px;">Product</th>
+                  <th class="text-end py-3">Amount</th>
+                  <th class="py-3">Reference</th>
+                  <th class="text-center pe-4 py-3" style="min-width: 140px;">Seller Notice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in page_obj %}
+                  <tr class="border-bottom">
+                    <td class="ps-4 py-3">
+                      <div class="fw-medium small">{{ p.paid_at|date:"M d, Y" }}</div>
+                      <div class="text-muted" style="font-size: 0.75rem;">
+                        {{ p.paid_at|date:"g:i A" }}
+                        {% if p.id in new_ids %}
+                          <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle ms-1">New</span>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td class="py-3">
+                      <div class="fw-semibold text-dark small">{{ p.buyer_name }}</div>
+                    </td>
+                    <td class="py-3">
+                      <span class="small">{{ p.buyer_course }} {{ p.buyer_section }}</span>
+                    </td>
+                    <td class="py-3">
+                      <span class="small">{{ p.seller.get_full_name|default:p.seller.username }}</span>
+                    </td>
+                    <td class="py-3">
+                      <div class="fw-semibold text-dark small text-truncate" style="max-width: 220px;" title="{{ p.product_name }}">
+                        {{ p.product_name }}
+                      </div>
+                    </td>
+                    <td class="text-end py-3">
+                      <span class="fw-bold text-success">₱{{ p.amount|floatformat:2 }}</span>
+                    </td>
+                    <td class="py-3">
+                      <span class="small text-muted">{{ p.reference_no }}</span>
+                    </td>
+                    <td class="text-center pe-4 py-3">
+                      {% if p.seller_notified_at %}
+                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle">
+                          <i class="bi bi-check2 me-1"></i> Notified
+                        </span>
+                        <div class="text-muted mt-1" style="font-size: 0.7rem;">
+                          {{ p.seller_notified_at|date:"M d, g:i A" }}
+                        </div>
+                      {% else %}
+                        <button type="button"
+                                class="btn btn-sm btn-outline-success rounded-pill px-3 notify-seller-btn"
+                                data-url="{% url 'notify_seller_payment' p.id %}">
+                          <i class="bi bi-envelope me-1"></i> Notify
+                        </button>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="8" class="text-center py-5">
+                      <div class="text-muted">
+                        <i class="bi bi-receipt display-6 d-block mb-3 opacity-50"></i>
+                        <div class="fw-medium">No online payments yet</div>
+                        <div class="small">Successful GCash transactions will appear here.</div>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      {% if page_obj.has_other_pages %}
+        <nav aria-label="Payments pagination" class="mt-4 d-flex justify-content-center">
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link rounded-start-pill" href="?page=1{% if search %}&search={{ search }}{% endif %}">« First</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">Previous</a>
+              </li>
+            {% endif %}
+            <li class="page-item disabled">
+              <span class="page-link px-3">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+              </span>
+            </li>
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link rounded-end-pill" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}">Last »</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+
+    </main>
+  </div>
 </div>
+
+{% csrf_token %}
 
 <script>
 document.querySelectorAll('.notify-seller-btn').forEach(function (btn) {
   btn.addEventListener('click', async function () {
     var ok = await Swal.fire({
-      title: 'Notify seller?', text: 'An email will be sent to the seller about this payment.',
-      icon: 'question', showCancelButton: true, confirmButtonColor: '#198754',
+      title: 'Notify seller?',
+      text: 'An email will be sent to the seller about this payment.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#198754',
       confirmButtonText: 'Send email'
     });
     if (!ok.isConfirmed) return;
+
     btn.disabled = true;
     try {
       var r = await fetch(btn.dataset.url, {
@@ -139,7 +235,8 @@ document.querySelectorAll('.notify-seller-btn').forEach(function (btn) {
       });
       var d = await r.json();
       await Swal.fire(d.success ? 'Sent' : 'Not sent', d.message, d.success ? 'success' : 'warning');
-      if (d.success || r.status === 409) location.reload(); else btn.disabled = false;
+      if (d.success || r.status === 409) location.reload();
+      else btn.disabled = false;
     } catch (e) {
       btn.disabled = false;
       Swal.fire('Error', 'Could not reach the server.', 'error');

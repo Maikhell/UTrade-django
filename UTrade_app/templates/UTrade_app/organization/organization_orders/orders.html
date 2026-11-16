@@ -298,6 +298,10 @@
             Ready for Pickup <span class="stat-pill ms-1 bg-info">{{ ready_count }}</span>
           </button>
         </li>
+
+        {# Returns + Refund tab buttons (must come before Completed) #}
+        {% include "UTrade_app/organization/partials/org_return_tab_buttons.html" %}
+
         <li class="nav-item" role="presentation">
           <button class="nav-link" id="completed-tab" data-bs-toggle="tab" data-bs-target="#completed-pane" type="button" role="tab">
             Completed <span class="stat-pill ms-1 bg-secondary">{{ completed_count }}</span>
@@ -634,6 +638,9 @@
             </div>
           </div>
         </div>
+
+        {# Returns + Refund panes (must come before Completed) #}
+        {% include "UTrade_app/organization/partials/org_return_panes.html" %}
 
         {# ========== COMPLETED ========== #}
         <div class="tab-pane fade" id="completed-pane" role="tabpanel">
@@ -1068,6 +1075,8 @@
     return postBatch(action, ids);
   }
 </script>
+
+{% include "UTrade_app/organization/partials/org_return_scripts.html" %}
 
 {% endwith %}
 {% endwith %}

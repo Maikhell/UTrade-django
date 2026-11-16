@@ -1,0 +1,16 @@
+{# Return button for a COMPLETED order / pre-order. Vars: obj, kind ('order' | 'preorder') #}
+{% if obj.can_return %}
+  <button type="button" class="btn btn-outline-danger btn-sm js-return-btn"
+          data-kind="{{ kind }}" data-id="{{ obj.id }}"
+          data-deadline="{{ obj.return_deadline_iso }}"
+          data-options="{{ obj.exchange_options_json }}"
+          title="Return available until {{ obj.return_deadline|date:'M d, g:i A' }}"
+          onclick="openReturnModal(this)">
+    <i class="bi bi-arrow-return-left"></i> Return
+  </button>
+{% elif obj.return_expired %}
+  <button type="button" class="btn btn-outline-secondary btn-sm" disabled
+          title="The 48-hour return window has closed">
+    <i class="bi bi-arrow-return-left"></i> Return closed
+  </button>
+{% endif %}

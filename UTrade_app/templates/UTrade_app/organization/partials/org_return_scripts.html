@@ -1,0 +1,108 @@
+{# Accept modal + JS for the Returns and Refund tabs. Include after the page script. #}
+<div class="modal fade" id="returnAcceptModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title fw-bold">Accept return request</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="small text-muted">Tell the buyer where and when to bring the product.</p>
+        <label class="form-label small fw-semibold" for="ra-location">Return pickup location</label>
+        <select id="ra-location" class="form-select mb-3">
+          <option value="">Select an approved pickup location</option>
+          {% for loc in return_locations %}<option value="{{ loc.name }}">{{ loc.name }}</option>{% endfor %}
+        </select>
+        <label class="form-label small fw-semibold" for="ra-date">Return date</label>
+        <input type="date" id="ra-date" class="form-control mb-3">
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small fw-semibold" for="ra-from">From</label>
+            <input type="time" id="ra-from" class="form-control">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-semibold" for="ra-to">To</label>
+            <input type="time" id="ra-to" class="form-control">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success rounded-pill" onclick="retSubmitAccept()">Accept return</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let RET_TARGET = null;
+
+  function retCsrf() { return document.querySelector('[name=csrfmiddlewaretoken]').value; }
+
+  async function retPost(kind, id, action, data) {
+    try {
+      const res = await fetch(`/return/${kind}/${id}/${action}/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': retCsrf(), 'X-Requested-With': 'XMLHttpRequest' },
+        body: new URLSearchParams(data || {})
+      });
+      const j = await res.json();
+      if (j.success) {
+        await Swal.fire({ title: 'Done', text: j.message, icon: 'success', confirmButtonColor: '#198754' });
+        location.reload();
+      } else {
+        Swal.fire({ title: 'Error', text: j.message || 'Failed.', icon: 'error', confirmButtonColor: '#198754' });
+      }
+    } catch (e) {
+      Swal.fire({ title: 'Error', text: 'Something went wrong.', icon: 'error', confirmButtonColor: '#198754' });
+    }
+  }
+
+  function retOpenAccept(kind, id) {
+    RET_TARGET = { kind, id };
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const dateEl = document.getElementById('ra-date');
+    dateEl.min = today;
+    dateEl.value = '';
+    ['ra-location', 'ra-from', 'ra-to'].forEach(i => document.getElementById(i).value = '');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('returnAcceptModal')).show();
+  }
+
+  function retSubmitAccept() {
+    const location_ = document.getElementById('ra-location').value;
+    const date = document.getElementById('ra-date').value;
+    const from = document.getElementById('ra-from').value;
+    const to = document.getElementById('ra-to').value;
+    if (!location_ || !date || !from || !to) {
+      return Swal.fire({ title: 'Missing details', text: 'Choose a location, a date and a time range.', icon: 'warning', confirmButtonColor: '#198754' });
+    }
+    if (from >= to) {
+      return Swal.fire({ title: 'Invalid time range', text: 'The end time must be after the start time.', icon: 'warning', confirmButtonColor: '#198754' });
+    }
+    bootstrap.Modal.getInstance(document.getElementById('returnAcceptModal'))?.hide();
+    retPost(RET_TARGET.kind, RET_TARGET.id, 'accept', { location: location_, date, time_from: from, time_to: to });
+  }
+
+  async function retReject(kind, id) {
+    const { value: reason } = await Swal.fire({
+      title: 'Reject return request?',
+      input: 'textarea',
+      inputPlaceholder: 'Tell the buyer why the return was rejected',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Reject',
+      inputValidator: v => (!v || !v.trim()) ? 'A reason is required' : undefined
+    });
+    if (!reason) return;
+    retPost(kind, id, 'reject', { reason: reason.trim() });
+  }
+
+  async function retConfirm(kind, id, action, title, text) {
+    const r = await Swal.fire({
+      title, text, icon: 'question', showCancelButton: true,
+      confirmButtonColor: '#198754', confirmButtonText: 'Confirm'
+    });
+    if (r.isConfirmed) retPost(kind, id, action);
+  }
+</script>

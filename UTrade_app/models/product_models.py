@@ -399,6 +399,11 @@ class PreOrderRequest(models.Model):
         ('PREPARING', 'Preparing (legacy)'),
         ('DECLINED', 'Declined (legacy)'),
         ('CANCELLED', 'Cancelled'),
+        ('RETURN_REQUESTED', 'Return Requested'),
+        ('WAITING_PRODUCT', 'Waiting for Product'),
+        ('REFUND', 'Refund'),
+        ('RETURNED', 'Returned'),
+        ('RETURN_REJECTED', 'Return Rejected'),
     ]
 
     REJECTION_CHOICES = [
@@ -450,3 +455,12 @@ class PreOrderRequest(models.Model):
     def display_name(self):
         extra = f", {self.size}" if self.size else ""
         return f"{self.variant.product.name} ({self.variant.variant_name}{extra})"
+    
+class ReturnImage(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='return_images', null=True, blank=True)
+    preorder = models.ForeignKey('PreOrderRequest', on_delete=models.CASCADE, related_name='return_images', null=True, blank=True)
+    image = models.ImageField(upload_to='return_images/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']

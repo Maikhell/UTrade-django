@@ -1,10 +1,99 @@
 import uuid
+from datetime import timedelta
 
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
+
+RETURN_WINDOW_HOURS = 48  # buyer may request a return this long after completion
 
 
-class Order(models.Model):
+class ReturnFieldsMixin(models.Model):
+    """
+    Return fields shared by Order and PreOrderRequest (PreOrderRequest imports this
+    from here). Both models expose the same names, so the return views, templates
+    and emails work on either one.
+    """
+    RETURN_REASON_CHOICES = [
+        ('Damaged', 'Item arrived damaged'),
+        ('Not as described', 'Not as described'),
+        ('Wrong item', 'Wrong item received'),
+        ('Defective', 'Defective / not working'),
+        ('Other', 'Other'),
+    ]
+    RESOLUTION_REFUND = 'Refund'
+    RESOLUTION_REPLACEMENT = 'Replacement'
+    RESOLUTION_EXCHANGE = 'Exchange'
+    RETURN_RESOLUTION_CHOICES = [
+        (RESOLUTION_REFUND, 'Refund'),
+        (RESOLUTION_REPLACEMENT, 'Replacement'),
+        (RESOLUTION_EXCHANGE, 'Exchange (different color, size or variation)'),
+    ]
+
+    # Stamped automatically the first time status becomes Completed (see save()).
+    completed_at = models.DateTimeField(null=True, blank=True, editable=False)
+
+    # ---- Buyer's request ----
+    return_resolution = models.CharField(
+        max_length=20, choices=RETURN_RESOLUTION_CHOICES, null=True, blank=True
+    )
+    return_reason = models.CharField(
+        max_length=100, choices=RETURN_REASON_CHOICES, null=True, blank=True
+    )
+    return_note = models.TextField(null=True, blank=True)
+    exchange_variant = models.ForeignKey(
+        'UTrade_app.ProductVariant', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='+',
+    )
+    return_requested_at = models.DateTimeField(null=True, blank=True)
+
+    # ---- Seller's response ----
+    return_response_note = models.TextField(null=True, blank=True)   # rejection reason
+    return_accepted_at = models.DateTimeField(null=True, blank=True)
+    return_pickup_location = models.CharField(max_length=255, null=True, blank=True)
+    return_date = models.DateField(null=True, blank=True)
+    return_time_from = models.TimeField(null=True, blank=True)
+    return_time_to = models.TimeField(null=True, blank=True)
+
+    # ---- Outcome ----
+    product_received_at = models.DateTimeField(null=True, blank=True)
+    refunded_at = models.DateTimeField(null=True, blank=True)
+    returned_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        abstract = True
+
+    # ---- 48-hour return window ----
+    @property
+    def return_deadline(self):
+        base = self.completed_at or self.updated_at   # updated_at only for rows completed before this feature
+        return base + timedelta(hours=RETURN_WINDOW_HOURS) if base else None
+
+    @property
+    def can_request_return(self):
+        """Backend rule: completed, never requested before, and still inside 48 hours."""
+        deadline = self.return_deadline
+        return bool(
+            (self.status or '').upper() == 'COMPLETED'
+            and not self.return_requested_at
+            and deadline
+            and timezone.now() <= deadline
+        )
+
+    @property
+    def return_buyer(self):
+        return getattr(self, 'buyer', None) or self.user
+
+    def save(self, *args, **kwargs):
+        if (self.status or '').upper() == 'COMPLETED' and not self.completed_at:
+            self.completed_at = timezone.now()
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                kwargs['update_fields'] = list(set(update_fields) | {'completed_at'})
+        super().save(*args, **kwargs)
+
+
+class Order(ReturnFieldsMixin, models.Model):
     STATUS_CHOICES = [
         ('Pending', 'Pending'),
         ('Paid', 'Paid'),
@@ -16,21 +105,14 @@ class Order(models.Model):
         ('Completed', 'Completed'),
         ('Cancelled', 'Cancelled'),
         ('Rejected', 'Rejected'),
+        # ---- returns ----
+        ('Return Requested', 'Return Requested'),
+        ('Waiting for Product', 'Waiting for Product'),
+        ('Refund', 'Refund'),
         ('Returned', 'Returned'),
+        ('Return Rejected', 'Return Rejected'),
     ]
-    RETURN_REASON_CHOICES = [
-        ('Damaged', 'Item arrived damaged'),
-        ('Not as described', 'Not as described'),
-        ('Wrong item', 'Wrong item received'),
-        ('Defective', 'Defective / not working'),
-        ('Other', 'Other'),
-    ]
-    return_reason = models.CharField(max_length=100, choices=RETURN_REASON_CHOICES, null=True, blank=True)
-    return_note = models.TextField(null=True, blank=True)
-    return_requested_at = models.DateTimeField(null=True, blank=True)
-    returned_at = models.DateTimeField(null=True, blank=True)
-    return_response_note = models.TextField(null=True, blank=True) 
-    
+
     PAYMENT_METHODS = [
         ('GCASH', 'GCash (Online)'),
         ('COP', 'Cash on Pickup'),
@@ -109,7 +191,7 @@ class Order(models.Model):
         return f"UT{self.created_at:%y%m%d}-{self.pk:06d}"
 
     def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
+        super().save(*args, **kwargs)   # ReturnFieldsMixin.save stamps completed_at
         if not self.order_number:
             self.order_number = self._build_order_number()
             type(self).objects.filter(pk=self.pk).update(order_number=self.order_number)

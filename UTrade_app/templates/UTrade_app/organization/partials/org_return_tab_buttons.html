@@ -1,0 +1,12 @@
+{# Two <li> tab buttons: Returns, then Refund. Goes right BEFORE the Completed tab button. #}
+<li class="nav-item" role="presentation">
+  <button class="nav-link" id="returns-tab" data-bs-toggle="tab" data-bs-target="#returns-pane" type="button" role="tab">
+    Returns <span class="stat-pill ms-1 bg-warning text-dark">{{ return_count }}</span>
+    {% if return_new_count %}<span class="badge bg-danger rounded-pill ms-1">{{ return_new_count }} new</span>{% endif %}
+  </button>
+</li>
+<li class="nav-item" role="presentation">
+  <button class="nav-link" id="refund-tab" data-bs-toggle="tab" data-bs-target="#refund-pane" type="button" role="tab">
+    Refund <span class="stat-pill ms-1 bg-danger">{{ refund_count }}</span>
+  </button>
+</li>

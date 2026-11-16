@@ -490,3 +490,37 @@
 @media (prefers-reduced-motion: reduce) {
   .st-pending .oc-dot { animation: none; }
 }
+
+/* ---------- Returns ---------- */
+.oc-alert--waiting { background: #e7f1ff; color: #0a58ca; }
+.oc-return-instr { margin: 0.4rem 0; padding-left: 1.1rem; list-style: none; }
+.oc-return-instr li { margin-bottom: 0.15rem; }
+.oc-return-meta {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  background: #f8faf9;
+  font-size: 0.85rem;
+  color: #495057;
+}
+.oc-return-thumbs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.oc-return-thumb {
+  display: block;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border: 1px solid #edf0ee;
+  border-radius: 0.6rem;
+  background: #f3f5f4;
+}
+.oc-return-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.oc-resolution {
+  display: block;
+  margin-bottom: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #edf0ee;
+  border-radius: 0.75rem;
+  background: #fff;
+  cursor: pointer;
+}
+.oc-resolution:has(input:checked) { border-color: var(--ut-green); background: #e8f5ee; }

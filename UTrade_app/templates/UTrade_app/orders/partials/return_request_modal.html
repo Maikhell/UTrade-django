@@ -1,0 +1,159 @@
+{# One shared modal for orders AND pre-orders. Included once from history.html. #}
+<div class="modal fade oc-modal" id="returnRequestModal" tabindex="-1" aria-labelledby="returnRequestLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <form id="returnRequestForm" class="modal-content" enctype="multipart/form-data" novalidate>
+      <div class="modal-header oc-mhead oc-mhead--returned">
+        <div>
+          <div class="oc-mkind"><i class="bi bi-arrow-return-left"></i> Return</div>
+          <h5 class="modal-title" id="returnRequestLabel">Request a return</h5>
+          <div class="oc-msub" id="rr-deadline"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <section class="oc-msec">
+          <h6 class="oc-mtitle">What would you like?</h6>
+          {% for key, label in return_resolutions %}
+          <label class="oc-resolution">
+            <input type="radio" name="resolution" value="{{ key }}" class="form-check-input me-2" {% if forloop.first %}checked{% endif %}>
+            <strong>{{ label }}</strong>
+            <span class="d-block small text-muted ms-4">
+              {% if key == 'Refund' %}Get your money back once the seller receives the product.
+              {% elif key == 'Replacement' %}Receive a new unit of the same item.
+              {% else %}Swap it for a different color, size or variation.{% endif %}
+            </span>
+          </label>
+          {% endfor %}
+          <div id="rr-exchange-wrap" class="d-none mt-2">
+            <label class="form-label small fw-semibold" for="rr-exchange">Exchange for</label>
+            <select name="exchange_variant" id="rr-exchange" class="form-select"></select>
+          </div>
+        </section>
+
+        <section class="oc-msec">
+          <h6 class="oc-mtitle">Reason</h6>
+          <select name="reason" id="rr-reason" class="form-select mb-2" required>
+            <option value="">Select a reason</option>
+            {% for key, label in return_reasons %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+          <textarea name="details" id="rr-details" class="form-control" rows="3" maxlength="1000" required
+                    placeholder="Tell the seller what went wrong"></textarea>
+        </section>
+
+        <section class="oc-msec">
+          <h6 class="oc-mtitle">Photos (1 to 4)</h6>
+          <input type="file" name="images" id="rr-images" class="form-control" accept="image/jpeg,image/png,image/webp" multiple>
+          <div class="form-text">JPG, PNG or WEBP, up to 3 MB each.</div>
+          <div class="oc-return-thumbs" id="rr-previews"></div>
+        </section>
+      </div>
+
+      <div class="modal-footer oc-mfoot">
+        <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="submit" class="btn btn-danger btn-sm px-4 fw-bold" id="rr-submit">Submit return request</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const modalEl = document.getElementById('returnRequestModal');
+    const form = document.getElementById('returnRequestForm');
+    const exWrap = document.getElementById('rr-exchange-wrap');
+    const exSel = document.getElementById('rr-exchange');
+    const files = document.getElementById('rr-images');
+    const previews = document.getElementById('rr-previews');
+    let target = null;
+
+    function syncExchange() {
+      const isEx = form.querySelector('input[name=resolution]:checked')?.value === 'Exchange';
+      exWrap.classList.toggle('d-none', !isEx);
+    }
+    form.querySelectorAll('input[name=resolution]').forEach(r => r.addEventListener('change', syncExchange));
+
+    files.addEventListener('change', function () {
+      previews.innerHTML = '';
+      Array.from(files.files).slice(0, 4).forEach(f => {
+        const a = document.createElement('span');
+        a.className = 'oc-return-thumb';
+        const img = document.createElement('img');
+        img.src = URL.createObjectURL(f);
+        a.appendChild(img);
+        previews.appendChild(a);
+      });
+    });
+
+    function closeBtn(btn) {
+      btn.disabled = true;
+      btn.classList.replace('btn-outline-danger', 'btn-outline-secondary');
+      btn.innerHTML = '<i class="bi bi-arrow-return-left"></i> Return closed';
+    }
+
+    window.openReturnModal = function (btn) {
+      if (Date.now() > Date.parse(btn.dataset.deadline)) {
+        closeBtn(btn);
+        Swal.fire('Return window closed', 'Returns are only accepted within 48 hours after completion.', 'info');
+        return;
+      }
+      // close any open modal (e.g. the details modal) so SweetAlert / this modal can take focus
+      document.querySelectorAll('.modal.show').forEach(m => bootstrap.Modal.getInstance(m)?.hide());
+      target = { kind: btn.dataset.kind, id: btn.dataset.id, deadline: btn.dataset.deadline };
+      form.reset();
+      previews.innerHTML = '';
+      let opts = [];
+      try { opts = JSON.parse(btn.dataset.options || '[]'); } catch (e) {}
+      exSel.innerHTML = '<option value="">Select a variation</option>' +
+        opts.map(o => `<option value="${o.id}">${o.label.replace(/</g, '&lt;')}</option>`).join('');
+      const exRadio = form.querySelector('input[value=Exchange]');
+      exRadio.disabled = !opts.length;
+      exRadio.closest('label').classList.toggle('opacity-50', !opts.length);
+      document.getElementById('rr-deadline').textContent =
+        'Return available until ' + new Date(target.deadline).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+      syncExchange();
+      setTimeout(() => bootstrap.Modal.getOrCreateInstance(modalEl).show(), 250);
+    };
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      if (!target) return;
+      const resolution = form.querySelector('input[name=resolution]:checked')?.value;
+      if (Date.now() > Date.parse(target.deadline)) return Swal.fire('Return window closed', 'The 48-hour window has ended.', 'info');
+      if (resolution === 'Exchange' && !exSel.value) return Swal.fire('Choose a variation', 'Select what you want to exchange for.', 'warning');
+      if (!document.getElementById('rr-reason').value) return Swal.fire('Reason required', 'Please select a reason.', 'warning');
+      if (document.getElementById('rr-details').value.trim().length < 5) return Swal.fire('Details required', 'Please describe the problem.', 'warning');
+      if (!files.files.length) return Swal.fire('Photo required', 'Please upload at least one photo.', 'warning');
+      if (files.files.length > 4) return Swal.fire('Too many photos', 'You can upload up to 4 photos.', 'warning');
+
+      const btn = document.getElementById('rr-submit');
+      btn.disabled = true;
+      const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+      try {
+        const res = await fetch(`/return/${target.kind}/${target.id}/request/`, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrftoken, 'X-Requested-With': 'XMLHttpRequest' },
+          body: new FormData(form)
+        });
+        const data = await res.json();
+        if (data.success) {
+          bootstrap.Modal.getInstance(modalEl)?.hide();
+          Swal.fire('Requested', data.message, 'success').then(() => location.reload());
+        } else {
+          Swal.fire('Error', data.message || 'Could not submit the return.', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error', 'Something went wrong.', 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // Disable Return buttons the moment their 48 hours run out (page left open)
+    setInterval(function () {
+      document.querySelectorAll('.js-return-btn').forEach(b => {
+        if (Date.now() > Date.parse(b.dataset.deadline)) closeBtn(b);
+      });
+    }, 30000);
+  })();
+</script>

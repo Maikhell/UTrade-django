@@ -2,7 +2,6 @@ import traceback
 import requests
 import base64
 import json
-from datetime import timedelta
 from django.conf import settings
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -18,6 +17,7 @@ from decimal import Decimal
 from django.db.models import Prefetch, Q
 from django.utils import timezone
 from ..product_access import purchase_block_reason
+from .return_views import RETURN_STATUS, attach_return_info
 
 from ..models import (
     CartItem,
@@ -51,7 +51,10 @@ ORDER_STATUS_META = {
     'Cancelled': ('cancelled', 'Cancelled', 0),
     'Rejected': ('rejected', 'Rejected', 0),
     'Return Requested': ('progress', 'Return requested', 0),
+    'Waiting for Product': ('accepted', 'Waiting for product', 0),
+    'Refund': ('progress', 'Refund in progress', 0),
     'Returned': ('returned', 'Returned', 0),
+    'Return Rejected': ('rejected', 'Return rejected', 0),
 }
 
 PREORDER_STATUS_META = {
@@ -67,6 +70,11 @@ PREORDER_STATUS_META = {
     'REJECTED': ('rejected', 'Rejected', 0),
     'DECLINED': ('cancelled', 'Cancelled', 0),
     'CANCELLED': ('cancelled', 'Cancelled', 0),
+    'RETURN_REQUESTED': ('progress', 'Return requested', 0),
+    'WAITING_PRODUCT': ('accepted', 'Waiting for product', 0),
+    'REFUND': ('progress', 'Refund in progress', 0),
+    'RETURNED': ('returned', 'Returned', 0),
+    'RETURN_REJECTED': ('rejected', 'Return rejected', 0),
 }
 
 PREORDER_IN_PROGRESS = {
@@ -76,8 +84,6 @@ PREORDER_IN_PROGRESS = {
 
 # Order statuses that always belong to the "In Progress" list (kept for the legacy context keys)
 ORDER_IN_PROGRESS = ('Pending', 'Paid', 'Processing', 'Awaiting Payment', 'Waiting for Stocks')
-
-RETURN_WINDOW_DAYS = 7  # buyer may request a return this long after completion
 
 # status -> tab key. This is the single source of truth for tab placement.
 ORDER_TAB = {
@@ -92,7 +98,10 @@ ORDER_TAB = {
     'Cancelled': 'cancelled',
     'Rejected': 'cancelled',
     'Return Requested': 'return',
+    'Waiting for Product': 'return',
+    'Refund': 'return',
     'Returned': 'return',
+    'Return Rejected': 'return',
 }
 PREORDER_TAB = {
     'AWAITING_PAYMENT': 'to_pay',
@@ -101,6 +110,8 @@ PREORDER_TAB = {
     'WAITING_STOCKS': 'to_pickup', 'READY': 'to_pickup',
     'COMPLETED': 'completed',
     'REJECTED': 'cancelled', 'DECLINED': 'cancelled', 'CANCELLED': 'cancelled',
+    'RETURN_REQUESTED': 'return', 'WAITING_PRODUCT': 'return', 'REFUND': 'return',
+    'RETURNED': 'return', 'RETURN_REJECTED': 'return',
 }
 
 
@@ -120,16 +131,6 @@ def _tab_of(obj):
     if obj.kind == 'order':
         return ORDER_TAB.get(obj.status, 'to_pickup')
     return PREORDER_TAB.get((obj.status or '').upper(), 'to_pickup')
-
-
-def _attach_return_info(order):
-    """order.can_return: Completed, never returned/requested, inside the return window."""
-    order.can_return = (
-        order.status == 'Completed'
-        and not order.return_requested_at
-        and timezone.now() - order.updated_at <= timedelta(days=RETURN_WINDOW_DAYS)
-    )
-    return order
 
 
 def _is_management_order(order):
@@ -446,8 +447,10 @@ def order_success(request, order_id):
 def order_history(request):
     orders = list(
         Order.objects.filter(user=request.user)
-        .select_related('seller')
+        .select_related('seller', 'exchange_variant')
         .prefetch_related(
+            'return_images',
+            'items__product_variant__product__variants',
             'items__product_variant__product__seller',
             'items__product_variant__product__images',
             'order_reviews__media',
@@ -458,17 +461,20 @@ def order_history(request):
     for o in orders:
         _decorate(o, ORDER_STATUS_META, 'order', len(ORDER_STEPS), o.status)
         _attach_seller_ratings(o, request.user)
-        _attach_return_info(o)
+        attach_return_info(o, 'order')
 
     preorders = list(
         PreOrderRequest.objects.filter(buyer=request.user)
         .select_related(
             'seller',
+            'exchange_variant',
             'product_variant',
             'product_variant__product',
             'product_variant__product__seller',
         )
         .prefetch_related(
+            'return_images',
+            'product_variant__product__variants',
             'product_variant__product__images',
             'preorder_reviews__media',
             'seller_reviews',
@@ -478,6 +484,7 @@ def order_history(request):
     for po in preorders:
         _decorate(po, PREORDER_STATUS_META, 'preorder', len(PREORDER_STEPS), (po.status or '').upper())
         _attach_preorder_ratings(po, request.user)
+        attach_return_info(po, 'preorder')
 
     # ---- Legacy lists (kept so existing context keys keep working) ----
     active_orders = [
@@ -581,6 +588,7 @@ def order_history(request):
         # tabs + returns
         'order_tabs': order_tabs,
         'return_reasons': Order.RETURN_REASON_CHOICES,
+        'return_resolutions': Order.RETURN_RESOLUTION_CHOICES,
     }
     return render(request, 'UTrade_app/orders/history.html', context)
 
@@ -748,96 +756,6 @@ def cancel_order(request, order_id):
         return JsonResponse({'status': 'success', 'message': 'Order cancelled successfully.'})
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request.'}, status=400)
-
-
-# ---------------------------------------------------------------------------
-# Returns: Completed -> Return Requested -> Returned (or back to Completed)
-# ---------------------------------------------------------------------------
-@login_required
-@require_POST
-@transaction.atomic
-def request_return(request, order_id):
-    """Buyer: Completed -> Return Requested (once, inside the return window)."""
-    order = get_object_or_404(Order.objects.select_for_update(), id=order_id, user=request.user)
-    _attach_return_info(order)
-
-    if not order.can_return:
-        return JsonResponse(
-            {'status': 'error', 'message': 'This order is not eligible for return.'}, status=400
-        )
-
-    reason = (request.POST.get('reason') or '').strip()
-    note = (request.POST.get('note') or '').strip()[:1000]
-    if reason not in dict(Order.RETURN_REASON_CHOICES):
-        return JsonResponse({'status': 'error', 'message': 'Please select a return reason.'}, status=400)
-    if reason == 'Other' and not note:
-        return JsonResponse({'status': 'error', 'message': 'Please describe the problem.'}, status=400)
-
-    order.status = 'Return Requested'
-    order.return_reason = reason
-    order.return_note = note
-    order.return_requested_at = timezone.now()
-    order.save(update_fields=['status', 'return_reason', 'return_note',
-                              'return_requested_at', 'updated_at'])
-
-    first_item = order.items.select_related('product_variant__product').first()
-    product = first_item.product_variant.product if first_item and first_item.product_variant else None
-    if product and order.seller_id:
-        conversation, _ = Conversation.objects.get_or_create(
-            product=product, buyer=request.user, seller=order.seller
-        )
-        ChatMessage.objects.create(
-            conversation=conversation, user=request.user, is_read=False,
-            content=(f"🚨 SYSTEM: Return requested for Order #{order.id}.\n"
-                     f"Reason: {order.get_return_reason_display()}"
-                     + (f"\nNote: {note}" if note else "")),
-        )
-    return JsonResponse({'status': 'success', 'message': 'Return request sent to the seller.'})
-
-
-@login_required
-@require_POST
-@transaction.atomic
-def approve_return(request, order_id):
-    """Seller: Return Requested -> Returned. Restocks items and reverses sold counts."""
-    order = get_object_or_404(Order.objects.select_for_update(), id=order_id, seller=request.user)
-    if order.status != 'Return Requested':
-        messages.warning(request, "This order has no pending return request.")
-        return redirect('seller_inventory')
-
-    for item in order.items.select_related('product_variant__product'):
-        variant = item.product_variant
-        if variant:
-            variant.stocks += item.quantity
-            variant.save(update_fields=['stocks'])
-            product = variant.product
-            product.sold = max(0, product.sold - item.quantity)
-            product.save(update_fields=['sold'])
-
-    order.status = 'Returned'
-    order.returned_at = timezone.now()
-    order.save(update_fields=['status', 'returned_at', 'updated_at'])
-    # TODO: if accrue_platform_fee_for_order() created a ledger entry on completion,
-    # reverse it here with the matching helper in ..utils.
-    messages.success(request, f"Order #{order.id} has been marked as Returned.")
-    return redirect('seller_inventory')
-
-
-@login_required
-@require_POST
-@transaction.atomic
-def reject_return(request, order_id):
-    """Seller: Return Requested -> back to Completed (buyer can't re-request)."""
-    order = get_object_or_404(Order.objects.select_for_update(), id=order_id, seller=request.user)
-    if order.status != 'Return Requested':
-        messages.warning(request, "This order has no pending return request.")
-        return redirect('seller_inventory')
-
-    order.status = 'Completed'
-    order.return_response_note = (request.POST.get('response_note') or '').strip()[:1000]
-    order.save(update_fields=['status', 'return_response_note', 'updated_at'])
-    messages.success(request, f"Return request for Order #{order.id} was declined.")
-    return redirect('seller_inventory')
 
 
 @login_required

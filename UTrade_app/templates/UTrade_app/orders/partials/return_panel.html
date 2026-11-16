@@ -1,0 +1,59 @@
+{# Return status + details. Var: obj (order or pre-order with return_stage attached) #}
+{% with s=obj.return_stage %}
+{% if s == 'requested' %}
+  <div class="oc-alert oc-alert--return">
+    <i class="bi bi-arrow-return-left"></i>
+    <div><strong>Return requested.</strong> Waiting for the seller to review your request.</div>
+  </div>
+{% elif s == 'waiting' %}
+  <div class="oc-alert oc-alert--waiting">
+    <i class="bi bi-box-arrow-in-down"></i>
+    <div>
+      <strong>Return accepted. Please bring the product to the seller.</strong>
+      <ul class="oc-return-instr">
+        <li><i class="bi bi-geo-alt"></i> Location: <strong>{{ obj.return_pickup_location }}</strong></li>
+        <li><i class="bi bi-calendar-event"></i> Date: <strong>{{ obj.return_date|date:"l, M d, Y" }}</strong></li>
+        <li><i class="bi bi-clock"></i> Time: <strong>{{ obj.return_time_from|time:"g:i A" }} – {{ obj.return_time_to|time:"g:i A" }}</strong></li>
+      </ul>
+      Bring the item (with its packaging and accessories if possible) within that time range.
+    </div>
+  </div>
+{% elif s == 'refund' %}
+  <div class="oc-alert oc-alert--return">
+    <i class="bi bi-cash-coin"></i>
+    <div><strong>Product received.</strong> Your refund is being processed by the seller.</div>
+  </div>
+{% elif s == 'returned' %}
+  <div class="oc-alert oc-alert--returned">
+    <i class="bi bi-check2-circle"></i>
+    <div>
+      <strong>Returned successfully</strong>{% if obj.returned_at %} on {{ obj.returned_at|date:"M d, Y" }}{% endif %}.
+      {% if obj.return_resolution == 'Refund' %}Your refund has been issued.
+      {% elif obj.return_resolution == 'Replacement' %}Your replacement has been handled by the seller.
+      {% else %}Your exchange has been completed.{% endif %}
+    </div>
+  </div>
+{% elif s == 'rejected' %}
+  <div class="oc-alert oc-alert--rejected">
+    <i class="bi bi-x-octagon"></i>
+    <div><strong>Return rejected.</strong> {{ obj.return_response_note|default:"No reason provided." }}</div>
+  </div>
+{% endif %}
+
+{% if s %}
+<div class="oc-return-meta">
+  <div><span class="text-muted">Requested resolution:</span> <strong>{{ obj.return_resolution|default:"—" }}</strong>
+    {% if obj.exchange_variant %}<span class="text-muted">→</span> <strong>{{ obj.exchange_variant.variant_name }}</strong>{% endif %}</div>
+  <div><span class="text-muted">Reason:</span> <strong>{{ obj.get_return_reason_display|default:"—" }}</strong></div>
+  {% if obj.return_note %}<div><span class="text-muted">Details:</span> {{ obj.return_note }}</div>{% endif %}
+  {% if obj.return_requested_at %}<div class="small text-muted">Requested {{ obj.return_requested_at|date:"M d, Y · g:i A" }}</div>{% endif %}
+  {% if obj.return_image_list %}
+    <div class="oc-return-thumbs">
+      {% for img in obj.return_image_list %}
+        <a href="{{ img.image.url }}" target="_blank" rel="noopener" class="oc-return-thumb"><img src="{{ img.image.url }}" alt="Return photo"></a>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endwith %}

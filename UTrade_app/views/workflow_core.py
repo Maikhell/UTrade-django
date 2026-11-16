@@ -17,6 +17,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.dateparse import parse_date
+from .return_views import org_return_context
 
 from ..models import ChatMessage, Conversation, Order, OrderItem, PreOrderRequest
 from ..utils import accrue_platform_fee_for_order, is_allowed_email, log_action, send_email
@@ -320,7 +321,19 @@ def _org_options(kind, base):
         )
     return sorted(set(filter(None, values)))
 
-
+def _return_base(kind, scope):
+    """Rows for the Returns / Refund tabs, with everything those tables read."""
+    if kind == 'order':
+        return (
+            scope.order_qs()
+            .select_related('user', 'seller', 'exchange_variant')
+            .prefetch_related('items__product_variant__product')
+        )
+    return (
+        scope.preorder_qs()
+        .select_related('buyer', 'seller', 'exchange_variant', 'product_variant__product')
+    )
+    
 def _board_context(request, kind, scope):
     search = request.GET.get('search', '').strip()
     date_from = request.GET.get('date_from', '').strip()
@@ -354,6 +367,7 @@ def _board_context(request, kind, scope):
 
     is_order = kind == 'order'
     page_name, batch_name = scope.urls[kind]
+    
     context = {
         'scope': scope.key,
         'kind': kind,
@@ -386,7 +400,9 @@ def _board_context(request, kind, scope):
             'organization': org_filter,
         },
     }
+    context.update(org_return_context(_return_base(kind, scope), kind))
     context.update(scope.extra_context())
+    
     return context
 
 

@@ -84,27 +84,8 @@
           {{ order.rejection_reason|default:"No reason provided." }}{% if order.rejection_note %} — {{ order.rejection_note }}{% endif %}
         </div>
       </div>
-    {% elif order.status == 'Return Requested' %}
-      <div class="oc-alert oc-alert--return">
-        <i class="bi bi-arrow-return-left"></i>
-        <div>
-          <strong>Return requested.</strong> Waiting for the seller to review it.
-          <div class="mt-1">Reason: {{ order.get_return_reason_display|default:"—" }}{% if order.return_note %} — {{ order.return_note }}{% endif %}</div>
-        </div>
-      </div>
-    {% elif order.status == 'Returned' %}
-      <div class="oc-alert oc-alert--returned">
-        <i class="bi bi-check2-circle"></i>
-        <div>
-          <strong>Returned successfully</strong>{% if order.returned_at %} on {{ order.returned_at|date:"M d, Y" }}{% endif %}.
-          <div class="mt-1">Reason: {{ order.get_return_reason_display|default:"—" }}</div>
-        </div>
-      </div>
-    {% elif order.status == 'Completed' and order.return_response_note %}
-      <div class="oc-alert oc-alert--cancelled">
-        <i class="bi bi-slash-circle"></i>
-        <div><strong>Return declined by seller.</strong> {{ order.return_response_note }}</div>
-      </div>
+    {% elif order.return_stage %}
+      {% include "UTrade_app/orders/partials/return_panel.html" with obj=order %}
     {% endif %}
   </div>
 
@@ -152,12 +133,7 @@
         {% else %}
           <span class="oc-chip st-completed"><i class="bi bi-check2-circle"></i> Rated</span>
         {% endif %}
-        {% if order.can_return %}
-          <button type="button" class="btn btn-outline-danger btn-sm"
-                  onclick="handleReturnOrder('{{ order.id }}')">
-            <i class="bi bi-arrow-return-left"></i> Return
-          </button>
-        {% endif %}
+        {% include "UTrade_app/orders/partials/return_button.html" with obj=order kind='order' %}
       {% endif %}
     </div>
   </footer>

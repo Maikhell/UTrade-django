@@ -59,6 +59,8 @@
       {% if po.estimated_pickup %}
         <div class="oc-eta"><i class="bi bi-hourglass-split"></i> Estimated ready: <strong>{{ po.estimated_pickup }}</strong></div>
       {% endif %}
+    {% elif po.return_stage %}
+      {% include "UTrade_app/orders/partials/return_panel.html" with obj=po %}
     {% elif po.ui_class == 'rejected' %}
       <div class="oc-alert oc-alert--rejected">
         <i class="bi bi-x-octagon"></i>
@@ -119,6 +121,7 @@
         {% else %}
           <span class="oc-chip st-completed"><i class="bi bi-check2-circle"></i> Rated</span>
         {% endif %}
+        {% include "UTrade_app/orders/partials/return_button.html" with obj=po kind='preorder' %}
       {% endif %}
     </div>
   </footer>

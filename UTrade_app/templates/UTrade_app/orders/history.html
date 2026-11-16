@@ -70,6 +70,9 @@
     {% include "UTrade_app/orders/partials/preorder_modal.html" with po=item %}
   {% endif %}
 {% endfor %}
+
+{# One shared return-request modal for orders and pre-orders #}
+{% include "UTrade_app/orders/partials/return_request_modal.html" %}
 {% endblock %}
 
 {% block extra_js %}
@@ -142,46 +145,6 @@
       const result = await response.json();
       if (result.status === 'success') {
         Swal.fire('Cancelled!', result.message, 'success').then(() => location.reload());
-      } else Swal.fire('Error', result.message, 'error');
-    } catch (e) {
-      Swal.fire('Error', 'Something went wrong.', 'error');
-    }
-  }
-
-  async function handleReturnOrder(orderId) {
-    // Close any open Bootstrap modal first so SweetAlert can take focus
-    document.querySelectorAll('.modal.show').forEach(m => bootstrap.Modal.getInstance(m)?.hide());
-
-    const reasons = {
-      {% for key, label in return_reasons %}'{{ key|escapejs }}': '{{ label|escapejs }}',{% endfor %}
-    };
-    const { value: form } = await Swal.fire({
-      title: 'Return this order?',
-      html: '<select id="rr-reason" class="swal2-select" style="width:90%"><option value="">Select a reason</option>' +
-            Object.entries(reasons).map(([k, v]) => `<option value="${k}">${v}</option>`).join('') +
-            '</select><textarea id="rr-note" class="swal2-textarea" placeholder="Tell the seller what went wrong"></textarea>',
-      showCancelButton: true,
-      confirmButtonColor: '#dc3545',
-      confirmButtonText: 'Request return',
-      preConfirm: () => {
-        const reason = document.getElementById('rr-reason').value;
-        const note = document.getElementById('rr-note').value.trim();
-        if (!reason) { Swal.showValidationMessage('Please select a reason.'); return false; }
-        if (reason === 'Other' && !note) { Swal.showValidationMessage('Please describe the problem.'); return false; }
-        return { reason, note };
-      }
-    });
-    if (!form) return;
-    const csrftoken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
-    try {
-      const response = await fetch(`/order/${orderId}/return/`, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `reason=${encodeURIComponent(form.reason)}&note=${encodeURIComponent(form.note)}`
-      });
-      const result = await response.json();
-      if (result.status === 'success') {
-        Swal.fire('Requested', result.message, 'success').then(() => location.reload());
       } else Swal.fire('Error', result.message, 'error');
     } catch (e) {
       Swal.fire('Error', 'Something went wrong.', 'error');

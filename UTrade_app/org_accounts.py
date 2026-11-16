@@ -1,5 +1,5 @@
 """
-UTrade_app/org_accounts.py  (next to models.py)
+UTrade_app/org_accounts.py
 Helpers for organization logins and the student who is accountable for each.
 """
 import re
@@ -43,7 +43,7 @@ def assign_manager(org_user, student, assigned_by=None, enforce=True):
         student=student,
         student_name=student.get_full_name() or str(student),
         student_no=student.student_no,
-        position=student.position or '',
+        position=getattr(student, 'position', None) or '',
         assigned_by=assigned_by,
     )
 
@@ -58,18 +58,41 @@ def _unique(base, exists, max_len):
 
 
 @transaction.atomic
-def create_org_account(org, student, assigned_by=None, enforce=True):
-    """Create the org's own login. Returns (org_user, temporary_password)."""
+def create_org_account(
+    org,
+    student,
+    assigned_by=None,
+    enforce=True,
+    email=None,
+    password=None,
+):
+    """
+    Create the org's own login.
+    Returns (org_user, password_used).
+
+    If email/password are passed (from Add Accounts form), use them.
+    Otherwise generate a placeholder email and a random temporary password.
+    """
     slug = re.sub(r'[^A-Za-z0-9]', '', org.name).upper() or f'ORG{org.id}'
     login_id = _unique(
-        f'ORG-{slug}', lambda v: User.objects.filter(student_no=v).exists(), 20
+        f'ORG-{slug}',
+        lambda v: User.objects.filter(student_no=v).exists(),
+        20,
     )
-    email = _unique(
-        f'org-{slug.lower()}@orgs.utrade.local',
-        lambda v: User.objects.filter(email__iexact=v).exists(),
-        254,
-    )
-    password = get_random_string(12)
+
+    if email:
+        email = email.strip().lower()
+        if User.objects.filter(email__iexact=email).exists():
+            raise ValidationError('An account with this email already exists.')
+    else:
+        email = _unique(
+            f'org-{slug.lower()}@orgs.utrade.local',
+            lambda v: User.objects.filter(email__iexact=v).exists(),
+            254,
+        )
+
+    if not password:
+        password = get_random_string(12)
 
     org_user = User(
         student_no=login_id,
@@ -81,11 +104,12 @@ def create_org_account(org, student, assigned_by=None, enforce=True):
         org_link=org,
         organization=org.name,
         is_org_account=True,
-        is_officer=True,          # keeps existing is_officer checks (fees, owner_type) working
+        is_officer=True,  # keeps existing is_officer checks working
         officer_status='verified',
         status='verified',
         is_active=True,
         is_email_verified=True,
+        has_agreed_to_terms=True,
     )
     org_user.set_password(password)
     org_user.save()

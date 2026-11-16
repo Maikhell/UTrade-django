@@ -1,0 +1,38 @@
+{# One-line integration for workflow.html: adds the Returns + Refund tabs before "Completed". #}
+<div id="ret-src" hidden>
+  <ul id="ret-src-buttons">{% include "UTrade_app/organization/partials/org_return_tab_buttons.html" %}</ul>
+  <div id="ret-src-panes">{% include "UTrade_app/organization/partials/org_return_panes.html" %}</div>
+</div>
+
+{# Modal + JS live outside the hidden box so the dialog can open #}
+{% include "UTrade_app/organization/partials/org_return_scripts.html" %}
+
+<script>
+  (function () {
+    const src = document.getElementById('ret-src');
+    if (!src) return;
+    const buttons = Array.from(src.querySelectorAll('#ret-src-buttons > li'));
+    const panes = Array.from(src.querySelectorAll('#ret-src-panes > .tab-pane'));
+
+    // Find the existing Completed tab button and its pane
+    const completedBtn = document.querySelector(
+      '[data-bs-target="#completed-pane"], [data-bs-target="#completed"]'
+    );
+    const nav = (completedBtn && completedBtn.closest('ul')) || document.querySelector('.nav-tabs, .nav-pills');
+    const completedLi = completedBtn ? (completedBtn.closest('li') || completedBtn) : null;
+    const completedPane = completedBtn ? document.querySelector(completedBtn.getAttribute('data-bs-target')) : null;
+    const content = (completedPane && completedPane.parentElement) || document.querySelector('.tab-content');
+
+    if (nav) {
+      buttons.forEach(li => completedLi && completedLi.parentElement === nav
+        ? nav.insertBefore(li, completedLi)
+        : nav.appendChild(li));
+    }
+    if (content) {
+      panes.forEach(p => completedPane && completedPane.parentElement === content
+        ? content.insertBefore(p, completedPane)
+        : content.appendChild(p));
+    }
+    src.remove();
+  })();
+</script>

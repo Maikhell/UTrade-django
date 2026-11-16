@@ -172,10 +172,11 @@
   </div>
 </div>
 
-{# Detail dialogs (top level so tab transitions can't trap them) #}
 {% for row in all_rows %}
   {% include "UTrade_app/management/partials/_workflow_modal.html" %}
 {% endfor %}
+
+{% include "UTrade_app/organization/partials/org_return_inject.html" %}
 {% endblock %}
 
 {% block extra_js %}

@@ -1,9 +1,9 @@
 {# Two tab panes: Returns + Refund. Goes right BEFORE the Completed pane. #}
-<div class="tab-pane fade" id="returns-pane" role="tabpanel">
+<div class="tab-pane fade" id="returns-pane" role="tabpanel" aria-labelledby="returns-tab" tabindex="0">
   <p class="small text-muted mb-2">Return requests and their history. Accept to schedule the return, then confirm once the product is received.</p>
   {% include "UTrade_app/organization/partials/org_return_table.html" with items=return_items %}
 </div>
-<div class="tab-pane fade" id="refund-pane" role="tabpanel">
+<div class="tab-pane fade" id="refund-pane" role="tabpanel" aria-labelledby="refund-tab" tabindex="0">
   <p class="small text-muted mb-2">Product received. Issue the refund, then mark it as refunded.</p>
   {% include "UTrade_app/organization/partials/org_return_table.html" with items=refund_items %}
 </div>

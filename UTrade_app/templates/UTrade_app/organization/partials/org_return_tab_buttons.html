@@ -1,12 +1,18 @@
-{# Two <li> tab buttons: Returns, then Refund. Goes right BEFORE the Completed tab button. #}
+{# Returns + Refund tab buttons, styled like the wf-tabs in workflow.html. Inserted before "Completed". #}
 <li class="nav-item" role="presentation">
-  <button class="nav-link" id="returns-tab" data-bs-toggle="tab" data-bs-target="#returns-pane" type="button" role="tab">
-    Returns <span class="stat-pill ms-1 bg-warning text-dark">{{ return_count }}</span>
-    {% if return_new_count %}<span class="badge bg-danger rounded-pill ms-1">{{ return_new_count }} new</span>{% endif %}
+  <button class="nav-link" id="returns-tab" data-bs-toggle="tab" data-bs-target="#returns-pane"
+          type="button" role="tab" aria-controls="returns-pane" aria-selected="false">
+    <i class="bi bi-arrow-return-left"></i>
+    <span>Returns</span>
+    <span class="wf-pill is-processing">{{ return_count|default:0 }}</span>
+    {% if return_new_count %}<span class="wf-pill is-rejected" title="Waiting for your response">{{ return_new_count }} new</span>{% endif %}
   </button>
 </li>
 <li class="nav-item" role="presentation">
-  <button class="nav-link" id="refund-tab" data-bs-toggle="tab" data-bs-target="#refund-pane" type="button" role="tab">
-    Refund <span class="stat-pill ms-1 bg-danger">{{ refund_count }}</span>
+  <button class="nav-link" id="refund-tab" data-bs-toggle="tab" data-bs-target="#refund-pane"
+          type="button" role="tab" aria-controls="refund-pane" aria-selected="false">
+    <i class="bi bi-cash-coin"></i>
+    <span>Refund</span>
+    <span class="wf-pill is-rejected">{{ refund_count|default:0 }}</span>
   </button>
 </li>

@@ -632,19 +632,161 @@ class BatchAddToCartView(LoginRequiredMixin, View):
 
 class BatchPreOrderView(LoginRequiredMixin, View):
     """Pre-orders are now added to the cart and created at checkout."""
+
     def post(self, request, *args, **kwargs):
-        # Kept for older clients; same path as batch add-to-cart
-        return BatchAddToCartView.as_view()(request, *args, **kwargs)
+        return JsonResponse({
+            'success': False,
+            'message': 'Pre-orders now go through your cart. Open the product and choose '
+                       '"Add Pre-order to Cart", then check out.',
+        }, status=400)
+
+
+class ProductListView(ListView):
+    model = Product
+    template_name = 'UTrade_app/products/marketplace.html'
+    context_object_name = 'products'
+    paginate_by = 15
+
+    def get_queryset(self):
+        queryset = (
+            Product.objects.filter(status='Approved')
+            .select_related('category', 'seller', 'related_org', 'seller__org_link')
+            .prefetch_related('images', 'variants')
+        )
+
+        query = self.request.GET.get('q')
+        category_id = self.request.GET.get('category')
+        org_id = self.request.GET.get('org')
+        user_type = self.request.GET.get('type')
+        sort = self.request.GET.get('sort')
+
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(category__name__icontains=query)
+                | Q(seller__user_role__icontains=query)
+                | Q(product_code__icontains=query)
+                | Q(related_org__name__icontains=query)
+                | Q(related_org__full_name__icontains=query)
+            )
+
+            if query.isdigit():
+                queryset = queryset | Product.objects.filter(id=int(query), status='Approved')
+
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+
+        if org_id:
+            queryset = queryset.filter(
+                Q(related_org_id=org_id)
+                | Q(seller__org_link_id=org_id)
+                | Q(owner_type='ORGANIZATION', seller__org_link_id=org_id)
+            )
+
+        if user_type == 'management':
+            queryset = queryset.filter(
+                Q(owner_type='MANAGEMENT')
+                | Q(seller__user_role__in=['management', 'admin', 'campus_admin'])
+            )
+        elif user_type == 'organization' and not org_id:
+            queryset = queryset.filter(
+                Q(owner_type='ORGANIZATION')
+                | Q(related_org__isnull=False)
+                | Q(seller__org_link__isnull=False)
+            )
+        elif user_type == 'student':
+            queryset = queryset.exclude(
+                Q(owner_type__in=['MANAGEMENT', 'ORGANIZATION'])
+                | Q(seller__user_role__in=[
+                    'management', 'admin', 'campus_admin',
+                    'org_officer', 'alumni_assoc',
+                ])
+            )
+
+        # Sorting
+        if sort == 'price_low':
+            queryset = queryset.annotate(min_price=Min('variants__price')).order_by('min_price', '-created_at')
+        elif sort == 'price_high':
+            queryset = queryset.annotate(min_price=Min('variants__price')).order_by(
+                F('min_price').desc(nulls_last=True), '-created_at'
+            )
+        else:
+            queryset = queryset.order_by('-created_at')
+
+        return queryset.distinct()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        category = self.request.GET.get('category')
+        org = self.request.GET.get('org')
+        user_type = self.request.GET.get('type')
+
+        context['categories'] = Category.objects.all().order_by('name')
+        context['organizations'] = Organization.objects.all().order_by('name')
+
+        context['current_category'] = category
+        context['current_org'] = org
+        context['current_type'] = user_type
+        context['current_sort'] = self.request.GET.get('sort') or ''
+        context['search_query'] = self.request.GET.get('q')
+
+        # Objects behind the active filters (for the title and the removable chips)
+        context['current_category_obj'] = (
+            Category.objects.filter(pk=category).first() if category and category.isdigit() else None
+        )
+        context['current_org_obj'] = (
+            Organization.objects.filter(pk=org).first() if org and org.isdigit() else None
+        )
+        context['active_filter_count'] = sum(1 for v in (category, org, user_type) if v)
+
+        # Query string without ?page= so pagination keeps every filter and the sort
+        params = self.request.GET.copy()
+        params.pop('page', None)
+        context['querystring'] = params.urlencode()
+
+        if self.request.user.is_authenticated:
+            context['user_wishlist_ids'] = set(
+                Wishlist.objects.filter(
+                    user=self.request.user,
+                    product__isnull=False
+                ).values_list('product_id', flat=True)
+            )
+            context['user_cart_ids'] = set(
+                CartItem.objects.filter(
+                    cart__user=self.request.user,
+                    variant__isnull=False,
+                    variant__product__isnull=False
+                ).values_list('variant__product_id', flat=True)
+            )
+        else:
+            context['user_wishlist_ids'] = set()
+            context['user_cart_ids'] = set()
+
+        return context
+
+class WishlistListView(LoginRequiredMixin, ListView):
+    model = Wishlist
+    template_name = 'UTrade_app/products/wishlist.html'
+    context_object_name = 'wishlists'
+
+    def get_queryset(self):
+        return (
+            Wishlist.objects.filter(user=self.request.user)
+            .select_related('product')
+            .order_by('-added_at')
+        )
 
 
 @login_required
-@require_POST
 def toggle_wishlist(request, product_id):
     try:
         product = Product.objects.get(id=product_id)
         wishlist_item, created = Wishlist.objects.get_or_create(
             user=request.user, product=product
         )
+
         if not created:
             wishlist_item.delete()
             status = 'removed'
@@ -752,13 +894,10 @@ def add_to_staging_ajax(request):
         preorder_start = preorder_end = None
         if is_preorder:
             def parse_local(raw):
-                """
-                datetime-local has no timezone. Treat the value as Asia/Manila
-                (settings.TIME_ZONE) so the window matches the seller's clock.
-                """
                 try:
-                    naive = datetime.strptime((raw or '').strip(), '%Y-%m-%dT%H:%M')
-                    return timezone.make_aware(naive, timezone.get_current_timezone())
+                    return timezone.make_aware(
+                        datetime.strptime((raw or '').strip(), '%Y-%m-%dT%H:%M')
+                    )
                 except ValueError:
                     return None
 
@@ -1051,8 +1190,8 @@ def get_attributes(request, category_id):
 
 def _is_cbrgu(seller):
     return getattr(seller, 'user_role', '') in CBRGU_ROLES
-
-
+ 
+ 
 def _shop_products(seller):
     """
     Every product that belongs to this shop.
@@ -1064,24 +1203,24 @@ def _shop_products(seller):
             Q(owner_type='MANAGEMENT') | Q(seller__user_role__in=CBRGU_ROLES)
         )
     return Product.objects.filter(seller=seller)
-
-
+ 
+ 
 def _shop_seller_reviews(seller, products):
     if _is_cbrgu(seller):
         return SellerReview.objects.filter(
             Q(seller__user_role__in=CBRGU_ROLES) | Q(seller_id__in=products.values('seller_id'))
         )
     return SellerReview.objects.filter(seller=seller)
-
-
+ 
+ 
 def _safe_file_url(f):
     """ImageField -> url, or '' when there is no file."""
     try:
         return f.url if f else ''
     except ValueError:
         return ''
-
-
+ 
+ 
 def _shop_identity(seller):
     """What the shop header shows: kind, name, tagline, logo, 'member since'."""
     role = getattr(seller, 'user_role', '')
@@ -1093,7 +1232,7 @@ def _shop_identity(seller):
         or seller.username
         or str(seller.student_no)
     )
-
+ 
     if _is_cbrgu(seller):
         # The CBRGU shop is shared, so it never shows one staff member's name or photo.
         return {
@@ -1105,7 +1244,7 @@ def _shop_identity(seller):
             'shop_logo_url': '',
             'member_since': None,
         }
-
+ 
     if is_org:
         kind = 'org'
         name = org.name if org else full
@@ -1113,7 +1252,7 @@ def _shop_identity(seller):
     else:
         kind, name = 'student', full
         tagline = ' · '.join(p for p in (seller.course, seller.section) if p)
-
+ 
     return {
         'shop_kind': kind,
         'shop_name': name,
@@ -1123,8 +1262,8 @@ def _shop_identity(seller):
         'shop_logo_url': (_safe_file_url(org.logo) if (is_org and org) else '') or seller.profile_pic_url,
         'member_since': org.date_created if (is_org and org) else seller.date_joined,
     }
-
-
+ 
+ 
 def _rating_block(counts):
     """counts = {5: n, 4: n, ...} -> average, count, star-fill % and the 5..1 bars."""
     total = sum(counts.values())
@@ -1142,15 +1281,15 @@ def _rating_block(counts):
             for s in (5, 4, 3, 2, 1)
         ],
     }
-
-
+ 
+ 
 class StorefrontView(ListView):
     """Seller shop: same filter / sort / card layout as the marketplace, plus shop stats and reviews."""
     model = Product
     template_name = 'UTrade_app/seller/storefront.html'
     context_object_name = 'products'
     paginate_by = 15
-
+ 
     def get_seller(self):
         # Cached so the queryset and the context don't each hit the database.
         if not hasattr(self, '_seller'):
@@ -1158,7 +1297,7 @@ class StorefrontView(ListView):
                 User.objects.select_related('org_link'), pk=self.kwargs['seller_id']
             )
         return self._seller
-
+ 
     def get_queryset(self):
         seller = self.get_seller()
         qs = (
@@ -1167,11 +1306,11 @@ class StorefrontView(ListView):
             .select_related('category', 'seller', 'related_org')
             .prefetch_related('images', 'variants')
         )
-
+ 
         query = (self.request.GET.get('q') or '').strip()
         category_id = self.request.GET.get('category')
         sort = self.request.GET.get('sort')
-
+ 
         if query:
             qs = qs.filter(
                 Q(name__icontains=query)
@@ -1181,7 +1320,7 @@ class StorefrontView(ListView):
             )
         if category_id and category_id.isdigit():
             qs = qs.filter(category_id=category_id)
-
+ 
         if sort == 'price_low':
             qs = qs.annotate(min_price=Min('variants__price')).order_by('min_price', '-created_at')
         elif sort == 'price_high':
@@ -1192,21 +1331,21 @@ class StorefrontView(ListView):
             qs = qs.order_by('-sold', '-created_at')
         else:
             qs = qs.order_by('-created_at')
-
+ 
         return qs.distinct()
-
+ 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         seller = self.get_seller()
         request = self.request
         shop_products = _shop_products(seller)
-
+ 
         category = request.GET.get('category')
         query = (request.GET.get('q') or '').strip()
-
+ 
         context.update(_shop_identity(seller))
         context['shop_seller'] = seller
-
+ 
         # ---- Filters (same names as the marketplace so marketplace.js works) ----
         context['categories'] = Category.objects.filter(
             products__in=shop_products.filter(status='Approved')
@@ -1218,18 +1357,18 @@ class StorefrontView(ListView):
         context['current_sort'] = request.GET.get('sort') or ''
         context['search_query'] = query
         context['active_filter_count'] = sum(1 for v in (category,) if v)
-
+ 
         params = request.GET.copy()
         params.pop('page', None)
         context['querystring'] = params.urlencode()
-
+ 
         # ---- Shop stats (the whole shop: for CBRGU that is every CBRGU member) ----
         context['listings_count'] = shop_products.filter(status='Approved').count()
         context['total_sold'] = shop_products.aggregate(s=Sum('sold'))['s'] or 0
-
+ 
         seller_reviews_qs = _shop_seller_reviews(seller, shop_products)
         product_reviews_qs = Review.objects.filter(product__in=shop_products)
-
+ 
         seller_counts = {
             r['rating']: r['n']
             for r in seller_reviews_qs.values('rating').annotate(n=Count('id')).order_by('rating')
@@ -1240,7 +1379,7 @@ class StorefrontView(ListView):
         }
         context['seller_rating'] = _rating_block(seller_counts)
         context['product_rating'] = _rating_block(product_counts)
-
+ 
         # ---- Latest reviews ----
         context['seller_reviews'] = list(
             seller_reviews_qs.select_related('reviewer').order_by('-created_at')[:10]
@@ -1249,7 +1388,7 @@ class StorefrontView(ListView):
             product_reviews_qs.select_related('user', 'product')
             .prefetch_related('media').order_by('-created_at')[:10]
         )
-
+ 
         # ---- Wishlist ----
         if request.user.is_authenticated:
             context['user_wishlist_ids'] = set(
@@ -1257,5 +1396,5 @@ class StorefrontView(ListView):
             )
         else:
             context['user_wishlist_ids'] = set()
-
+ 
         return context

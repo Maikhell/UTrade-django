@@ -1203,8 +1203,6 @@ def organization_preorders_batch(request):
 # Org dashboard / sales chart
 # ---------------------------------------------------------------------------
 
-@login_required
-@user_passes_test(is_organization)
 def _first_url(*names):
     """First URL name that resolves, else None (keeps the template from crashing on unknown names)."""
     for name in names:
@@ -1213,7 +1211,6 @@ def _first_url(*names):
         except NoReverseMatch:
             continue
     return None
-
 
 @login_required
 @user_passes_test(is_organization)

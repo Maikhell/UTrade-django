@@ -17,12 +17,13 @@ def _resolve(context, path):
 @register.inclusion_tag("UTrade_app/partials/_sidebar.html", takes_context=True)
 def render_sidebar(context, role, active=""):
     """{% render_sidebar sidebar_role 'dashboard' %}"""
+    user = getattr(context.get("request"), "user", None)
+    org = context.get("org")
+    # Fall back to auto-detection when the view didn't pass sidebar_role
+    role = role or get_sidebar_role(user, org)
     cfg = SIDEBARS.get(role)
     if not cfg:
         return {"sections": []}
-
-    user = getattr(context.get("request"), "user", None)
-    org = context.get("org")
     org_name = (getattr(org, "name", "") or "Organization") if org else ""
 
     sections = []

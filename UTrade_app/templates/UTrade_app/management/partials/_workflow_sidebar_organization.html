@@ -1,101 +1,61 @@
-{% with org_name=org.name|default:"Organization" org_type=org.org_type|default:"academic" org_acronym=org.name|default:""|upper %}
+{% load static %}
+{# Replaces the OLD organization sidebar partial. Same URLs and academic/CSG rules, new design. #}
+<link rel="stylesheet" href="{% static 'UTrade_app/css/sidebar.css' %}">
+{% with org_name=org.name|default:"Organization" org_type=org.org_type|default:"academic" org_acronym=org.name|default:""|upper url_name=request.resolver_match.url_name %}
 
 <div class="col-12 d-md-none mb-3">
   <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
-          type="button" data-bs-toggle="offcanvas" data-bs-target="#sellerSidebar">
+          type="button" data-bs-toggle="offcanvas" data-bs-target="#sellerSidebar" aria-controls="sellerSidebar">
     <i class="bi bi-list"></i> {{ org_name }} Menu
   </button>
 </div>
 
+<!-- ================= SIDEBAR ================= -->
 <div class="col-md-3 col-lg-2">
-  <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm" tabindex="-1" id="sellerSidebar">
+  <div class="offcanvas-md offcanvas-start db-side" tabindex="-1" id="sellerSidebar" aria-labelledby="sellerSidebarLabel">
     <div class="offcanvas-header d-md-none">
-      <h5 class="offcanvas-title fw-bold">{{ org_name }} Panel</h5>
-      <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+      <h5 class="offcanvas-title fw-bold" id="sellerSidebarLabel">{{ org_name }} Panel</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sellerSidebar" aria-label="Close"></button>
     </div>
     <div class="offcanvas-body p-0">
-      <div class="seller-sidebar p-3">
-        <div class="mb-4">
-          <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
-          <div class="d-flex flex-column gap-2 small">
-            <div class="d-flex justify-content-between"><span>{{ noun_plural|title }}</span><strong>{{ total|default:0 }}</strong></div>
-            <div class="d-flex justify-content-between"><span>Incoming</span><strong>{{ incoming_count }}</strong></div>
-            <div class="d-flex justify-content-between"><span>Completed</span><strong>{{ completed_count }}</strong></div>
+      <div class="db-side-card w-100">
+
+        <div class="db-side-brand">
+          <span class="db-brand-icon"><i class="bi bi-speedometer2" aria-hidden="true"></i></span>
+          <div>
+            <strong>{{ org_name }} Panel</strong>
+            <small>{{ request.user.get_full_name|default:request.user.get_short_name }}</small>
           </div>
         </div>
-        <hr class="my-3 opacity-25">
-        <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
 
-        <div class="mb-3">
-          <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-            <i class="bi bi-building"></i> {{ org_name }} Panel
-          </div>
-          <ul class="nav flex-column gap-1 ms-3 mt-1">
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'organization.panel' %}">
-                <i class="bi bi-speedometer2 text-success"></i> Dashboard
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'org_products' %}">
-                <i class="bi bi-box-seam text-success"></i> Products
-                <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count|default:0 }}</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'org_remittance_view' %}">
-                <i class="bi bi-cash-stack text-success"></i> Remittance
-              </a>
-            </li>
-          </ul>
+        <div class="db-nav-title">Overview</div>
+        <ul class="db-nav">
+          <li><a {% if url_name == 'organization.panel' %}class="active" aria-current="page"{% endif %} href="{% url 'organization.panel' %}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+          <li><a {% if url_name == 'org_products' %}class="active" aria-current="page"{% endif %} href="{% url 'org_products' %}"><i class="bi bi-box-seam"></i> Products
+            <span class="badge bg-light text-dark border rounded-pill">{{ products.count|default:0 }}</span></a></li>
+          <li><a {% if url_name == 'org_remittance_view' %}class="active" aria-current="page"{% endif %} href="{% url 'org_remittance_view' %}"><i class="bi bi-cash-stack"></i> Remittance</a></li>
+        </ul>
 
-          <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1 mt-2">
-            <i class="bi bi-cart-fill"></i> Orders
-          </div>
-          <ul class="nav flex-column gap-1 ms-3 mt-1">
-            <li class="nav-item">
-              <a class="nav-link sidebar-link {% if kind == 'order' %}active{% else %}text-dark{% endif %} d-flex align-items-center gap-2 rounded-3 py-1" href="{% url 'organization_orders' %}">
-                <i class="bi bi-inbox text-success"></i> Orders
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link sidebar-link {% if kind == 'preorder' %}active{% else %}text-dark{% endif %} d-flex align-items-center gap-2 rounded-3 py-1" href="{% url 'organization_preorders' %}">
-                <i class="bi bi-calendar-check text-success"></i> Pre-Orders
-                {% if incoming_preorder_count %}
-                  <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>
-                {% endif %}
-              </a>
-            </li>
-          </ul>
+        <div class="db-nav-title">Orders</div>
+        <ul class="db-nav">
+          <li><a {% if url_name == 'organization_orders' %}class="active" aria-current="page"{% endif %} href="{% url 'organization_orders' %}"><i class="bi bi-inbox"></i> Orders
+            {% if incoming_orders_count %}<span class="badge bg-success rounded-pill">{{ incoming_orders_count }}</span>{% endif %}</a></li>
+          <li><a {% if url_name == 'organization_preorders' %}class="active" aria-current="page"{% endif %} href="{% url 'organization_preorders' %}"><i class="bi bi-calendar-check"></i> Pre-Orders
+            {% if incoming_preorder_count %}<span class="badge bg-info text-dark rounded-pill">{{ incoming_preorder_count }}</span>{% endif %}</a></li>
+        </ul>
 
-          <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1 mt-2">
-            <i class="bi bi-person"></i> Users
-          </div>
-          <ul class="nav flex-column gap-1 ms-3 mt-1">
-            {# Pending Verification: academic organizations only, hidden for CSG and non-academic #}
-            {% if org_type == 'academic' and org_acronym != 'CSG' %}
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'org_pending_verification' %}">
-                <i class="bi bi-person-check text-success"></i> Pending Verification
-                {% if pending_verification_count %}
-                  <span class="badge bg-warning text-dark rounded-pill ms-auto">{{ pending_verification_count }}</span>
-                {% endif %}
-              </a>
-            </li>
-            {% endif %}
-            <li class="nav-item">
-              <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'org_users' %}">
-                <i class="bi bi-people text-success"></i> Users
-              </a>
-            </li>
-          </ul>
-        </div>
+        {# Users section: Pending Verification is academic orgs only, hidden for CSG and non-academic #}
+        {% if org_type == 'academic' and org_acronym != 'CSG' %}
+        <div class="db-nav-title">Users</div>
+        <ul class="db-nav">
+          <li><a {% if url_name == 'org_pending_verification' %}class="active" aria-current="page"{% endif %} href="{% url 'org_pending_verification' %}"><i class="bi bi-person-check"></i> Pending Verification
+            {% if pending_verification_count %}<span class="badge bg-warning text-dark rounded-pill">{{ pending_verification_count }}</span>{% endif %}</a></li>
+          <li><a {% if url_name == 'org_users' %}class="active" aria-current="page"{% endif %} href="{% url 'org_users' %}"><i class="bi bi-people"></i> Users</a></li>
+        </ul>
+        {% endif %}
 
-        <hr class="my-3 opacity-25">
-        <div class="d-grid gap-2">
-          <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
-            <i class="bi bi-plus-lg me-1"></i> Add New Product
-          </a>
+        <div class="d-grid mt-4">
+          <a href="{% url 'product.create' %}" class="btn btn-success btn-sm db-btn"><i class="bi bi-plus-lg me-1"></i> Add New Product</a>
         </div>
       </div>
     </div>

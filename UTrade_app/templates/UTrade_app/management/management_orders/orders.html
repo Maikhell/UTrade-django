@@ -1,4 +1,5 @@
 {% extends 'UTrade_app/base.html' %}
+{% load static sidebar_tags %}
 
 {% block title %}CBRGU | Orders{% endblock %}
 
@@ -80,69 +81,7 @@
 <div class="container-fluid">
   <div class="row">
 
-          <div class="col-12 d-md-none">
-        <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2 db-btn" type="button"
-                data-bs-toggle="offcanvas" data-bs-target="#sellerSidebar" aria-controls="sellerSidebar">
-          <i class="bi bi-list"></i> {% if is_cbrgu %}Staff Menu{% else %}Menu{% endif %}
-        </button>
-      </div>
-
-      <!-- ================= SIDEBAR ================= -->
-      <div class="col-md-3 col-lg-2">
-        <div class="offcanvas-md offcanvas-start db-side" tabindex="-1" id="sellerSidebar" aria-labelledby="sellerSidebarLabel">
-          <div class="offcanvas-header d-md-none">
-            <h5 class="offcanvas-title fw-bold" id="sellerSidebarLabel">Menu</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sellerSidebar" aria-label="Close"></button>
-          </div>
-          <div class="offcanvas-body p-0">
-            <div class="db-side-card w-100">
-
-              <div class="db-side-brand">
-                <span class="db-brand-icon"><i class="bi bi-speedometer2" aria-hidden="true"></i></span>
-                <div>
-                  <strong>{% if is_cbrgu %}CBRGU Panel{% else %}Seller Panel{% endif %}</strong>
-                  <small>{{ request.user.get_full_name|default:request.user.get_short_name }}</small>
-                </div>
-              </div>
-
-              <div class="db-nav-title">Overview</div>
-              <ul class="db-nav">
-                <li><a  href="{% url 'dashboard' %}" aria-current="page"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-                <li><a href="{% url 'active_listings' %}"><i class="bi bi-check2-square"></i> Active Listings</a></li>
-                <li><a href="{% url 'cbrgu_products' %}"><i class="bi bi-box-seam"></i> Products
-                  <span class="badge bg-light text-dark border rounded-pill">{{ total_products }}</span></a></li>
-                <li><a href="{% url 'remittance_management' %}"><i class="bi bi-cash-stack"></i> Remittance</a></li>
-              </ul>
-
-              <div class="db-nav-title">Orders</div>
-              <ul class="db-nav">
-                <li><a class="active" href="{% url 'management_orders' %}"><i class="bi bi-inbox"></i> Orders
-                  {% if incoming_orders_count %}<span class="badge bg-success rounded-pill">{{ incoming_orders_count }}</span>{% endif %}</a></li>
-                <li><a href="{% url 'management_preorders' %}"><i class="bi bi-calendar-check"></i> Pre-Orders
-                  {% if incoming_preorder_count %}<span class="badge bg-info text-dark rounded-pill">{{ incoming_preorder_count }}</span>{% endif %}</a></li>
-              </ul>
-
-              <div class="db-nav-title">Settings</div>
-              <ul class="db-nav">
-                <li><a href="{% url 'logs_reports' %}"><i class="bi bi-journal-text"></i> Logs and Reports</a></li>
-                <li><a href="{% url 'add_prohibited_words' %}"><i class="bi bi-exclamation-triangle"></i> Prohibited Items</a></li>
-                <li><a href="{% url 'add_categories' %}"><i class="bi bi-tags"></i> Categories</a></li>
-                <li><a href="{% url 'add_pickup_spots' %}"><i class="bi bi-geo-alt"></i> Pickup Spots</a></li>
-              </ul>
-
-              <div class="db-nav-title">Admin</div>
-              <ul class="db-nav">
-                <li><a href="{% url 'add_accounts' %}"><i class="bi bi-person-add"></i> Add Accounts</a></li>
-                <li><a href="{% url 'all_users' %}"><i class="bi bi-people"></i> All Users</a></li>
-              </ul>
-
-              <div class="d-grid mt-4">
-                <a href="{% url 'product.create' %}" class="btn btn-success btn-sm db-btn"><i class="bi bi-plus-lg me-1"></i> Add New Product</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        {% render_sidebar sidebar_role 'orders' %}
     <!-- MAIN -->
     <main class="col-md-9 col-lg-10 px-3 px-md-4">
 

@@ -47,6 +47,28 @@
         {% else %}
           {% include "UTrade_app/orders/partials/preorder_card.html" with po=item %}
         {% endif %}
+        {% if tab.id == 'topay' or tab.id == 'all' %}
+          {% if item.can_pay_online %}
+          <form method="post" action="{% url 'pay_now' item.kind item.id %}" class="oc-paybar">
+            {% csrf_token %}
+            <div class="oc-paybar-text">
+              <i class="bi bi-lightning-charge-fill text-warning"></i>
+              Amount due <strong>₱{{ item.pay_amount|floatformat:2 }}</strong> · GCash
+            </div>
+            <button type="submit" class="btn btn-success btn-sm fw-bold">
+              <i class="bi bi-wallet2 me-1"></i> Pay with GCash
+            </button>
+          </form>
+          {% elif item.pay_rec and item.pay_rec.status == 'PAID' %}
+          <div class="oc-paybar oc-paybar--paid">
+            <div class="oc-paybar-text">
+              <i class="bi bi-patch-check-fill text-success"></i>
+              Paid via GCash · Ref <strong>{{ item.pay_rec.reference_no }}</strong>
+            </div>
+            <span class="text-muted small">{{ item.pay_rec.paid_at|date:"M d, Y · g:i A" }}</span>
+          </div>
+          {% endif %}
+        {% endif %}
       {% empty %}
         <div class="oc-empty">
           <i class="bi {{ tab.empty_icon }}"></i>

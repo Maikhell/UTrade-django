@@ -218,4 +218,9 @@ urlpatterns = [
     path('reports/products/',  reports.products_report,  name='reports.products'),
     path('reports/users/',     reports.users_report,     name='reports.users'),
     path('organization/dashboard/analytics/', organization_views.org_dashboard_analytics_api, name='org.dashboard.analytics'),
+    path('orders/pay/<str:kind>/<int:pk>/', order_views.pay_now, name='pay_now'),
+    path('payment/return/<int:payment_id>/', order_views.payment_return, name='payment_return'),
+    path('management/payments/', management_views.management_payments, name='management_payments'),
+    path('management/payments/<int:payment_id>/notify-seller/',
+    management_views.notify_seller_payment, name='notify_seller_payment'),
 ]

@@ -99,6 +99,13 @@
                         {% if item.size %}<span class="ct-chip">Size {{ item.size }}</span>{% endif %}
                         {% if item.variant.condition %}<span class="ct-chip">{{ item.variant.condition }}</span>{% endif %}
                         {% if item.variant.product.pre_order %}<span class="ct-chip ct-chip--warn">Pre-order</span>{% endif %}
+                        {% with pm=item.variant.product.accepted_payments %}
+                          <span class="ct-chip">
+                            {% if pm == 'GCASH' %}<i class="bi bi-lightning-charge-fill"></i> GCash only
+                            {% elif pm == 'COP' %}<i class="bi bi-cash-stack"></i> Cash on pickup
+                            {% else %}<i class="bi bi-wallet2"></i> GCash / Cash{% endif %}
+                          </span>
+                        {% endwith %}
                       </div>
 
                       {% if item.variant.product.pre_order %}

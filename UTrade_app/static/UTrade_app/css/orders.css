@@ -8,7 +8,10 @@
   margin: 0 auto;
   padding-bottom: 2rem;
 }
-
+.oc-paybar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;
+  margin:-.35rem 0 1rem;padding:.7rem 1rem;border:1px solid #cfe8d8;border-radius:.75rem;background:#f3fbf6}
+.oc-paybar-text{font-size:.9rem}
+.oc-paybar--paid{background:#f8f9fa;border-color:#e3e6ea}
 /* ---------- Page header + tabs ---------- */
 .oc-page-head { margin-bottom: 1rem; }
 
@@ -418,6 +421,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.6rem;
 }
+
 @media (max-width: 575.98px) { .oc-info-grid { grid-template-columns: 1fr; } }
 
 .oc-info {

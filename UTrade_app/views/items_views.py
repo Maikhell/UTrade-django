@@ -996,6 +996,9 @@ def add_to_staging_ajax(request):
 
         replaced_id = old.id if old else None
         audience = AUDIENCE_GENERAL
+        payment = (request.POST.get('payment') or 'COP').strip().upper()
+        if payment not in ('COP', 'GCASH', 'BOTH'):
+            return fail('Invalid payment method.')
         if (request.POST.get('audience') or '').strip().upper() == AUDIENCE_PRIVATE:
             if not seller_restriction_course(request.user):
                 return fail('Only academic organizations can create private listings.')
@@ -1034,7 +1037,7 @@ def add_to_staging_ajax(request):
                 preferred_meetup_time_from=t_from,
                 preferred_meetup_time_to=t_to,
                 owner_type=request.POST.get('owner_type', 'PERSONAL'),
-                accepted_payments=request.POST.get('payment') or 'BOTH',
+                accepted_payments=payment,
                 pre_order=is_preorder,
                 preorder_start=preorder_start,
                 preorder_end=preorder_end,

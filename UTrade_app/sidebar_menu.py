@@ -29,6 +29,8 @@ _C_PROD = _i("products", "Products", "bi-box-seam", "cbrgu_products",
 _C_ORD = _i("orders", "Orders", "bi-inbox", "management_orders", "incoming_orders_count")
 _C_PRE = _i("preorders", "Pre Orders", "bi-calendar-check", "management_preorders",
             "incoming_preorder_count", "bg-info text-dark")
+_C_PAY = _i("payments", "Payments", "bi-credit-card-2-front", "management_payments",
+            "new_payments_count", "bg-success")
 
 # ---- Organizations ------------------------------------------------------
 _O_DASH = _i("dashboard", "Dashboard", "bi-speedometer2", "organization.panel")
@@ -50,6 +52,7 @@ SIDEBARS = {
         "sections": [
             ("Overview", [_C_DASH, _C_LIST, _C_PROD]),
             ("Orders", [_C_ORD, _C_PRE]),
+            ("Payments", [_C_PAY]),          # NEW
             ("Settings", [
                 _i("logs_reports", "Logs and Reports", "bi-journal-text", "logs_reports"),
                 _i("prohibited", "Prohibited Items", "bi-exclamation-triangle", "add_prohibited_words"),

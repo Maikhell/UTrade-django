@@ -10,6 +10,7 @@ from django.db import transaction
 from django.http import HttpResponse, JsonResponse
 from django.template.loader import render_to_string
 from weasyprint import HTML
+from django.urls import reverse
 from django.contrib import messages
 from ..utils import accrue_platform_fee_for_order
 from ..review_media import MediaRejected, attach_media, prepare_media
@@ -19,7 +20,9 @@ from django.utils import timezone
 from ..product_access import purchase_block_reason
 from .return_views import RETURN_STATUS, attach_return_info
 from ..preorder_utils import release_preorder_quantity
-
+from ..payments import (ensure_payment, create_checkout_session,
+                        confirm_online_payments, confirm_pending)
+from datetime import timedelta
 from ..models import (
     CartItem,
     Order,
@@ -30,8 +33,12 @@ from ..models import (
     ChatMessage,
     Conversation,
     PreOrderRequest,
+    OnlinePayment,
 )
-
+from datetime import timedelta
+from ..models import OnlinePayment   # add to the existing models import
+from ..payments import (ensure_payment, create_checkout_session,
+                        confirm_online_payments, confirm_pending)
 # ---------------------------------------------------------------------------
 # Order / pre-order progress, used by the "My Purchases" page
 # ---------------------------------------------------------------------------
@@ -389,9 +396,7 @@ def order_success(request, order_id):
     else:
         batch_qs = Order.objects.filter(pk=order.pk)
  
-    batch_qs.filter(payment_method='GCASH', status='Pending').update(
-        status='Paid', updated_at=timezone.now()
-    )
+    confirm_pending(request.user, order__in=batch_qs)   # verified with PayMongo, not just "the URL was opened"
  
     CartItem.objects.filter(
         cart__user=request.user,
@@ -421,12 +426,37 @@ def order_success(request, order_id):
         'all_paid': bool(orders) and all((o.status or '').lower() == 'paid' for o in orders),
     })
 
+PREORDER_PAYABLE = PREORDER_IN_PROGRESS | {'READY'}
 
+
+def _attach_payment_info(obj, kind):
+    """Adds pay_rec, pay_amount and can_pay_online for the To Pay tab."""
+    pay = getattr(obj, 'online_payment', None)
+    obj.pay_rec = pay
+    if kind == 'order':
+        unpaid = obj.status in ('Pending', 'Awaiting Payment')
+        obj.pay_amount = obj.total_amount
+    else:
+        unpaid = (not obj.is_paid) and (obj.status or '').upper() in PREORDER_PAYABLE
+        obj.pay_amount = obj.get_total_price()
+    obj.can_pay_online = (
+        obj.payment_method == 'GCASH' and unpaid
+        and not (pay and pay.status == OnlinePayment.STATUS_PAID)
+    )
+    return obj
 @login_required
 def order_history(request):
+        # Catch payments completed on PayMongo whose return page was never opened
+    try:
+        confirm_pending(
+            request.user,
+            created_at__gte=timezone.now() - timedelta(days=2),
+        )
+    except Exception:
+        pass
     orders = list(
         Order.objects.filter(user=request.user)
-        .select_related('seller', 'exchange_variant')
+        .select_related('seller', 'exchange_variant', 'online_payment')
         .prefetch_related(
             'return_images',
             'items__product_variant__product__variants',
@@ -508,6 +538,8 @@ def order_history(request):
     all_items = newest_first(orders + preorders)   # ALL: every order, any status
     by_tab = {k: [] for k in ('to_pay', 'to_pickup', 'completed', 'cancelled', 'return')}
     for item in all_items:
+        if getattr(obj, 'can_pay_online', False):
+            return 'to_pay'
         by_tab[_tab_of(item)].append(item)
 
     # Completed: unrated first, then newest (same behaviour as the old History tab)
@@ -958,3 +990,57 @@ def generate_preorder_receipt(request, preorder_id):
     response['Content-Disposition'] = f'attachment; filename="PreOrder_Receipt_{preorder.id}.pdf"'
     response.write(result)
     return response
+
+@login_required
+@require_POST
+def pay_now(request, kind, pk):
+    """Start (or restart) the GCash payment for one order / pre-order from To Pay."""
+    if kind == 'order':
+        obj = get_object_or_404(Order, pk=pk, user=request.user)
+        eligible = obj.payment_method == 'GCASH' and obj.status in ('Pending', 'Awaiting Payment')
+        amount, label = obj.total_amount, f"UTrade Order {obj.order_number or '#' + str(obj.id)}"
+    elif kind == 'preorder':
+        obj = get_object_or_404(PreOrderRequest, pk=pk, buyer=request.user)
+        eligible = (obj.payment_method == 'GCASH' and not obj.is_paid
+                    and (obj.status or '').upper() in PREORDER_PAYABLE)
+        amount, label = obj.get_total_price(), f"UTrade Pre-Order #{obj.id}"
+    else:
+        return redirect('order_history')
+
+    if not eligible:
+        messages.error(request, "This item can't be paid online.")
+        return redirect('order_history')
+
+    payment = ensure_payment(obj, kind)
+    if payment.status == OnlinePayment.STATUS_PAID:
+        messages.info(request, "This item is already paid.")
+        return redirect('order_history')
+
+    url, session_id = create_checkout_session(
+        request, [{'name': label, 'amount': amount}],
+        request.build_absolute_uri(reverse('payment_return', args=[payment.pk])),
+        request.build_absolute_uri(reverse('order_history')),
+    )
+    if not url:
+        messages.error(request, "We couldn't start the GCash payment. Please try again.")
+        return redirect('order_history')
+
+    payment.checkout_session_id = session_id
+    payment.save(update_fields=['checkout_session_id'])
+    return redirect(url)
+
+
+@login_required
+def payment_return(request, payment_id):
+    """PayMongo return page: verify, then show the confirmation."""
+    payment = get_object_or_404(OnlinePayment, pk=payment_id, buyer=request.user)
+    confirm_online_payments([payment])
+    payment.refresh_from_db()
+    if payment.status != OnlinePayment.STATUS_PAID:
+        messages.warning(
+            request,
+            "We couldn't confirm your payment yet. If you were charged, it will be "
+            "updated here shortly.",
+        )
+        return redirect('order_history')
+    return render(request, 'UTrade_app/orders/payment_confirmation.html', {'payment': payment})

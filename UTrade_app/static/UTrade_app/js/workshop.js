@@ -1333,6 +1333,7 @@ async function addToStaging() {
     formData.append("preorder_start", byId("preorder_start").value);
     formData.append("preorder_end", byId("preorder_end").value);
   }
+
   if (privateEl) formData.append("audience", isPrivate ? "PRIVATE" : "GENERAL");
 
   const paymentEl = document.querySelector('input[name="payment"]:checked');
@@ -1550,7 +1551,10 @@ async function editItem(stagedId) {
 
     const privateEl = byId("is_private");
     if (privateEl) privateEl.checked = data.audience === "PRIVATE";
-
+        // Accepted payment (COP / GCASH / BOTH)
+    const payValue = data.accepted_payments || data.payment || "COP";
+    const payRadio = document.querySelector('input[name="payment"][value="' + payValue + '"]');
+    if (payRadio) payRadio.checked = true;
     // ---------- cover ----------
     const images = data.images || [];
     const cover = images.find((i) => i.is_main) || images[0];

@@ -523,7 +523,51 @@ class PreOrderRequest(ReturnFieldsMixin, models.Model):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)  # ReturnFieldsMixin handles completed_at timestamping
 
+class OnlinePayment(models.Model):
+    """One row per GCash-paid order / pre-order. OneToOne = no duplicate records."""
+    STATUS_PENDING, STATUS_PAID, STATUS_FAILED = 'PENDING', 'PAID', 'FAILED'
+    STATUS_CHOICES = [(STATUS_PENDING, 'Pending'), (STATUS_PAID, 'Paid'), (STATUS_FAILED, 'Failed')]
 
+    order = models.OneToOneField(Order, null=True, blank=True,
+                                 on_delete=models.SET_NULL, related_name='online_payment')
+    preorder = models.OneToOneField('PreOrderRequest', null=True, blank=True,
+                                    on_delete=models.SET_NULL, related_name='online_payment')
+    buyer = models.ForeignKey(User, on_delete=models.PROTECT, related_name='online_payments_made')
+    seller = models.ForeignKey(User, on_delete=models.PROTECT, related_name='online_payments_received')
+
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=10, default='GCASH')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    checkout_session_id = models.CharField(max_length=100, blank=True, default='', db_index=True)
+    reference_no = models.CharField(max_length=100, blank=True, default='')
+    paid_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # snapshots, so the record stays readable even if the order or product changes later
+    buyer_name = models.CharField(max_length=255, blank=True)
+    buyer_course = models.CharField(max_length=100, blank=True)
+    buyer_section = models.CharField(max_length=50, blank=True)
+    product_name = models.TextField(blank=True)
+    pickup_location = models.CharField(max_length=255, blank=True)
+    pickup_days = models.CharField(max_length=100, blank=True)
+    pickup_time = models.CharField(max_length=50, blank=True)
+
+    # notification state (guards against duplicates)
+    head_notified_at = models.DateTimeField(null=True, blank=True)
+    head_seen = models.BooleanField(default=False)
+    seller_notified_at = models.DateTimeField(null=True, blank=True)
+    seller_notified_by = models.ForeignKey(User, null=True, blank=True,
+                                           on_delete=models.SET_NULL, related_name='+')
+
+    class Meta:
+        ordering = ['-paid_at', '-created_at']
+
+    @property
+    def kind(self):
+        return 'order' if self.order_id else 'preorder'
+
+    def __str__(self):
+        return f"GCash {self.amount} · {self.buyer_name} → {self.seller_id} ({self.status})"    
 class ReturnImage(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='return_images', null=True, blank=True)
     preorder = models.ForeignKey('PreOrderRequest', on_delete=models.CASCADE, related_name='return_images', null=True, blank=True)

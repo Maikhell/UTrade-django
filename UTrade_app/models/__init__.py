@@ -18,5 +18,6 @@ from .product_models import (
     StagedImage,
     SellerReview,
     ReviewMedia,
-    ReturnImage
+    ReturnImage,
+    OnlinePayment
 )

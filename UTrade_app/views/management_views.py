@@ -27,7 +27,7 @@ from django.db.models.functions import Coalesce
 from django.db.models import Prefetch
 from django.utils.dateparse import parse_date
 from django.core.exceptions import ValidationError
-
+from ..payments import send_seller_payment_email
 from xhtml2pdf import pisa
 
 from ..forms import ProductForm
@@ -52,7 +52,8 @@ from ..models import (
     UserReport,
     PlatformFeeLine,
     OrganizationPlatformLedger,
-    PlatformFeeRemittance
+    PlatformFeeRemittance,
+    OnlinePayment
     
 )
 from ..utils import log_action, send_email
@@ -2326,3 +2327,36 @@ def all_users(request):
         'UTrade_app/management/admin/all_users.html',
         context,
     )
+@login_required
+@user_passes_test(is_management)
+def management_payments(request):
+    search = request.GET.get('search', '').strip()
+    qs = (OnlinePayment.objects.filter(status='PAID')
+          .select_related('buyer', 'seller', 'seller_notified_by')
+          .order_by('-paid_at'))
+    if search:
+        qs = qs.filter(
+            Q(buyer_name__icontains=search) | Q(product_name__icontains=search)
+            | Q(reference_no__icontains=search) | Q(buyer_course__icontains=search)
+            | Q(seller__first_name__icontains=search) | Q(seller__last_name__icontains=search)
+            | Q(seller__username__icontains=search)
+        )
+    total_amount = qs.aggregate(s=Sum('amount'))['s'] or Decimal('0.00')
+    page_obj = Paginator(qs, 20).get_page(request.GET.get('page'))
+    new_ids = {p.id for p in page_obj if not p.head_seen}
+    if new_ids:
+        OnlinePayment.objects.filter(id__in=new_ids).update(head_seen=True)
+
+    return render(request, 'UTrade_app/management/management_panel/payments.html', {
+        **_sidebar_context(),
+        'page_obj': page_obj, 'new_ids': new_ids, 'search': search,
+        'total_amount': total_amount, 'total_count': qs.count(),
+    })
+
+
+@login_required
+@user_passes_test(is_management)
+@require_POST
+def notify_seller_payment(request, payment_id):
+    ok, message, status = send_seller_payment_email(payment_id, request.user)
+    return JsonResponse({'success': ok, 'message': message}, status=status)

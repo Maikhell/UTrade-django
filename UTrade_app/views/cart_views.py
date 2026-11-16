@@ -18,6 +18,7 @@ from django.urls import reverse
 from django.utils import timezone
 from ..product_access import blocked_cart_reason, purchase_block_reason, resolve_size
 from ..preorder_utils import cart_block_reasons, preorder_block_reason
+from ..payments import create_checkout_session, ensure_payment, confirm_pending  # CHANGED (new import)
 
 import requests
 
@@ -91,45 +92,8 @@ def _collect_item_ids(request):
     return _dedupe(ids)
 
 
-def _create_paymongo_session(request, payables, success_url):
-    """
-    One PayMongo GCash checkout session covering every GCash payment of a checkout.
-    `payables` = [{"name": str, "amount": Decimal}, ...]. Returns the hosted URL, or None.
-    """
-    try:
-        encoded_key = base64.b64encode(f"{settings.PAYMONGO_SECRET_KEY}:".encode()).decode()
-        headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "authorization": f"Basic {encoded_key}",
-        }
-        payload = {
-            "data": {
-                "attributes": {
-                    "line_items": [
-                        {
-                            "currency": "PHP",
-                            "amount": int((p["amount"] * 100).to_integral_value()),
-                            "name": p["name"],
-                            "quantity": 1,
-                        }
-                        for p in payables
-                    ],
-                    "payment_method_types": ["gcash"],
-                    "success_url": success_url,
-                    "cancel_url": request.build_absolute_uri(reverse("order_history")),
-                }
-            }
-        }
-        resp = requests.post(
-            "https://api.paymongo.com/v1/checkout_sessions",
-            json=payload, headers=headers, timeout=20,
-        )
-        data = resp.json()
-        return data["data"]["attributes"]["checkout_url"]
-    except Exception:
-        logger.exception("PayMongo session failed for %s", [p["name"] for p in payables])
-        return None
+# REMOVED: _create_paymongo_session(...)
+# Replaced by create_checkout_session() in UTrade_app/payments.py
 
 
 # --------------------------------------------------------------------------- #
@@ -676,8 +640,15 @@ def place_order(request):
                 reverse("order_success", args=[gcash_orders[0].id])
             )
 
-        checkout_url = _create_paymongo_session(request, payables, success_url)
+        # CHANGED: new helper returns (url, session_id) and we record the payments
+        checkout_url, session_id = create_checkout_session(
+            request, payables, success_url, request.build_absolute_uri(reverse("order_history"))
+        )
         if checkout_url:
+            for o in gcash_orders:
+                ensure_payment(o, "order", session_id)
+            for po in gcash_preorders:
+                ensure_payment(po, "preorder", session_id)
             return redirect(checkout_url)
         messages.warning(
             request,
@@ -690,12 +661,12 @@ def place_order(request):
 
 @login_required
 def checkout_success(request, batch):
-    """PayMongo return page for checkouts that include pre-orders: marks the whole batch paid."""
+    """PayMongo return page for checkouts that include pre-orders: verifies, then marks the batch paid."""
     orders = Order.objects.filter(user=request.user, checkout_batch=batch)
-    orders.filter(payment_method="GCASH", status="Pending").update(status="Paid")
-    PreOrderRequest.objects.filter(
-        buyer=request.user, checkout_batch=batch, payment_method="GCASH"
-    ).update(is_paid=True)
+
+    # CHANGED: verify with PayMongo instead of blindly marking everything paid
+    confirm_pending(request.user, order__checkout_batch=batch)
+    confirm_pending(request.user, preorder__checkout_batch=batch)
 
     first = orders.order_by("id").first()
     if first:

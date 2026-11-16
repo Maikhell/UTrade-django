@@ -1,0 +1,54 @@
+{# Shared sidebar (design reference: CBRGU Head). Rendered via {% render_sidebar role active %}. #}
+{% if sections %}
+<div class="col-12 d-md-none">
+  <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2 db-btn" type="button"
+          data-bs-toggle="offcanvas" data-bs-target="#appSidebar" aria-controls="appSidebar">
+    <i class="bi bi-list"></i> Menu
+  </button>
+</div>
+
+<div class="col-md-3 col-lg-2">
+  <div class="offcanvas-md offcanvas-start db-side" tabindex="-1" id="appSidebar" aria-labelledby="appSidebarLabel">
+    <div class="offcanvas-header d-md-none">
+      <h5 class="offcanvas-title fw-bold" id="appSidebarLabel">Menu</h5>
+      <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#appSidebar" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+      <div class="db-side-card w-100">
+
+        <div class="db-side-brand">
+          <span class="db-brand-icon"><i class="bi bi-speedometer2" aria-hidden="true"></i></span>
+          <div>
+            <strong>{{ brand_title }}</strong>
+            <small>{{ brand_sub }}</small>
+          </div>
+        </div>
+
+        {% for section in sections %}
+          <div class="db-nav-title">{{ section.title }}</div>
+          <ul class="db-nav">
+            {% for item in section.items %}
+              <li>
+                {% if item.url %}
+                  <a {% if item.active %}class="active" aria-current="page"{% endif %} href="{{ item.url }}">
+                {% else %}
+                  <a class="disabled" href="#" aria-disabled="true" tabindex="-1">
+                {% endif %}
+                  <i class="bi {{ item.icon }}"></i> {{ item.label }}
+                  {% if item.badge %}<span class="badge {{ item.badge.css }} rounded-pill">{{ item.badge.value }}</span>{% endif %}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endfor %}
+
+        {% if add_product_url %}
+        <div class="d-grid mt-4">
+          <a href="{{ add_product_url }}" class="btn btn-success btn-sm db-btn"><i class="bi bi-plus-lg me-1"></i> Add New Product</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}

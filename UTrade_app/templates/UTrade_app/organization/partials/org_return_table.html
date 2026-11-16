@@ -1,0 +1,93 @@
+{# Vars: items, return_kind ('order' | 'preorder') #}
+<div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th class="ps-3">{% if return_kind == 'order' %}Order{% else %}Pre-order{% endif %}</th>
+          <th>Buyer</th>
+          <th>Product</th>
+          <th>Resolution</th>
+          <th>Reason</th>
+          <th>Photos</th>
+          <th>Status</th>
+          <th class="text-end pe-3">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in items %}
+        <tr>
+          <td class="ps-3 fw-semibold">#{{ r.id }}
+            <div class="small text-muted fw-normal">{{ r.return_requested_at|date:"M d, g:i A" }}</div>
+          </td>
+          <td>{{ r.return_buyer.get_full_name|default:r.return_buyer.username }}</td>
+          <td>
+            {% if return_kind == 'order' %}
+              {% for it in r.items.all %}
+                {% if it.product_variant and it.product_variant.product %}
+                  <div class="{% if not forloop.first %}mt-1{% endif %}">
+                    <span class="fw-semibold">{{ it.product_variant.product.name }}</span>
+                    <small class="text-muted d-block">{{ it.product_variant.variant_name }} · Qty {{ it.quantity }}</small>
+                  </div>
+                {% else %}<span class="text-muted">Deleted product</span>{% endif %}
+              {% endfor %}
+            {% else %}
+              <span class="fw-semibold">{{ r.product_variant.product.name }}</span>
+              <small class="text-muted d-block">{{ r.product_variant.variant_name }} · Qty {{ r.quantity }}</small>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge bg-light text-dark border rounded-pill">{{ r.return_resolution|default:"—" }}</span>
+            {% if r.exchange_variant %}<small class="text-muted d-block">→ {{ r.exchange_variant.variant_name }}</small>{% endif %}
+          </td>
+          <td style="max-width:260px;">
+            <div class="fw-semibold small">{{ r.get_return_reason_display|default:"—" }}</div>
+            <div class="small text-muted text-wrap">{{ r.return_note|default:"" }}</div>
+            {% if r.return_stage == 'rejected' and r.return_response_note %}
+              <div class="small text-danger mt-1">Rejected: {{ r.return_response_note }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div class="d-flex flex-wrap gap-1">
+              {% for img in r.return_image_list %}
+                <a href="{{ img.image.url }}" target="_blank" rel="noopener">
+                  <img src="{{ img.image.url }}" alt="Return photo" class="modal-product-img" style="width:44px;height:44px;">
+                </a>
+              {% empty %}<span class="text-muted small">—</span>{% endfor %}
+            </div>
+          </td>
+          <td>
+            {% if r.return_stage == 'requested' %}<span class="badge bg-warning text-dark rounded-pill">Return requested</span>
+            {% elif r.return_stage == 'waiting' %}<span class="badge bg-primary rounded-pill">Waiting for product</span>
+            {% elif r.return_stage == 'refund' %}<span class="badge bg-danger rounded-pill">Refund</span>
+            {% elif r.return_stage == 'returned' %}<span class="badge rounded-pill" style="background:#6f42c1;">Returned</span>
+            {% else %}<span class="badge bg-secondary rounded-pill">Return rejected</span>{% endif %}
+            {% if r.return_stage == 'waiting' %}
+              <div class="small text-muted mt-1">
+                {{ r.return_pickup_location }}<br>
+                {{ r.return_date|date:"M d, Y" }} · {{ r.return_time_from|time:"g:i A" }}–{{ r.return_time_to|time:"g:i A" }}
+              </div>
+            {% endif %}
+          </td>
+          <td class="text-end pe-3">
+            <div class="d-flex justify-content-end gap-1 flex-wrap">
+              {% if r.return_stage == 'requested' %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill" onclick="retOpenAccept('{{ return_kind }}', {{ r.id }})">Accept</button>
+                <button type="button" class="btn btn-sm btn-danger rounded-pill" onclick="retReject('{{ return_kind }}', {{ r.id }})">Reject</button>
+              {% elif r.return_stage == 'waiting' %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill"
+                        onclick="retConfirm('{{ return_kind }}', {{ r.id }}, 'received', 'Product received?', 'Confirm the buyer handed over the product.')">Product received</button>
+              {% elif r.return_stage == 'refund' %}
+                <button type="button" class="btn btn-sm btn-success rounded-pill"
+                        onclick="retConfirm('{{ return_kind }}', {{ r.id }}, 'refunded', 'Refund issued?', 'Confirm the buyer has been refunded.')">Mark refunded</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center py-5 text-muted">Nothing here.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

@@ -130,6 +130,7 @@ class OrderItem(models.Model):
         null=True
     )
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    size = models.CharField(max_length=30, blank=True, default='')
     quantity = models.PositiveIntegerField(default=1)
 
     def __str__(self):

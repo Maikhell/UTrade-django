@@ -1,23 +1,20 @@
 {% extends 'UTrade_app/base.html' %}
-{% load static %}
+{% load static sidebar_tags %}
 {% load humanize %}
 {% load custom_filters %}
 
 {% block title %}
-  Organization Remittance Management
+ CBRGU | Organization Remittance 
+{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/sidebar.css' %}" />
 {% endblock %}
 
 {% block content %}
 <style>
   /* ===== Same sidebar styles as Management Dashboard ===== */
-  @media (min-width: 768px) {
-    .seller-sidebar {
-      position: sticky;
-      top: 1rem;
-      height: calc(100vh - 2rem);
-      overflow-y: auto;
-    }
-  }
+ 
 
   @media (min-width: 1400px) {
     .container,
@@ -30,11 +27,7 @@
     }
   }
 
-  .sidebar-link.active {
-    background-color: rgba(25, 135, 84, 0.12) !important;
-    color: #198754 !important;
-    font-weight: 600;
-  }
+ 
 
   .hover-text-dark:hover { color: #212529 !important; }
   .table > :not(caption) > * > * { padding-top: 0.9rem; padding-bottom: 0.9rem; }
@@ -51,172 +44,7 @@
 <div class="container-fluid">
   <div class="row">
 
-    <!-- Mobile Toggle -->
-    <div class="col-12 d-md-none mb-3">
-      <button class="btn btn-success w-100 d-flex align-items-center justify-content-center gap-2"
-              type="button"
-              data-bs-toggle="offcanvas"
-              data-bs-target="#sellerSidebar"
-              aria-controls="sellerSidebar">
-        <i class="bi bi-list"></i>
-        Staff Menu
-      </button>
-    </div>
-
-    <!-- ==================== SIDEBAR (1:1 from Management Dashboard) ==================== -->
-    <div class="col-md-3 col-lg-2">
-      <div class="offcanvas-md offcanvas-start bg-white border-end shadow-sm"
-           tabindex="-1"
-           id="sellerSidebar"
-           aria-labelledby="sellerSidebarLabel">
-
-        <div class="offcanvas-header d-md-none">
-          <h5 class="offcanvas-title fw-bold" id="sellerSidebarLabel">Seller Dashboard</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sellerSidebar"></button>
-        </div>
-
-        <div class="offcanvas-body p-0">
-          <div class="seller-sidebar p-3">
-
-            <!-- Quick Stats -->
-            <div class="mb-4">
-              <h6 class="text-uppercase text-muted small fw-bold mb-3">Quick Stats</h6>
-              <div class="d-flex flex-column gap-2 small">
-                <div class="d-flex justify-content-between">
-                  <span>Products</span>
-                  <strong>{{ products.count|default:0 }}</strong>
-                </div>
-                <div class="d-flex justify-content-between">
-                  <span>Total Stocks</span>
-                  <strong>{{ total_stocks|default:0 }}</strong>
-                </div>
-                <div class="d-flex justify-content-between">
-                  <span>Orders</span>
-                  <strong>{{ total_orders|default:0 }}</strong>
-                </div>
-                <div class="d-flex justify-content-between">
-                  <span>Income</span>
-                  <strong class="text-success">₱{{ total_income|default:0 }}</strong>
-                </div>
-              </div>
-            </div>
-
-            <hr class="my-3 opacity-25">
-
-            <!-- Navigation -->
-            <h6 class="text-uppercase text-muted small fw-bold mb-3">Navigation</h6>
-
-            <!-- Management Panel -->
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-briefcase"></i> CBRGU Panel
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="{% url 'dashboard' %}">
-                    <i class="bi bi-speedometer2 text-success"></i> Dashboard
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'active_listings' %}">
-                    <i class="bi bi-check2-square text-success"></i> Active Listings
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="#">
-                    <i class="bi bi-cash-stack text-success"></i> Remittance
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1"
-                     href="{% url 'cbrgu_products' %}">
-                    <i class="bi bi-box-seam text-success"></i> Products
-                    <span class="badge bg-light text-dark border rounded-pill ms-auto">{{ products.count|default:0 }}</span>
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <!-- Orders -->
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-cart-fill"></i> Orders
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'management_orders' %}">
-                    <i class="bi bi-inbox text-success"></i> Orders
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'management_preorders' %}">
-                    <i class="bi bi-calendar-check text-success"></i> Pre-Orders
-                    {% if incoming_preorder_count %}
-                      <span class="badge bg-info text-dark rounded-pill ms-auto">{{ incoming_preorder_count }}</span>
-                    {% endif %}
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <!-- Security -->
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-shield-lock"></i> Settings
-              </div>
-              <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'logs_reports' %}">
-                    <i class="bi bi-journal-text"></i> Logs and Reports
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_prohibited_words' %}">
-                    <i class="bi bi-exclamation-triangle"></i> Prohibited Items
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link active d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_categories' %}">
-                    <i class="bi bi-tags text-success"></i> Categories
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_pickup_spots' %}">
-                    <i class="bi bi-geo-alt"></i> Pickup Spots
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div class="mb-3">
-              <div class="nav-link d-flex align-items-center gap-2 rounded-3 text-dark fw-semibold px-2 py-1">
-                <i class="bi bi-shield-lock"></i> Admin Panel
-              </div>
-             <ul class="nav flex-column gap-1 ms-3 mt-1">
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'add_accounts' %}">
-                    <i class="bi bi-person-add"></i> Add Accounts
-                  </a>
-                </li>
-                <li class="nav-item">
-                  <a class="nav-link sidebar-link d-flex align-items-center gap-2 rounded-3 text-dark py-1" href="{% url 'all_users' %}">
-                    <i class="bi bi-people"></i> All Users
-                  </a>
-                </li>
-              </ul>
-            </div>
-            
-            <hr class="my-3 opacity-25">
-            <div class="d-grid gap-2">
-              <a href="{% url 'product.create' %}" class="btn btn-success btn-sm rounded-pill">
-                <i class="bi bi-plus-lg me-1"></i> Add New Product
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+  {% render_sidebar sidebar_role 'remittance' %}
 
     <!-- ==================== MAIN CONTENT (unchanged remittance page) ==================== -->
     <main class="col-md-9 col-lg-10 px-3 px-md-4">

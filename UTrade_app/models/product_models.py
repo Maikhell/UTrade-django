@@ -3,14 +3,18 @@ from .base import BaseItem, MeetupLocation
 from django.db.models import Avg, Sum, Q
 from django.core.validators import MinValueValidator, MaxValueValidator
 from .user_models import User
-from .orders_models import Order, OrderItem
+from .orders_models import Order, OrderItem, ReturnFieldsMixin
 from .organization_models import Organization
 from django.conf import settings
 
+
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
+
     def __str__(self):
         return self.name
+
+
 class CategoryAttribute(models.Model):
     ATTRIBUTE_TYPES = [
         ('size', 'Size (e.g., XL, 42, 15-inch)'),
@@ -39,6 +43,8 @@ class CategoryAttribute(models.Model):
 
     def __str__(self):
         return f"[{self.get_attribute_type_display()}] {self.category.name}: {self.value}"
+
+
 class Product(BaseItem):
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, related_name="products")
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='product_listings')
@@ -56,24 +62,24 @@ class Product(BaseItem):
         default=AUDIENCE_GENERAL,
         help_text="Private listings can only be bought by students of the selling organization's program.",
     )
-    approval_letter = models.ImageField(                 # ← new field
+    approval_letter = models.ImageField(
         upload_to='org_approval_letters/',
         blank=True,
         null=True,
         help_text='JPG/PNG only, max 10 MB'
     )
     size_chart = models.JSONField(
-    null=True,
-    blank=True,
-    help_text='Size table: {"columns": ["Height (cm)"], "rows": [{"size": "S", "values": ["160"]}]}',
-)
+        null=True,
+        blank=True,
+        help_text='Size table: {"columns": ["Height (cm)"], "rows": [{"size": "S", "values": ["160"]}]}',
+    )
     product_code = models.CharField(
-    max_length=32,
-    unique=True,
-    blank=True,
-    null=True,
-    help_text='Auto code e.g. UTR-2026-0042'
-)
+        max_length=32,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text='Auto code e.g. UTR-2026-0042'
+    )
     OWNER_TYPE_CHOICES = [
         ('PERSONAL', 'Personal'),
         ('ORGANIZATION', 'Organization'),
@@ -127,7 +133,8 @@ class Product(BaseItem):
     @property
     def get_price_range(self):
         variants = self.variants.all()
-        if not variants: return "0.00"
+        if not variants: 
+            return "0.00"
         prices = [v.price for v in variants]
         return f"{min(prices)} - {max(prices)}" if min(prices) != max(prices) else f"{min(prices)}"
 
@@ -140,6 +147,7 @@ class Product(BaseItem):
         if self.owner_type == 'ORGANIZATION' and self.related_org:
             return self.related_org.full_name
         return self.owner_name
+
     @property
     def is_private(self):
         return self.audience == self.AUDIENCE_PRIVATE
@@ -149,9 +157,12 @@ class Product(BaseItem):
         """Program code a private listing is limited to; None for general listings."""
         from ..product_access import product_restriction_course
         return product_restriction_course(self)
+
     def average_rating(self):
         avg = self.reviews.aggregate(Avg('rating'))['rating__avg']
         return round(avg, 1) if avg else 0.0
+
+
 class StagedProduct(models.Model):
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='staged_products')
     
@@ -178,12 +189,12 @@ class StagedProduct(models.Model):
     owner_type = models.CharField(max_length=15, choices=Product.OWNER_TYPE_CHOICES, default='PERSONAL')
     related_org = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True, blank=True)
     product_code = models.CharField(
-    max_length=32,
-    unique=True,
-    blank=True,
-    null=True,
-    help_text='Auto code e.g. UTR-2026-0042'
-)
+        max_length=32,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text='Auto code e.g. UTR-2026-0042'
+    )
     meetup_locations_list = models.CharField(
         max_length=255,
         blank=True,
@@ -202,6 +213,7 @@ class StagedProduct(models.Model):
     def __str__(self):
         return f"Staged: {self.name} by {self.seller.username}"
 
+
 class StagedVariant(models.Model):
     variant_attribute = models.CharField(max_length=100, blank=True, null=True)
     staged_product = models.ForeignKey(StagedProduct, on_delete=models.CASCADE, related_name='variants')
@@ -212,11 +224,14 @@ class StagedVariant(models.Model):
     flaws = models.TextField(blank=True, null=True)
     image_index = models.IntegerField(null=True, blank=True) 
     image = models.ImageField(upload_to='products/staged/variants/', null=True, blank=True)
-    
+
+
 class StagedImage(models.Model):
     staged_product = models.ForeignKey(StagedProduct, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='products/staged/')
     is_main = models.BooleanField(default=False)
+
+
 class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wishlist')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -227,7 +242,8 @@ class Wishlist(models.Model):
         
     def __str__(self):
         return f"{self.user.username} - {self.product.name}"    
-    
+
+
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='images/')
@@ -241,6 +257,8 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.product.name}"
+
+
 class Review(models.Model):
     """A buyer's rating of a PRODUCT, from a completed order OR a completed pre-order."""
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
@@ -273,8 +291,6 @@ class SellerReview(models.Model):
     """
     A buyer's rating of a SELLER (not a product), given on a completed order OR a
     completed pre-order (exactly one of `order` / `preorder` is set).
-    One rating per buyer, per seller, per order / pre-order. For organization sellers
-    the seller is the org account, so the rating belongs to the organization.
     """
     order = models.ForeignKey(
         Order, on_delete=models.CASCADE, related_name='seller_reviews',
@@ -315,6 +331,7 @@ class SellerReview(models.Model):
         ref = f"order #{self.order_id}" if self.order_id else f"pre-order #{self.preorder_id}"
         return f"{self.reviewer} rated seller {self.seller} {self.rating}★ ({ref})"
       
+      
 class ReviewMedia(models.Model):
     """A photo or a short video attached to a product Review (files live on Cloudinary)."""
     IMAGE = 'image'
@@ -325,7 +342,7 @@ class ReviewMedia(models.Model):
     media_type = models.CharField(max_length=5, choices=MEDIA_TYPES)
     url = models.URLField(max_length=500)
     public_id = models.CharField(max_length=255, blank=True)      # needed to delete the file later
-    duration = models.FloatField(null=True, blank=True)           # seconds (videos only)
+    duration = models.FloatField(null=True, blank=True)             # seconds (videos only)
     size_bytes = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -337,15 +354,18 @@ class ReviewMedia(models.Model):
 
 
 class Cart(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
     @property
     def total_price(self):
         return sum(item.get_cost() for item in self.items.all())
+
     @property
     def count(self):
         return sum(item.quantity for item in self.items.all())
+
+
 class ProductVariant(models.Model):
     product = models.ForeignKey(Product, related_name='variants', on_delete=models.CASCADE)
     variant_name = models.CharField(max_length=100)
@@ -358,12 +378,13 @@ class ProductVariant(models.Model):
         'ProductImage', 
         on_delete=models.SET_NULL, 
         null=True, 
-        blank=True,
+        blank=True, 
         related_name='assigned_variants'
     )
 
     def __str__(self):
         return f"{self.product.name} - {self.variant_name}"
+    
     
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, related_name='items', on_delete=models.CASCADE)
@@ -384,7 +405,9 @@ class CartItem(models.Model):
     def display_name(self):
         extra = f", {self.size}" if self.size else ""
         return f"{self.variant.product.name} ({self.variant.variant_name}{extra})"
-class PreOrderRequest(models.Model):
+
+
+class PreOrderRequest(ReturnFieldsMixin, models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Incoming'),
         ('ACCEPTED', 'Accepted'),
@@ -394,7 +417,6 @@ class PreOrderRequest(models.Model):
         ('READY', 'Ready for Pickup'),
         ('COMPLETED', 'Completed'),
         ('REJECTED', 'Rejected'),
-        # keep old values for backward compatibility if needed
         ('APPROVED', 'Approved (legacy)'),
         ('PREPARING', 'Preparing (legacy)'),
         ('DECLINED', 'Declined (legacy)'),
@@ -419,11 +441,11 @@ class PreOrderRequest(models.Model):
     product_variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE, related_name='preorders')
     
     estimated_pickup = models.CharField(
-    max_length=50,
-    blank=True,
-    null=True,
-    help_text="e.g. 1 day, 1-2 days, or custom text",
-)
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="e.g. 1 day, 1-2 days, or custom text",
+    )
     quantity = models.PositiveIntegerField(default=1)
     size = models.CharField(max_length=30, blank=True, default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
@@ -451,11 +473,16 @@ class PreOrderRequest(models.Model):
 
     def get_total_price(self):
         return self.product_variant.price * self.quantity
+
     @property
     def display_name(self):
         extra = f", {self.size}" if self.size else ""
-        return f"{self.variant.product.name} ({self.variant.variant_name}{extra})"
+        return f"{self.product_variant.product.name} ({self.product_variant.variant_name}{extra})"
     
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)  # ReturnFieldsMixin handles completed_at timestamping
+
+
 class ReturnImage(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='return_images', null=True, blank=True)
     preorder = models.ForeignKey('PreOrderRequest', on_delete=models.CASCADE, related_name='return_images', null=True, blank=True)

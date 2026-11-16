@@ -217,5 +217,5 @@ urlpatterns = [
     path('reports/preorders/', reports.preorders_report, name='reports.preorders'),
     path('reports/products/',  reports.products_report,  name='reports.products'),
     path('reports/users/',     reports.users_report,     name='reports.users'),
-    path('organization/dashboard/analytics/', org_dashboard_analytics.org_dashboard_analytics_api, name='org.dashboard.analytics'),
+    path('organization/dashboard/analytics/', organization_views.org_dashboard_analytics_api, name='org.dashboard.analytics'),
 ]

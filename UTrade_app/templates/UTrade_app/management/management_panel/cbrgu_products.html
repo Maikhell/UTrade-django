@@ -1,95 +1,27 @@
 {% extends 'UTrade_app/base.html' %}
-{% load static %}
-{% load static sidebar_tags %}
+{% load static sidebar_tags report_tags %}
 
 {% block title %}
-  CBRGU Products | Management
+  CBRGU | Products
 {% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'UTrade_app/css/sidebar.css' %}" />
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/products.css' %}" />
 {% endblock %}
+
 {% block content %}
-<style>
-
-  @media (min-width: 1400px) {
-    .container,
-    .container-sm,
-    .container-md,
-    .container-lg,
-    .container-xl,
-    .container-xxl {
-      max-width: 1600px !important;
-    }
-  }
-  .stat-card {
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
-  }
-  .nav-tabs .nav-link {
-    color: #198754;
-    border: none;
-    border-bottom: 3px solid transparent;
-    font-weight: 600;
-    padding: 0.75rem 1.25rem;
-  }
-  .nav-tabs .nav-link:hover {
-    color: #146c43;
-    border-bottom-color: #a5d6a7;
-  }
-  .nav-tabs .nav-link.active {
-    color: #146c43 !important;
-    background: transparent !important;
-    border-bottom: 3px solid #198754 !important;
-  }
-  .product-card {
-    border: 1px solid #d1e7dd;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
-  }
-  .product-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 0.6rem 1.2rem rgba(25, 135, 84, 0.18) !important;
-  }
-  .product-card .card-img-top {
-    height: 180px;
-    object-fit: cover;
-  }
-  .badge-approved { background-color: #198754; }
-  .badge-pending  { background-color: #ffc107; color: #000; }
-  .badge-unlisted { background-color: #6c757d; }
-  .badge-rejected { background-color: #dc3545; }
-  .filter-card {
-    background: linear-gradient(135deg, #f0faf4 0%, #e8f5e9 100%);
-    border: 1px solid #a5d6a7;
-  }
-  .stat-pill {
-    background: #198754;
-    color: white;
-    border-radius: 50rem;
-    padding: 0.15rem 0.6rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-  }
-  .star-rating { color: #ffc107; font-size: 0.85rem; }
-  .star-rating .empty { color: #dee2e6; }
-</style>
-
 <nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
-<a href="{% url 'user.account' %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
-  <i class="bi bi-arrow-left" aria-hidden="true"></i>
-  <span>Back to Account</span>
-</a>
+  <a href="{% url 'user.account' %}" class="btn btn-outline-secondary btn-sm pl-btn d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left" aria-hidden="true"></i><span>Back to Account</span>
+  </a>
 </nav>
 
 <div class="container-fluid">
   <div class="row">
 
-  {% render_sidebar sidebar_role 'products' %}
+    {% render_sidebar sidebar_role 'products' %}
 
-    <!-- MAIN -->
     <main class="col-md-9 col-lg-10 px-3 px-md-4">
 
       {% if messages %}
@@ -101,95 +33,62 @@
         {% endfor %}
       {% endif %}
 
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <!-- Header -->
+      <div class="pl-header">
         <div>
-          <h2 class="fw-bold mb-0">CBRGU Product Listings</h2>
-          <p class="text-muted mb-0 small">Campus Business and Resource Generation Unit</p>
+          <h1 class="pl-title">CBRGU Product Listings</h1>
+          <p class="pl-sub">Campus Business and Resource Generation Unit</p>
         </div>
-        <a href="{% url 'generate.report.pdf' %}?report_type=all_products"
-           class="btn btn-success rounded-pill px-4 shadow-sm">
-          <i class="bi bi-file-earmark-pdf me-1"></i> Generate Report
-        </a>
+        <div class="pl-actions">
+          <button type="button" class="btn btn-success pl-btn shadow-sm" data-bs-toggle="modal" data-bs-target="#reportModal" data-report-type="products">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Generate Report
+          </button>
+        </div>
       </div>
 
       <!-- Stats -->
-      <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
-            <div class="card-body d-flex align-items-center py-3">
-              <div class="bg-success bg-opacity-10 text-success rounded-3 p-2 me-3"><i class="bi bi-check-circle-fill fs-5"></i></div>
-              <div><div class="text-muted small">Active</div><div class="fw-bold fs-4">{{ active_count }}</div></div>
-            </div>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
-            <div class="card-body d-flex align-items-center py-3">
-              <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-2 me-3"><i class="bi bi-hourglass-split fs-5"></i></div>
-              <div><div class="text-muted small">Pending</div><div class="fw-bold fs-4">{{ pending_count }}</div></div>
-            </div>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
-            <div class="card-body d-flex align-items-center py-3">
-              <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-2 me-3"><i class="bi bi-pause-circle-fill fs-5"></i></div>
-              <div><div class="text-muted small">Unlisted</div><div class="fw-bold fs-4">{{ unlisted_count }}</div></div>
-            </div>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 h-100 stat-card">
-            <div class="card-body d-flex align-items-center py-3">
-              <div class="bg-danger bg-opacity-10 text-danger rounded-3 p-2 me-3"><i class="bi bi-x-circle-fill fs-5"></i></div>
-              <div><div class="text-muted small">Rejected</div><div class="fw-bold fs-4">{{ rejected_count }}</div></div>
-            </div>
-          </div>
-        </div>
+      <div class="pl-stats">
+        <div class="pl-stat pl-stat--active"><span class="pl-stat-icon"><i class="bi bi-check-circle-fill"></i></span><div><div class="pl-stat-label">Active</div><div class="pl-stat-value">{{ active_count }}</div></div></div>
+        <div class="pl-stat pl-stat--pending"><span class="pl-stat-icon"><i class="bi bi-hourglass-split"></i></span><div><div class="pl-stat-label">Pending</div><div class="pl-stat-value">{{ pending_count }}</div></div></div>
+        <div class="pl-stat pl-stat--unlisted"><span class="pl-stat-icon"><i class="bi bi-pause-circle-fill"></i></span><div><div class="pl-stat-label">Unlisted</div><div class="pl-stat-value">{{ unlisted_count }}</div></div></div>
+        <div class="pl-stat pl-stat--rejected"><span class="pl-stat-icon"><i class="bi bi-x-circle-fill"></i></span><div><div class="pl-stat-label">Rejected</div><div class="pl-stat-value">{{ rejected_count }}</div></div></div>
       </div>
 
-      <!-- Tabs -->
-      <ul class="nav nav-tabs border-0 mb-3" id="productStatusTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-          <button class="nav-link {% if status_filter == 'Approved' or not status_filter %}active{% endif %}"
-                  id="active-tab" data-bs-toggle="tab" data-bs-target="#active-pane" type="button" role="tab">
-            Active <span class="stat-pill ms-1">{{ active_count }}</span>
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link {% if status_filter == 'Pending' %}active{% endif %}"
-                  id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab">
-            Pending <span class="stat-pill ms-1 bg-warning text-dark">{{ pending_count }}</span>
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link {% if status_filter == 'Unlisted' %}active{% endif %}"
-                  id="unlisted-tab" data-bs-toggle="tab" data-bs-target="#unlisted-pane" type="button" role="tab">
-            Unlisted <span class="stat-pill ms-1 bg-secondary">{{ unlisted_count }}</span>
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link {% if status_filter == 'Rejected' %}active{% endif %}"
-                  id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected-pane" type="button" role="tab">
-            Rejected <span class="stat-pill ms-1 bg-danger">{{ rejected_count }}</span>
-          </button>
-        </li>
-      </ul>
+      <!-- Tabs + search -->
+      <div class="pl-toolbar">
+        <ul class="pl-tabs nav" id="productStatusTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {% if status_filter == 'Approved' or not status_filter %}active{% endif %}" id="active-tab" data-bs-toggle="tab" data-bs-target="#active-pane" type="button" role="tab">
+              Active <span class="pl-pill">{{ active_count }}</span>
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {% if status_filter == 'Pending' %}active{% endif %}" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button" role="tab">
+              Pending <span class="pl-pill pl-pill--pending">{{ pending_count }}</span>
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {% if status_filter == 'Unlisted' %}active{% endif %}" id="unlisted-tab" data-bs-toggle="tab" data-bs-target="#unlisted-pane" type="button" role="tab">
+              Unlisted <span class="pl-pill pl-pill--unlisted">{{ unlisted_count }}</span>
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {% if status_filter == 'Rejected' %}active{% endif %}" id="rejected-tab" data-bs-toggle="tab" data-bs-target="#rejected-pane" type="button" role="tab">
+              Rejected <span class="pl-pill pl-pill--rejected">{{ rejected_count }}</span>
+            </button>
+          </li>
+        </ul>
 
-      <!-- Search -->
-      <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 filter-card">
-        <form method="GET" class="row g-3 align-items-end">
+        <form method="GET" class="pl-filter row g-3 align-items-end">
           <div class="col-md-5">
-            <label class="form-label small fw-semibold text-success mb-1">Search</label>
+            <label class="form-label">Search</label>
             <div class="input-group">
               <span class="input-group-text bg-white border-end-0 text-success"><i class="bi bi-search"></i></span>
-              <input type="text" name="search" class="form-control border-start-0"
-                     placeholder="Name, ID, product code, date (YYYY-MM-DD)..."
-                     value="{{ request.GET.search }}">
+              <input type="text" name="search" class="form-control border-start-0" placeholder="Name, ID, product code, date (YYYY-MM-DD)..." value="{{ request.GET.search }}">
             </div>
           </div>
           <div class="col-md-3">
-            <label class="form-label small fw-semibold text-success mb-1">Status</label>
+            <label class="form-label">Status</label>
             <select name="status" class="form-select">
               <option value="">All Statuses</option>
               <option value="Approved" {% if status_filter == 'Approved' %}selected{% endif %}>Active</option>
@@ -198,275 +97,53 @@
               <option value="Rejected" {% if status_filter == 'Rejected' %}selected{% endif %}>Rejected</option>
             </select>
           </div>
-          <div class="col-md-2">
-            <button type="submit" class="btn btn-success w-100 rounded-pill"><i class="bi bi-funnel me-1"></i> Filter</button>
-          </div>
-          <div class="col-md-2">
-            <a href="{% url 'cbrgu_products' %}" class="btn btn-outline-success w-100 rounded-pill"><i class="bi bi-arrow-clockwise me-1"></i> Reset</a>
-          </div>
+          <div class="col-6 col-md-2"><button type="submit" class="btn btn-success w-100 pl-btn"><i class="bi bi-funnel me-1"></i> Filter</button></div>
+          <div class="col-6 col-md-2"><a href="{% url 'cbrgu_products' %}" class="btn btn-outline-success w-100 pl-btn"><i class="bi bi-arrow-clockwise me-1"></i> Reset</a></div>
         </form>
       </div>
 
       <div class="tab-content">
-
-        <!-- ========== ACTIVE ========== -->
-        <div class="tab-pane fade {% if status_filter == 'Approved' or not status_filter %}show active{% endif %}"
-             id="active-pane" role="tabpanel">
-          {% if active_products %}
-          <div class="row g-3">
-            {% for product in active_products %}
-            <div class="col-12 col-sm-6 col-xl-4 col-xxl-3">
-              <div class="card product-card h-100 shadow-sm rounded-4 overflow-hidden">
-                <div class="position-relative">
-                  {% with img=product.images.first %}
-                    {% if img %}
-                      <img src="{{ img.image.url }}" class="card-img-top" alt="{{ product.name }}">
-                    {% else %}
-                      <div class="bg-light d-flex align-items-center justify-content-center" style="height:180px;">
-                        <i class="bi bi-image fs-1 text-muted"></i>
-                      </div>
-                    {% endif %}
-                  {% endwith %}
-                  <span class="badge badge-approved rounded-pill position-absolute top-0 end-0 m-2">{{ product.status }}</span>
-                </div>
-                <div class="card-body d-flex flex-column p-3">
-                  <h6 class="card-title fw-bold mb-1 text-truncate" title="{{ product.name }}">{{ product.name }}</h6>
-                  {% if product.product_code %}
-                  <div class="small text-muted mb-1"><i class="bi bi-upc me-1"></i>{{ product.product_code }}</div>
-                  {% endif %}
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="star-rating">
-                      {% with rating=product.average_rating %}
-                        {% for i in "12345" %}
-                          {% if forloop.counter <= rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star empty"></i>{% endif %}
-                        {% endfor %}
-                        <span class="text-muted ms-1 small">{{ rating }}</span>
-                      {% endwith %}
-                    </div>
-                    <span class="badge bg-light text-dark border">
-                      <i class="bi bi-box-seam me-1"></i>{{ product.get_total_stock }}
-                    </span>
-                  </div>
-                  <div class="mt-auto">
-                    <div class="fw-bold text-success fs-5 mb-2">₱{{ product.get_price_range }}</div>
-                    <div class="d-flex gap-2">
-                      <button type="button" class="btn btn-sm btn-outline-success flex-fill rounded-pill"
-                              data-bs-toggle="modal" data-bs-target="#productModal{{ product.id }}">
-                        <i class="bi bi-eye me-1"></i> View
-                      </button>
-                      <button type="button" class="btn btn-sm btn-outline-secondary flex-fill rounded-pill"
-                              data-bs-toggle="modal" data-bs-target="#unlistModal{{ product.id }}">
-                        <i class="bi bi-eye-slash me-1"></i> Unlist
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          {% else %}
-          <div class="text-center py-5 text-muted">
-            <i class="bi bi-inbox fs-1 d-block mb-2"></i>No active products found.
-          </div>
-          {% endif %}
+        <div class="tab-pane fade {% if status_filter == 'Approved' or not status_filter %}show active{% endif %}" id="active-pane" role="tabpanel">
+          {% include 'UTrade_app/partials/_product_grid.html' with products=active_products pane='active' is_org=False %}
         </div>
-
-        <!-- ========== PENDING ========== -->
-        <div class="tab-pane fade {% if status_filter == 'Pending' %}show active{% endif %}"
-             id="pending-pane" role="tabpanel">
-          {% if pending_products %}
-          <div class="row g-3">
-            {% for product in pending_products %}
-            <div class="col-12 col-sm-6 col-xl-4 col-xxl-3">
-              <div class="card product-card h-100 shadow-sm rounded-4 overflow-hidden">
-                <div class="position-relative">
-                  {% with img=product.images.first %}
-                    {% if img %}
-                      <img src="{{ img.image.url }}" class="card-img-top" alt="{{ product.name }}">
-                    {% else %}
-                      <div class="bg-light d-flex align-items-center justify-content-center" style="height:180px;">
-                        <i class="bi bi-image fs-1 text-muted"></i>
-                      </div>
-                    {% endif %}
-                  {% endwith %}
-                  <span class="badge badge-pending rounded-pill position-absolute top-0 end-0 m-2">{{ product.status }}</span>
-                </div>
-                <div class="card-body d-flex flex-column p-3">
-                  <h6 class="card-title fw-bold mb-1 text-truncate">{{ product.name }}</h6>
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="star-rating">
-                      {% with rating=product.average_rating %}
-                        {% for i in "12345" %}
-                          {% if forloop.counter <= rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star empty"></i>{% endif %}
-                        {% endfor %}
-                        <span class="text-muted ms-1 small">{{ rating }}</span>
-                      {% endwith %}
-                    </div>
-                    <span class="badge bg-light text-dark border"><i class="bi bi-box-seam me-1"></i>{{ product.get_total_stock }}</span>
-                  </div>
-                  <div class="mt-auto">
-                    <div class="fw-bold text-success fs-5 mb-2">₱{{ product.get_price_range }}</div>
-                    <button type="button" class="btn btn-sm btn-outline-success w-100 rounded-pill"
-                            data-bs-toggle="modal" data-bs-target="#productModal{{ product.id }}">
-                      <i class="bi bi-eye me-1"></i> View Details
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          {% else %}
-          <div class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>No pending products.</div>
-          {% endif %}
+        <div class="tab-pane fade {% if status_filter == 'Pending' %}show active{% endif %}" id="pending-pane" role="tabpanel">
+          {% include 'UTrade_app/partials/_product_grid.html' with products=pending_products pane='pending' is_org=False %}
         </div>
-
-        <!-- ========== UNLISTED ========== -->
-        <div class="tab-pane fade {% if status_filter == 'Unlisted' %}show active{% endif %}"
-             id="unlisted-pane" role="tabpanel">
-          {% if unlisted_products %}
-          <div class="row g-3">
-            {% for product in unlisted_products %}
-            <div class="col-12 col-sm-6 col-xl-4 col-xxl-3">
-              <div class="card product-card h-100 shadow-sm rounded-4 overflow-hidden">
-                <div class="position-relative">
-                  {% with img=product.images.first %}
-                    {% if img %}
-                      <img src="{{ img.image.url }}" class="card-img-top" alt="{{ product.name }}">
-                    {% else %}
-                      <div class="bg-light d-flex align-items-center justify-content-center" style="height:180px;">
-                        <i class="bi bi-image fs-1 text-muted"></i>
-                      </div>
-                    {% endif %}
-                  {% endwith %}
-                  <span class="badge badge-unlisted rounded-pill position-absolute top-0 end-0 m-2">{{ product.status }}</span>
-                </div>
-                <div class="card-body d-flex flex-column p-3">
-                  <h6 class="card-title fw-bold mb-1 text-truncate">{{ product.name }}</h6>
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="star-rating">
-                      {% with rating=product.average_rating %}
-                        {% for i in "12345" %}
-                          {% if forloop.counter <= rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star empty"></i>{% endif %}
-                        {% endfor %}
-                        <span class="text-muted ms-1 small">{{ rating }}</span>
-                      {% endwith %}
-                    </div>
-                    <span class="badge bg-light text-dark border"><i class="bi bi-box-seam me-1"></i>{{ product.get_total_stock }}</span>
-                  </div>
-                  <div class="mt-auto">
-                    <div class="fw-bold text-success fs-5 mb-2">₱{{ product.get_price_range }}</div>
-                    <div class="d-flex gap-2">
-                      <button type="button" class="btn btn-sm btn-outline-success flex-fill rounded-pill"
-                              data-bs-toggle="modal" data-bs-target="#productModal{{ product.id }}">
-                        <i class="bi bi-eye"></i>
-                      </button>
-                      <button type="button" class="btn btn-sm btn-success flex-fill rounded-pill"
-                              data-bs-toggle="modal" data-bs-target="#listModal{{ product.id }}">
-                        <i class="bi bi-check2-circle me-1"></i> List
-                      </button>
-                      <a href="{% url 'product.edit' product.id %}"
-                         class="btn btn-sm btn-outline-primary flex-fill rounded-pill">
-                        <i class="bi bi-pencil me-1"></i> Edit
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          {% else %}
-          <div class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>No unlisted products.</div>
-          {% endif %}
+        <div class="tab-pane fade {% if status_filter == 'Unlisted' %}show active{% endif %}" id="unlisted-pane" role="tabpanel">
+          {% include 'UTrade_app/partials/_product_grid.html' with products=unlisted_products pane='unlisted' is_org=False %}
         </div>
-
-        <!-- ========== REJECTED ========== -->
-        <div class="tab-pane fade {% if status_filter == 'Rejected' %}show active{% endif %}"
-             id="rejected-pane" role="tabpanel">
-          {% if rejected_products %}
-          <div class="row g-3">
-            {% for product in rejected_products %}
-            <div class="col-12 col-sm-6 col-xl-4 col-xxl-3">
-              <div class="card product-card h-100 shadow-sm rounded-4 overflow-hidden">
-                <div class="position-relative">
-                  {% with img=product.images.first %}
-                    {% if img %}
-                      <img src="{{ img.image.url }}" class="card-img-top" alt="{{ product.name }}">
-                    {% else %}
-                      <div class="bg-light d-flex align-items-center justify-content-center" style="height:180px;">
-                        <i class="bi bi-image fs-1 text-muted"></i>
-                      </div>
-                    {% endif %}
-                  {% endwith %}
-                  <span class="badge badge-rejected rounded-pill position-absolute top-0 end-0 m-2">{{ product.status }}</span>
-                </div>
-                <div class="card-body d-flex flex-column p-3">
-                  <h6 class="card-title fw-bold mb-1 text-truncate">{{ product.name }}</h6>
-                  <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="star-rating">
-                      {% with rating=product.average_rating %}
-                        {% for i in "12345" %}
-                          {% if forloop.counter <= rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star empty"></i>{% endif %}
-                        {% endfor %}
-                        <span class="text-muted ms-1 small">{{ rating }}</span>
-                      {% endwith %}
-                    </div>
-                    <span class="badge bg-light text-dark border"><i class="bi bi-box-seam me-1"></i>{{ product.get_total_stock }}</span>
-                  </div>
-                  <div class="mt-auto">
-                    <div class="fw-bold text-success fs-5 mb-2">₱{{ product.get_price_range }}</div>
-                    <button type="button" class="btn btn-sm btn-outline-success w-100 rounded-pill"
-                            data-bs-toggle="modal" data-bs-target="#productModal{{ product.id }}">
-                      <i class="bi bi-eye me-1"></i> View Details
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {% endfor %}
-          </div>
-          {% else %}
-          <div class="text-center py-5 text-muted"><i class="bi bi-inbox fs-1 d-block mb-2"></i>No rejected products.</div>
-          {% endif %}
+        <div class="tab-pane fade {% if status_filter == 'Rejected' %}show active{% endif %}" id="rejected-pane" role="tabpanel">
+          {% include 'UTrade_app/partials/_product_grid.html' with products=rejected_products pane='rejected' is_org=False %}
         </div>
-
       </div>
     </main>
   </div>
 </div>
 
 <!-- Product detail modals -->
-{% for product in active_products %}{% include 'UTrade_app/management/partials/_product_modal.html' with product=product %}{% endfor %}
-{% for product in pending_products %}{% include 'UTrade_app/management/partials/_product_modal.html' with product=product %}{% endfor %}
-{% for product in unlisted_products %}{% include 'UTrade_app/management/partials/_product_modal.html' with product=product %}{% endfor %}
-{% for product in rejected_products %}{% include 'UTrade_app/management/partials/_product_modal.html' with product=product %}{% endfor %}
+{% for product in active_products %}{% include 'UTrade_app/partials/_product_modal_v2.html' %}{% endfor %}
+{% for product in pending_products %}{% include 'UTrade_app/partials/_product_modal_v2.html' %}{% endfor %}
+{% for product in unlisted_products %}{% include 'UTrade_app/partials/_product_modal_v2.html' %}{% endfor %}
+{% for product in rejected_products %}{% include 'UTrade_app/partials/_product_modal_v2.html' %}{% endfor %}
 
 <!-- Unlist confirmations (Active) -->
 {% for product in active_products %}
-<div class="modal fade" id="unlistModal{{ product.id }}" tabindex="-1" aria-hidden="true">
+<div class="modal fade pl-confirm" id="unlistModal{{ product.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 rounded-4 shadow">
+    <div class="modal-content">
       <form method="post" action="{% url 'management.product_unlist_form' product.id %}">
         {% csrf_token %}
         <div class="modal-body text-center p-4">
           <i class="bi bi-eye-slash text-secondary display-4 mb-3"></i>
           <h5 class="fw-bold">Unlist this product?</h5>
-          <p class="text-muted small mb-3">
-            <strong>{{ product.name }}</strong> will be hidden from the marketplace.
-            You can list it again later from the Unlisted tab.
-          </p>
+          <p class="text-muted small mb-3"><strong>{{ product.name }}</strong> will be hidden from the marketplace. You can list it again later from the Unlisted tab.</p>
           <div class="mb-3 text-start">
             <label class="form-label small fw-bold">Reason (optional)</label>
-            <textarea name="reason" class="form-control rounded-3" rows="2"
-                      placeholder="e.g. Out of stock, seasonal pause…"></textarea>
+            <textarea name="reason" class="form-control rounded-3" rows="2" placeholder="e.g. Out of stock, seasonal pause…"></textarea>
           </div>
           <div class="d-flex gap-2 justify-content-center">
-            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-secondary rounded-pill px-4">
-              <i class="bi bi-eye-slash me-1"></i> Yes, Unlist
-            </button>
+            <button type="button" class="btn btn-light pl-btn px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-secondary pl-btn px-4"><i class="bi bi-eye-slash me-1"></i> Yes, Unlist</button>
           </div>
         </div>
       </form>
@@ -477,22 +154,18 @@
 
 <!-- List confirmations (Unlisted) -->
 {% for product in unlisted_products %}
-<div class="modal fade" id="listModal{{ product.id }}" tabindex="-1" aria-hidden="true">
+<div class="modal fade pl-confirm" id="listModal{{ product.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 rounded-4 shadow">
+    <div class="modal-content">
       <form method="post" action="{% url 'management.product_list' product.id %}">
         {% csrf_token %}
         <div class="modal-body text-center p-4">
           <i class="bi bi-check2-circle text-success display-4 mb-3"></i>
           <h5 class="fw-bold">List this product?</h5>
-          <p class="text-muted small mb-3">
-            <strong>{{ product.name }}</strong> will appear as <strong>Active</strong> on the marketplace again.
-          </p>
+          <p class="text-muted small mb-3"><strong>{{ product.name }}</strong> will appear as <strong>Active</strong> on the marketplace again.</p>
           <div class="d-flex gap-2 justify-content-center">
-            <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-success rounded-pill px-4">
-              <i class="bi bi-check2-circle me-1"></i> Yes, List Product
-            </button>
+            <button type="button" class="btn btn-light pl-btn px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success pl-btn px-4"><i class="bi bi-check2-circle me-1"></i> Yes, List Product</button>
           </div>
         </div>
       </form>
@@ -501,4 +174,5 @@
 </div>
 {% endfor %}
 
+{% report_modal %}
 {% endblock %}

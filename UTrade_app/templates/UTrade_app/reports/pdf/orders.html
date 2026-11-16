@@ -1,0 +1,22 @@
+{% extends 'UTrade_app/reports/pdf/base.html' %}
+{% block content %}
+{% if status_counts %}
+<h3>By status</h3>
+<table class="status">{% for s, n in status_counts %}<tr><td>{{ s }}</td><td class="num"><b>{{ n }}</b></td></tr>{% endfor %}</table>
+{% endif %}
+<h3>Orders</h3>
+<table class="data">
+  <thead><tr>
+    <th style="width:9%">Order</th><th style="width:9%">Date</th><th style="width:17%">Buyer</th>
+    <th style="width:9%">Course / Sec.</th><th>Items</th><th style="width:12%" class="num">Total</th><th style="width:9%">Status</th>
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="{% cycle '' 'alt' %}">
+      <td>{{ r.number }}</td><td>{{ r.date }}</td><td>{{ r.buyer }}</td><td>{{ r.class }}</td>
+      <td>{{ r.items }}</td><td class="num">{{ r.total }}</td><td>{{ r.status }}</td>
+    </tr>
+  {% empty %}<tr><td colspan="7" class="empty">No orders match the selected filters.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

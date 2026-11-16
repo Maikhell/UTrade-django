@@ -1,458 +1,491 @@
 {% extends 'UTrade_app/base.html' %}
-{% load static sidebar_tags %}
+{% load static sidebar_tags report_tags %}
 
-{% block title %}
-  {{ org.name|default:"Organization" }} Dashboard
-{% endblock %}
+{% block title %}{{ org.name|default:"Organization" }} Dashboard{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'UTrade_app/css/sidebar.css' %}" />
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/dashboard.css' %}" />
 {% endblock %}
 
 {% block content %}
-<style>
-  @media (min-width: 1400px) {
-    .container,
-    .container-sm,
-    .container-md,
-    .container-lg,
-    .container-xl,
-    .container-xxl {
-      max-width: 1600px !important;
-    }
-  }
-  .stat-card {
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  .stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08) !important;
-  }
+<div class="db-page">
 
-</style>
+  <nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
+    <a href="{% url 'user.account' %}" class="btn btn-outline-secondary btn-sm db-btn d-inline-flex align-items-center gap-2">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i><span>Back to Account</span>
+    </a>
+  </nav>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <div class="container-fluid">
+    <div class="row g-4">
 
-{% with org_name=org.name|default:"Organization" %}
-{% with org_type=org.org_type|default:"academic" %}
-{% with org_acronym=org.name|default:""|upper %}
+      {% render_sidebar sidebar_role 'dashboard' %}
 
-<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
-<a href="{% url 'user.account' %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
-  <i class="bi bi-arrow-left" aria-hidden="true"></i>
-  <span>Back to Account</span>
-</a>
-</nav>
+      <!-- ================= MAIN ================= -->
+      <main class="col-md-9 col-lg-10">
 
-<div class="container-fluid">
-  <div class="row">
+        <!-- Header -->
+        <div class="db-header">
+          <div>
+            <h1 class="db-title">{{ org_name }} Dashboard</h1>
+            <p class="db-sub">
+              Products, orders, pre-orders and earnings at a glance{% if org.course_code %} · {{ org.course_code }}{% endif %} · {% now "l, F j, Y" %}
+            </p>
+          </div>
 
-    {% render_sidebar sidebar_role 'dashboard' %}
+          <div class="db-controls">
+            <label for="periodSelect" class="visually-hidden">Analytics period</label>
+            <select id="periodSelect" class="db-select form-select form-select-sm w-auto" aria-label="Analytics period">
+              {% for opt in period_options %}
+                <option value="{{ opt.value }}" {% if opt.value == default_period %}selected{% endif %}>{{ opt.label }}</option>
+              {% endfor %}
+            </select>
 
-    <!-- MAIN: ANALYTICS -->
-    <main class="col-md-9 col-lg-10 px-3 px-md-4">
-
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
-        <div>
-          <h2 class="fw-bold mb-1">{{ org_name }} Dashboard</h2>
-          <p class="text-muted mb-0">
-            Analytics overview — products, orders, pre-orders &amp; earnings
-            {% if org_type == 'academic' and org.course_code %}
-              · {{ org.course_code }}
-            {% endif %}
-          </p>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-          <div class="dropdown">
-            <button class="btn btn-outline-success rounded-pill dropdown-toggle" type="button" data-bs-toggle="dropdown">
-              <i class="bi bi-file-earmark-pdf me-1"></i> Sales Report
+            <button class="btn btn-success btn-sm db-btn" type="button" data-bs-toggle="modal" data-bs-target="#reportModal" data-report-type="orders">
+              <i class="bi bi-file-earmark-pdf me-1"></i> Generate Report
             </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
-              <li><a class="dropdown-item" href="#">Last 7 days</a></li>
-              <li><a class="dropdown-item" href="#">Last 30 days</a></li>
-              <li><a class="dropdown-item" href="#">All time</a></li>
-            </ul>
-          </div>
-          <div class="dropdown">
-            <button class="btn btn-outline-info rounded-pill dropdown-toggle" type="button" data-bs-toggle="dropdown">
-              <i class="bi bi-file-earmark-pdf me-1"></i> Pre-Order Report
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3">
-              <li>
-                <a class="dropdown-item" href="#">All pre-orders</a>
-              </li>
-            </ul>
+            <a href="{% url 'product.create' %}" class="btn btn-outline-success btn-sm db-btn"><i class="bi bi-plus-lg me-1"></i> Add Product</a>
           </div>
         </div>
-      </div>
 
-      <!-- Stat cards -->
-      <div id="dashboard-stats" class="row g-3 mb-4">
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3"><i class="bi bi-box-seam fs-4"></i></div>
-              <div>
-                <small class="text-muted d-block">Total Products</small>
-                <span class="h4 fw-bold mb-0">{{ products.count|default:0 }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-info bg-opacity-10 text-info rounded-3 p-3"><i class="bi bi-stack fs-4"></i></div>
-              <div>
-                <small class="text-muted d-block">Total Stocks</small>
-                <span class="h4 fw-bold mb-0">{{ total_stocks|default:0 }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-warning bg-opacity-10 text-warning rounded-3 p-3"><i class="bi bi-cart-check fs-4"></i></div>
-              <div>
-                <small class="text-muted d-block">Total Orders</small>
-                <span class="h4 fw-bold mb-0">{{ total_orders|default:0 }}</span>
-                <small class="text-muted d-block" style="font-size:0.7rem;">{{ incoming_orders_count|default:0 }} incoming</small>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-success bg-opacity-10 text-success rounded-3 p-3"><i class="bi bi-currency-dollar fs-4"></i></div>
-              <div>
-                <small class="text-muted d-block">Total Income</small>
-                <span class="h4 fw-bold mb-0 text-success">₱{{ total_income|default:0 }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        <!-- KPI cards (all-time) -->
+        <section class="db-kpis" aria-label="Totals">
 
-      <!-- Pre-order stats -->
-      <div class="row g-3 mb-5">
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-info bg-opacity-10 text-info rounded-3 p-3"><i class="bi bi-calendar-check fs-4"></i></div>
-              <div>
-                <small class="text-muted d-block">Total Pre-Orders</small>
-                <span class="h4 fw-bold mb-0">{{ total_preorders|default:0 }}</span>
+          {% if org_platform_fee %}
+          <div class="db-kpi db-kpi--fee">
+            <span class="db-kpi-icon"><i class="bi bi-bank" aria-hidden="true"></i></span>
+            <div class="min-w-0">
+              <div class="db-kpi-label">Total Accumulated Organization Platform Fee</div>
+              <div class="db-kpi-value">₱{{ org_platform_fee.total|floatformat:2 }}</div>
+              <div class="db-fee-split">
+                <span>Remitted <b>₱{{ org_platform_fee.collected|floatformat:2 }}</b></span>
+                <span>Outstanding <b>₱{{ org_platform_fee.outstanding|floatformat:2 }}</b></span>
+                <span>{{ org_platform_fee.cycles }} cycle{{ org_platform_fee.cycles|pluralize }} · {{ org_name }} only</span>
               </div>
+              {% if org_platform_fee.overdue or org_platform_fee.due_soon %}
+                <div class="db-fee-flags">
+                  {% if org_platform_fee.overdue %}
+                    <span class="db-flag db-flag--danger"><i class="bi bi-exclamation-octagon-fill"></i>{{ org_platform_fee.overdue }} overdue</span>
+                  {% endif %}
+                  {% if org_platform_fee.due_soon %}
+                    <span class="db-flag"><i class="bi bi-clock-history"></i>{{ org_platform_fee.due_soon }} due within 7 days</span>
+                  {% endif %}
+                </div>
+              {% endif %}
             </div>
+            {% if remittance_url %}<a class="db-fee-link" href="{{ remittance_url }}">View remittance <i class="bi bi-arrow-right"></i></a>{% endif %}
           </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-primary bg-opacity-10 text-primary rounded-3 p-3"><i class="bi bi-inbox fs-4"></i></div>
-              <div>
-                <small class="text-muted d-block">Incoming Pre-Orders</small>
-                <span class="h4 fw-bold mb-0">{{ incoming_preorder_count|default:0 }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-success bg-opacity-10 text-success rounded-3 p-3"><i class="bi bi-check2-circle fs-4"></i></div>
-              <div>
-                <small class="text-muted d-block">Ready Pre-Orders</small>
-                <span class="h4 fw-bold mb-0">{{ ready_preorder_count|default:0 }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="col-6 col-lg-3">
-          <div class="card border-0 shadow-sm rounded-4 p-3 h-100 stat-card">
-            <div class="d-flex align-items-center gap-3">
-              <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 p-3"><i class="bi bi-clipboard-check fs-4"></i></div>
-              <div>
-                <small class="text-muted d-block">Completed Pre-Orders</small>
-                <span class="h4 fw-bold mb-0">{{ completed_preorder_count|default:0 }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+          {% endif %}
 
-      <!-- Charts (same as management) -->
-      <div id="analytics-section" class="mb-5">
-        <h4 class="fw-bold mb-4">
-          <i class="bi bi-graph-up-arrow text-primary me-2"></i>Analytics
-        </h4>
-        <div class="row g-4">
-          <div class="col-lg-8">
-            <div class="card border-0 shadow-sm rounded-4 h-100">
-              <div class="card-body p-4">
-                <h6 class="fw-bold mb-3">Revenue Overview (Last 7 Days)</h6>
-                <div style="height: 280px;"><canvas id="revenueChart"></canvas></div>
+          <div class="db-kpi">
+            <span class="db-kpi-icon"><i class="bi bi-currency-exchange" aria-hidden="true"></i></span>
+            <div>
+              <div class="db-kpi-label">Total Income</div>
+              <div class="db-kpi-value">₱{{ total_income }}</div>
+              <div class="db-kpi-sub">From completed orders</div>
+            </div>
+          </div>
+          <div class="db-kpi">
+            <span class="db-kpi-icon"><i class="bi bi-cart-check" aria-hidden="true"></i></span>
+            <div>
+              <div class="db-kpi-label">Total Orders</div>
+              <div class="db-kpi-value">{{ total_orders }}</div>
+              <div class="db-kpi-sub">{{ incoming_orders_count }} incoming</div>
+            </div>
+          </div>
+          <div class="db-kpi">
+            <span class="db-kpi-icon"><i class="bi bi-calendar-check" aria-hidden="true"></i></span>
+            <div>
+              <div class="db-kpi-label">Total Pre-Orders</div>
+              <div class="db-kpi-value">{{ total_preorders }}</div>
+              <div class="db-kpi-sub">{{ incoming_preorder_count }} incoming</div>
+            </div>
+          </div>
+          <div class="db-kpi">
+            <span class="db-kpi-icon"><i class="bi bi-box-seam" aria-hidden="true"></i></span>
+            <div>
+              <div class="db-kpi-label">Total Products</div>
+              <div class="db-kpi-value">{{ total_products }}</div>
+              <div class="db-kpi-sub">Listed by this organization</div>
+            </div>
+          </div>
+          <div class="db-kpi">
+            <span class="db-kpi-icon"><i class="bi bi-stack" aria-hidden="true"></i></span>
+            <div>
+              <div class="db-kpi-label">Total Stocks</div>
+              <div class="db-kpi-value">{{ total_stocks }}</div>
+              <div class="db-kpi-sub">Units available</div>
+            </div>
+          </div>
+          <div class="db-kpi">
+            <span class="db-kpi-icon"><i class="bi bi-hourglass-split" aria-hidden="true"></i></span>
+            <div>
+              <div class="db-kpi-label">Awaiting Review</div>
+              <div class="db-kpi-value">{{ pending_products_count }}</div>
+              <div class="db-kpi-sub">Your pending listings</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= ANALYTICS ================= -->
+        <section id="dash-analytics" aria-labelledby="analyticsHeading" aria-busy="false">
+          <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
+            <h2 id="analyticsHeading" class="h5 fw-bold mb-0">
+              <i class="bi bi-graph-up-arrow text-success me-2" aria-hidden="true"></i>Analytics
+              <span class="text-muted fw-semibold" id="periodLabel">· {{ analytics_initial.label }}</span>
+            </h2>
+            <small class="text-muted" id="updatedAt"></small>
+          </div>
+
+          <div class="db-error" id="dash-error" role="alert">Couldn't load the analytics for that period. Please try again.</div>
+
+          <div class="db-card">
+            <div class="db-card-head">
+              <h3 class="db-card-title">Period summary</h3>
+              <span class="db-card-hint">Compared with the previous period of the same length</span>
+            </div>
+            <div class="db-metrics" aria-live="polite">
+              <div class="db-metric" data-metric="revenue"><div class="db-metric-label">Revenue</div><div class="db-metric-value" data-value>—</div><div class="db-delta" data-delta></div></div>
+              <div class="db-metric" data-metric="orders"><div class="db-metric-label">Orders</div><div class="db-metric-value" data-value>—</div><div class="db-delta" data-delta></div></div>
+              <div class="db-metric" data-metric="preorders"><div class="db-metric-label">Pre-orders</div><div class="db-metric-value" data-value>—</div><div class="db-delta" data-delta></div></div>
+              <div class="db-metric" data-metric="units"><div class="db-metric-label">Units sold</div><div class="db-metric-value" data-value>—</div><div class="db-delta" data-delta></div></div>
+              <div class="db-metric" data-metric="aov"><div class="db-metric-label">Avg. order value</div><div class="db-metric-value" data-value>—</div><div class="db-delta" data-delta></div></div>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-xl-8">
+              <div class="db-card h-100">
+                <div class="db-card-head"><h3 class="db-card-title">Revenue overview</h3><span class="db-card-hint">Completed orders</span></div>
+                <div class="db-card-body">
+                  <div class="db-chart"><canvas id="revenueChart" aria-label="Revenue chart" role="img"></canvas></div>
+                  <div class="db-empty"><i class="bi bi-graph-up"></i>No revenue in this period</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-4">
+              <div class="db-card h-100">
+                <div class="db-card-head"><h3 class="db-card-title">Orders by status</h3></div>
+                <div class="db-card-body">
+                  <div class="db-chart"><canvas id="ordersStatusChart" aria-label="Orders by status" role="img"></canvas></div>
+                  <div class="db-empty"><i class="bi bi-pie-chart"></i>No orders in this period</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-6">
+              <div class="db-card h-100">
+                <div class="db-card-head"><h3 class="db-card-title">Orders over time</h3></div>
+                <div class="db-card-body">
+                  <div class="db-chart db-chart--sm"><canvas id="ordersOverTimeChart" aria-label="Orders over time" role="img"></canvas></div>
+                  <div class="db-empty"><i class="bi bi-bar-chart"></i>No orders in this period</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-6">
+              <div class="db-card h-100">
+                <div class="db-card-head"><h3 class="db-card-title">Top selling products</h3><span class="db-card-hint">Units sold</span></div>
+                <div class="db-card-body">
+                  <div class="db-chart db-chart--sm"><canvas id="topProductsChart" aria-label="Top selling products" role="img"></canvas></div>
+                  <div class="db-empty"><i class="bi bi-trophy"></i>No sales in this period</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-xl-6">
+              <div class="db-card h-100">
+                <div class="db-card-head"><h3 class="db-card-title">Pre-orders over time</h3></div>
+                <div class="db-card-body">
+                  <div class="db-chart db-chart--sm"><canvas id="preordersOverTimeChart" aria-label="Pre-orders over time" role="img"></canvas></div>
+                  <div class="db-empty"><i class="bi bi-bar-chart"></i>No pre-orders in this period</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl-6">
+              <div class="db-card h-100">
+                <div class="db-card-head"><h3 class="db-card-title">Pre-orders by status</h3></div>
+                <div class="db-card-body">
+                  <div class="db-chart db-chart--sm"><canvas id="preordersStatusChart" aria-label="Pre-orders by status" role="img"></canvas></div>
+                  <div class="db-empty"><i class="bi bi-pie-chart"></i>No pre-orders in this period</div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 h-100">
-              <div class="card-body p-4">
-                <h6 class="fw-bold mb-3">Orders by Status</h6>
-                <div style="height: 280px;"><canvas id="ordersStatusChart"></canvas></div>
+        </section>
+
+        <!-- ================= RECENT + ATTENTION ================= -->
+        <div class="row g-3 mt-1">
+          <div class="col-xl-8">
+            <div class="db-card db-card--plain h-100">
+              <div class="db-card-head">
+                <h3 class="db-card-title">Recent orders</h3>
+                {% if orders_url %}<a class="small fw-bold text-success text-decoration-none" href="{{ orders_url }}">View all <i class="bi bi-arrow-right"></i></a>{% endif %}
+              </div>
+              <div class="table-responsive">
+                <table class="db-table">
+                  <thead><tr><th>Order</th><th>Buyer</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                  <tbody>
+                    {% for o in recent_orders %}
+                      {% with s=o.status|lower %}
+                      <tr>
+                        <td class="fw-bold">{% if o.order_number %}{{ o.order_number }}{% else %}#{{ o.id }}{% endif %}</td>
+                        <td>{{ o.user.get_full_name|default:o.user.get_short_name }}</td>
+                        <td class="fw-semibold">₱{{ o.total_amount|floatformat:2 }}</td>
+                        <td>
+                          {% if s == 'pending' or s == 'paid' %}<span class="db-chip db-chip--pending">{{ o.status }}</span>
+                          {% elif s == 'completed' %}<span class="db-chip db-chip--done">Completed</span>
+                          {% elif s == 'delivered' %}<span class="db-chip db-chip--ready">Ready for pickup</span>
+                          {% elif s == 'cancelled' or s == 'rejected' %}<span class="db-chip db-chip--ended">{{ o.status }}</span>
+                          {% else %}<span class="db-chip db-chip--progress">{{ o.status }}</span>{% endif %}
+                        </td>
+                        <td class="text-muted">{{ o.created_at|date:"M d, Y" }}</td>
+                      </tr>
+                      {% endwith %}
+                    {% empty %}
+                      <tr><td colspan="5" class="text-center text-muted py-4">No orders yet.</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
-          <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100">
-              <div class="card-body p-4">
-                <h6 class="fw-bold mb-3">Top Selling Products</h6>
-                <div style="height: 260px;"><canvas id="topProductsChart"></canvas></div>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100">
-              <div class="card-body p-4">
-                <h6 class="fw-bold mb-3">Orders Over Time (Last 7 Days)</h6>
-                <div style="height: 260px;"><canvas id="ordersOverTimeChart"></canvas></div>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100">
-              <div class="card-body p-4">
-                <h6 class="fw-bold mb-3">Pre-Orders by Status</h6>
-                <div style="height: 260px;"><canvas id="preordersStatusChart"></canvas></div>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-6">
-            <div class="card border-0 shadow-sm rounded-4 h-100">
-              <div class="card-body p-4">
-                <h6 class="fw-bold mb-3">Pre-Orders Over Time (Last 7 Days)</h6>
-                <div style="height: 260px;"><canvas id="preordersOverTimeChart"></canvas></div>
-              </div>
+
+          <div class="col-xl-4">
+            <div class="db-card db-card--plain h-100">
+              <div class="db-card-head"><h3 class="db-card-title">Needs attention</h3></div>
+              <ul class="db-attn">
+                <li>
+                  <a href="{% if orders_url %}{{ orders_url }}{% else %}#{% endif %}">
+                    <span class="db-attn-icon"><i class="bi bi-inbox"></i></span>
+                    <span class="db-attn-text">Incoming orders<small>Waiting to be accepted</small></span>
+                    <span class="db-attn-count {% if incoming_orders_count %}has{% endif %}">{{ incoming_orders_count }}</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="{% if preorders_url %}{{ preorders_url }}{% else %}#{% endif %}">
+                    <span class="db-attn-icon"><i class="bi bi-calendar-check"></i></span>
+                    <span class="db-attn-text">Incoming pre-orders<small>Waiting for a decision</small></span>
+                    <span class="db-attn-count {% if incoming_preorder_count %}has{% endif %}">{{ incoming_preorder_count }}</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="{% url 'org_products' %}?status=Pending">
+                    <span class="db-attn-icon db-attn-icon--warn"><i class="bi bi-hourglass-split"></i></span>
+                    <span class="db-attn-text">Listings awaiting review<small>Your pending listings</small></span>
+                    <span class="db-attn-count {% if pending_products_count %}has{% endif %}">{{ pending_products_count }}</span>
+                  </a>
+                </li>
+                {% if org_platform_fee %}
+                <li>
+                  <a href="{% if remittance_url %}{{ remittance_url }}{% else %}#{% endif %}">
+                    <span class="db-attn-icon db-attn-icon--danger"><i class="bi bi-exclamation-octagon"></i></span>
+                    <span class="db-attn-text">Overdue fee cycles<small>Past their due date</small></span>
+                    <span class="db-attn-count {% if org_platform_fee.overdue %}has danger{% endif %}">{{ org_platform_fee.overdue }}</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="{% if remittance_url %}{{ remittance_url }}{% else %}#{% endif %}">
+                    <span class="db-attn-icon db-attn-icon--warn"><i class="bi bi-clock-history"></i></span>
+                    <span class="db-attn-text">Fee cycles due soon<small>Due within 7 days</small></span>
+                    <span class="db-attn-count {% if org_platform_fee.due_soon %}has{% endif %}">{{ org_platform_fee.due_soon }}</span>
+                  </a>
+                </li>
+                {% endif %}
+              </ul>
             </div>
           </div>
         </div>
-      </div>
 
-    </main>
+      </main>
+    </div>
   </div>
 </div>
 
+{% report_modal %}
+
+{{ analytics_initial|json_script:"dash-initial" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  function safeParse(raw, fallback) {
+  const API_URL = "{% url 'org.dashboard.analytics' %}";
+  const DEFAULT_PERIOD = "{{ default_period }}";
+  const STORE_KEY = 'orgDashPeriod';
+  const initial = JSON.parse(document.getElementById('dash-initial').textContent);
+
+  const GREEN = '#198754', GREEN_DARK = '#146c43', TEAL = '#20a4b8';
+  const STATUS_COLORS = ['#f5a623', TEAL, '#2fa36b', GREEN_DARK, '#adb5bd', '#6c757d'];
+
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.color = '#6c757d';
+
+  const section = document.getElementById('dash-analytics');
+  const select = document.getElementById('periodSelect');
+  const errorBox = document.getElementById('dash-error');
+
+  const money = n => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const whole = n => Number(n || 0).toLocaleString('en-PH');
+  const sum = a => (a || []).reduce((s, v) => s + Number(v || 0), 0);
+  const grid = { color: 'rgba(0,0,0,0.05)' };
+
+  function canvas(id) { return document.getElementById(id); }
+  function setEmpty(id, empty) {
+    const body = canvas(id).closest('.db-card-body');
+    if (body) body.classList.toggle('is-empty', empty);
+  }
+
+  const charts = {};
+
+  function gradient(ctx) {
+    const g = ctx.createLinearGradient(0, 0, 0, 280);
+    g.addColorStop(0, 'rgba(25,135,84,0.30)');
+    g.addColorStop(1, 'rgba(25,135,84,0.02)');
+    return g;
+  }
+
+  function build() {
+    const rev = canvas('revenueChart');
+    charts.revenue = new Chart(rev, {
+      type: 'line',
+      data: { labels: [], datasets: [{
+        label: 'Revenue', data: [], borderColor: GREEN, backgroundColor: gradient(rev.getContext('2d')),
+        borderWidth: 2.5, fill: true, tension: 0.35, pointBackgroundColor: GREEN, pointRadius: 3, pointHoverRadius: 5
+      }] },
+      options: {
+        responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => ' ' + money(c.parsed.y) } } },
+        scales: { y: { beginAtZero: true, grid, ticks: { callback: v => '₱' + Number(v).toLocaleString('en-PH') } },
+                  x: { grid: { display: false }, ticks: { maxTicksLimit: 10, maxRotation: 0 } } }
+      }
+    });
+
+    const bar = (id, label, color, extra) => new Chart(canvas(id), {
+      type: 'bar',
+      data: { labels: [], datasets: [{ label: label, data: [], backgroundColor: color, borderRadius: 6, maxBarThickness: 34 }] },
+      options: Object.assign({
+        responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, grid, ticks: { precision: 0 } },
+                  x: { grid: { display: false }, ticks: { maxTicksLimit: 10, maxRotation: 0 } } }
+      }, extra || {})
+    });
+    charts.orders = bar('ordersOverTimeChart', 'Orders', GREEN);
+    charts.preorders = bar('preordersOverTimeChart', 'Pre-orders', TEAL);
+    charts.top = bar('topProductsChart', 'Units sold', GREEN, {
+      indexAxis: 'y',
+      scales: { x: { beginAtZero: true, grid, ticks: { precision: 0 } }, y: { grid: { display: false } } }
+    });
+
+    const doughnut = id => new Chart(canvas(id), {
+      type: 'doughnut',
+      data: { labels: [], datasets: [{ data: [], backgroundColor: STATUS_COLORS, borderWidth: 2, borderColor: '#fff' }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '64%',
+                 plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 14 } } } }
+    });
+    charts.ordersStatus = doughnut('ordersStatusChart');
+    charts.preordersStatus = doughnut('preordersStatusChart');
+  }
+
+  function fill(chart, labels, data) {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
+    chart.update();
+  }
+
+  function renderMetric(key, m, formatter) {
+    const cell = document.querySelector('[data-metric="' + key + '"]');
+    if (!cell) return;
+    cell.querySelector('[data-value]').textContent = formatter(m.value);
+
+    const d = cell.querySelector('[data-delta]');
+    d.className = 'db-delta';
+    d.textContent = '';
+    let text;
+    if (m.change === null) {
+      text = (m.previous === 0 && m.value > 0) ? 'New' : '—';
+    } else if (m.change > 0) { d.classList.add('up'); text = '▲ +' + m.change + '%'; }
+    else if (m.change < 0) { d.classList.add('down'); text = '▼ ' + m.change + '%'; }
+    else { text = '0%'; }
+    d.appendChild(document.createTextNode(text + ' '));
+    const small = document.createElement('small');
+    small.textContent = 'vs previous';
+    d.appendChild(small);
+  }
+
+  function render(data) {
+    document.getElementById('periodLabel').textContent = '· ' + data.label;
+
+    fill(charts.revenue, data.labels, data.revenue);
+    setEmpty('revenueChart', sum(data.revenue) === 0);
+
+    fill(charts.orders, data.labels, data.orders);
+    setEmpty('ordersOverTimeChart', sum(data.orders) === 0);
+
+    fill(charts.preorders, data.labels, data.preorders);
+    setEmpty('preordersOverTimeChart', sum(data.preorders) === 0);
+
+    charts.ordersStatus.data.labels = data.orders_status.labels;
+    charts.ordersStatus.data.datasets[0].data = data.orders_status.data;
+    charts.ordersStatus.update();
+    setEmpty('ordersStatusChart', sum(data.orders_status.data) === 0);
+
+    charts.preordersStatus.data.labels = data.preorders_status.labels;
+    charts.preordersStatus.data.datasets[0].data = data.preorders_status.data;
+    charts.preordersStatus.update();
+    setEmpty('preordersStatusChart', sum(data.preorders_status.data) === 0);
+
+    fill(charts.top, data.top_products.labels, data.top_products.data);
+    setEmpty('topProductsChart', sum(data.top_products.data) === 0);
+
+    renderMetric('revenue', data.summary.revenue, money);
+    renderMetric('orders', data.summary.orders, whole);
+    renderMetric('preorders', data.summary.preorders, whole);
+    renderMetric('units', data.summary.units, whole);
+    renderMetric('aov', data.summary.aov, money);
+
+    document.getElementById('updatedAt').textContent =
+      'Updated ' + new Date().toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+  }
+
+  let requestId = 0;
+  async function load(period) {
+    const mine = ++requestId;
+    section.classList.add('is-loading');
+    section.setAttribute('aria-busy', 'true');
+    errorBox.style.display = 'none';
     try {
-      const v = JSON.parse(raw);
-      return Array.isArray(v) ? v : fallback;
-    } catch (e) {
-      return fallback;
+      const res = await fetch(API_URL + '?period=' + encodeURIComponent(period), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin'
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (mine !== requestId) return;
+      render(data);
+      try { sessionStorage.setItem(STORE_KEY, period); } catch (e) { /* storage may be blocked */ }
+    } catch (err) {
+      if (mine === requestId) errorBox.style.display = 'block';
+    } finally {
+      if (mine === requestId) {
+        section.classList.remove('is-loading');
+        section.setAttribute('aria-busy', 'false');
+      }
     }
   }
 
-  const emptyDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const emptyZeros = [0, 0, 0, 0, 0, 0, 0];
+  build();
+  render(initial);
 
-  const revenueLabels = safeParse("{{ revenue_labels_json|default:'[]'|escapejs }}", emptyDays);
-  const revenueData   = safeParse("{{ revenue_data_json|default:'[]'|escapejs }}", emptyZeros);
+  select.addEventListener('change', function () { load(this.value); });
 
-  const ordersStatusData = {
-    incoming: {{ incoming_orders_count|default:0 }},
-    accepted: {{ accepted_orders_count|default:0 }},
-    completed: {{ completed_orders_count|default:0 }}
-  };
-  const preordersStatusData = {
-    incoming: {{ incoming_preorder_count|default:0 }},
-    ready: {{ ready_preorder_count|default:0 }},
-    completed: {{ completed_preorder_count|default:0 }}
-  };
-
-  const topProductsLabels = safeParse("{{ top_products_labels_json|default:'[]'|escapejs }}", ['No Sales Yet']);
-  const topProductsData   = safeParse("{{ top_products_data_json|default:'[]'|escapejs }}", [0]);
-  const ordersOverTimeLabels = safeParse("{{ orders_over_time_labels_json|default:'[]'|escapejs }}", emptyDays);
-  const ordersOverTimeData   = safeParse("{{ orders_over_time_data_json|default:'[]'|escapejs }}", emptyZeros);
-  const preordersOverTimeLabels = safeParse("{{ preorders_over_time_labels_json|default:'[]'|escapejs }}", emptyDays);
-  const preordersOverTimeData   = safeParse("{{ preorders_over_time_data_json|default:'[]'|escapejs }}", emptyZeros);
-
-  const revenueCtx = document.getElementById('revenueChart');
-  if (revenueCtx) {
-    new Chart(revenueCtx, {
-      type: 'line',
-      data: {
-        labels: revenueLabels,
-        datasets: [{
-          label: 'Revenue (₱)',
-          data: revenueData,
-          borderColor: '#0d6efd',
-          backgroundColor: 'rgba(13, 110, 253, 0.1)',
-          borderWidth: 2.5,
-          fill: true,
-          tension: 0.4,
-          pointBackgroundColor: '#0d6efd',
-          pointRadius: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: ctx => '₱' + ctx.parsed.y.toLocaleString() } }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { callback: v => '₱' + v.toLocaleString() },
-            grid: { color: 'rgba(0,0,0,0.05)' }
-          },
-          x: { grid: { display: false } }
-        }
-      }
-    });
-  }
-
-  const statusCtx = document.getElementById('ordersStatusChart');
-  if (statusCtx) {
-    new Chart(statusCtx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Incoming', 'Accepted', 'Completed'],
-        datasets: [{
-          data: [ordersStatusData.incoming, ordersStatusData.accepted, ordersStatusData.completed],
-          backgroundColor: ['#0d6efd', '#198754', '#6c757d'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '65%',
-        plugins: {
-          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } }
-        }
-      }
-    });
-  }
-
-  const topProductsCtx = document.getElementById('topProductsChart');
-  if (topProductsCtx) {
-    new Chart(topProductsCtx, {
-      type: 'bar',
-      data: {
-        labels: topProductsLabels.length ? topProductsLabels : ['No data'],
-        datasets: [{
-          label: 'Units Sold',
-          data: topProductsData.length ? topProductsData : [0],
-          backgroundColor: 'rgba(13, 110, 253, 0.8)',
-          borderRadius: 6,
-          barThickness: 18
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-          y: { grid: { display: false } }
-        }
-      }
-    });
-  }
-
-  const ordersTimeCtx = document.getElementById('ordersOverTimeChart');
-  if (ordersTimeCtx) {
-    new Chart(ordersTimeCtx, {
-      type: 'bar',
-      data: {
-        labels: ordersOverTimeLabels,
-        datasets: [{
-          label: 'Orders',
-          data: ordersOverTimeData,
-          backgroundColor: 'rgba(25, 135, 84, 0.8)',
-          borderRadius: 6,
-          barThickness: 28
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1 },
-            grid: { color: 'rgba(0,0,0,0.05)' }
-          },
-          x: { grid: { display: false } }
-        }
-      }
-    });
-  }
-
-  const preStatusCtx = document.getElementById('preordersStatusChart');
-  if (preStatusCtx) {
-    new Chart(preStatusCtx, {
-      type: 'doughnut',
-      data: {
-        labels: ['Incoming', 'Ready', 'Completed'],
-        datasets: [{
-          data: [preordersStatusData.incoming, preordersStatusData.ready, preordersStatusData.completed],
-          backgroundColor: ['#0dcaf0', '#198754', '#6c757d'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '65%',
-        plugins: {
-          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } }
-        }
-      }
-    });
-  }
-
-  const preTimeCtx = document.getElementById('preordersOverTimeChart');
-  if (preTimeCtx) {
-    new Chart(preTimeCtx, {
-      type: 'bar',
-      data: {
-        labels: preordersOverTimeLabels,
-        datasets: [{
-          label: 'Pre-Orders',
-          data: preordersOverTimeData,
-          backgroundColor: 'rgba(13, 202, 240, 0.8)',
-          borderRadius: 6,
-          barThickness: 28
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { stepSize: 1 },
-            grid: { color: 'rgba(0,0,0,0.05)' }
-          },
-          x: { grid: { display: false } }
-        }
-      }
-    });
-  }
+  try {
+    const saved = sessionStorage.getItem(STORE_KEY);
+    if (saved && saved !== DEFAULT_PERIOD && Array.prototype.some.call(select.options, o => o.value === saved)) {
+      select.value = saved;
+      load(saved);
+    }
+  } catch (e) { /* ignore */ }
 });
 </script>
-
-
-{% endwith %}
-{% endwith %}
-{% endwith %}
 {% endblock %}

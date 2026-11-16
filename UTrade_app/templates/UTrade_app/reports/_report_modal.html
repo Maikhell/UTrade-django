@@ -1,0 +1,141 @@
+{% if opts %}
+<div class="modal fade" id="reportModal" tabindex="-1" aria-labelledby="reportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:16px;overflow:hidden;">
+      <form id="reportForm" method="get" target="_blank" action="{{ urls.orders }}">
+        <div class="modal-header text-white border-0" style="background:linear-gradient(135deg,#146c43,#198754);">
+          <div>
+            <h5 class="modal-title fw-bold mb-0" id="reportModalLabel"><i class="bi bi-file-earmark-pdf me-2"></i>Generate PDF Report</h5>
+            <small class="opacity-75">{{ opts.org_label }}</small>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label small fw-bold text-uppercase text-muted">Report type</label>
+              <select id="rpType" class="form-select">
+                <option value="orders">Orders</option>
+                <option value="preorders">Pre-Orders</option>
+                <option value="products">Products</option>
+                <option value="users">Students</option>
+              </select>
+            </div>
+
+            <div class="col-md-6" data-types="orders preorders products users">
+              <label class="form-label small fw-bold text-uppercase text-muted">Status</label>
+              <select name="status" id="rpStatus" class="form-select"></select>
+            </div>
+
+            <div class="col-md-6" data-types="orders preorders users">
+              <label class="form-label small fw-bold text-uppercase text-muted">Section</label>
+              <select name="section" class="form-select">
+                <option value="">{% if opts.kind == 'org' %}All sections{% else %}All sections{% endif %}</option>
+                {% for s in opts.sections %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+              </select>
+            </div>
+
+            {% if opts.kind == 'head' %}
+            <div class="col-md-6" data-types="orders preorders users">
+              <label class="form-label small fw-bold text-uppercase text-muted">Course / Program</label>
+              <select name="course" class="form-select">
+                <option value="">All courses (platform-wide)</option>
+                {% for c in opts.courses %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+              </select>
+            </div>
+            {% else %}
+            <div class="col-md-6" data-types="orders preorders users">
+              <label class="form-label small fw-bold text-uppercase text-muted">Course / Program</label>
+              <input type="text" class="form-control" value="{% if opts.courses %}{{ opts.courses.0 }}{% else %}All students{% endif %}" disabled>
+              <div class="form-text">Reports are limited to your organization's program.</div>
+            </div>
+            {% endif %}
+
+            <div class="col-md-3 col-6" data-types="orders preorders">
+              <label class="form-label small fw-bold text-uppercase text-muted">From</label>
+              <input type="date" name="date_from" class="form-control">
+            </div>
+            <div class="col-md-3 col-6" data-types="orders preorders">
+              <label class="form-label small fw-bold text-uppercase text-muted">To</label>
+              <input type="date" name="date_to" class="form-control">
+            </div>
+
+            <div class="col-md-6" data-types="orders preorders products users">
+              <label class="form-label small fw-bold text-uppercase text-muted">Sort by</label>
+              <select name="sort" id="rpSort" class="form-select"></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0 bg-light">
+          <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success px-4"><i class="bi bi-download me-1"></i>Generate PDF</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="rpConfig" hidden
+     data-url-orders="{{ urls.orders }}" data-url-preorders="{{ urls.preorders }}"
+     data-url-products="{{ urls.products }}" data-url-users="{{ urls.users }}"></div>
+
+<script>
+(function () {
+  var modal = document.getElementById('reportModal');
+  if (!modal) return;
+  var form = document.getElementById('reportForm');
+  var typeSel = document.getElementById('rpType');
+  var statusSel = document.getElementById('rpStatus');
+  var sortSel = document.getElementById('rpSort');
+  var cfg = document.getElementById('rpConfig').dataset;
+
+  var STATUSES = {
+    orders: [{% for s in opts.order_statuses %}"{{ s }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+    preorders: [{% for s in opts.preorder_statuses %}"{{ s }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+    products: [{% for s in opts.product_statuses %}"{{ s }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+    users: ["Active", "Inactive"]
+  };
+  var SORTS = {
+    orders: [{% for k, l in order_sorts %}["{{ k }}", "{{ l }}"]{% if not forloop.last %},{% endif %}{% endfor %}],
+    preorders: [{% for k, l in preorder_sorts %}["{{ k }}", "{{ l }}"]{% if not forloop.last %},{% endif %}{% endfor %}],
+    products: [{% for k, l in product_sorts %}["{{ k }}", "{{ l }}"]{% if not forloop.last %},{% endif %}{% endfor %}],
+    users: [{% for k, l in user_sorts %}["{{ k }}", "{{ l }}"]{% if not forloop.last %},{% endif %}{% endfor %}]
+  };
+
+  function fill(select, pairs, allLabel) {
+    select.innerHTML = '';
+    if (allLabel) select.appendChild(new Option(allLabel, ''));
+    pairs.forEach(function (p) {
+      var v = Array.isArray(p) ? p[0] : p, l = Array.isArray(p) ? p[1] : p;
+      select.appendChild(new Option(l, v));
+    });
+  }
+
+  function apply() {
+    var t = typeSel.value;
+    form.action = cfg['url' + t.charAt(0).toUpperCase() + t.slice(1)] || '#';
+    fill(statusSel, STATUSES[t], 'All statuses');
+    fill(sortSel, SORTS[t], null);
+    form.querySelectorAll('[data-types]').forEach(function (el) {
+      var show = el.dataset.types.split(' ').indexOf(t) !== -1;
+      el.style.display = show ? '' : 'none';
+      el.querySelectorAll('input,select').forEach(function (i) {
+        if (i.id !== 'rpType') i.disabled = !show || i.hasAttribute('data-locked');
+      });
+    });
+  }
+
+  form.querySelectorAll('input[disabled]').forEach(function (i) { i.setAttribute('data-locked', '1'); });
+  typeSel.addEventListener('change', apply);
+  modal.addEventListener('show.bs.modal', function (e) {
+    var trigger = e.relatedTarget;
+    var wanted = trigger && trigger.getAttribute('data-report-type');
+    if (wanted && typeSel.querySelector('option[value="' + wanted + '"]')) typeSel.value = wanted;
+    apply();
+  });
+  apply();
+})();
+</script>
+{% endif %}

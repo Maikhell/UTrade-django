@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+  @page {
+    size: {% block page_size %}A4 landscape{% endblock %};
+    margin: 1.4cm 1.2cm 2cm 1.2cm;
+    @frame footer {
+      -pdf-frame-content: footerContent;
+      bottom: 0.5cm; margin-left: 1.2cm; margin-right: 1.2cm; height: 1cm;
+    }
+  }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #212529; }
+  table { border-collapse: collapse; }
+  .hdr { width: 100%; border-bottom: 3px solid #198754; padding-bottom: 6px; margin-bottom: 10px; }
+  .brand { font-size: 20pt; font-weight: bold; color: #146c43; }
+  .brand small { font-size: 8pt; color: #6c757d; font-weight: normal; }
+  .title { font-size: 14pt; font-weight: bold; text-align: right; color: #212529; }
+  .scope { font-size: 8.5pt; text-align: right; color: #6c757d; }
+  .meta { width: 100%; margin-bottom: 10px; font-size: 8.5pt; color: #495057; }
+  .meta td { padding: 1px 0; }
+  .chip { background-color: #e8f5ee; color: #146c43; padding: 2px 6px; font-size: 8pt; }
+  .kpis { width: 100%; margin-bottom: 12px; }
+  .kpis td { border: 1px solid #cfe8da; background-color: #f4fbf7; padding: 7px 10px; width: 25%; }
+  .kpi-label { font-size: 7.5pt; color: #6c757d; text-transform: uppercase; }
+  .kpi-value { font-size: 13pt; font-weight: bold; color: #146c43; }
+  h3 { font-size: 10pt; color: #146c43; margin: 10px 0 4px 0; }
+  table.data { width: 100%; }
+  table.data th { background-color: #146c43; color: #ffffff; font-size: 8pt; text-align: left; padding: 5px 6px; }
+  table.data td { border-bottom: 1px solid #dee2e6; padding: 4px 6px; font-size: 8.5pt; vertical-align: top; }
+  table.data tr.alt td { background-color: #f8faf9; }
+  .num { text-align: right; }
+  .center { text-align: center; }
+  .note { font-size: 8pt; color: #842029; margin-top: 6px; }
+  .empty { text-align: center; color: #6c757d; padding: 24px; }
+  table.status { width: 40%; }
+  table.status td { border-bottom: 1px solid #e9ecef; padding: 3px 6px; font-size: 8.5pt; }
+  #footerContent { font-size: 7.5pt; color: #6c757d; border-top: 1px solid #dee2e6; padding-top: 3px; }
+</style>
+</head>
+<body>
+
+<table class="hdr"><tr>
+  <td><div class="brand">UTrade <small>Campus Marketplace</small></div></td>
+  <td><div class="title">{{ title }}</div><div class="scope">{{ scope_label }}</div></td>
+</tr></table>
+
+<table class="meta"><tr>
+  <td>Generated: <b>{{ generated_at }}</b> &nbsp;&nbsp; By: <b>{{ generated_by }}</b></td>
+</tr>
+{% if filters %}<tr><td>Filters:
+  {% for k, v in filters %}<span class="chip">{{ k }}: {{ v }}</span>&nbsp;{% endfor %}
+</td></tr>{% endif %}
+</table>
+
+{% if summary %}
+<table class="kpis"><tr>
+  {% for label, value in summary %}
+  <td><div class="kpi-label">{{ label }}</div><div class="kpi-value">{{ value }}</div></td>
+  {% endfor %}
+</tr></table>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+{% if truncated %}<p class="note">Showing the first {{ cap }} of {{ total_count }} records. Narrow the filters to see the rest.</p>{% endif %}
+
+<div id="footerContent">
+  <table width="100%"><tr>
+    <td>UTrade &middot; {{ title }} &middot; {{ scope_label }}</td>
+    <td align="right">Page <pdf:pagenumber /> of <pdf:pagecount /></td>
+  </tr></table>
+</div>
+</body>
+</html>

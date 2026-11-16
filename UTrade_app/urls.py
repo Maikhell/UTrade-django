@@ -1,12 +1,13 @@
 from django.urls import path
+from . import org_dashboard_analytics
 from .views import (
     items_views, user_views, authenticate,
     admin_views, cart_views, order_views, chat_views,
     organization_views, management_views, alumni_views,
     otplink_views, reports_views, osas_sds_views, password_reset_views,
-    org_account_views,management_workflow_views, organization_workflow_views,return_views
+    org_account_views,management_workflow_views, organization_workflow_views,return_views,reports
 )
-
+from . import org_dashboard_analytics
 urlpatterns = [ 
 
     # =========================================================================
@@ -210,4 +211,11 @@ urlpatterns = [
     
     path('return/<str:kind>/<int:pk>/request/', return_views.request_return, name='return_request'),
     path('return/<str:kind>/<int:pk>/<str:action>/', return_views.return_action, name='return_action'),
+    
+
+    path('reports/orders/',    reports.orders_report,    name='reports.orders'),
+    path('reports/preorders/', reports.preorders_report, name='reports.preorders'),
+    path('reports/products/',  reports.products_report,  name='reports.products'),
+    path('reports/users/',     reports.users_report,     name='reports.users'),
+    path('organization/dashboard/analytics/', org_dashboard_analytics.org_dashboard_analytics_api, name='org.dashboard.analytics'),
 ]

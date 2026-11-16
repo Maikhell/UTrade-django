@@ -1,0 +1,136 @@
+{% comment %}
+  Redesigned product details modal (used by CBRGU + Organization product pages).
+  Expects `product`. Modal id stays productModal{{ product.id }} so existing triggers keep working.
+{% endcomment %}
+<div class="modal fade pm" id="productModal{{ product.id }}" tabindex="-1" aria-labelledby="productModalLabel{{ product.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+    <div class="modal-content">
+
+      <div class="pm-head">
+        <div class="min-w-0">
+          <h5 id="productModalLabel{{ product.id }}" class="text-truncate">{{ product.name }}</h5>
+          <small>
+            {% if product.product_code %}<i class="bi bi-upc me-1"></i>{{ product.product_code }} · {% endif %}
+            Listed {{ product.created_at|date:"M d, Y" }}
+          </small>
+        </div>
+        <button type="button" class="btn-close btn-close-white mt-1" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body pm-body">
+        <div class="row g-4">
+
+          <!-- Gallery -->
+          <div class="col-lg-5">
+            <div class="pm-gallery">
+              <div class="pm-main">
+                {% with first=product.images.first %}
+                  {% if first %}
+                    <img id="pmMain{{ product.id }}" src="{{ first.image.url }}" alt="{{ product.name }}">
+                  {% else %}
+                    <div class="pm-noimg"><i class="bi bi-image"></i></div>
+                  {% endif %}
+                {% endwith %}
+              </div>
+              {% if product.images.count > 1 %}
+              <div class="pm-thumbs">
+                {% for im in product.images.all %}
+                  <button type="button" class="{% if forloop.first %}active{% endif %}"
+                          onclick="(function(b){var m=document.getElementById('pmMain{{ product.id }}');if(m){m.src='{{ im.image.url }}';}
+                                   b.parentNode.querySelectorAll('button').forEach(function(x){x.classList.remove('active');});b.classList.add('active');})(this)"
+                          aria-label="Image {{ forloop.counter }}">
+                    <img src="{{ im.image.url }}" alt="">
+                  </button>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Details -->
+          <div class="col-lg-7">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2">
+              <div>
+                <div class="pm-price">₱{{ product.get_price_range }}</div>
+                <div class="star-rating">
+                  {% with rating=product.average_rating %}
+                    {% for i in "12345" %}
+                      {% if forloop.counter <= rating %}<i class="bi bi-star-fill"></i>{% else %}<i class="bi bi-star empty"></i>{% endif %}
+                    {% endfor %}
+                    <span class="text-muted ms-1 small">{{ rating }}</span>
+                  {% endwith %}
+                </div>
+              </div>
+              <span class="badge rounded-pill fs-6 px-3 py-2 badge-{% if product.status == 'Approved' %}approved{% elif product.status == 'Pending' %}pending{% elif product.status == 'Unlisted' %}unlisted{% else %}rejected{% endif %}">
+                {{ product.status }}
+              </span>
+            </div>
+
+            <div class="pm-chips">
+              {% if product.category %}<span class="pm-chip"><i class="bi bi-tag"></i>{{ product.category.name }}</span>{% endif %}
+              <span class="pm-chip pm-chip--gray"><i class="bi bi-box-seam"></i>{{ product.get_total_stock }} in stock</span>
+              {% if product.pre_order %}<span class="pm-chip pm-chip--warn"><i class="bi bi-calendar-check"></i>Pre-order</span>{% endif %}
+              {% if product.audience == 'PRIVATE' %}<span class="pm-chip pm-chip--warn"><i class="bi bi-lock"></i>Private listing</span>{% endif %}
+              {% if product.get_total_stock == 0 %}<span class="pm-chip pm-chip--danger"><i class="bi bi-exclamation-circle"></i>Out of stock</span>{% endif %}
+            </div>
+
+            {% if product.description %}
+            <div class="pm-section" style="margin-top:0">
+              <div class="pm-section-title"><i class="bi bi-card-text"></i>Description</div>
+              <div class="pm-desc">{{ product.description }}</div>
+            </div>
+            {% endif %}
+
+            <div class="pm-section">
+              <div class="pm-section-title"><i class="bi bi-info-circle"></i>Listing information</div>
+              <div class="pm-info">
+                <div class="pm-info-item"><small>Seller</small><span>{{ product.seller.get_full_name|default:product.seller.username }}</span></div>
+                {% if product.owner_type %}<div class="pm-info-item"><small>Owner type</small><span>{{ product.owner_type }}</span></div>{% endif %}
+                {% if product.accepted_payments %}<div class="pm-info-item"><small>Accepted payments</small><span>{{ product.accepted_payments }}</span></div>{% endif %}
+                {% if product.meetup_location_text %}<div class="pm-info-item"><small>Meet-up location</small><span>{{ product.meetup_location_text }}</span></div>{% endif %}
+                {% if product.available_days %}<div class="pm-info-item"><small>Available days</small><span>{{ product.available_days }}</span></div>{% endif %}
+                {% if product.preferred_meetup_time_from %}
+                  <div class="pm-info-item"><small>Preferred time</small><span>{{ product.preferred_meetup_time_from|time:"g:i A" }}{% if product.preferred_meetup_time_to %} – {{ product.preferred_meetup_time_to|time:"g:i A" }}{% endif %}</span></div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variants -->
+        <div class="pm-section">
+          <div class="pm-section-title"><i class="bi bi-layers"></i>Variants ({{ product.variants.count }})</div>
+          <div class="pm-table-wrap table-responsive">
+            <table class="pm-table">
+              <thead>
+                <tr><th>Variant</th><th>Attribute</th><th>Condition</th><th class="text-end">Price</th><th class="text-end">Stock</th></tr>
+              </thead>
+              <tbody>
+                {% for v in product.variants.all %}
+                <tr>
+                  <td class="fw-semibold">{{ v.variant_name|default:"—" }}</td>
+                  <td>{{ v.attribute_value|default:"—" }}</td>
+                  <td>
+                    {{ v.condition|default:"—" }}
+                    {% if v.flaws_description %}<div class="small text-muted">{{ v.flaws_description }}</div>{% endif %}
+                  </td>
+                  <td class="text-end fw-semibold text-success">₱{{ v.price }}</td>
+                  <td class="text-end">
+                    {% if v.stocks == 0 %}<span class="pm-chip pm-chip--danger">0</span>{% else %}{{ v.stocks }}{% endif %}
+                  </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">No variants.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="pm-foot">
+        <button type="button" class="btn btn-light pl-btn" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>

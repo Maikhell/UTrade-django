@@ -60,14 +60,29 @@
     name: root ? root.dataset.productName : "",
     preOrder: root ? root.dataset.preOrder === "1" : false,
     totalStock: root ? parseInt(root.dataset.totalStock, 10) || 0 : 0,
+    // pre-order: slots left across all variations (null = no limit)
+    preorderLeft:
+      root && root.dataset.preorderLeft !== "" && root.dataset.preorderLeft != null
+        ? parseInt(root.dataset.preorderLeft, 10)
+        : null,
+    window: root ? root.dataset.preorderWindow || "" : "",
   };
 
   var variants = (readJson("variant-data") || []).map(function (v) {
+    var remaining = v.remaining == null ? null : parseInt(v.remaining, 10);
+    var unlimited = PRODUCT.preOrder && remaining === null;
+    // "stock" here is how many can be added: pre-order slots left, or regular stock
+    var available = PRODUCT.preOrder
+      ? unlimited
+        ? 99
+        : Math.max(remaining || 0, 0)
+      : parseInt(v.stock, 10) || 0;
     return {
       id: String(v.id),
       name: v.name || "",
       price: parseFloat(v.price) || 0,
-      stock: parseInt(v.stock, 10) || 0,
+      stock: available,
+      unlimited: unlimited,
       sizes: splitSizes(v.attribute),
       image: (v.image_url || "").trim(),
       ownImage: !!v.own_image,
@@ -90,6 +105,11 @@
 
   function selectedVariant() {
     return state.variantId ? variantById(state.variantId) : null;
+  }
+
+  function slotsText(v) {
+    if (!PRODUCT.preOrder) return "";
+    return v.unlimited ? "No limit" : v.stock + " left";
   }
 
   /* ---------- wishlist ---------- */
@@ -197,7 +217,9 @@
         return (
           '<button type="button" class="' + cls + '" data-variant="' + esc(v.id) + '">' +
           (v.image ? '<img src="' + esc(v.image) + '" alt="">' : "") +
-          "<span>" + esc(v.name) + "</span></button>"
+          "<span>" + esc(v.name) + "</span>" +
+          (PRODUCT.preOrder ? "<small>" + esc(v.stock <= 0 ? "Fully booked" : slotsText(v)) + "</small>" : "") +
+          "</button>"
         );
       })
       .join("");
@@ -288,6 +310,14 @@
     return "";
   }
 
+  function stockLine(v) {
+    if (PRODUCT.preOrder) {
+      if (v) return v.unlimited ? "No pre-order limit" : "Pre-order slots left: " + v.stock;
+      return PRODUCT.preorderLeft === null ? "No pre-order limit" : "Pre-order slots left: " + PRODUCT.preorderLeft;
+    }
+    return "Stock: " + (v ? v.stock : PRODUCT.totalStock);
+  }
+
   function renderHeader() {
     var v = selectedVariant();
     var main = byId("mainDisplayImage");
@@ -303,16 +333,17 @@
     }
     var page = byId("displayPrice");
     byId("sheetPrice").textContent = v ? money(v.price) : page ? page.textContent : "";
-    byId("sheetStock").textContent = "Stock: " + (v ? v.stock : PRODUCT.totalStock);
+    byId("sheetStock").textContent = stockLine(v);
 
     var bits = [];
     if (v && variants.length > 1) bits.push(v.name);
     if (state.size) bits.push(state.size);
     byId("sheetSelected").textContent = bits.length ? "Selected: " + bits.join(" · ") : "";
 
-    // Only mention the condition when it matters (older listings)
+    // Notes: pre-order period, and a condition only when it matters (older listings)
     var note = byId("sheetNote");
     var lines = [];
+    if (PRODUCT.preOrder && PRODUCT.window) lines.push("Pre-order period: " + PRODUCT.window);
     if (v && v.condition && v.condition.toLowerCase() !== "brand new") lines.push("Condition: " + v.condition);
     if (v && v.flaws) lines.push("Notes: " + v.flaws);
     if (lines.length) {
@@ -335,10 +366,13 @@
       .map(function (v) {
         var out = v.stock <= 0;
         var cls = "pd-chip" + (state.variantId === v.id ? " is-selected" : "") + (out ? " is-disabled" : "");
+        var label = out ? (PRODUCT.preOrder ? " · Fully booked" : " · Sold out") : "";
         return (
           '<button type="button" class="' + cls + '" data-variant="' + esc(v.id) + '"' + (out ? " disabled" : "") + ">" +
           (v.image ? '<img src="' + esc(v.image) + '" alt="">' : "") +
-          "<span>" + esc(v.name) + (out ? " · Sold out" : "") + "</span></button>"
+          "<span>" + esc(v.name) + label + "</span>" +
+          (PRODUCT.preOrder && !out ? "<small>" + esc(slotsText(v)) + "</small>" : "") +
+          "</button>"
         );
       })
       .join("");
@@ -379,7 +413,7 @@
     byId("sheetTotal").textContent = v ? money(v.price * state.qty) : "\u2014";
     var btn = byId("sheetConfirm");
     btn.disabled = !isValid();
-    btn.textContent = state.isPreOrder ? "Confirm Pre-order" : "Add to Cart";
+    btn.textContent = state.isPreOrder ? "Add Pre-order to Cart" : "Add to Cart";
     btn.classList.toggle("btn-primary", state.isPreOrder);
     btn.classList.toggle("btn-success", !state.isPreOrder);
     byId("sheetHint").textContent = hintText();
@@ -421,9 +455,7 @@
   function openVariantSelector(productId, productName, isPreOrder, presetVariantId) {
     // Older listings without any variation rows
     if (!variants.length) {
-      var legacy = [{ variant_id: productId, quantity: 1 }];
-      if (isPreOrder) performPreOrderRequest(legacy);
-      else performAddToCart(legacy);
+      performAddToCart([{ variant_id: productId, quantity: 1 }], !!isPreOrder);
       return;
     }
 
@@ -458,8 +490,8 @@
     var payload = [{ variant_id: v.id, quantity: state.qty, size: state.size }];
     var modal = bootstrap.Modal.getInstance(byId("variantSheet"));
     if (modal) modal.hide();
-    if (state.isPreOrder) performPreOrderRequest(payload);
-    else performAddToCart(payload);
+    // Pre-orders are added to the cart too; the seller gets them when the buyer checks out
+    performAddToCart(payload, state.isPreOrder);
   }
 
   /* ---------- requests ---------- */
@@ -477,7 +509,7 @@
     });
   }
 
-  function performAddToCart(items) {
+  function performAddToCart(items, isPreOrder) {
     postJson("/cart/add-batch/", { items: items })
       .then(function (data) {
         if (data.success) {
@@ -486,7 +518,13 @@
             badge.innerText = data.cart_count;
             badge.style.display = "inline-block";
           }
-          Swal.fire({ icon: "success", title: "Added to Cart!", timer: 1500, showConfirmButton: false });
+          Swal.fire({
+            icon: "success",
+            title: isPreOrder ? "Pre-order added to cart!" : "Added to Cart!",
+            text: isPreOrder ? "Check out from your cart to place the pre-order." : undefined,
+            timer: isPreOrder ? 2600 : 1500,
+            showConfirmButton: false,
+          });
         } else {
           Swal.fire({ icon: "error", title: "Error", text: data.message });
         }
@@ -496,18 +534,9 @@
       });
   }
 
+  // Kept for older callers: pre-orders now go through the cart.
   function performPreOrderRequest(items) {
-    postJson("/preorder/request-batch/", { items: items, status: "Pending" })
-      .then(function (data) {
-        if (data.success) {
-          Swal.fire({ icon: "success", title: "Pre-order Sent!", text: "Pending seller approval." });
-        } else {
-          Swal.fire({ icon: "error", title: "Error", text: data.message });
-        }
-      })
-      .catch(function () {
-        Swal.fire("Connection Error", "Try again later", "error");
-      });
+    performAddToCart(items, true);
   }
 
   function addToCart(productId) {
@@ -535,7 +564,7 @@
 
   function addToCartWithVariant(productId) {
     var h1 = document.querySelector("h1");
-    openVariantSelector(productId, h1 ? h1.innerText : "Product", false);
+    openVariantSelector(productId, h1 ? h1.innerText : "Product", PRODUCT.preOrder);
   }
 
   function showLoginPrompt() {

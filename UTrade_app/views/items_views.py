@@ -33,7 +33,7 @@ from ..product_access import (
     seller_restriction_course,
 )
 from ..seller_stats import review_summary, seller_summary
-
+from ..preorder_utils import NO_LIMIT_STOCK, order_gate, preorder_block_reason
 User = get_user_model()
 
 CBRGU_ROLES = ('management', 'cbrgu_staff')
@@ -350,7 +350,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         if not is_final_submit:
             return super().post(request, *args, **kwargs)
 
-        # Validate any freshly uploaded letter (does not touch Organization)
         letter_file = request.FILES.get('approval_letter')
         ok, msg = _validate_approval_letter_file(letter_file)
         if not ok:
@@ -368,7 +367,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     'message': 'No items in staging to submit.',
                 }, status=400)
 
-            # Officers must supply a letter (request file OR already on a staged item)
             if getattr(request.user, 'is_officer', False):
                 has_letter = bool(letter_file)
                 if not has_letter:
@@ -395,12 +393,16 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     or request.POST.get('location_options', '')
                 ).strip()
 
+                is_pre = bool(staged_prod.pre_order)
+
                 new_product = Product.objects.create(
                     name=staged_prod.name,
                     description=staged_prod.description,
                     category=staged_prod.category,
                     seller=request.user,
-                    pre_order=staged_prod.pre_order,
+                    pre_order=is_pre,
+                    preorder_start=staged_prod.preorder_start if is_pre else None,
+                    preorder_end=staged_prod.preorder_end if is_pre else None,
                     accepted_payments=staged_prod.accepted_payments,
                     owner_type=staged_prod.owner_type,
                     status='Pending',
@@ -421,13 +423,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     ),
                 )
 
-                # ----- Attach approval letter to the PRODUCT -----
                 letter_to_use = letter_file or getattr(staged_prod, 'approval_letter', None)
                 if letter_to_use and hasattr(new_product, 'approval_letter'):
                     new_product.approval_letter = letter_to_use
                     new_product.save(update_fields=['approval_letter'])
 
-                # Optional MeetupLocation M2M
                 if location_text and hasattr(new_product, 'meetup_locations'):
                     try:
                         location_obj, _ = MeetupLocation.objects.get_or_create(
@@ -437,7 +437,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                     except Exception as e:
                         print(f'Error linking location: {e}')
 
-                # Cover photo (older staged items may still have several images)
                 for staged_img in staged_prod.images.all():
                     ProductImage.objects.create(
                         product=new_product,
@@ -447,18 +446,27 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         new_product.image = staged_img.image
                         new_product.save(update_fields=['image'])
 
-                # Variations
                 for v in staged_prod.variants.all():
                     sizes_text = (
                         getattr(v, 'variant_attribute', None)
                         or getattr(v, 'attribute_value', None)
                         or ''
                     )
+
+                    # Pre-order: `stocks` mirrors the slots left; "No limit" keeps a large number.
+                    if is_pre:
+                        limit = None if v.no_limit else v.stocks
+                        stocks_value = NO_LIMIT_STOCK if limit is None else limit
+                    else:
+                        limit = None
+                        stocks_value = v.stocks
+
                     variant = ProductVariant.objects.create(
                         product=new_product,
                         variant_name=v.variant_name,
                         price=v.price,
-                        stocks=v.stocks,
+                        stocks=stocks_value,
+                        preorder_limit=limit,
                         condition=v.condition or 'Brand New',
                         flaws_description=(
                             getattr(v, 'flaws', '')
@@ -468,7 +476,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         attribute_value=sizes_text,
                     )
 
-                    # The variation's own image becomes its assigned image
                     variant_image = getattr(v, 'image', None)
                     if variant_image:
                         product_image = ProductImage.objects.create(
@@ -479,7 +486,6 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
                         variant.assigned_image = product_image
                         variant.save(update_fields=['assigned_image'])
 
-                    # Remember each size as a quick-select suggestion for the category
                     if staged_prod.category:
                         for size in _split_sizes(sizes_text):
                             CategoryAttribute.objects.get_or_create(
@@ -555,6 +561,7 @@ class ProductDetailView(DetailView):
         context['purchase_block_reason'] = purchase_block_reason(self.request.user, product)
         context['seller_info'] = seller_summary(product.seller, product)
         context['review_summary'] = review_summary(product)
+        context['order_gate'] = order_gate(product)
         return context
 
 
@@ -575,12 +582,10 @@ class BatchAddToCartView(LoginRequiredMixin, View):
                 )
             }
 
-            # Private listings can only be bought by students of the organization's program
             blocked = first_purchase_block(request.user, [v.product for v in chosen.values()])
             if blocked:
                 return JsonResponse({'success': False, 'message': blocked}, status=403)
 
-            # Check every item (and its size) before anything is added
             prepared = []
             for item in items:
                 variant = chosen.get(str(item.get('variant_id')))
@@ -594,8 +599,20 @@ class BatchAddToCartView(LoginRequiredMixin, View):
 
             cart, _ = Cart.objects.get_or_create(user=request.user)
 
+            # Pre-order lines: the period must be open and the slots left must cover the request
             for variant, quantity, size in prepared:
-                if variant.stocks < quantity:
+                product = variant.product
+                if product.pre_order:
+                    in_cart = (
+                        CartItem.objects.filter(cart=cart, variant=variant)
+                        .aggregate(q=Sum('quantity'))['q'] or 0
+                    )
+                    reason = preorder_block_reason(product, variant, quantity, in_cart)
+                    if reason:
+                        return JsonResponse({'success': False, 'message': reason}, status=400)
+
+            for variant, quantity, size in prepared:
+                if not variant.product.pre_order and variant.stocks < quantity:
                     continue
                 cart_item, created = CartItem.objects.get_or_create(
                     cart=cart, variant=variant, size=size
@@ -614,52 +631,14 @@ class BatchAddToCartView(LoginRequiredMixin, View):
 
 
 class BatchPreOrderView(LoginRequiredMixin, View):
+    """Pre-orders are now added to the cart and created at checkout."""
+
     def post(self, request, *args, **kwargs):
-        try:
-            data = json.loads(request.body)
-            items = data.get('items', [])
-            status = data.get('status', 'Pending')
-
-            if not items:
-                return JsonResponse({'success': False, 'message': 'No items selected.'}, status=400)
-
-            variant_ids = [i.get('variant_id') for i in items if i.get('variant_id')]
-            chosen = {
-                str(v.id): v
-                for v in ProductVariant.objects.filter(id__in=variant_ids).select_related(
-                    'product__seller__org_link', 'product__related_org'
-                )
-            }
-
-            blocked = first_purchase_block(request.user, [v.product for v in chosen.values()])
-            if blocked:
-                return JsonResponse({'success': False, 'message': blocked}, status=403)
-
-            prepared = []
-            for item in items:
-                variant = chosen.get(str(item.get('variant_id')))
-                if not variant:
-                    continue
-                quantity = int(item.get('quantity', 1))
-                size, size_error = resolve_size(variant, item.get('size'))
-                if size_error:
-                    return JsonResponse({'success': False, 'message': size_error}, status=400)
-                prepared.append((variant, quantity, size))
-
-            for variant, quantity, size in prepared:
-                PreOrderRequest.objects.create(
-                    buyer=request.user,
-                    product_variant=variant,
-                    seller=variant.product.seller,
-                    quantity=quantity,
-                    size=size,
-                    status=status,
-                )
-
-            return JsonResponse({'success': True, 'message': 'Pre-orders created successfully.'})
-
-        except Exception as e:
-            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+        return JsonResponse({
+            'success': False,
+            'message': 'Pre-orders now go through your cart. Open the product and choose '
+                       '"Add Pre-order to Cart", then check out.',
+        }, status=400)
 
 
 class ProductListView(ListView):
@@ -826,9 +805,12 @@ def add_to_staging_ajax(request):
     """
     Create a StagedProduct from the workshop form. ALWAYS returns JSON.
 
+      order_type         REGULAR or PREORDER
+      preorder_start/end local date-time ("YYYY-MM-DDTHH:MM") when PREORDER
       cover              the single cover photo (or keep_cover_id when editing)
-      variants           [{name, sizes[], price, stock, keepFrom}] as JSON, plus an
-                         optional variant_image_<index> file for each variation
+      variants           [{name, sizes[], price, stock, noLimit, keepFrom}] as JSON, plus an
+                         optional variant_image_<index> file for each variation.
+                         For a pre-order, `stock` is the pre-order limit.
       size_chart         optional size table (JSON)
       editing_id         replaces that staged item; its images are carried over
     """
@@ -902,6 +884,32 @@ def add_to_staging_ajax(request):
         if t_from >= t_to:
             return fail('From time must be earlier than To time.')
 
+        # ---------------- order type + pre-order period ----------------
+        order_type = (request.POST.get('order_type') or '').strip().upper()
+        if order_type not in ('REGULAR', 'PREORDER'):
+            legacy = str(request.POST.get('pre_order')).lower() in ['true', 'on', '1', 'yes']
+            order_type = 'PREORDER' if legacy else 'REGULAR'
+        is_preorder = order_type == 'PREORDER'
+
+        preorder_start = preorder_end = None
+        if is_preorder:
+            def parse_local(raw):
+                try:
+                    return timezone.make_aware(
+                        datetime.strptime((raw or '').strip(), '%Y-%m-%dT%H:%M')
+                    )
+                except ValueError:
+                    return None
+
+            preorder_start = parse_local(request.POST.get('preorder_start'))
+            preorder_end = parse_local(request.POST.get('preorder_end'))
+            if not preorder_start or not preorder_end:
+                return fail('Set when pre-orders open and when they close.')
+            if preorder_end <= preorder_start:
+                return fail('The pre-order end must be later than the start.')
+            if preorder_end <= timezone.now():
+                return fail('The pre-order end must be in the future.')
+
         # ---------------- variations ----------------
         try:
             variants_data = json.loads(request.POST.get('variants', '[]'))
@@ -928,12 +936,18 @@ def add_to_staging_ajax(request):
             if not (Decimal('0') < price < Decimal('100000000')):
                 return fail(f'The price for "{name}" must be greater than 0.')
 
-            try:
-                stock = int(v.get('stock'))
-            except (TypeError, ValueError):
-                return fail(f'Invalid stock for "{name}".')
-            if stock < 0 or stock > 100000:
-                return fail(f'Invalid stock for "{name}".')
+            no_limit = is_preorder and bool(v.get('noLimit'))
+            if no_limit:
+                stock = 0
+            else:
+                try:
+                    stock = int(v.get('stock'))
+                except (TypeError, ValueError):
+                    return fail(f'Invalid {"pre-order limit" if is_preorder else "stock"} for "{name}".')
+                if stock < 0 or stock > 100000:
+                    return fail(f'Invalid {"pre-order limit" if is_preorder else "stock"} for "{name}".')
+                if is_preorder and stock < 1:
+                    return fail(f'Set a pre-order limit of at least 1 for "{name}", or choose No limit.')
 
             sizes_text = ', '.join(_clean_sizes(v.get('sizes')))
             if len(sizes_text) > 100:
@@ -949,6 +963,7 @@ def add_to_staging_ajax(request):
                 'name': name,
                 'price': price,
                 'stock': stock,
+                'no_limit': no_limit,
                 'sizes_text': sizes_text,
                 'image_file': image_file,
                 'keep_from': int(keep_from) if keep_from.isdigit() else None,
@@ -985,6 +1000,7 @@ def add_to_staging_ajax(request):
             if not seller_restriction_course(request.user):
                 return fail('Only academic organizations can create private listings.')
             audience = AUDIENCE_PRIVATE
+
         with transaction.atomic():
             keep_cover_name = (
                 keep_cover_row.image.name if keep_cover_row and keep_cover_row.image else ''
@@ -1019,7 +1035,9 @@ def add_to_staging_ajax(request):
                 preferred_meetup_time_to=t_to,
                 owner_type=request.POST.get('owner_type', 'PERSONAL'),
                 accepted_payments=request.POST.get('payment') or 'BOTH',
-                pre_order=str(request.POST.get('pre_order')).lower() in ['true', 'on', '1', 'yes'],
+                pre_order=is_preorder,
+                preorder_start=preorder_start,
+                preorder_end=preorder_end,
                 size_chart=_clean_size_chart(request.POST.get('size_chart')),
                 audience=audience,
             )
@@ -1038,6 +1056,7 @@ def add_to_staging_ajax(request):
                     variant_attribute=item['sizes_text'],
                     price=item['price'],
                     stocks=item['stock'],
+                    no_limit=item['no_limit'],
                     condition='Brand New',
                     flaws='',
                 )
@@ -1088,6 +1107,9 @@ def get_staged_product_details(request, staged_id):
                 continue
             images.append({'id': img.id, 'url': url, 'is_main': img.is_main})
 
+        def local_input(dt):
+            return timezone.localtime(dt).strftime('%Y-%m-%dT%H:%M') if dt else ''
+
         variants = []
         for v in product.variants.all():
             image_url = None
@@ -1100,8 +1122,9 @@ def get_staged_product_details(request, staged_id):
                 'id': v.id,
                 'variant_name': v.variant_name,
                 'price': str(v.price),
-                'stocks': v.stocks,
-                'attribute_value': v.variant_attribute or '',   # available sizes, comma-separated
+                'stocks': v.stocks,                  # pre-order: the limit
+                'no_limit': v.no_limit,
+                'attribute_value': v.variant_attribute or '',
                 'image_url': image_url,
             })
 
@@ -1113,6 +1136,8 @@ def get_staged_product_details(request, staged_id):
             'category_name': product.category.name if product.category else '',
             'product_code': getattr(product, 'product_code', '') or '',
             'pre_order': product.pre_order,
+            'preorder_start': local_input(product.preorder_start),
+            'preorder_end': local_input(product.preorder_end),
             'owner_type': product.owner_type,
             'locations': product.meetup_locations_list or '',
             'available_days': product.available_days or '',
@@ -1135,7 +1160,6 @@ def get_staged_product_details(request, staged_id):
         return JsonResponse(data)
     except StagedProduct.DoesNotExist:
         return JsonResponse({'error': 'Not found'}, status=404)
-
 
 @login_required
 @require_POST

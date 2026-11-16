@@ -187,6 +187,18 @@
 .pd-guide tr.is-active th { color: var(--pd-green-dark); }
 .pd-guide-note { margin: 0.5rem 0 0; font-size: 0.75rem; color: var(--pd-muted); }
 
+/* ---- pre-order panel ---- */
+.pd-preorder { margin-bottom: 1rem; padding: 0.85rem 1rem; border: 1px solid #cfe2ff; border-radius: 0.9rem; background: #f5f9ff; }
+.pd-preorder--upcoming { border-color: #ffe08a; background: #fffbf0; }
+.pd-preorder--closed { border-color: #f1c0c0; background: #fff6f6; }
+.pd-preorder-head { display: flex; align-items: center; gap: 0.5rem; font-size: 0.92rem; color: #0a58ca; }
+.pd-preorder--upcoming .pd-preorder-head { color: #664d03; }
+.pd-preorder--closed .pd-preorder-head { color: #b02a37; }
+.pd-preorder-range { display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; margin-top: 0.5rem; font-size: 0.88rem; font-weight: 700; color: #1f2937; }
+.pd-preorder-range small { display: block; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #6c757d; }
+.pd-preorder-slots { margin-top: 0.5rem; font-size: 0.82rem; color: #4b5563; }
+.pd-chip small { margin-left: 0.15rem; font-size: 0.7rem; font-weight: 700; color: #6c757d; }
+
 /* phones: the sheet slides up from the bottom */
 @media (max-width: 575.98px) {
   #variantSheet .modal-dialog { margin: 0; max-width: 100%; align-items: flex-end; min-height: 100%; }

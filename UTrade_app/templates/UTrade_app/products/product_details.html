@@ -10,14 +10,16 @@
 
 {% block content %}
 {% csrf_token %}
-{% with total_stock=product.get_total_stock %}
+{% with total_stock=product.get_total_stock po_state=product.preorder_window_state po_left=product.preorder_remaining_total %}
 
 <div class="pd-page container py-3 py-md-4"
      id="pdRoot"
      data-product-id="{{ product.id }}"
      data-product-name="{{ product.name }}"
      data-pre-order="{% if product.pre_order %}1{% else %}0{% endif %}"
-     data-total-stock="{{ total_stock|stringformat:'d' }}">
+     data-total-stock="{{ total_stock|stringformat:'d' }}"
+     data-preorder-left="{% if po_left is None %}{% else %}{{ po_left|stringformat:'d' }}{% endif %}"
+     data-preorder-window="{% if product.pre_order and product.preorder_start and product.preorder_end %}{{ product.preorder_start|date:'M j, Y g:i A' }} – {{ product.preorder_end|date:'M j, Y g:i A' }}{% endif %}">
 
   {# ---------- top bar ---------- #}
   <div class="pd-top">
@@ -108,9 +110,34 @@
           <div class="pd-price">
             <span class="pd-price-now" id="displayPrice">₱{{ product.get_price_range }}</span>
             <span class="pd-price-note">
-              <span class="{% if total_stock < 5 %}text-danger fw-bold{% endif %}">{{ total_stock }}</span> available
+              {% if product.pre_order %}
+                {% if po_left is None %}No pre-order limit{% else %}<span class="{% if po_left < 5 %}text-danger fw-bold{% endif %}">{{ po_left }}</span> pre-order slot{{ po_left|pluralize }} left{% endif %}
+              {% else %}
+                <span class="{% if total_stock < 5 %}text-danger fw-bold{% endif %}">{{ total_stock }}</span> available
+              {% endif %}
             </span>
           </div>
+
+          {# pre-order period (replaces the stock information) #}
+          {% if product.pre_order %}
+            <div class="pd-preorder pd-preorder--{{ po_state }}">
+              <div class="pd-preorder-head">
+                <i class="bi bi-calendar-event"></i>
+                <strong>
+                  {% if po_state == 'open' %}Pre-order is open{% elif po_state == 'upcoming' %}Pre-order opens soon{% else %}Pre-order has closed{% endif %}
+                </strong>
+              </div>
+              {% if product.preorder_start or product.preorder_end %}
+                <div class="pd-preorder-range">
+                  {% if product.preorder_start %}<span><small>Opens</small>{{ product.preorder_start|date:"M j, Y · g:i A" }}</span>{% endif %}
+                  {% if product.preorder_end %}<span><small>Closes</small>{{ product.preorder_end|date:"M j, Y · g:i A" }}</span>{% endif %}
+                </div>
+              {% endif %}
+              <div class="pd-preorder-slots">
+                Add it to your cart and place the order during this period. The seller receives your pre-order when you check out.
+              </div>
+            </div>
+          {% endif %}
 
           {# variation preview strip (filled by the page script) #}
           <div class="pd-row" id="pdVariationWrap" hidden>
@@ -162,50 +189,60 @@
 
           {# actions #}
           <div class="pd-actions">
-            {% if total_stock > 0 %}
-              {% if user.is_staff or user.is_superuser or user.is_authenticated and user.user_role != 'student' %}
-                <button class="btn btn-secondary btn-lg w-100 pd-btn" disabled>
-                  <i class="bi bi-cart-x me-2"></i> Purchasing is for student accounts
-                </button>
-              {% else %}
-                <div class="pd-action-row">
-                  {% if user.is_authenticated and user.user_role == 'student' %}
-                    <button type="button"
-                            class="btn btn-outline-danger pd-heart"
-                            onclick="toggleWishlist({{ product.id }}, this)"
-                            title="Add to Wishlist" aria-label="Add to wishlist">
-                      <i class="bi {% if in_wishlist %}bi-heart-fill{% else %}bi-heart{% endif %} fs-5"></i>
-                    </button>
-                  {% endif %}
-
-                  {% if purchase_block_reason %}
-                    <button type="button" class="btn btn-secondary btn-lg flex-grow-1 pd-btn" disabled>
-                      <i class="bi bi-lock-fill me-2"></i> {{ restricted_course }} students only
-                    </button>
-                  {% elif product.pre_order %}
-                    <button id="preOrderBtn" type="button"
-                            onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', true)"
-                            class="btn btn-primary btn-lg flex-grow-1 pd-btn">
-                      <i class="bi bi-calendar-check me-2"></i> Pre-order Now
-                    </button>
-                  {% else %}
-                    <button id="addToCartBtn" type="button"
-                            onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', false)"
-                            class="btn btn-success btn-lg flex-grow-1 pd-btn">
-                      <i class="bi bi-cart-plus me-2"></i> Add to Cart
-                    </button>
-                  {% endif %}
-                </div>
-
-                <a href="{% url 'start_chat' product_id=product.id %}"
-                   class="btn btn-outline-primary btn-lg w-100 pd-btn">
-                  <i class="bi bi-chat-dots me-2"></i> Message Seller
-                </a>
-              {% endif %}
-            {% else %}
+            {% if order_gate == 'out' %}
               <button class="btn btn-secondary btn-lg w-100 pd-btn" disabled>
                 <i class="bi bi-exclamation-octagon me-2"></i> Out of Stock
               </button>
+            {% elif order_gate == 'upcoming' %}
+              <button class="btn btn-secondary btn-lg w-100 pd-btn" disabled>
+                <i class="bi bi-hourglass-split me-2"></i> Pre-orders open {{ product.preorder_start|date:"M j, g:i A" }}
+              </button>
+            {% elif order_gate == 'closed' %}
+              <button class="btn btn-secondary btn-lg w-100 pd-btn" disabled>
+                <i class="bi bi-calendar-x me-2"></i> Pre-order period ended
+              </button>
+            {% elif order_gate == 'full' %}
+              <button class="btn btn-secondary btn-lg w-100 pd-btn" disabled>
+                <i class="bi bi-people me-2"></i> Fully booked
+              </button>
+            {% elif user.is_staff or user.is_superuser or user.is_authenticated and user.user_role != 'student' %}
+              <button class="btn btn-secondary btn-lg w-100 pd-btn" disabled>
+                <i class="bi bi-cart-x me-2"></i> Purchasing is for student accounts
+              </button>
+            {% else %}
+              <div class="pd-action-row">
+                {% if user.is_authenticated and user.user_role == 'student' %}
+                  <button type="button"
+                          class="btn btn-outline-danger pd-heart"
+                          onclick="toggleWishlist({{ product.id }}, this)"
+                          title="Add to Wishlist" aria-label="Add to wishlist">
+                    <i class="bi {% if in_wishlist %}bi-heart-fill{% else %}bi-heart{% endif %} fs-5"></i>
+                  </button>
+                {% endif %}
+
+                {% if purchase_block_reason %}
+                  <button type="button" class="btn btn-secondary btn-lg flex-grow-1 pd-btn" disabled>
+                    <i class="bi bi-lock-fill me-2"></i> {{ restricted_course }} students only
+                  </button>
+                {% elif product.pre_order %}
+                  <button id="preOrderBtn" type="button"
+                          onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', true)"
+                          class="btn btn-primary btn-lg flex-grow-1 pd-btn">
+                    <i class="bi bi-calendar-check me-2"></i> Pre-order Now
+                  </button>
+                {% else %}
+                  <button id="addToCartBtn" type="button"
+                          onclick="openVariantSelector('{{ product.id }}', '{{ product.name|escapejs }}', false)"
+                          class="btn btn-success btn-lg flex-grow-1 pd-btn">
+                    <i class="bi bi-cart-plus me-2"></i> Add to Cart
+                  </button>
+                {% endif %}
+              </div>
+
+              <a href="{% url 'start_chat' product_id=product.id %}"
+                 class="btn btn-outline-primary btn-lg w-100 pd-btn">
+                <i class="bi bi-chat-dots me-2"></i> Message Seller
+              </a>
             {% endif %}
           </div>
         </div>
@@ -276,7 +313,12 @@
     <dl class="pd-specs">
       {% if product.category %}<div><dt>Category</dt><dd>{{ product.category.name }}</dd></div>{% endif %}
       <div><dt>Product code</dt><dd>{% if product.product_code %}{{ product.product_code }}{% else %}#UT-{{ product.id }}{% endif %}</dd></div>
-      <div><dt>Stock</dt><dd>{{ total_stock }}</dd></div>
+      {% if product.pre_order %}
+        <div><dt>Pre-order slots</dt><dd>{% if po_left is None %}No limit{% else %}{{ po_left }}{% endif %}</dd></div>
+        {% if product.preorder_end %}<div><dt>Pre-order closes</dt><dd>{{ product.preorder_end|date:"M j, g:i A" }}</dd></div>{% endif %}
+      {% else %}
+        <div><dt>Stock</dt><dd>{{ total_stock }}</dd></div>
+      {% endif %}
       <div><dt>Sold</dt><dd>{{ product.sold|default:0 }}</dd></div>
     </dl>
     <h3 class="pd-h3">Description</h3>
@@ -436,6 +478,7 @@
     "attribute": "{{ v.attribute_value|escapejs }}",
     "price": "{{ v.price|stringformat:'f' }}",
     "stock": {{ v.stocks|stringformat:"d" }},
+    "remaining": {% if v.preorder_remaining is None %}null{% else %}{{ v.preorder_remaining|stringformat:"d" }}{% endif %},
     "condition": "{{ v.condition|escapejs }}",
     "flaws": "{{ v.flaws_description|default:''|escapejs }}",
     "own_image": {% if v.assigned_image %}true{% else %}false{% endif %},

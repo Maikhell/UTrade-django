@@ -1,0 +1,46 @@
+{% load static %}
+<div class="ct-item">
+  <div class="ct-thumb">
+    {% if item.variant.assigned_image %}
+      <img src="{{ item.variant.assigned_image.image.url }}" alt="">
+    {% elif item.variant.product.images.first %}
+      <img src="{{ item.variant.product.images.first.image.url }}" alt="">
+    {% else %}
+      <img src="{% static 'UTrade_app/images/default-product.png' %}" alt="">
+    {% endif %}
+  </div>
+
+  <div class="ct-item-main">
+    <h2 class="ct-item-name">{{ item.variant.product.name }}</h2>
+    <div class="ct-chips">
+      <span class="ct-chip ct-chip--green">{{ item.variant.variant_name }}</span>
+      {% if item.size %}<span class="ct-chip">Size {{ item.size }}</span>{% endif %}
+      <span class="ct-chip">Qty {{ item.quantity }}</span>
+      {% if item.variant.product.pre_order %}<span class="ct-chip ct-chip--warn">Pre-order</span>{% endif %}
+    </div>
+
+    {% if item.variant.product.pre_order and item.variant.product.preorder_end %}
+      <div class="ct-meta">
+        <i class="bi bi-calendar-event me-1" aria-hidden="true"></i>
+        Pre-order closes {{ item.variant.product.preorder_end|date:"M j, Y g:i A" }}
+      </div>
+    {% endif %}
+    {% if item.variant.product.meetup_location_text %}
+      <div class="ct-meta">
+        <i class="bi bi-geo-alt-fill text-danger me-1" aria-hidden="true"></i>
+        {{ item.variant.product.meetup_location_text }}
+      </div>
+    {% endif %}
+    {% if item.variant.flaws_description %}
+      <p class="ct-flaw"><i class="bi bi-exclamation-circle-fill me-1" aria-hidden="true"></i>Condition: {{ item.variant.flaws_description }}</p>
+    {% elif item.variant.product.pre_order %}
+      <p class="ct-ok"><i class="bi bi-hourglass-split me-1" aria-hidden="true"></i>The seller confirms this pre-order after you place it</p>
+    {% else %}
+      <p class="ct-ok"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>No reported flaws</p>
+    {% endif %}
+  </div>
+
+  <div class="ct-item-side">
+    <div class="ct-price">₱{{ item.get_cost|floatformat:2 }}</div>
+  </div>
+</div>

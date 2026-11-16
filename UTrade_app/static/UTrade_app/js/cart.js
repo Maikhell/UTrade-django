@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const out = [];
     document.querySelectorAll('.cart-item-row').forEach(function (row) {
       const cb = row.querySelector('.item-checkbox');
-      if (!cb || !cb.checked) return;
+      if (!cb || !cb.checked || cb.disabled) return;
       out.push({
         id: cb.value || (row.id || '').split('-').pop(),
         name: row.getAttribute('data-name') || 'Item',
@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', function () {
         price: parseFloat(row.getAttribute('data-price')) || 0,
         qty: parseInt(row.getAttribute('data-quantity'), 10) || 0,
         seller: cb.getAttribute('data-item-seller'),
+        preorder: row.getAttribute('data-preorder') === '1',
       });
     });
     return out;
@@ -47,7 +48,8 @@ document.addEventListener('DOMContentLoaded', function () {
       name.textContent = it.name;
       const sub = document.createElement('span');
       sub.className = 'ct-sum-sub';
-      sub.textContent = (it.variant ? it.variant + ' · ' : '') + it.qty + ' × ' + money(it.price);
+      sub.textContent = (it.variant ? it.variant + ' · ' : '') + it.qty + ' × ' + money(it.price) +
+        (it.preorder ? ' · Pre-order' : '');
       left.appendChild(name);
       left.appendChild(sub);
 
@@ -78,10 +80,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     sellerCheckboxes.forEach(function (scb) {
       const key = scb.getAttribute('data-seller-target');
-      const boxes = document.querySelectorAll('.item-checkbox[data-item-seller="' + key + '"]');
-      if (!boxes.length) return;
-      const allOn = Array.prototype.every.call(boxes, function (i) { return i.checked; });
-      const someOn = Array.prototype.some.call(boxes, function (i) { return i.checked; });
+      const boxes = Array.prototype.filter.call(
+        document.querySelectorAll('.item-checkbox[data-item-seller="' + key + '"]'),
+        function (i) { return !i.disabled; }
+      );
+      if (!boxes.length) { scb.checked = false; scb.indeterminate = false; return; }
+      const allOn = boxes.every(function (i) { return i.checked; });
+      const someOn = boxes.some(function (i) { return i.checked; });
       scb.checked = allOn;
       scb.indeterminate = someOn && !allOn;
     });
@@ -93,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function () {
     scb.addEventListener('change', function () {
       const key = this.getAttribute('data-seller-target');
       document.querySelectorAll('.item-checkbox[data-item-seller="' + key + '"]')
-        .forEach(function (icb) { icb.checked = scb.checked; });
+        .forEach(function (icb) { if (!icb.disabled) icb.checked = scb.checked; });
       calculateTotal();
     });
   });
@@ -119,6 +124,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const total = items.reduce(function (s, it) { return s + it.price * it.qty; }, 0);
       const sellers = new Set(items.map(function (i) { return i.seller; })).size;
       const qty = items.reduce(function (s, it) { return s + it.qty; }, 0);
+      const pre = items.filter(function (i) { return i.preorder; }).length;
 
       if (window.Swal) {
         // Built from numbers only (no user text), so it is safe as HTML.
@@ -130,6 +136,10 @@ document.addEventListener('DOMContentLoaded', function () {
             (items.length === 1 ? ' item' : ' items') + '</strong> (' + qty + ' pcs) from <strong>' +
             sellers + (sellers === 1 ? ' seller' : ' sellers') + '</strong>.</p>' +
             '<p class="mb-2">Subtotal: <strong>' + money(total) + '</strong></p>' +
+            (pre
+              ? '<p class="small text-muted mb-1">' + pre + (pre === 1 ? ' item is a pre-order' : ' items are pre-orders') +
+                '. The seller receives it when you place the order.</p>'
+              : '') +
             (sellers > 1
               ? '<p class="small text-muted mb-0">Each seller will receive a separate order.</p>'
               : ''),

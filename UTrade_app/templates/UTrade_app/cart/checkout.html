@@ -47,14 +47,25 @@
             <div class="ct-card ct-seller-card"
                  data-seller-name="{{ group.seller_name }}"
                  data-subtotal="{{ group.subtotal|unlocalize }}"
-                 data-seller-id="{{ group.seller_id|unlocalize }}">
+                 data-seller-id="{{ group.seller_id|unlocalize }}"
+                 data-preorder-count="{{ group.preorder_items|length }}">
 
               <div class="ct-card-head">
                 <div class="ct-card-head-left">
                   <i class="bi bi-shop text-success" aria-hidden="true"></i>
                   <div class="min-w-0">
-                    <p class="ct-seller-name">Order for {{ group.seller_name }}</p>
-                    <span class="ct-seller-sub">A separate order for this seller only</span>
+                    <p class="ct-seller-name">
+                      {% if group.regular_items %}Order{% else %}Pre-order{% endif %} for {{ group.seller_name }}
+                    </p>
+                    <span class="ct-seller-sub">
+                      {% if group.regular_items and group.preorder_items %}
+                        A regular order and a pre-order for this seller only
+                      {% elif group.preorder_items %}
+                        A pre-order for this seller only
+                      {% else %}
+                        A separate order for this seller only
+                      {% endif %}
+                    </span>
                   </div>
                 </div>
                 <strong class="text-success">₱{{ group.subtotal|floatformat:2 }}</strong>
@@ -126,45 +137,27 @@
                   {% endif %}
                 </div>
 
-                {# —— Items —— #}
-                {% for item in group.items %}
-                  <div class="ct-item">
-                    <div class="ct-thumb">
-                      {% if item.variant.assigned_image %}
-                        <img src="{{ item.variant.assigned_image.image.url }}" alt="">
-                      {% elif item.variant.product.images.first %}
-                        <img src="{{ item.variant.product.images.first.image.url }}" alt="">
-                      {% else %}
-                        <img src="{% static 'UTrade_app/images/default-product.png' %}" alt="">
-                      {% endif %}
-                    </div>
+                {# —— Regular items —— #}
+                {% if group.regular_items %}
+                  {% if group.preorder_items %}<p class="ct-section-title mt-3">Regular order</p>{% endif %}
+                  {% for item in group.regular_items %}
+                    {% include 'UTrade_app/cart/partials/checkout_item.html' %}
+                  {% endfor %}
+                {% endif %}
 
-                    <div class="ct-item-main">
-                      <h2 class="ct-item-name">{{ item.variant.product.name }}</h2>
-                      <div class="ct-chips">
-                        <span class="ct-chip ct-chip--green">{{ item.variant.variant_name }}</span>
-                        <span class="ct-chip">Qty {{ item.quantity }}</span>
-                      </div>
-                      {% if item.variant.product.meetup_location_text %}
-                        <div class="ct-meta">
-                          <i class="bi bi-geo-alt-fill text-danger me-1" aria-hidden="true"></i>
-                          {{ item.variant.product.meetup_location_text }}
-                        </div>
-                      {% endif %}
-                      {% if item.variant.flaws_description %}
-                        <p class="ct-flaw"><i class="bi bi-exclamation-circle-fill me-1" aria-hidden="true"></i>Condition: {{ item.variant.flaws_description }}</p>
-                      {% else %}
-                        <p class="ct-ok"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>No reported flaws</p>
-                      {% endif %}
-                    </div>
-
-                    <div class="ct-item-side">
-                      <div class="ct-price">₱{{ item.get_cost|floatformat:2 }}</div>
-                    </div>
+                {# —— Pre-order items —— #}
+                {% if group.preorder_items %}
+                  <p class="ct-section-title mt-3"><i class="bi bi-calendar-event me-1" aria-hidden="true"></i>Pre-order</p>
+                  {% for item in group.preorder_items %}
+                    {% include 'UTrade_app/cart/partials/checkout_item.html' %}
+                  {% endfor %}
+                  <div class="ct-alert ct-alert--info mt-2">
+                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    <span>Pre-orders are sent to the seller when you place this order. Your pre-order slot is held for you.</span>
                   </div>
-                {% endfor %}
+                {% endif %}
 
-                {# —— Payment method for THIS seller's order —— #}
+                {# —— Payment method for THIS seller (covers its order and its pre-orders) —— #}
                 <div class="mt-4">
                   <p class="ct-section-title">Payment method</p>
                   <div class="row g-2">
@@ -282,11 +275,20 @@
               <ul class="ct-sum-list" style="max-height:none;">
                 {% for group in seller_groups %}
                   <li class="ct-sum-seller">{{ group.seller_name }}</li>
-                  {% for item in group.items %}
+                  {% for item in group.regular_items %}
                     <li class="ct-sum-item">
                       <div>
                         <span class="ct-sum-name">{{ item.variant.product.name }}</span>
-                        <span class="ct-sum-sub">{{ item.variant.variant_name }} · {{ item.quantity }} × ₱{{ item.variant.price|floatformat:2 }}</span>
+                        <span class="ct-sum-sub">{{ item.variant.variant_name }}{% if item.size %} · {{ item.size }}{% endif %} · {{ item.quantity }} × ₱{{ item.variant.price|floatformat:2 }}</span>
+                      </div>
+                      <span class="ct-sum-amt">₱{{ item.get_cost|floatformat:2 }}</span>
+                    </li>
+                  {% endfor %}
+                  {% for item in group.preorder_items %}
+                    <li class="ct-sum-item">
+                      <div>
+                        <span class="ct-sum-name">{{ item.variant.product.name }} <span class="ct-chip ct-chip--warn">Pre-order</span></span>
+                        <span class="ct-sum-sub">{{ item.variant.variant_name }}{% if item.size %} · {{ item.size }}{% endif %} · {{ item.quantity }} × ₱{{ item.variant.price|floatformat:2 }}</span>
                       </div>
                       <span class="ct-sum-amt">₱{{ item.get_cost|floatformat:2 }}</span>
                     </li>
@@ -320,6 +322,7 @@
                 {% else %}
                   By placing an order, you agree to UTrade's student marketplace guidelines.
                 {% endif %}
+                {% if has_preorder %}Pre-orders are sent to the seller once the order is placed.{% endif %}
               </p>
             </div>
           </div>
@@ -346,7 +349,7 @@
     return '₱' + Number(n).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // One entry per seller card: name, subtotal and the chosen payment method.
+  // One entry per seller card: name, subtotal, chosen payment method, pre-order lines.
   function collectOrders() {
     var out = [];
     document.querySelectorAll('.ct-seller-card').forEach(function (card) {
@@ -355,7 +358,8 @@
       out.push({
         name: card.getAttribute('data-seller-name') || 'Seller',
         subtotal: parseFloat(card.getAttribute('data-subtotal')) || 0,
-        pay: picked ? (PAY[picked.value] || picked.value) : '—'
+        pay: picked ? (PAY[picked.value] || picked.value) : '—',
+        pre: parseInt(card.getAttribute('data-preorder-count'), 10) || 0
       });
     });
     return out;
@@ -382,7 +386,7 @@
       strong.textContent = o.name;
       var small = document.createElement('small');
       small.className = 'd-block text-muted';
-      small.textContent = o.pay;
+      small.textContent = o.pay + (o.pre ? ' · includes ' + o.pre + ' pre-order item' + (o.pre > 1 ? 's' : '') : '');
       left.appendChild(strong);
       left.appendChild(small);
       var right = document.createElement('span');

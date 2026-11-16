@@ -17,6 +17,7 @@ from django.db.models import Sum, F
 from django.urls import reverse
 from django.utils import timezone
 from ..product_access import blocked_cart_reason, purchase_block_reason, resolve_size
+from ..preorder_utils import cart_block_reasons, preorder_block_reason
 
 import requests
 
@@ -27,6 +28,7 @@ from ..models import (
     MeetupLocation,
     Order,
     OrderItem,
+    PreOrderRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -89,10 +91,10 @@ def _collect_item_ids(request):
     return _dedupe(ids)
 
 
-def _create_paymongo_session(request, orders):
+def _create_paymongo_session(request, payables, success_url):
     """
-    One PayMongo GCash checkout session covering all GCash orders of a checkout.
-    Returns the hosted checkout URL, or None on failure.
+    One PayMongo GCash checkout session covering every GCash payment of a checkout.
+    `payables` = [{"name": str, "amount": Decimal}, ...]. Returns the hosted URL, or None.
     """
     try:
         encoded_key = base64.b64encode(f"{settings.PAYMONGO_SECRET_KEY}:".encode()).decode()
@@ -107,17 +109,14 @@ def _create_paymongo_session(request, orders):
                     "line_items": [
                         {
                             "currency": "PHP",
-                            "amount": int((o.total_amount * 100).to_integral_value()),
-                            "name": f"UTrade Order {o.order_number or o.id}",
+                            "amount": int((p["amount"] * 100).to_integral_value()),
+                            "name": p["name"],
                             "quantity": 1,
                         }
-                        for o in orders
+                        for p in payables
                     ],
                     "payment_method_types": ["gcash"],
-                    # order_success marks every GCash order of the same checkout_batch as Paid
-                    "success_url": request.build_absolute_uri(
-                        reverse("order_success", args=[orders[0].id])
-                    ),
+                    "success_url": success_url,
                     "cancel_url": request.build_absolute_uri(reverse("order_history")),
                 }
             }
@@ -129,7 +128,7 @@ def _create_paymongo_session(request, orders):
         data = resp.json()
         return data["data"]["attributes"]["checkout_url"]
     except Exception:
-        logger.exception("PayMongo session failed for orders %s", [o.pk for o in orders])
+        logger.exception("PayMongo session failed for %s", [p["name"] for p in payables])
         return None
 
 
@@ -141,6 +140,7 @@ def cart_detail(request):
     cart, _ = Cart.objects.get_or_create(user=request.user)
 
     # Order by seller *id* (usernames are nullable / not unique) so {% regroup %} is reliable.
+    # Regular items come first, pre-order items after them, inside each seller.
     cart_items = (
         cart.items.select_related(
             "variant",
@@ -149,10 +149,16 @@ def cart_detail(request):
             "variant__assigned_image",
         )
         .prefetch_related("variant__product__images")
-        .order_by("variant__product__seller_id", "-id")
+        .order_by("variant__product__seller_id", "variant__product__pre_order", "-id")
     )
 
-    total_price = sum((item.get_cost() for item in cart_items), Decimal("0.00"))
+    # Evaluating the queryset caches the same objects the template iterates over.
+    items = list(cart_items)
+    reasons = cart_block_reasons(items)
+    for item in items:
+        item.pre_block = reasons.get(item.id)
+
+    total_price = sum((item.get_cost() for item in items if not item.pre_block), Decimal("0.00"))
 
     return render(
         request,
@@ -184,22 +190,37 @@ def add_to_cart(request, variant_id):
     reason = purchase_block_reason(request.user, variant.product)
     if reason:
         return JsonResponse({"success": False, "message": reason}, status=403)
+
     size, size_error = resolve_size(variant, request.POST.get("size"))
     if size_error:
         return JsonResponse({"success": False, "message": size_error}, status=400)
+
     cart, _ = Cart.objects.get_or_create(user=request.user)
 
-    cart_item, item_created = CartItem.objects.get_or_create(cart=cart, variant=variant, size=size)
-    
-    if not item_created:
-        if cart_item.quantity < variant.stocks:
+    if variant.product.pre_order:
+        # Pre-order: the period must be open and a slot must be left
+        in_cart = (
+            CartItem.objects.filter(cart=cart, variant=variant).aggregate(q=Sum("quantity"))["q"] or 0
+        )
+        block = preorder_block_reason(variant.product, variant, 1, in_cart)
+        if block:
+            return JsonResponse({"success": False, "message": block}, status=400)
+        cart_item, item_created = CartItem.objects.get_or_create(cart=cart, variant=variant, size=size)
+        if not item_created:
             cart_item.quantity += 1
             cart_item.save()
-        else:
-            return JsonResponse(
-                {"success": False, "message": f"Only {variant.stocks} items available."},
-                status=400,
-            )
+    else:
+        cart_item, item_created = CartItem.objects.get_or_create(cart=cart, variant=variant, size=size)
+
+        if not item_created:
+            if cart_item.quantity < variant.stocks:
+                cart_item.quantity += 1
+                cart_item.save()
+            else:
+                return JsonResponse(
+                    {"success": False, "message": f"Only {variant.stocks} items available."},
+                    status=400,
+                )
 
     total_quantity = (
         CartItem.objects.filter(cart=cart).aggregate(Sum("quantity"))["quantity__sum"] or 0
@@ -214,7 +235,18 @@ def update_cart(request, item_id):
     action = request.POST.get("action")
 
     if action == "up":
-        if cart_item.quantity < cart_item.variant.stocks:
+        variant = cart_item.variant
+        if variant.product.pre_order:
+            in_cart = (
+                CartItem.objects.filter(cart=cart_item.cart, variant=variant)
+                .aggregate(q=Sum("quantity"))["q"] or 0
+            )
+            block = preorder_block_reason(variant.product, variant, 1, in_cart)
+            if block:
+                messages.warning(request, block)
+            else:
+                cart_item.quantity += 1
+        elif cart_item.quantity < variant.stocks:
             cart_item.quantity += 1
         else:
             messages.warning(request, "Maximum stocks reached.")
@@ -243,7 +275,8 @@ def remove_from_cart(request, item_id):
 def _group_cart_items_by_seller(cart_items):
     """
     Group CartItem list by product.seller_id.
-    Returns list of dicts: seller, seller_name, items, subtotal, payment flags.
+    Returns list of dicts: seller, seller_name, items (all), regular_items,
+    preorder_items, subtotal, payment flags.
     """
     sellers_map = {}
     for item in cart_items:
@@ -263,10 +296,14 @@ def _group_cart_items_by_seller(cart_items):
                     or str(seller.student_no)
                 ),
                 "items": [],
+                "regular_items": [],
+                "preorder_items": [],
                 "subtotal": Decimal("0.00"),
             }
-        sellers_map[sid]["items"].append(item)
-        sellers_map[sid]["subtotal"] += _to_decimal(item.get_cost())
+        group = sellers_map[sid]
+        group["items"].append(item)
+        (group["preorder_items"] if product.pre_order else group["regular_items"]).append(item)
+        group["subtotal"] += _to_decimal(item.get_cost())
 
     seller_groups = []
     for g in sellers_map.values():
@@ -317,6 +354,12 @@ def checkout_view(request):
         messages.error(request, blocked)
         return redirect("cart_detail")
 
+    # Pre-orders: the period must be open and the slots left must cover the cart
+    pre_reasons = cart_block_reasons(cart_items)
+    if pre_reasons:
+        messages.error(request, next(iter(pre_reasons.values())))
+        return redirect("cart_detail")
+
     seller_groups = _group_cart_items_by_seller(cart_items)
     if not seller_groups:
         messages.error(request, "Could not determine sellers for selected items.")
@@ -324,6 +367,7 @@ def checkout_view(request):
 
     total_price = sum((g["subtotal"] for g in seller_groups), Decimal("0.00"))
     has_payment_conflict = any(g["has_payment_conflict"] for g in seller_groups)
+    has_preorder = any(g["preorder_items"] for g in seller_groups)
 
     return render(
         request,
@@ -334,6 +378,7 @@ def checkout_view(request):
             "total_price": total_price,
             "user": request.user,
             "has_payment_conflict": has_payment_conflict,
+            "has_preorder": has_preorder,
         },
     )
 
@@ -342,10 +387,12 @@ def checkout_view(request):
 @require_POST
 def place_order(request):
     """
-    Create ONE Order (with its own unique id / order_number) per product.seller_id.
-    Each order gets only that seller's cart items and the matching total.
-    Payment method is chosen per seller (payment_method_<seller_id>), falling back
-    to a global `payment_method` field.
+    One regular Order per seller (own id / order_number) for the regular items,
+    and one PreOrderRequest per pre-order cart line. Payment method is chosen per
+    seller (payment_method_<seller_id>), falling back to a global `payment_method`.
+
+    Pre-order lines are checked here against the pre-order period and the slots left
+    (on rows locked for this checkout), and only then turned into seller records.
 
     On a failure this view sends the buyer back to the CHECKOUT page with a
     message (never silently to the cart), and logs the reason.
@@ -366,6 +413,7 @@ def place_order(request):
         return redirect("checkout_view")
 
     created_orders = []
+    created_preorders = []
     batch_id = uuid.uuid4()
 
     try:
@@ -384,10 +432,16 @@ def place_order(request):
             if not cart_items:
                 # Most common cause: the form was submitted twice (double click) and the
                 # first request already placed the orders and emptied the cart lines.
-                just_ordered = Order.objects.filter(
-                    user=request.user,
-                    created_at__gte=timezone.now() - timedelta(minutes=2),
-                ).exists()
+                just_ordered = (
+                    Order.objects.filter(
+                        user=request.user,
+                        created_at__gte=timezone.now() - timedelta(minutes=2),
+                    ).exists()
+                    or PreOrderRequest.objects.filter(
+                        buyer=request.user,
+                        created_at__gte=timezone.now() - timedelta(minutes=2),
+                    ).exists()
+                )
                 logger.warning(
                     "place_order: ids %s not found in cart of user %s (just_ordered=%s)",
                     item_ids, request.user.pk, just_ordered,
@@ -406,13 +460,28 @@ def place_order(request):
                 messages.error(request, blocked)
                 return redirect("cart_detail")
 
-            # Lock the variant rows so stock can't be oversold by concurrent checkouts.
+            # Lock the variant rows so stock / pre-order slots can't be oversold.
             locked_variants = {
                 v.pk: v
                 for v in ProductVariant.objects.select_for_update().filter(
                     pk__in={i.variant_id for i in cart_items}
                 )
             }
+
+            # ---- pre-orders: period + remaining slots, against the locked rows ----
+            wanted = defaultdict(int)
+            pre_products = {}
+            for it in cart_items:
+                if it.variant.product.pre_order:
+                    wanted[it.variant_id] += it.quantity
+                    pre_products[it.variant_id] = it.variant.product
+            for variant_id, qty in wanted.items():
+                locked = locked_variants.get(variant_id)
+                if locked is None:
+                    raise ValueError("A pre-order item is no longer available.")
+                reason = preorder_block_reason(pre_products[variant_id], locked, qty)
+                if reason:
+                    raise ValueError(reason)
 
             # ---- group strictly by product.seller_id ----
             by_seller = defaultdict(list)
@@ -424,11 +493,12 @@ def place_order(request):
                     )
                 by_seller[seller_id].append(item)
 
-            # ---- one Order per seller ----
+            buyer = request.user
+
             for seller_id, items in by_seller.items():
                 seller = items[0].variant.product.seller
 
-                # payment method for THIS seller
+                # payment method for THIS seller (covers its order and its pre-orders)
                 can_gcash, can_cop = _payment_flags(items)
                 if not (can_gcash or can_cop):
                     raise ValueError(
@@ -450,56 +520,89 @@ def place_order(request):
                         f"@{seller.username or seller.student_no}."
                     )
 
-                # stock + ownership checks (this seller only), against locked rows
-                total = Decimal("0.00")
-                lines = []
-                for item in items:
-                    variant = locked_variants.get(item.variant_id)
-                    if variant is None:
-                        raise ValueError(
-                            f"{item.variant.product.name} is no longer available."
-                        )
-                    if item.quantity < 1 or item.quantity > variant.stocks:
-                        raise ValueError(
-                            f"Not enough stock for {item.variant.product.name} "
-                            f"({variant.variant_name}). Available: {variant.stocks}."
-                        )
-                    if item.variant.product.seller_id != seller_id:
-                        raise ValueError(
-                            f"Seller mismatch for {item.variant.product.name}"
-                        )
-                    price = _to_decimal(variant.price)
-                    total += price * item.quantity
-                    lines.append((item, variant, price))
+                regular_items = [i for i in items if not i.variant.product.pre_order]
+                preorder_items = [i for i in items if i.variant.product.pre_order]
 
-                location_text = (
-                    getattr(items[0].variant.product, "meetup_location_text", "") or ""
-                ).strip()
-                order = Order.objects.create(
-                    user=request.user,
-                    seller=seller,
-                    total_amount=total,
-                    status="Pending",
-                    payment_method=requested,
-                    checkout_batch=batch_id,
-                    pickup_location=location_text,
-                    meetup_location=location_text,
-                    buyer_note=(request.POST.get("buyer_note") or "").strip(),
-                )
+                # ---------- regular order (unchanged) ----------
+                if regular_items:
+                    total = Decimal("0.00")
+                    lines = []
+                    for item in regular_items:
+                        variant = locked_variants.get(item.variant_id)
+                        if variant is None:
+                            raise ValueError(
+                                f"{item.variant.product.name} is no longer available."
+                            )
+                        if item.quantity < 1 or item.quantity > variant.stocks:
+                            raise ValueError(
+                                f"Not enough stock for {item.variant.product.name} "
+                                f"({variant.variant_name}). Available: {variant.stocks}."
+                            )
+                        if item.variant.product.seller_id != seller_id:
+                            raise ValueError(
+                                f"Seller mismatch for {item.variant.product.name}"
+                            )
+                        price = _to_decimal(variant.price)
+                        total += price * item.quantity
+                        lines.append((item, variant, price))
 
-                for item, variant, price in lines:
-                    OrderItem.objects.create(
-                        order=order,
+                    location_text = (
+                        getattr(regular_items[0].variant.product, "meetup_location_text", "") or ""
+                    ).strip()
+                    order = Order.objects.create(
+                        user=buyer,
+                        seller=seller,
+                        total_amount=total,
+                        status="Pending",
+                        payment_method=requested,
+                        checkout_batch=batch_id,
+                        pickup_location=location_text,
+                        meetup_location=location_text,
+                        buyer_note=(request.POST.get("buyer_note") or "").strip(),
+                    )
+
+                    for item, variant, price in lines:
+                        OrderItem.objects.create(
+                            order=order,
+                            product_variant=variant,
+                            quantity=item.quantity,
+                            price=price,
+                            size=item.size,
+                        )
+                        ProductVariant.objects.filter(pk=variant.pk).update(
+                            stocks=F("stocks") - item.quantity
+                        )
+
+                    created_orders.append(order)
+
+                # ---------- pre-orders: the seller's records are created only now ----------
+                for item in preorder_items:
+                    variant = locked_variants[item.variant_id]
+                    if item.quantity < 1:
+                        raise ValueError(f"Invalid quantity for {item.variant.product.name}.")
+                    po = PreOrderRequest.objects.create(
+                        buyer=buyer,
+                        seller=seller,
                         product_variant=variant,
                         quantity=item.quantity,
-                        price=price,
                         size=item.size,
+                        status="PENDING",
+                        payment_method=requested,
+                        is_paid=False,
+                        checkout_batch=batch_id,
+                        full_name_at_time=buyer.get_full_name() or buyer.username or "",
+                        student_no_at_time=getattr(buyer, "student_no", "") or "",
+                        course_at_time=getattr(buyer, "course", "") or "",
+                        section_at_time=getattr(buyer, "section", "") or "",
                     )
-                    ProductVariant.objects.filter(pk=variant.pk).update(
-                        stocks=F("stocks") - item.quantity
-                    )
-
-                created_orders.append(order)
+                    # limited variations: take the slots (no-limit variations are never reduced)
+                    if variant.preorder_limit is not None:
+                        ProductVariant.objects.filter(pk=variant.pk).update(
+                            stocks=F("stocks") - item.quantity
+                        )
+                    po.line_total = _to_decimal(variant.price) * item.quantity
+                    po.seller_label = seller.username or str(seller.student_no)
+                    created_preorders.append(po)
 
             # remove ordered cart lines only after ALL orders succeed
             CartItem.objects.filter(
@@ -508,7 +611,7 @@ def place_order(request):
             ).delete()
 
     except ValueError as e:
-        # Business-rule problems (stock, payment mismatch, ...) are safe to show.
+        # Business-rule problems (stock, slots, period, payment mismatch...) are safe to show.
         logger.info("place_order rejected for user %s: %s", request.user.pk, e)
         messages.error(request, str(e))
         return redirect(_checkout_url(item_ids))
@@ -533,7 +636,7 @@ def place_order(request):
             f"Order {_label(o)} placed with @{o.seller.username or o.seller.student_no} "
             f"(₱{o.total_amount}).",
         )
-    else:
+    elif created_orders:
         summary = ", ".join(
             f"{_label(o)}→@{o.seller.username or o.seller.student_no} (₱{o.total_amount})"
             for o in created_orders
@@ -543,10 +646,37 @@ def place_order(request):
             f"{len(created_orders)} separate orders created: {summary}",
         )
 
-    # GCash orders: send the buyer to PayMongo (COP orders are already placed).
+    if created_preorders:
+        n = len(created_preorders)
+        s = len({po.seller_id for po in created_preorders})
+        messages.success(
+            request,
+            f"{n} pre-order{'s' if n != 1 else ''} sent to {s} seller{'s' if s != 1 else ''}. "
+            f"You'll be notified when they respond.",
+        )
+
+    # GCash: send the buyer to PayMongo once for everything paid online.
     gcash_orders = [o for o in created_orders if o.payment_method == "GCASH"]
-    if gcash_orders:
-        checkout_url = _create_paymongo_session(request, gcash_orders)
+    gcash_preorders = [po for po in created_preorders if po.payment_method == "GCASH"]
+    if gcash_orders or gcash_preorders:
+        payables = [
+            {"name": f"UTrade Order {_label(o)}", "amount": o.total_amount} for o in gcash_orders
+        ]
+        if gcash_preorders:
+            totals, labels = defaultdict(Decimal), {}
+            for po in gcash_preorders:
+                totals[po.seller_id] += po.line_total
+                labels[po.seller_id] = po.seller_label
+            for sid, amount in totals.items():
+                payables.append({"name": f"UTrade Pre-Order @{labels[sid]}", "amount": amount})
+            # pre-orders have no Order to return to, so use the batch return page
+            success_url = request.build_absolute_uri(reverse("checkout_success", args=[batch_id]))
+        else:
+            success_url = request.build_absolute_uri(
+                reverse("order_success", args=[gcash_orders[0].id])
+            )
+
+        checkout_url = _create_paymongo_session(request, payables, success_url)
         if checkout_url:
             return redirect(checkout_url)
         messages.warning(
@@ -555,4 +685,20 @@ def place_order(request):
             "Please contact the seller or try again later.",
         )
 
+    return redirect("order_history")
+
+
+@login_required
+def checkout_success(request, batch):
+    """PayMongo return page for checkouts that include pre-orders: marks the whole batch paid."""
+    orders = Order.objects.filter(user=request.user, checkout_batch=batch)
+    orders.filter(payment_method="GCASH", status="Pending").update(status="Paid")
+    PreOrderRequest.objects.filter(
+        buyer=request.user, checkout_batch=batch, payment_method="GCASH"
+    ).update(is_paid=True)
+
+    first = orders.order_by("id").first()
+    if first:
+        return render(request, "UTrade_app/orders/success.html", {"order": first})
+    messages.success(request, "Payment received. Your pre-orders were sent to the sellers.")
     return redirect("order_history")

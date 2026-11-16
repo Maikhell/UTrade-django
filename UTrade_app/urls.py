@@ -54,7 +54,7 @@ urlpatterns = [
     path('cart/remove/<int:item_id>/', cart_views.remove_from_cart, name='remove_from_cart'),
     path('checkout/', cart_views.checkout_view, name='checkout_view'),
     path('checkout/place-order/', cart_views.place_order, name='place_order'),
-
+    path('checkout/success/<uuid:batch>/', cart_views.checkout_success, name='checkout_success'),
     # =========================================================================
     # Orders & Reviews
     # =========================================================================

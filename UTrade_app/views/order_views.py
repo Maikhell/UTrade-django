@@ -18,6 +18,7 @@ from django.db.models import Prefetch, Q
 from django.utils import timezone
 from ..product_access import purchase_block_reason
 from .return_views import RETURN_STATUS, attach_return_info
+from ..preorder_utils import release_preorder_quantity
 
 from ..models import (
     CartItem,
@@ -370,34 +371,12 @@ def place_order(request):
 
 
 def submit_preorder_request(request, variant_id):
-    if request.method == 'POST':
-        try:
-            variant = ProductVariant.objects.select_related(
-                'product', 'product__seller', 'product__seller__org_link', 'product__related_org'
-            ).get(id=variant_id)
-
-            # Private listings: only students of the organization's program
-            reason = purchase_block_reason(request.user, variant.product)
-            if reason:
-                return JsonResponse({'success': False, 'message': reason}, status=403)
-
-            PreOrderRequest.objects.create(
-                buyer=request.user,
-                seller=variant.product.seller,
-                product_variant=variant,
-                status='PENDING',
-                full_name_at_time=request.user.get_full_name(),
-                student_no_at_time=getattr(request.user, 'student_no', '') or '',
-                course_at_time=getattr(request.user, 'course', '') or '',
-                section_at_time=getattr(request.user, 'section', '') or '',
-            )
-
-            return JsonResponse({'success': True, 'message': 'Request submitted'})
-
-        except ProductVariant.DoesNotExist:
-            return JsonResponse({'success': False, 'message': 'Variant not found'})
-
-    return JsonResponse({'success': False, 'message': 'Invalid request'})
+    """Retired: pre-orders are added to the cart and created at checkout."""
+    return JsonResponse({
+        'success': False,
+        'message': 'Pre-orders now go through your cart. Open the product and choose '
+                   '"Add Pre-order to Cart", then check out.',
+    }, status=400)
 
 
 @login_required
@@ -680,29 +659,35 @@ def update_preorder_status(request, order_id):
         new_status = (data.get('status') or '').upper()
         reason = (data.get('reason') or '').strip()
 
-        po = get_object_or_404(PreOrderRequest, id=order_id, buyer=request.user)
-
-        if new_status != 'DECLINED':
-            return JsonResponse(
-                {'success': False, 'message': 'Buyers can only cancel a pending pre-order.'},
-                status=403,
+        with transaction.atomic():
+            po = get_object_or_404(
+                PreOrderRequest.objects.select_for_update().select_related('product_variant'),
+                id=order_id, buyer=request.user,
             )
 
-        if (po.status or '').upper() != 'PENDING':
-            return JsonResponse(
-                {'success': False, 'message': 'Only pending pre-orders can be cancelled.'},
-                status=400,
-            )
-        if not reason:
-            return JsonResponse(
-                {'success': False, 'message': 'Cancellation reason is required.'},
-                status=400,
-            )
+            if new_status != 'DECLINED':
+                return JsonResponse(
+                    {'success': False, 'message': 'Buyers can only cancel a pending pre-order.'},
+                    status=403,
+                )
+            previous = (po.status or '').upper()
+            if previous != 'PENDING':
+                return JsonResponse(
+                    {'success': False, 'message': 'Only pending pre-orders can be cancelled.'},
+                    status=400,
+                )
+            if not reason:
+                return JsonResponse(
+                    {'success': False, 'message': 'Cancellation reason is required.'},
+                    status=400,
+                )
 
-        po.status = 'DECLINED'
-        po.rejection_reason = 'Buyer request'
-        po.rejection_note = reason
-        po.save(update_fields=['status', 'rejection_reason', 'rejection_note', 'updated_at'])
+            po.status = 'DECLINED'
+            po.rejection_reason = 'Buyer request'
+            po.rejection_note = reason
+            po.save(update_fields=['status', 'rejection_reason', 'rejection_note', 'updated_at'])
+            release_preorder_quantity(po, previous)      # give the pre-order slots back
+
         return JsonResponse({'success': True, 'message': 'Pre-order cancelled.'})
 
     except json.JSONDecodeError:

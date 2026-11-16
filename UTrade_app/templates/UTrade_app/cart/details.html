@@ -56,15 +56,24 @@
 
               <div class="ct-card-body">
                 {% for item in seller.list %}
+                  {# label the pre-order block of this seller (regular items are listed first) #}
+                  {% if item.variant.product.pre_order %}
+                    {% ifchanged item.variant.product.pre_order %}
+                      <p class="ct-section-title mt-2"><i class="bi bi-calendar-event me-1" aria-hidden="true"></i>Pre-order items</p>
+                    {% endifchanged %}
+                  {% endif %}
+
                   <div class="ct-item cart-item-row"
                        id="cart-item-{{ item.id|unlocalize }}"
                        data-price="{{ item.variant.price|unlocalize }}"
                        data-quantity="{{ item.quantity|unlocalize }}"
                        data-name="{{ item.variant.product.name }}"
-                       data-variant="{{ item.variant.variant_name }}">
+                       data-variant="{{ item.variant.variant_name }}"
+                       data-preorder="{% if item.variant.product.pre_order %}1{% else %}0{% endif %}">
 
                     <div class="ct-check">
-                      <input type="checkbox" class="form-check-input item-checkbox" checked
+                      <input type="checkbox" class="form-check-input item-checkbox"
+                             {% if item.pre_block %}disabled{% else %}checked{% endif %}
                              value="{{ item.id|unlocalize }}"
                              data-item-seller="{{ seller.grouper|unlocalize }}"
                              aria-label="Select {{ item.variant.product.name }}" />
@@ -87,10 +96,22 @@
 
                       <div class="ct-chips">
                         <span class="ct-chip ct-chip--green">{{ item.variant.variant_name }}</span>
-                        {% if item.variant.attribute_value %}<span class="ct-chip">{{ item.variant.attribute_value }}</span>{% endif %}
+                        {% if item.size %}<span class="ct-chip">Size {{ item.size }}</span>{% endif %}
                         {% if item.variant.condition %}<span class="ct-chip">{{ item.variant.condition }}</span>{% endif %}
                         {% if item.variant.product.pre_order %}<span class="ct-chip ct-chip--warn">Pre-order</span>{% endif %}
                       </div>
+
+                      {% if item.variant.product.pre_order %}
+                        {% if item.variant.product.preorder_start or item.variant.product.preorder_end %}
+                          <div class="ct-meta">
+                            <i class="bi bi-calendar-event me-1" aria-hidden="true"></i>
+                            Pre-order period:
+                            {% if item.variant.product.preorder_start %}{{ item.variant.product.preorder_start|date:"M j, g:i A" }}{% endif %}
+                            –
+                            {% if item.variant.product.preorder_end %}{{ item.variant.product.preorder_end|date:"M j, g:i A" }}{% endif %}
+                          </div>
+                        {% endif %}
+                      {% endif %}
 
                       <div class="ct-meta">
                         <i class="bi bi-geo-alt-fill text-danger me-1" aria-hidden="true"></i>
@@ -111,6 +132,12 @@
                           Flaw: {{ item.variant.flaws_description|default:item.variant.flaws }}
                         </p>
                       {% endif %}
+                      {% if item.pre_block %}
+                        <p class="ct-flaw">
+                          <i class="bi bi-slash-circle-fill me-1" aria-hidden="true"></i>{{ item.pre_block }}
+                          Remove it or change the quantity to check out.
+                        </p>
+                      {% endif %}
                     </div>
 
                     <div class="ct-item-side">
@@ -122,7 +149,13 @@
                             <span>{{ item.quantity }}</span>
                             <button name="action" value="up" aria-label="Increase quantity"><i class="bi bi-plus"></i></button>
                           </div>
-                          {% if item.variant.stocks < 5 %}<span class="ct-stock-low">{{ item.variant.stocks }} left</span>{% endif %}
+                          {% if item.variant.product.pre_order %}
+                            {% if item.variant.preorder_limit is not None %}
+                              <span class="ct-stock-low">{{ item.variant.stocks }} slot{{ item.variant.stocks|pluralize }} left</span>
+                            {% endif %}
+                          {% elif item.variant.stocks < 5 %}
+                            <span class="ct-stock-low">{{ item.variant.stocks }} left</span>
+                          {% endif %}
                         </form>
                       </div>
                       <div>
@@ -185,7 +218,7 @@
             {% else %}
               <button class="btn btn-secondary w-100 ct-cta" disabled>Proceed to Checkout</button>
             {% endif %}
-            <p class="ct-note">Items from different sellers become separate orders.</p>
+            <p class="ct-note">Items from different sellers become separate orders. Pre-orders are sent to the seller when you place the order.</p>
           </div>
         </div>
       </div>

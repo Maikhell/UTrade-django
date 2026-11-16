@@ -41,6 +41,52 @@
       <form id="product_form" onsubmit="return false;" novalidate>
         {% csrf_token %}
 
+        {# ---------- Order type (choose this first) ---------- #}
+        <section class="ap-card">
+          <h2 class="ap-card-title">
+            <span class="ap-ico"><i class="bi bi-bag-check"></i></span>
+            Order type <span class="text-danger" aria-hidden="true">*</span>
+          </h2>
+          <p class="ap-hint">Choose how buyers will order this product.</p>
+
+          <select id="order_type" class="form-select" data-prev="REGULAR"
+                  onchange="handleOrderTypeChange(this)" aria-label="Order type">
+            <option value="REGULAR" selected>Regular Order</option>
+            <option value="PREORDER">Pre-Order</option>
+          </select>
+          <div class="form-text" id="order_type_hint">
+            Regular orders use your stock and follow the usual ordering process.
+          </div>
+        </section>
+
+        {# ---------- Pre-order availability (pre-order only) ---------- #}
+        <section class="ap-card d-none" id="preorder_window_section">
+          <h2 class="ap-card-title">
+            <span class="ap-ico"><i class="bi bi-calendar-event"></i></span>
+            Pre-order availability <span class="text-danger" aria-hidden="true">*</span>
+          </h2>
+          <p class="ap-hint">
+            Buyers can only add this product to their cart and check out during this period.
+          </p>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="preorder_start" class="form-label ap-label">
+                Pre-orders open <span class="text-danger" aria-hidden="true">*</span>
+              </label>
+              <input type="datetime-local" id="preorder_start" class="form-control" />
+            </div>
+            <div class="col-md-6">
+              <label for="preorder_end" class="form-label ap-label">
+                Pre-orders close <span class="text-danger" aria-hidden="true">*</span>
+              </label>
+              <input type="datetime-local" id="preorder_end" class="form-control" />
+            </div>
+          </div>
+          <div id="preorder_window_error" class="text-danger small mt-2 d-none"></div>
+          <div class="form-text">Times use your local time.</div>
+        </section>
+
         {# ---------- Cover ---------- #}
         <section class="ap-card">
           <h2 class="ap-card-title">
@@ -121,10 +167,16 @@
 
             <div class="col-sm-6">
               <label for="stocks" class="form-label ap-label">
-                Total stocks <span class="text-danger d-none" id="stock_required" aria-hidden="true">*</span>
+                <span id="stocks_label_text">Total stocks</span>
+                <span class="text-danger d-none" id="stock_required" aria-hidden="true">*</span>
               </label>
               <input type="number" id="stocks" class="form-control" min="0" readonly
                      placeholder="Calculated from variations" />
+              <div class="form-check mt-2 d-none" id="simple_nolimit_wrap">
+                <input class="form-check-input" type="checkbox" id="simple_no_limit"
+                       onchange="handleNoLimitChange('simple')">
+                <label class="form-check-label small" for="simple_no_limit">No limit</label>
+              </div>
               <div class="form-text" id="stock_hint">Calculated automatically from your variations.</div>
             </div>
 
@@ -146,7 +198,8 @@
             Product variations <span class="text-danger" aria-hidden="true">*</span>
           </h2>
           <p class="ap-hint">
-            Add at least one variation. Each one has its own sizes, image, price and stock.
+            Add at least one variation. Each one has its own sizes, image, price and
+            <span class="ap-stock-word">stock</span>.
             Use the pencil on a variation to edit it.
           </p>
 
@@ -233,10 +286,16 @@
               </div>
               <div class="col-6">
                 <label for="variant_stock" class="form-label ap-label">
-                  Stock <span class="text-danger" aria-hidden="true">*</span>
+                  <span id="variant_stock_label">Stock</span>
+                  <span class="text-danger" aria-hidden="true">*</span>
                 </label>
                 <input type="number" id="variant_stock" class="form-control" min="0"
                        inputmode="numeric" placeholder="0" />
+                <div class="form-check mt-2 d-none" id="variant_nolimit_wrap">
+                  <input class="form-check-input" type="checkbox" id="variant_no_limit"
+                         onchange="handleNoLimitChange('variant')">
+                  <label class="form-check-label small" for="variant_no_limit">No limit</label>
+                </div>
               </div>
             </div>
 
@@ -354,18 +413,6 @@
           <input type="hidden" id="owner_type" name="owner_type" value="PERSONAL" />
           {% endif %}
 
-          <div class="ap-option mb-3">
-            <div class="form-check form-switch mb-0">
-              <input type="checkbox" class="form-check-input" role="switch" id="is_pre_order" name="is_pre_order" />
-              <label class="form-check-label fw-bold" for="is_pre_order">
-                <i class="bi bi-clock-history me-1 text-success"></i> Mark as pre-order item
-              </label>
-            </div>
-            <div class="form-text mt-1">
-              Turn this on if items are made-to-order or fulfillment takes longer than usual.
-            </div>
-          </div>
-
           {# Only academic organization sellers get this (not Management, CSG or non-academic orgs) #}
           {% if private_course %}
           <div class="ap-option mb-3">
@@ -460,6 +507,7 @@
                   ₱{{ first_variant.price|default:'0' }}
                   {% endwith %}
                   {% if item.product_code %}· {{ item.product_code }}{% endif %}
+                  {% if item.pre_order %}· <i class="bi bi-calendar-event"></i> Pre-order{% endif %}
                   {% if item.audience == 'PRIVATE' %}· <i class="bi bi-lock-fill"></i> Private{% endif %}
                 </div>
               </div>

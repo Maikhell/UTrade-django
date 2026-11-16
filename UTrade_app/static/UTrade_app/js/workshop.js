@@ -6,7 +6,7 @@ if (typeof window.itemCount === "undefined") {
   window.itemCount = 0;
   window.selectedFiles = []; // the cover photo: [File] or []
   window.allStagedProducts = [];
-  window.productVariants = []; // { name, sizes[], price, stock, imageFile, imageUrl, keepFrom }
+  window.productVariants = []; // { name, sizes[], price, stock, noLimit, imageFile, imageUrl, keepFrom }
   window.PROHIBITED_WORDS = [];
   window.existingCover = null; // { id, url } while editing and the cover is unchanged
   window.editingStagedId = null;
@@ -28,9 +28,13 @@ var SIZE_PRESETS = [
   "Shoulder (cm)", "Sleeve (cm)", "Length (cm)", "Foot length (cm)",
 ];
 var SIZE_LIMITS = { rows: 20, cols: 8 };
-var EMPTY_VARIANT_FORM = JSON.stringify(["", "", "", [], ""]);
+var EMPTY_VARIANT_FORM = JSON.stringify(["", "", "", [], "", 0]);
 
 /* ===================== SMALL HELPERS ===================== */
+function byId(id) {
+  return document.getElementById(id);
+}
+
 function escapeHtml(value) {
   return String(value == null ? "" : value).replace(/[&<>"']/g, function (c) {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -81,6 +85,147 @@ async function loadProhibitedWords() {
 }
 loadProhibitedWords();
 
+/* ===================== ORDER TYPE (regular / pre-order) ===================== */
+function isPreOrderMode() {
+  var el = byId("order_type");
+  return !!el && el.value === "PREORDER";
+}
+
+/** Labels and fields that change between a regular product and a pre-order. */
+function syncStockLabel() {
+  var stocks = byId("stocks");
+  if (!stocks) return;
+  var req = byId("stock_required");
+  var hint = byId("stock_hint");
+  var label = byId("stocks_label_text");
+  var wrap = byId("simple_nolimit_wrap");
+  var box = byId("simple_no_limit");
+  var editable = !stocks.readOnly;
+  var pre = isPreOrderMode();
+
+  if (req) req.classList.toggle("d-none", !editable);
+  if (label) label.textContent = pre ? (editable ? "Pre-order limit" : "Total pre-order slots") : "Total stocks";
+  if (hint) {
+    hint.textContent = editable
+      ? pre
+        ? "The most pre-orders you will accept. Tick No limit to accept any number."
+        : "How many items you have in total."
+      : "Calculated automatically from your variations.";
+  }
+  if (wrap) wrap.classList.toggle("d-none", !(pre && editable));
+  if (!editable) {
+    stocks.disabled = false;
+    if (box) box.checked = false;
+  }
+  stocks.placeholder = editable ? (pre ? "e.g. 60" : "") : "Calculated from variations";
+}
+
+function applyOrderTypeUi() {
+  var pre = isPreOrderMode();
+
+  var windowCard = byId("preorder_window_section");
+  if (windowCard) windowCard.classList.toggle("d-none", !pre);
+
+  var hint = byId("order_type_hint");
+  if (hint) {
+    hint.textContent = pre
+      ? "Pre-orders are added to the buyer's cart and reach you only after checkout. Set a limit per variation and the period when buyers can pre-order."
+      : "Regular orders use your stock and follow the usual ordering process.";
+  }
+
+  var vLabel = byId("variant_stock_label");
+  if (vLabel) vLabel.textContent = pre ? "Pre-order limit" : "Stock";
+  var vInput = byId("variant_stock");
+  if (vInput) vInput.placeholder = pre ? "e.g. 60" : "0";
+  var vWrap = byId("variant_nolimit_wrap");
+  if (vWrap) vWrap.classList.toggle("d-none", !pre);
+  document.querySelectorAll(".ap-stock-word").forEach(function (el) {
+    el.textContent = pre ? "pre-order limit" : "stock";
+  });
+
+  if (!pre) {
+    // leaving pre-order mode: "No limit" doesn't exist for regular stock
+    var vBox = byId("variant_no_limit");
+    if (vBox) vBox.checked = false;
+    if (vInput) vInput.disabled = false;
+    var sBox = byId("simple_no_limit");
+    if (sBox) sBox.checked = false;
+    var stocks = byId("stocks");
+    if (stocks && !stocks.readOnly) stocks.disabled = false;
+  }
+
+  syncStockLabel();
+  renderVariantList();
+}
+
+async function handleOrderTypeChange(select) {
+  var previous = select.dataset.prev || "REGULAR";
+  var next = select.value;
+  if (next === previous) return;
+
+  if ((window.productVariants || []).length) {
+    var answer = await Swal.fire({
+      title: next === "PREORDER" ? "Switch to Pre-Order?" : "Switch to Regular Order?",
+      text:
+        next === "PREORDER"
+          ? "The stock number of each variation becomes its pre-order limit."
+          : 'Variations set to "No limit" will need a stock number again.',
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#198754",
+      confirmButtonText: "Switch",
+      cancelButtonText: "Keep current",
+    });
+    if (!answer.isConfirmed) {
+      select.value = previous;
+      return;
+    }
+    if (next === "REGULAR") {
+      window.productVariants.forEach(function (v) {
+        if (v.noLimit) {
+          v.noLimit = false;
+          v.stock = 0;
+        }
+      });
+    }
+  }
+
+  select.dataset.prev = next;
+  applyOrderTypeUi();
+}
+
+function handleNoLimitChange(which) {
+  var box = byId(which === "simple" ? "simple_no_limit" : "variant_no_limit");
+  var input = byId(which === "simple" ? "stocks" : "variant_stock");
+  if (!box || !input) return;
+  input.disabled = box.checked;
+  if (box.checked) {
+    input.value = "";
+    input.classList.remove("is-invalid");
+  }
+}
+
+function showPreorderWindowError(text) {
+  var el = byId("preorder_window_error");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("d-none", !text);
+}
+
+/** Returns an error message, or "" when the pre-order period is valid. */
+function validatePreorderWindow() {
+  var start = byId("preorder_start");
+  var end = byId("preorder_end");
+  if (!start || !end) return "";
+  if (!start.value || !end.value) return "Set when pre-orders open and when they close.";
+  var s = new Date(start.value);
+  var e = new Date(end.value);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return "Enter valid dates.";
+  if (e <= s) return "The pre-order end must be later than the start.";
+  if (e <= new Date()) return "The pre-order end must be in the future.";
+  return "";
+}
+
 /* ===================== PRODUCT COVER (one photo) ===================== */
 function coverEmptyHtml() {
   return (
@@ -90,7 +235,7 @@ function coverEmptyHtml() {
 }
 
 function renderCover(src) {
-  var container = document.getElementById("image_preview_container");
+  var container = byId("image_preview_container");
   if (!container) return;
   container.innerHTML =
     '<div class="preview-wrapper">' +
@@ -121,15 +266,15 @@ function previewCover(event) {
 function removeCover() {
   window.selectedFiles = [];
   window.existingCover = null;
-  var input = document.getElementById("image_input");
+  var input = byId("image_input");
   if (input) input.value = "";
-  var container = document.getElementById("image_preview_container");
+  var container = byId("image_preview_container");
   if (container) container.innerHTML = coverEmptyHtml();
 }
 
 /* ===================== AVAILABLE SIZES (chips) ===================== */
 function renderSizeChips() {
-  var box = document.getElementById("variant_sizes_chips");
+  var box = byId("variant_sizes_chips");
   if (!box) return;
   box.innerHTML = window.currentSizes
     .map(function (size, i) {
@@ -158,7 +303,7 @@ function removeSizeChip(index) {
 }
 
 function commitSizeInput() {
-  var input = document.getElementById("variant_size_input");
+  var input = byId("variant_size_input");
   if (!input) return;
   if (input.value.trim()) addSizeChip(input.value);
   input.value = "";
@@ -176,18 +321,18 @@ function handleSizeKey(event) {
 
 /* ===================== VARIANT IMAGE ===================== */
 function resetVariantImageUi() {
-  var input = document.getElementById("variant_image_input");
+  var input = byId("variant_image_input");
   if (input) input.value = "";
-  var preview = document.getElementById("variant_image_preview");
+  var preview = byId("variant_image_preview");
   if (preview) preview.innerHTML = '<i class="bi bi-image"></i>';
-  var clear = document.getElementById("variant_image_clear");
+  var clear = byId("variant_image_clear");
   if (clear) clear.classList.add("d-none");
 }
 
 function showVariantImagePreview(src) {
-  var preview = document.getElementById("variant_image_preview");
+  var preview = byId("variant_image_preview");
   if (preview) preview.innerHTML = '<img src="' + escapeHtml(src) + '" alt="">';
-  var clear = document.getElementById("variant_image_clear");
+  var clear = byId("variant_image_clear");
   if (clear) clear.classList.remove("d-none");
 }
 
@@ -215,9 +360,14 @@ function previewVariantImage(event) {
 }
 
 /* ===================== VARIANTS ===================== */
+function variantNoLimitChecked() {
+  var box = byId("variant_no_limit");
+  return !!(box && box.checked);
+}
+
 function variantFormSnapshot() {
   function val(id) {
-    var el = document.getElementById(id);
+    var el = byId(id);
     return el ? el.value.trim() : "";
   }
   var sizes = window.currentSizes.concat(splitSizes(val("variant_size_input")));
@@ -226,7 +376,10 @@ function variantFormSnapshot() {
     : window.variantImageKeep
       ? "keep:" + window.variantImageKeep.keepFrom
       : "";
-  return JSON.stringify([val("variant_name"), val("variant_price"), val("variant_stock"), sizes, image]);
+  return JSON.stringify([
+    val("variant_name"), val("variant_price"), val("variant_stock"), sizes, image,
+    variantNoLimitChecked() ? 1 : 0,
+  ]);
 }
 
 function variantSnapshot(v) {
@@ -235,7 +388,10 @@ function variantSnapshot(v) {
     : v.keepFrom
       ? "keep:" + v.keepFrom
       : "";
-  return JSON.stringify([v.name, String(v.price), String(v.stock), v.sizes || [], image]);
+  return JSON.stringify([
+    v.name, String(v.price), v.noLimit ? "" : String(v.stock), v.sizes || [], image,
+    v.noLimit ? 1 : 0,
+  ]);
 }
 
 /** True when the variation form holds changes that haven't been saved/added yet. */
@@ -250,11 +406,11 @@ function isVariantFormDirty() {
 
 function setVariantFormMode(variantName) {
   var editing = variantName != null;
-  var note = document.getElementById("variant_editing_note");
-  var noteName = document.getElementById("variant_editing_name");
-  var cancel = document.getElementById("variant_cancel_btn");
-  var label = document.getElementById("variant_submit_label");
-  var icon = document.getElementById("variant_submit_icon");
+  var note = byId("variant_editing_note");
+  var noteName = byId("variant_editing_name");
+  var cancel = byId("variant_cancel_btn");
+  var label = byId("variant_submit_label");
+  var icon = byId("variant_submit_icon");
   if (note) note.classList.toggle("d-none", !editing);
   if (noteName) noteName.textContent = editing ? variantName : "";
   if (cancel) cancel.classList.toggle("d-none", !editing);
@@ -265,12 +421,16 @@ function setVariantFormMode(variantName) {
 function resetVariantForm() {
   window.editingVariantIndex = null;
   ["variant_name", "variant_price", "variant_stock", "variant_size_input"].forEach(function (id) {
-    var el = document.getElementById(id);
+    var el = byId(id);
     if (el) {
       el.value = "";
       el.classList.remove("is-invalid");
     }
   });
+  var stock = byId("variant_stock");
+  if (stock) stock.disabled = false;
+  var box = byId("variant_no_limit");
+  if (box) box.checked = false;
   window.currentSizes = [];
   renderSizeChips();
   clearVariantImage();
@@ -278,9 +438,10 @@ function resetVariantForm() {
 }
 
 function renderVariantList() {
-  var list = document.getElementById("variant_list");
+  var list = byId("variant_list");
   if (!list) return;
   list.innerHTML = "";
+  var pre = isPreOrderMode();
 
   (window.productVariants || []).forEach(function (variant, index) {
     var div = document.createElement("div");
@@ -299,13 +460,17 @@ function renderVariantList() {
       })
       .join("");
 
+    var stockText = pre
+      ? variant.noLimit ? "No limit" : "Limit: " + variant.stock
+      : "Stock: " + variant.stock;
+
     div.innerHTML =
       thumb +
       '<div class="flex-grow-1 ap-vinfo">' +
       '<div class="small fw-bold text-dark">' + escapeHtml(variant.name) + "</div>" +
       (sizes ? '<div class="ap-vsizes">' + sizes + "</div>" : "") +
       '<div class="text-muted" style="font-size:0.75rem;">₱' +
-      Number(variant.price).toFixed(2) + " | Stock: " + variant.stock + "</div>" +
+      Number(variant.price).toFixed(2) + " | " + stockText + "</div>" +
       "</div>" +
       '<button type="button" class="btn btn-sm text-success p-1 me-1" ' +
       'aria-label="Edit ' + escapeHtml(variant.name) + '" onclick="editVariant(' + index + ')">' +
@@ -321,14 +486,22 @@ function renderVariantList() {
 function addVariant() {
   commitSizeInput(); // include a size that was typed but not confirmed yet
 
-  var nameInput = document.getElementById("variant_name");
-  var priceInput = document.getElementById("variant_price");
-  var stockInput = document.getElementById("variant_stock");
+  var nameInput = byId("variant_name");
+  var priceInput = byId("variant_price");
+  var stockInput = byId("variant_stock");
   if (!nameInput || !priceInput || !stockInput) return;
 
+  var pre = isPreOrderMode();
+  var noLimit = pre && variantNoLimitChecked();
+  var stockWord = pre ? "Pre-order limit" : "Stock";
+
   var name = nameInput.value.trim();
-  if (!name || stockInput.value === "") {
-    Swal.fire("Missing Info", "Please provide a Variation Name and Stock.", "warning");
+  if (!name || (!noLimit && stockInput.value === "")) {
+    Swal.fire(
+      "Missing Info",
+      "Please provide a Variation Name and " + (pre ? "a Pre-order limit (or choose No limit)." : "Stock."),
+      "warning",
+    );
     return;
   }
 
@@ -340,11 +513,19 @@ function addVariant() {
     return;
   }
 
-  var stock = parseInt(stockInput.value, 10);
-  if (Number.isNaN(stock) || stock < 0) {
-    stockInput.classList.add("is-invalid");
-    Swal.fire("Invalid Stock", "Stock must be 0 or more.", "warning");
-    return;
+  var stock = 0;
+  if (!noLimit) {
+    stock = parseInt(stockInput.value, 10);
+    if (Number.isNaN(stock) || stock < 0) {
+      stockInput.classList.add("is-invalid");
+      Swal.fire("Invalid " + stockWord, stockWord + " must be 0 or more.", "warning");
+      return;
+    }
+    if (pre && stock < 1) {
+      stockInput.classList.add("is-invalid");
+      Swal.fire("Invalid Limit", "The pre-order limit must be at least 1, or choose No limit.", "warning");
+      return;
+    }
   }
 
   var editIndex = window.editingVariantIndex;
@@ -386,6 +567,7 @@ function addVariant() {
     sizes: sizes,
     price: price,
     stock: stock,
+    noLimit: noLimit,
     imageFile: imageFile,
     imageUrl: imageUrl,
     keepFrom: keepFrom,
@@ -433,16 +615,21 @@ async function editVariant(index) {
 
   window.editingVariantIndex = index;
 
-  var nameEl = document.getElementById("variant_name");
-  var priceEl = document.getElementById("variant_price");
-  var stockEl = document.getElementById("variant_stock");
-  var sizeInput = document.getElementById("variant_size_input");
+  var nameEl = byId("variant_name");
+  var priceEl = byId("variant_price");
+  var stockEl = byId("variant_stock");
+  var sizeInput = byId("variant_size_input");
+  var limitBox = byId("variant_no_limit");
   [nameEl, priceEl, stockEl].forEach(function (el) {
     if (el) el.classList.remove("is-invalid");
   });
   if (nameEl) nameEl.value = variant.name;
   if (priceEl) priceEl.value = variant.price;
-  if (stockEl) stockEl.value = variant.stock;
+  if (limitBox) limitBox.checked = !!variant.noLimit;
+  if (stockEl) {
+    stockEl.value = variant.noLimit ? "" : variant.stock;
+    stockEl.disabled = !!variant.noLimit;
+  }
   if (sizeInput) sizeInput.value = "";
 
   window.currentSizes = (variant.sizes || []).slice();
@@ -486,18 +673,24 @@ function removeVariant(index) {
 }
 
 function updateTotalStock() {
-  var stocksEl = document.getElementById("stocks");
+  var stocksEl = byId("stocks");
   if (!stocksEl) return;
-  var total = (window.productVariants || []).reduce(function (sum, v) {
+  var vs = window.productVariants || [];
+  if (isPreOrderMode() && vs.some(function (v) { return v.noLimit; })) {
+    stocksEl.value = "";
+    if (stocksEl.readOnly) stocksEl.placeholder = "No limit";
+    return;
+  }
+  var total = vs.reduce(function (sum, v) {
     return sum + (v.stock || 0);
   }, 0);
   stocksEl.value = total;
 }
 
 function forceVariationMode() {
-  var attr = document.getElementById("attributes_section");
-  var simple = document.getElementById("simple_price_section");
-  var stocks = document.getElementById("stocks");
+  var attr = byId("attributes_section");
+  var simple = byId("simple_price_section");
+  var stocks = byId("stocks");
   if (attr) attr.classList.remove("d-none");
   if (simple) simple.classList.add("d-none");
   if (stocks) stocks.readOnly = true;
@@ -517,7 +710,7 @@ function cloneChart(chart) {
 }
 
 function setSizeMsg(text) {
-  var el = document.getElementById("size_table_msg");
+  var el = byId("size_table_msg");
   if (!el) return;
   if (!text) {
     el.classList.add("d-none");
@@ -596,7 +789,7 @@ function togglePresetColumn(presetIndex) {
 }
 
 function addCustomColumn() {
-  var input = document.getElementById("size_custom_column");
+  var input = byId("size_custom_column");
   if (!input) return;
   setSizeMsg("");
   if (addColumn(input.value)) input.value = "";
@@ -604,7 +797,7 @@ function addCustomColumn() {
 }
 
 function addSizeRow() {
-  var input = document.getElementById("size_new_row");
+  var input = byId("size_new_row");
   if (!input) return;
   setSizeMsg("");
   input.value.split(",").forEach(function (s) { pushDraftRow(s); });
@@ -629,7 +822,7 @@ function onSizeCellInput(rowIndex, colIndex, value) {
 function renderSizeTable() {
   var d = window.sizeDraft;
 
-  var presets = document.getElementById("size_presets");
+  var presets = byId("size_presets");
   if (presets) {
     presets.innerHTML = SIZE_PRESETS.map(function (name, i) {
       var active = d.columns.some(function (c) { return c.toLowerCase() === name.toLowerCase(); });
@@ -642,7 +835,7 @@ function renderSizeTable() {
     }).join("");
   }
 
-  var host = document.getElementById("size_table_host");
+  var host = byId("size_table_host");
   if (!host) return;
 
   if (!d.columns.length) {
@@ -691,8 +884,8 @@ function renderSizeTable() {
 }
 
 function updateSizeSummary() {
-  var box = document.getElementById("size_table_summary");
-  var text = document.getElementById("size_table_summary_text");
+  var box = byId("size_table_summary");
+  var text = byId("size_table_summary_text");
   if (!box || !text) return;
   var chart = window.sizeChart;
   if (!chart) {
@@ -733,7 +926,7 @@ function saveSizeTable() {
   }
 
   updateSizeSummary();
-  var modalEl = document.getElementById("sizeTableModal");
+  var modalEl = byId("sizeTableModal");
   var instance = modalEl && window.bootstrap ? bootstrap.Modal.getInstance(modalEl) : null;
   if (instance) instance.hide();
 }
@@ -768,7 +961,7 @@ function timeToMinutes(timeStr) {
 }
 
 function setFieldError(inputEl, errorId, message) {
-  const errorEl = document.getElementById(errorId);
+  const errorEl = byId(errorId);
   if (inputEl) inputEl.classList.add("is-invalid");
   if (errorEl) {
     errorEl.textContent = message || "";
@@ -778,7 +971,7 @@ function setFieldError(inputEl, errorId, message) {
 }
 
 function clearFieldError(inputEl, errorId) {
-  const errorEl = document.getElementById(errorId);
+  const errorEl = byId(errorId);
   if (inputEl) inputEl.classList.remove("is-invalid");
   if (errorEl) {
     errorEl.textContent = "";
@@ -789,7 +982,7 @@ function clearFieldError(inputEl, errorId) {
 
 function validateMeetupDays(showErrors = true) {
   const days = getSelectedMeetupDays();
-  const errorEl = document.getElementById("days_error");
+  const errorEl = byId("days_error");
   if (days.length === 0) {
     if (showErrors && errorEl) {
       errorEl.textContent = "Please select at least one day (Mon–Sat).";
@@ -807,8 +1000,8 @@ function validateMeetupDays(showErrors = true) {
 }
 
 function validateMeetupTimeRange(showErrors = true) {
-  const fromInput = document.getElementById("meetup_time_from");
-  const toInput = document.getElementById("meetup_time_to");
+  const fromInput = byId("meetup_time_from");
+  const toInput = byId("meetup_time_to");
   if (!fromInput || !toInput) {
     if (showErrors) {
       Swal.fire("Form Error", "Time inputs are missing in the page HTML.", "error");
@@ -821,7 +1014,7 @@ function validateMeetupTimeRange(showErrors = true) {
 
   clearFieldError(fromInput, "from_time_error");
   clearFieldError(toInput, "to_time_error");
-  const rangeError = document.getElementById("time_range_error");
+  const rangeError = byId("time_range_error");
   if (rangeError) {
     rangeError.textContent = "";
     rangeError.classList.add("d-none");
@@ -884,14 +1077,14 @@ function validateMeetupTimeRange(showErrors = true) {
 
 /* ===================== PRODUCT CODE HELPERS ===================== */
 function getProductCodeValue() {
-  const el = document.getElementById("product_code");
+  const el = byId("product_code");
   return el ? (el.value || "").trim() : "";
 }
 
 function setProductCodeValue(code) {
-  const el = document.getElementById("product_code");
+  const el = byId("product_code");
   if (el && code) el.value = code;
-  const hidden = document.getElementById("product_code_hidden");
+  const hidden = byId("product_code_hidden");
   if (hidden && code) hidden.value = code;
 }
 
@@ -907,19 +1100,19 @@ async function refreshNextProductCode() {
 
 /* ===================== RESET / EDIT STATE ===================== */
 function showEditingBanner(name) {
-  var banner = document.getElementById("editing_banner");
-  var label = document.getElementById("editing_name");
+  var banner = byId("editing_banner");
+  var label = byId("editing_name");
   if (label) label.textContent = name || "this item";
   if (banner) banner.classList.remove("d-none");
 }
 
 function hideEditingBanner() {
-  var banner = document.getElementById("editing_banner");
+  var banner = byId("editing_banner");
   if (banner) banner.classList.add("d-none");
 }
 
 function resetProductFormState() {
-  var form = document.getElementById("product_form");
+  var form = byId("product_form");
   if (form) form.reset();
 
   window.selectedFiles = [];
@@ -930,10 +1123,16 @@ function resetProductFormState() {
 
   document.querySelectorAll(".meetup-day").forEach(function (cb) { cb.checked = false; });
 
-  var preview = document.getElementById("image_preview_container");
+  var preview = byId("image_preview_container");
   if (preview) preview.innerHTML = coverEmptyHtml();
-  var variantList = document.getElementById("variant_list");
+  var variantList = byId("variant_list");
   if (variantList) variantList.innerHTML = "";
+
+  var stocks = byId("stocks");
+  if (stocks) stocks.disabled = false;
+  var orderSel = byId("order_type");
+  if (orderSel) orderSel.dataset.prev = orderSel.value;
+  showPreorderWindowError("");
 
   resetVariantForm();
   updateSizeSummary();
@@ -942,11 +1141,12 @@ function resetProductFormState() {
     el.classList.remove("is-editing");
   });
 
-  var categoryEl = document.getElementById("category");
+  var categoryEl = byId("category");
   if (categoryEl) {
     categoryEl.value = "";
     if (typeof handleCategoryChange === "function") handleCategoryChange(categoryEl);
   }
+  applyOrderTypeUi();
 }
 
 function cancelEdit() {
@@ -956,24 +1156,23 @@ function cancelEdit() {
 
 /* ===================== ADD TO STAGING ===================== */
 async function addToStaging() {
-  const nameEl = document.getElementById("name");
-  const priceEl = document.getElementById("price");
-  const stocksEl = document.getElementById("stocks");
-  const descEl = document.getElementById("description");
-  const categoryEl = document.getElementById("category");
-  const preOrderElement = document.getElementById("is_pre_order");
-  const locationInput = document.getElementById("location_input");
-  const fromInput = document.getElementById("meetup_time_from");
-  const toInput = document.getElementById("meetup_time_to");
-  const ownerTypeEl = document.getElementById("owner_type");
-  const attributesSection = document.getElementById("attributes_section");
+  const nameEl = byId("name");
+  const priceEl = byId("price");
+  const stocksEl = byId("stocks");
+  const descEl = byId("description");
+  const categoryEl = byId("category");
+  const locationInput = byId("location_input");
+  const fromInput = byId("meetup_time_from");
+  const toInput = byId("meetup_time_to");
+  const ownerTypeEl = byId("owner_type");
+  const attributesSection = byId("attributes_section");
 
   const isVariantMode =
     attributesSection && !attributesSection.classList.contains("d-none");
-  const isPreOrder = !!(preOrderElement && preOrderElement.checked);
+  const isPreOrder = isPreOrderMode();
 
   // Only academic organization sellers have this switch (it isn't on the page for anyone else)
-  const privateEl = document.getElementById("is_private");
+  const privateEl = byId("is_private");
   const isPrivate = !!(privateEl && privateEl.checked);
 
   // A half-finished variation edit would be lost silently, so ask for it to be saved first
@@ -988,6 +1187,16 @@ async function addToStaging() {
   [nameEl, priceEl, stocksEl, locationInput, fromInput, toInput].forEach(
     (el) => el && el.classList.remove("is-invalid"),
   );
+
+  // Pre-order period
+  if (isPreOrder) {
+    const windowError = validatePreorderWindow();
+    showPreorderWindowError(windowError);
+    if (windowError) {
+      byId("preorder_window_section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return Swal.fire("Pre-order Period", windowError, "warning");
+    }
+  }
 
   // Approval letter (officers only)
   if (typeof validateApprovalLetter === "function" && !validateApprovalLetter()) {
@@ -1049,28 +1258,48 @@ async function addToStaging() {
   }
 
   // ---------- variations (or a single "Standard" variation for simple items) ----------
-  let variants, finalPrice, finalStocks;
+  let variants, finalPrice, finalLimitText;
   if (isVariantMode) {
     if (!window.productVariants || window.productVariants.length === 0) {
       return Swal.fire("Variations Required", "Please add at least one variation.", "warning");
     }
     variants = window.productVariants;
     finalPrice = variants[0].price;
-    finalStocks = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+    const anyNoLimit = isPreOrder && variants.some((v) => v.noLimit);
+    const sum = variants.reduce((total, v) => total + (v.stock || 0), 0);
+    finalLimitText = isPreOrder
+      ? anyNoLimit ? "Pre-order: no limit" : `Pre-order limit: ${sum}`
+      : `Stock: ${sum}`;
   } else {
     const price = parseFloat(priceEl && priceEl.value);
-    const stock = parseInt(stocksEl && stocksEl.value, 10);
+    const simpleNoLimit = isPreOrder && !!(byId("simple_no_limit") && byId("simple_no_limit").checked);
+    const stock = simpleNoLimit ? 0 : parseInt(stocksEl && stocksEl.value, 10);
     if (!(price > 0)) {
       if (priceEl) { priceEl.classList.add("is-invalid"); priceEl.focus(); }
       return Swal.fire("Price Required", "Please enter a price greater than 0.", "warning");
     }
-    if (Number.isNaN(stock) || stock < 0) {
+    if (!simpleNoLimit && (Number.isNaN(stock) || stock < 0)) {
       if (stocksEl) { stocksEl.classList.add("is-invalid"); stocksEl.focus(); }
-      return Swal.fire("Stock Required", "Please enter how many items are available.", "warning");
+      return Swal.fire(
+        isPreOrder ? "Pre-order Limit Required" : "Stock Required",
+        isPreOrder
+          ? "Enter the most pre-orders you will accept, or choose No limit."
+          : "Please enter how many items are available.",
+        "warning",
+      );
     }
-    variants = [{ name: "Standard", sizes: [], price: price, stock: stock, imageFile: null, keepFrom: null }];
+    if (isPreOrder && !simpleNoLimit && stock < 1) {
+      if (stocksEl) { stocksEl.classList.add("is-invalid"); stocksEl.focus(); }
+      return Swal.fire("Invalid Limit", "The pre-order limit must be at least 1, or choose No limit.", "warning");
+    }
+    variants = [{
+      name: "Standard", sizes: [], price: price, stock: stock, noLimit: simpleNoLimit,
+      imageFile: null, keepFrom: null,
+    }];
     finalPrice = price;
-    finalStocks = stock;
+    finalLimitText = isPreOrder
+      ? simpleNoLimit ? "Pre-order: no limit" : `Pre-order limit: ${stock}`
+      : `Stock: ${stock}`;
   }
 
   // ---------- cover photo ----------
@@ -1098,7 +1327,12 @@ async function addToStaging() {
   formData.append("meetup_time_from", fromInput.value);
   formData.append("meetup_time_to", toInput.value);
   formData.append("owner_type", ownerTypeEl?.value || "PERSONAL");
+  formData.append("order_type", isPreOrder ? "PREORDER" : "REGULAR");
   formData.append("pre_order", isPreOrder ? "True" : "False");
+  if (isPreOrder) {
+    formData.append("preorder_start", byId("preorder_start").value);
+    formData.append("preorder_end", byId("preorder_end").value);
+  }
   if (privateEl) formData.append("audience", isPrivate ? "PRIVATE" : "GENERAL");
 
   const paymentEl = document.querySelector('input[name="payment"]:checked');
@@ -1112,6 +1346,7 @@ async function addToStaging() {
         sizes: v.sizes || [],
         price: v.price,
         stock: v.stock,
+        noLimit: !!v.noLimit,
         keepFrom: v.keepFrom || null,
       })),
     ),
@@ -1130,7 +1365,7 @@ async function addToStaging() {
   if (window.editingStagedId) formData.append("editing_id", window.editingStagedId);
 
   // Approval letter
-  const approvalInput = document.getElementById("approval_letter");
+  const approvalInput = byId("approval_letter");
   if (approvalInput && approvalInput.files && approvalInput.files[0]) {
     formData.append("approval_letter", approvalInput.files[0]);
   }
@@ -1207,7 +1442,7 @@ async function addToStaging() {
             </div>
             <div class="mt-1">
               <span class="badge bg-success-subtle text-success small">₱${Number(finalPrice).toFixed(2)}</span>
-              <span class="text-muted small ms-1">Stock: ${finalStocks}${variantLabel}</span>
+              <span class="text-muted small ms-1">${escapeHtml(finalLimitText)}${variantLabel}</span>
               ${isPreOrder ? `<span class="badge bg-primary-subtle text-primary small ms-1">Pre-order</span>` : ""}
               ${isPrivate ? `<span class="badge bg-warning-subtle text-warning-emphasis small ms-1"><i class="bi bi-lock-fill"></i> Private</span>` : ""}
             </div>
@@ -1229,13 +1464,13 @@ async function addToStaging() {
       if (oldCard) oldCard.remove();
     }
 
-    const stagingArea = document.getElementById("staging_area");
+    const stagingArea = byId("staging_area");
     if (stagingArea) {
       if (stagingArea.querySelector(".empty-msg")) stagingArea.innerHTML = "";
       stagingArea.insertAdjacentHTML("afterbegin", itemCard);
     }
 
-    const countEl = document.getElementById("item_count");
+    const countEl = byId("item_count");
     if (countEl) countEl.innerText = document.querySelectorAll(".staged-item").length;
 
     // Reset the form
@@ -1270,14 +1505,26 @@ async function editItem(stagedId) {
     resetProductFormState();
     window.editingStagedId = stagedId;
 
-    const nameEl = document.getElementById("name");
-    const descEl = document.getElementById("description");
+    // Order type and pre-order period first: they change the labels of the fields below
+    const orderSel = byId("order_type");
+    if (orderSel) {
+      orderSel.value = data.pre_order ? "PREORDER" : "REGULAR";
+      orderSel.dataset.prev = orderSel.value;
+    }
+    applyOrderTypeUi();
+    if (data.pre_order) {
+      byId("preorder_start").value = data.preorder_start || "";
+      byId("preorder_end").value = data.preorder_end || "";
+    }
+
+    const nameEl = byId("name");
+    const descEl = byId("description");
     if (nameEl) nameEl.value = data.name || "";
     if (descEl) descEl.value = data.description || "";
 
     if (data.product_code) setProductCodeValue(data.product_code);
 
-    const categorySelect = document.getElementById("category");
+    const categorySelect = byId("category");
     if (categorySelect && data.category) {
       categorySelect.value = data.category;
       if (typeof handleCategoryChange === "function") {
@@ -1285,7 +1532,7 @@ async function editItem(stagedId) {
       }
     }
 
-    const locationInput = document.getElementById("location_input");
+    const locationInput = byId("location_input");
     if (locationInput) locationInput.value = data.locations || "";
 
     const days = (data.available_days || "")
@@ -1296,15 +1543,12 @@ async function editItem(stagedId) {
       cb.checked = days.includes(cb.value);
     });
 
-    const fromInput = document.getElementById("meetup_time_from");
-    const toInput = document.getElementById("meetup_time_to");
+    const fromInput = byId("meetup_time_from");
+    const toInput = byId("meetup_time_to");
     if (fromInput && data.meetup_time_from) fromInput.value = String(data.meetup_time_from).slice(0, 5);
     if (toInput && data.meetup_time_to) toInput.value = String(data.meetup_time_to).slice(0, 5);
 
-    const preOrderEl = document.getElementById("is_pre_order");
-    if (preOrderEl) preOrderEl.checked = !!data.pre_order;
-
-    const privateEl = document.getElementById("is_private");
+    const privateEl = byId("is_private");
     if (privateEl) privateEl.checked = data.audience === "PRIVATE";
 
     // ---------- cover ----------
@@ -1321,6 +1565,7 @@ async function editItem(stagedId) {
       sizes: splitSizes(v.attribute_value),
       price: Number(v.price),
       stock: Number(v.stocks),
+      noLimit: !!v.no_limit,
       imageFile: null,
       imageUrl: v.image_url || null,
       keepFrom: v.id,
@@ -1332,8 +1577,13 @@ async function editItem(stagedId) {
     if (needsVariations) {
       forceVariationMode();
     } else if (vs.length === 1) {
-      const priceEl = document.getElementById("price");
+      const priceEl = byId("price");
       if (priceEl) priceEl.value = vs[0].price;
+      const simpleBox = byId("simple_no_limit");
+      if (simpleBox && data.pre_order) {
+        simpleBox.checked = !!vs[0].noLimit;
+        handleNoLimitChange("simple");
+      }
     }
 
     // ---------- size table ----------
@@ -1345,7 +1595,7 @@ async function editItem(stagedId) {
     const card = document.querySelector(`.staged-item[data-id="${stagedId}"]`);
     if (card) card.classList.add("is-editing");
 
-    document.getElementById("editing_banner")?.scrollIntoView({
+    byId("editing_banner")?.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
@@ -1360,7 +1610,7 @@ function validateProhibitedInput(element) {
   if (!element) return false;
   const text = element.value || "";
   const matchedWord = getFoundProhibitedWord(text);
-  const errorDiv = document.getElementById(`${element.id}_prohibited_error`);
+  const errorDiv = byId(`${element.id}_prohibited_error`);
 
   if (matchedWord) {
     element.classList.add("is-invalid");
@@ -1455,7 +1705,7 @@ async function submitToAdmin() {
   formData.append("total_products", stagedCount);
 
   // Only send a new file if the user just selected one; otherwise backend uses the one already on file
-  const approvalInput = document.getElementById("approval_letter");
+  const approvalInput = byId("approval_letter");
   if (approvalInput && approvalInput.files && approvalInput.files[0]) {
     formData.append("approval_letter", approvalInput.files[0]);
   }
@@ -1523,10 +1773,10 @@ async function removeItem(btn, productId) {
   // Optimistic UI
   if (card) card.remove();
   const remaining = document.querySelectorAll(".staged-item").length;
-  const countEl = document.getElementById("item_count");
+  const countEl = byId("item_count");
   if (countEl) countEl.innerText = remaining;
   if (remaining === 0) {
-    const stagingArea = document.getElementById("staging_area");
+    const stagingArea = byId("staging_area");
     if (stagingArea) {
       stagingArea.innerHTML =
         '<div class="text-center py-5 text-muted small empty-msg">List is empty.</div>';
@@ -1556,7 +1806,7 @@ async function removeItem(btn, productId) {
 /* ===================== CATEGORY CHANGE ===================== */
 function handleCategoryChange(selectElement) {
   if (!selectElement || selectElement.selectedIndex === -1) {
-    const attrSection = document.getElementById("attributes_section");
+    const attrSection = byId("attributes_section");
     if (attrSection) attrSection.classList.add("d-none");
     return;
   }
@@ -1565,12 +1815,12 @@ function handleCategoryChange(selectElement) {
   const selectedValue = selectElement.value;
   const selectedText = selectedOption.text.trim();
 
-  const attrSection = document.getElementById("attributes_section");
-  const simplePriceSection = document.getElementById("simple_price_section");
-  const suggestionContainer = document.getElementById("size_suggestions_container");
-  const suggestionButtons = document.getElementById("suggestion_buttons");
-  const stocksInput = document.getElementById("stocks");
-  const noAttributesNote = document.getElementById("no_attributes_note");
+  const attrSection = byId("attributes_section");
+  const simplePriceSection = byId("simple_price_section");
+  const suggestionContainer = byId("size_suggestions_container");
+  const suggestionButtons = byId("suggestion_buttons");
+  const stocksInput = byId("stocks");
+  const noAttributesNote = byId("no_attributes_note");
 
   if (attrSection) attrSection.classList.add("d-none");
   if (suggestionContainer) suggestionContainer.classList.add("d-none");
@@ -1605,7 +1855,7 @@ function handleCategoryChange(selectElement) {
             // A suggestion adds a size chip to the variation being built
             btn.onclick = function () {
               addSizeChip(attr.value);
-              const sizeInput = document.getElementById("variant_size_input");
+              const sizeInput = byId("variant_size_input");
               if (sizeInput) sizeInput.focus();
             };
 
@@ -1639,8 +1889,8 @@ function handleCategoryChange(selectElement) {
 /* ===================== APPROVAL LETTER ===================== */
 function previewApprovalLetter(event) {
   const file = event.target.files[0];
-  const preview = document.getElementById("approval_preview");
-  const errorEl = document.getElementById("approval_letter_error");
+  const preview = byId("approval_preview");
+  const errorEl = byId("approval_letter_error");
   if (!preview || !errorEl) return;
 
   preview.innerHTML = "";
@@ -1682,13 +1932,13 @@ function previewApprovalLetter(event) {
 }
 
 function validateApprovalLetter() {
-  const section = document.getElementById("approval_letter_section");
+  const section = byId("approval_letter_section");
   if (!section) return true; // management / personal → skip
 
   // Already uploaded in this session OR was present on page load
   if (window.approvalLetterOnFile) return true;
 
-  const input = document.getElementById("approval_letter");
+  const input = byId("approval_letter");
   const hasFile = input && input.files && input.files.length > 0;
   const hasExistingImg = !!document.querySelector(
     '#approval_letter_section img[alt="Current Approval Letter"]',
@@ -1698,7 +1948,7 @@ function validateApprovalLetter() {
     return true;
   }
 
-  const err = document.getElementById("approval_letter_error");
+  const err = byId("approval_letter_error");
   if (err) {
     err.textContent = "Letter of Approval is required.";
     err.classList.remove("d-none");
@@ -1713,10 +1963,10 @@ function validateApprovalLetter() {
 function markApprovalLetterOnFile(previewUrl) {
   window.approvalLetterOnFile = true;
 
-  const section = document.getElementById("approval_letter_section");
+  const section = byId("approval_letter_section");
   if (!section) return;
 
-  const preview = document.getElementById("approval_preview");
+  const preview = byId("approval_preview");
   if (preview) preview.innerHTML = "";
 
   const existingImg = section.querySelector('img[alt="Current Approval Letter"]');
@@ -1738,14 +1988,14 @@ function markApprovalLetterOnFile(previewUrl) {
           </button>
         </div>
       </div>`;
-    const errorEl = document.getElementById("approval_letter_error");
+    const errorEl = byId("approval_letter_error");
     if (errorEl) {
       errorEl.insertAdjacentHTML("beforebegin", onFileHtml);
     }
   }
 
   // Remove required so HTML5 validation doesn't block later
-  const input = document.getElementById("approval_letter");
+  const input = byId("approval_letter");
   if (input) {
     input.removeAttribute("required");
     input.value = ""; // clear the file input (letter is already on the server)
@@ -1760,8 +2010,8 @@ document.addEventListener("input", (e) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-  const fromInput = document.getElementById("meetup_time_from");
-  const toInput = document.getElementById("meetup_time_to");
+  const fromInput = byId("meetup_time_from");
+  const toInput = byId("meetup_time_to");
 
   if (fromInput) {
     fromInput.addEventListener("change", () => validateMeetupTimeRange(true));
@@ -1776,38 +2026,33 @@ document.addEventListener("DOMContentLoaded", () => {
     cb.addEventListener("change", () => validateMeetupDays(true));
   });
 
-  // "Total stocks" only counts as required while it is editable (items without variants)
-  const stocks = document.getElementById("stocks");
-  const stockReq = document.getElementById("stock_required");
-  const stockHint = document.getElementById("stock_hint");
-  function syncStockLabel() {
-    const editable = stocks && !stocks.readOnly;
-    if (stockReq) stockReq.classList.toggle("d-none", !editable);
-    if (stockHint) {
-      stockHint.textContent = editable
-        ? "How many items you have in total."
-        : "Calculated automatically from your variations.";
-    }
-  }
+  // Labels of the stock field follow the order type and whether it is editable
+  const stocks = byId("stocks");
   if (stocks) {
     new MutationObserver(syncStockLabel).observe(stocks, {
       attributes: true,
       attributeFilter: ["readonly"],
     });
-    syncStockLabel();
   }
+  applyOrderTypeUi();
+
+  // Clear the pre-order period error as soon as the dates are touched
+  ["preorder_start", "preorder_end"].forEach((id) => {
+    const el = byId(id);
+    if (el) el.addEventListener("input", () => showPreorderWindowError(""));
+  });
 
   // Size table dialog: load the working copy every time it opens
-  const sizeModal = document.getElementById("sizeTableModal");
+  const sizeModal = byId("sizeTableModal");
   if (sizeModal) sizeModal.addEventListener("show.bs.modal", initSizeDraft);
 
-  const customColumn = document.getElementById("size_custom_column");
+  const customColumn = byId("size_custom_column");
   if (customColumn) {
     customColumn.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); addCustomColumn(); }
     });
   }
-  const newRow = document.getElementById("size_new_row");
+  const newRow = byId("size_new_row");
   if (newRow) {
     newRow.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); addSizeRow(); }

@@ -56,6 +56,8 @@ class Product(BaseItem):
         (AUDIENCE_GENERAL, 'General (open to everyone)'),
         (AUDIENCE_PRIVATE, "Private (the organization's program only)"),
     ]
+    preorder_start = models.DateTimeField(null=True, blank=True, help_text="Pre-orders open from (pre-order products).")
+    preorder_end = models.DateTimeField(null=True, blank=True, help_text="Pre-orders close at (pre-order products).")
     audience = models.CharField(
         max_length=10,
         choices=AUDIENCE_CHOICES,
@@ -137,7 +139,28 @@ class Product(BaseItem):
             return "0.00"
         prices = [v.price for v in variants]
         return f"{min(prices)} - {max(prices)}" if min(prices) != max(prices) else f"{min(prices)}"
+    @property
+    def preorder_window_state(self):
+        """'none' (regular product), 'upcoming', 'open' or 'closed'."""
+        if not self.pre_order:
+            return 'none'
+        now = timezone.now()
+        if self.preorder_start and now < self.preorder_start:
+            return 'upcoming'
+        if self.preorder_end and now > self.preorder_end:
+            return 'closed'
+        return 'open'
 
+    @property
+    def preorder_remaining_total(self):
+        """Pre-order slots left across all variations; None when any variation has no limit."""
+        total = 0
+        for variant in self.variants.all():
+            left = variant.preorder_remaining
+            if left is None:
+                return None
+            total += left
+        return total
     @property
     def owner_name(self):
         return self.seller.get_full_name() or self.seller.username
@@ -181,6 +204,8 @@ class StagedProduct(models.Model):
         null=True, blank=True,
         help_text='Size table: {"columns": ["Height (cm)"], "rows": [{"size": "S", "values": ["160"]}]}',
     )
+    preorder_start = models.DateTimeField(null=True, blank=True)
+    preorder_end = models.DateTimeField(null=True, blank=True)
     audience = models.CharField(
         max_length=10,
         choices=Product.AUDIENCE_CHOICES,
@@ -224,12 +249,14 @@ class StagedVariant(models.Model):
     flaws = models.TextField(blank=True, null=True)
     image_index = models.IntegerField(null=True, blank=True) 
     image = models.ImageField(upload_to='products/staged/variants/', null=True, blank=True)
+    no_limit = models.BooleanField(default=False)
 
 
 class StagedImage(models.Model):
     staged_product = models.ForeignKey(StagedProduct, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to='products/staged/')
     is_main = models.BooleanField(default=False)
+
 
 
 class Wishlist(models.Model):
@@ -381,7 +408,17 @@ class ProductVariant(models.Model):
         blank=True, 
         related_name='assigned_variants'
     )
+    preorder_limit = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Original pre-order limit. Blank = no limit. `stocks` holds what is left.",
+    )
 
+    @property
+    def preorder_remaining(self):
+        """Slots left for pre-orders; None means no limit."""
+        if self.preorder_limit is None:
+            return None
+        return max(self.stocks, 0)
     def __str__(self):
         return f"{self.product.name} - {self.variant_name}"
     
@@ -448,6 +485,10 @@ class PreOrderRequest(ReturnFieldsMixin, models.Model):
     )
     quantity = models.PositiveIntegerField(default=1)
     size = models.CharField(max_length=30, blank=True, default='')
+    PAYMENT_METHODS = [('GCASH', 'GCash (Online)'), ('COP', 'Cash on Pickup')]
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, default='COP')
+    is_paid = models.BooleanField(default=False)
+    checkout_batch = models.UUIDField(null=True, blank=True, db_index=True, editable=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
 
     rejection_reason = models.CharField(

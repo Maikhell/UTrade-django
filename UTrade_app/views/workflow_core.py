@@ -21,6 +21,7 @@ from .return_views import org_return_context
 
 from ..models import ChatMessage, Conversation, Order, OrderItem, PreOrderRequest
 from ..utils import accrue_platform_fee_for_order, is_allowed_email, log_action, send_email
+from ..preorder_utils import release_preorder_quantity
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,7 @@ def _decorate_order(o, scope):
         product = variant.product if variant else None
         lines.append({
             'name': product.name if product else 'Deleted product',
-                'variant': _variant_label(variant, getattr(item, 'size', '')),
+            'variant': _variant_label(variant, getattr(item, 'size', '')),
             'qty': item.quantity,
             'price': item.price,
             'total': item.get_cost(),
@@ -219,13 +220,13 @@ def _decorate_preorder(po):
     po.wf_qty = po.quantity
     po.wf_amount = po.get_total_price()
     po.wf_est = po.estimated_pickup
-    po.wf_payment = 'Cash on Pickup'
+    po.wf_payment = po.get_payment_method_display()
     po.wf_location = (product.meetup_location_text if product else '') or ''
     po.wf_reason = po.rejection_reason
     po.wf_reason_note = po.rejection_note
     po.wf_buyer_note = ''
     po.wf_seller_note = po.seller_note
-    po.wf_paid = False
+    po.wf_paid = po.is_paid
     return po
 
 
@@ -321,6 +322,7 @@ def _org_options(kind, base):
         )
     return sorted(set(filter(None, values)))
 
+
 def _return_base(kind, scope):
     """Rows for the Returns / Refund tabs, with everything those tables read."""
     if kind == 'order':
@@ -333,7 +335,8 @@ def _return_base(kind, scope):
         scope.preorder_qs()
         .select_related('buyer', 'seller', 'exchange_variant', 'product_variant__product')
     )
-    
+
+
 def _board_context(request, kind, scope):
     search = request.GET.get('search', '').strip()
     date_from = request.GET.get('date_from', '').strip()
@@ -367,7 +370,7 @@ def _board_context(request, kind, scope):
 
     is_order = kind == 'order'
     page_name, batch_name = scope.urls[kind]
-    
+
     context = {
         'scope': scope.key,
         'kind': kind,
@@ -402,7 +405,7 @@ def _board_context(request, kind, scope):
     }
     context.update(org_return_context(_return_base(kind, scope), kind))
     context.update(scope.extra_context())
-    
+
     return context
 
 
@@ -626,6 +629,7 @@ def batch(request, kind, scope):
     to_notify = []
     with transaction.atomic():
         for obj in locked.select_for_update(of=('self',)):
+            previous_status = obj.status
             if action == 'set_estimate':
                 obj.estimated_pickup = estimated[:50]
                 obj.save(update_fields=['estimated_pickup', 'updated_at'])
@@ -642,6 +646,8 @@ def batch(request, kind, scope):
                     obj.estimated_pickup = estimated[:50]
                     fields.append('estimated_pickup')
                 obj.save(update_fields=fields)
+                if action == 'reject' and kind == 'preorder':
+                    release_preorder_quantity(obj, previous_status)
                 to_notify.append(obj)
 
             updated += 1
@@ -680,7 +686,8 @@ def batch(request, kind, scope):
         'message': f'{updated} {noun}(s) updated.',
         'updated': updated,
     })
-    
+
+
 def _variant_label(variant, size=''):
     name = variant.variant_name if variant else ''
     if size:

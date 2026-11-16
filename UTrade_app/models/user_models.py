@@ -167,6 +167,7 @@ class User(AbstractUser):
         if self.student_no:
             return str(self.student_no)
         return f"User_{self.id}" 
+    
     def __str__(self):
         return str(self.get_short_name)
     

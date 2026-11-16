@@ -22,7 +22,7 @@ class VariantForm(forms.ModelForm):
     assigned_image = forms.ModelChoiceField(
         queryset=ProductImage.objects.none(), 
         required=False,
-        label="Variant Photo",
+        label="Variant Photo",  
         widget=forms.Select(attrs={'class': 'form-select'})
     )
 

@@ -203,7 +203,7 @@ urlpatterns = [
     path('management/product/<int:product_id>/unlist-form/', management_views.management_unlist_product_form, name='management.product_unlist_form'),
     path('management/product/<int:product_id>/list/', management_views.management_list_product, name='management.product_list'),
     path('product/<int:pk>/edit/', management_views.ProductUpdateView.as_view(), name='product.edit'),
-    
+    path('management/dashboard/analytics/', user_views.dashboard_analytics_api, name='dashboard.analytics'),
     path('forgot-password/', password_reset_views.forgot_password, name='forgot_password'),
     path('reset-password/verify/', password_reset_views.password_reset_verify, name='password_reset_verify'),
     path('reset-password/new/', password_reset_views.password_reset_new, name='password_reset_new'),

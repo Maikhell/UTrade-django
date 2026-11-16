@@ -34,6 +34,8 @@ from django.views.generic import (
     TemplateView,
     UpdateView,
 )
+from .. import dashboard_analytics
+from ..models import OrganizationPlatformLedger
 from xhtml2pdf import pisa
 from ..course_utils import COURSE_CHOICES, VALID_COURSE_CODES
 from ..forms import UserProfileForm, UserRegistrationForm
@@ -61,6 +63,7 @@ REVERIFY_FIELDS = (
     ('course', 'Course'),
     ('section', 'Section'),
 )
+CBRGU_DASHBOARD_ROLES = ('management', 'cbrgu_staff')
 ORG_LOCKED_FIELDS = ('first_name', 'last_name', 'student_no')
 NO_STUDENT_FIELDS = ('management', 'campus_admin', 'org_officer')
 def _norm(field, value):
@@ -397,7 +400,7 @@ def get_seller_owner_type_filter(user):
     return getattr(user, 'organization', None) or None
 class UserProductsView(LoginRequiredMixin, ListView):
     model = Product
-    template_name = 'UTrade_app/seller/inventory.html'  # change if your path differs
+    template_name = 'UTrade_app/seller/inventory.html'  # the dashboard template
     context_object_name = 'products'
     paginate_by = 10
 
@@ -411,159 +414,76 @@ class UserProductsView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         user = self.request.user
-        now = timezone.now()
-        seven_days_ago = now - timezone.timedelta(days=7)
-
-        default_days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        default_zeros = [0, 0, 0, 0, 0, 0, 0]
-
-        # ---------- Pre-orders ----------
-        seller_preorders = (
-            PreOrderRequest.objects
-            .filter(seller=user)
-            .select_related('buyer', 'product_variant', 'product_variant__product')
-            .order_by('-id')
-        )
+        is_cbrgu = getattr(user, 'user_role', '') in CBRGU_DASHBOARD_ROLES
         owner_type = get_seller_owner_type_filter(user)
-        if owner_type:
-            seller_preorders = seller_preorders.filter(
-                product_variant__product__owner_type=owner_type
-            )
+        orders_qs, preorders_qs = dashboard_analytics.seller_scope(user, owner_type)
 
-        incoming_preorders_qs = seller_preorders.filter(
-            Q(status__iexact='Pending') | Q(status__iexact='Paid')
-        )
-        ready_preorders_qs = seller_preorders.filter(
-            Q(status__iexact='Accepted')
-            | Q(status__iexact='Ready')
-            | Q(status__iexact='Ready for Pickup')
-            | Q(status__iexact='ACCEPTED')
-            | Q(status__iexact='READY')
-        )
-        completed_preorders_qs = seller_preorders.filter(
-            status__iexact='Completed'
-        )
-
-        preorders_daily = (
-            seller_preorders
-            .filter(created_at__gte=seven_days_ago)
-            .annotate(date=TruncDate('created_at'))
-            .values('date')
-            .annotate(order_count=Count('id'))
-            .order_by('date')
-        )
-        preorders_over_time_labels = [
-            o['date'].strftime('%a') for o in preorders_daily if o['date']
-        ]
-        preorders_over_time_data = [o['order_count'] for o in preorders_daily]
-
-        # ---------- Orders ----------
-        seller_orders = (
-            Order.objects
-            .filter(items__product_variant__product__seller=user)
-            .distinct()
-        )
-        incoming_orders_qs = seller_orders.filter(
-            Q(status__iexact='Pending') | Q(status__iexact='Paid')
-        )
-        accepted_orders_qs = seller_orders.filter(status__iexact='Accepted')
-        completed_orders_qs = seller_orders.filter(status__iexact='Completed')
+        # ---------- Lifetime totals (the stat cards) ----------
+        total_stocks = (
+            ProductVariant.objects.filter(product__seller=user)
+            .aggregate(total=Sum('stocks'))['total']
+        ) or 0
 
         completed_items = OrderItem.objects.filter(
-            order__in=completed_orders_qs,
+            order__in=orders_qs.filter(status__iexact='Completed'),
             product_variant__product__seller=user,
         )
-
-        # ---------- Stat cards ----------
-        try:
-            total_stocks = (
-                ProductVariant.objects
-                .filter(product__seller=user)
-                .aggregate(total=Sum('stocks'))['total']
-            ) or 0
-        except Exception:
-            total_stocks = (
-                ProductVariant.objects
-                .filter(product__seller=user)
-                .aggregate(total=Sum('stock'))['total']
-            ) or 0
-
-        total_orders = seller_orders.count()
-        total_preorders = seller_preorders.count()
         total_income = completed_items.aggregate(
             total=Sum(F('price') * F('quantity'))
         )['total'] or Decimal('0.00')
 
-        # ---------- Chart data ----------
-        revenue_daily = (
-            completed_items
-            .filter(order__created_at__gte=seven_days_ago)
-            .annotate(date=TruncDate('order__created_at'))
-            .values('date')
-            .annotate(daily_revenue=Sum(F('price') * F('quantity')))
-            .order_by('date')
-        )
-        revenue_labels = [r['date'].strftime('%a') for r in revenue_daily if r['date']]
-        revenue_data = [float(r['daily_revenue'] or 0) for r in revenue_daily]
+        incoming_orders = orders_qs.filter(Q(status__iexact='Pending') | Q(status__iexact='Paid')).count()
+        incoming_preorders = preorders_qs.filter(
+            Q(status__iexact='Pending') | Q(status__iexact='Paid')
+        ).count()
 
-        top_products_qs = (
-            completed_items
-            .values('product_variant__product__name')
-            .annotate(total_units=Sum('quantity'))
-            .order_by('-total_units')[:5]
-        )
-        top_products_labels = [
-            p['product_variant__product__name'] or 'Unknown' for p in top_products_qs
-        ]
-        top_products_data = [p['total_units'] or 0 for p in top_products_qs]
+        # ---------- "Needs attention" ----------
+        if is_cbrgu:
+            pending_products = Product.objects.filter(status__iexact='Pending').count()   # whole system
+        else:
+            pending_products = Product.objects.filter(seller=user, status__iexact='Pending').count()
 
-        orders_daily = (
-            seller_orders
-            .filter(created_at__gte=seven_days_ago)
-            .annotate(date=TruncDate('created_at'))
-            .values('date')
-            .annotate(order_count=Count('id'))
-            .order_by('date')
+        platform_fee = dashboard_analytics.platform_fee_summary() if is_cbrgu else None
+
+        recent_orders = list(
+            Order.objects.filter(id__in=orders_qs.values('id'))
+            .select_related('user').order_by('-created_at')[:6]
         )
-        orders_over_time_labels = [
-            o['date'].strftime('%a') for o in orders_daily if o['date']
-        ]
-        orders_over_time_data = [o['order_count'] for o in orders_daily]
 
         context.update({
+            # NOTE: `products` is only the current page (10), so the real count is passed separately.
+            'total_products': Product.objects.filter(seller=user).count(),
             'total_stocks': total_stocks,
-            'total_orders': total_orders,
-            'total_preorders': total_preorders,
+            'total_orders': orders_qs.count(),
+            'total_preorders': preorders_qs.count(),
             'total_income': f'{total_income:,.2f}',
 
-            'incoming_orders_count': incoming_orders_qs.count(),
-            'accepted_orders_count': accepted_orders_qs.count(),
-            'completed_orders_count': completed_orders_qs.count(),
+            'incoming_orders_count': incoming_orders,
+            'incoming_preorder_count': incoming_preorders,
+            'pending_products_count': pending_products,
 
-            'incoming_preorder_count': incoming_preorders_qs.count(),
-            'ready_preorder_count': ready_preorders_qs.count(),
-            'completed_preorder_count': completed_preorders_qs.count(),
+            'is_cbrgu': is_cbrgu,
+            'platform_fee': platform_fee,          # None for non-CBRGU accounts
+            'recent_orders': recent_orders,
 
-            'revenue_labels_json': json.dumps(revenue_labels or default_days),
-            'revenue_data_json': json.dumps(revenue_data or default_zeros),
-            'top_products_labels_json': json.dumps(
-                top_products_labels or ['No Sales Yet']
+            # First paint = last 7 days; the page asks the endpoint when the period changes.
+            'analytics_initial': dashboard_analytics.build_analytics(
+                user, dashboard_analytics.DEFAULT_PERIOD, owner_type
             ),
-            'top_products_data_json': json.dumps(top_products_data or [0]),
-            'orders_over_time_labels_json': json.dumps(
-                orders_over_time_labels or default_days
-            ),
-            'orders_over_time_data_json': json.dumps(
-                orders_over_time_data or default_zeros
-            ),
-            'preorders_over_time_labels_json': json.dumps(
-                preorders_over_time_labels or default_days
-            ),
-            'preorders_over_time_data_json': json.dumps(
-                preorders_over_time_data or default_zeros
-            ),
+            'period_options': dashboard_analytics.PERIOD_OPTIONS,
+            'default_period': dashboard_analytics.DEFAULT_PERIOD,
         })
         return context
+
+
+@login_required
+def dashboard_analytics_api(request):
+    """JSON for the dashboard charts: ?period=7d | 1m | 1y."""
+    period = request.GET.get('period', dashboard_analytics.DEFAULT_PERIOD)
+    if period not in dashboard_analytics.PERIODS:
+        return JsonResponse({'error': 'Invalid period.'}, status=400)
+    owner_type = get_seller_owner_type_filter(request.user)
+    return JsonResponse(dashboard_analytics.build_analytics(request.user, period, owner_type))
 
 class ProductUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Product

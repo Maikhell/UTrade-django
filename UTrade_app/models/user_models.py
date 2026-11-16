@@ -158,7 +158,6 @@ class User(AbstractUser):
     def seller_rating_count(self):
         return self.seller_rating_summary['count']
 
-    @property
     def get_short_name(self):
         if self.display_name and self.display_name.strip():
             return self.display_name
@@ -166,10 +165,10 @@ class User(AbstractUser):
             return self.username
         if self.student_no:
             return str(self.student_no)
-        return f"User_{self.id}" 
-    
+        return f"User_{self.id}"
+
     def __str__(self):
-        return str(self.get_short_name)
+        return str(self.get_short_name())  
     
     
     

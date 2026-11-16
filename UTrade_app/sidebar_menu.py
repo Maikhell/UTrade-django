@@ -90,20 +90,26 @@ SIDEBARS = {
     },
 }
 
+# Your User.user_role value -> sidebar role key
+USER_ROLE_MAP = {
+    "cbrgu_staff": STAFF,
+    "management": HEAD,      # assumption: Management = CBRGU head. Change if wrong.
+    "osas_sds": OSAS,
+    "cashier": CASHIER,
+}
+
 
 def get_sidebar_role(user, org=None):
-    """
-    Map a request user (+ optional org) to a sidebar role key.
-    ADAPT the user checks below to your real role fields -- I couldn't see your
-    user model, so the attribute names here are placeholders.
-    """
+    """Map a request user (+ optional org) to a sidebar role key."""
+    if user is not None and getattr(user, "is_authenticated", False):
+        mapped = USER_ROLE_MAP.get(getattr(user, "user_role", ""))
+        if mapped:
+            return mapped
+
+    # Organization officers / org accounts -> pick by org type
     if org is not None:
         if (getattr(org, "org_type", "academic") or "academic") != "academic":
             return NON_ACADEMIC
         return CSG if (org.name or "").upper() == "CSG" else ACADEMIC
 
-    role = (getattr(user, "role", "") or "").lower()          # <-- ADAPT
-    return {
-        "cbrgu_head": HEAD, "cbrgu_staff": STAFF,
-        "osas": OSAS, "sds": OSAS, "cashier": CASHIER,
-    }.get(role)
+    return None

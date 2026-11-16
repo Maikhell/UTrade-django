@@ -62,6 +62,11 @@ class Product(BaseItem):
         null=True,
         help_text='JPG/PNG only, max 10 MB'
     )
+    size_chart = models.JSONField(
+    null=True,
+    blank=True,
+    help_text='Size table: {"columns": ["Height (cm)"], "rows": [{"size": "S", "values": ["160"]}]}',
+)
     product_code = models.CharField(
     max_length=32,
     unique=True,

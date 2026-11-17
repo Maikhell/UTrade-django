@@ -26,6 +26,7 @@ _C_DASH = _i("dashboard", "Dashboard", "bi-speedometer2", "dashboard")
 _C_LIST = _i("active_listings", "Active Listings", "bi-check2-square", "active_listings")
 _C_PROD = _i("products", "Products", "bi-box-seam", "cbrgu_products",
              "total_products", "bg-light text-dark border", always=True)
+_O_REM = _i("remittance", "Remittance", "bi-cash-stack", "remittance_management")
 _C_ORD = _i("orders", "Orders", "bi-inbox", "management_orders", "incoming_orders_count")
 _C_PRE = _i("preorders", "Pre Orders", "bi-calendar-check", "management_preorders",
             "incoming_preorder_count", "bg-info text-dark")

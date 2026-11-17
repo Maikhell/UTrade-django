@@ -1,8 +1,11 @@
 {% extends 'UTrade_app/base.html' %}
 {% load static humanize %}
+{% load static sidebar_tags %}
 
 {% block title %}Cashier | Remittance{% endblock %}
-
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/sidebar.css' %}" />
+{% endblock %}
 {% block content %}
 <style>
   .cs-wrap { max-width: 1280px; margin: 0 auto; }
@@ -28,6 +31,10 @@
     <a href="{% url 'user.account' %}" class="btn btn-outline-secondary btn-sm rounded-pill d-inline-flex align-items-center gap-2 mb-3">
       <i class="bi bi-arrow-left" aria-hidden="true"></i><span>Back to Account</span>
     </a>
+    <div class="container-fluid">
+  <div class="row">
+     {% render_sidebar sidebar_role 'registered_users' %}
+
 
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
       <div>
@@ -296,7 +303,8 @@
 
   </div>
 </div>
-
+  </div>
+</div>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
   // Receipt number: digits only, max 7

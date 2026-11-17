@@ -1,9 +1,10 @@
 {% extends 'UTrade_app/base.html' %}
-{% load static %}
 {% load static sidebar_tags %}
+
 {% block title %}User Account{% endblock %}
 
 {% block content %}
+{% dashboard_alert_count as dash_alert %}
 {% block extra_css %}
   <link rel="stylesheet" href="{% static 'UTrade_app/css/accounts.css' %}" />
   <style>
@@ -273,12 +274,12 @@
           </a>
         </div>
 
-      {% elif user.user_role == 'management' %}
+      {% elif user.user_role == 'management' or user.user_role == 'cbrgu_staff' %}
         <div class="col-12">
           <a href="{% url 'dashboard' %}"
              class="card h-100 p-3 p-md-4 rounded-4 bg-light text-dark action-card border-warning-hover text-decoration-none">
-            {% if mgmt_pending_count %}
-              <span class="notif-bubble">{{ mgmt_pending_count }}</span>
+            {% if dash_alert %}
+              <span class="notif-bubble" title="Orders, pre-orders and pending products">{{ dash_alert }}</span>
             {% endif %}
             <div class="d-flex align-items-center">
               <div class="icon-box bg-warning text-dark shadow-sm">
@@ -437,8 +438,8 @@
         <div class="col-12">
           <a href="{% url 'organization.panel' %}"
              class="card h-100 p-3 p-md-4 rounded-4 bg-light text-dark action-card border-warning-hover text-decoration-none">
-            {% if org_pending_count %}
-              <span class="notif-bubble">{{ org_pending_count }}</span>
+            {% if dash_alert %}
+              <span class="notif-bubble" title="Orders, pre-orders and pending products">{{ dash_alert }}</span>
             {% endif %}
             <div class="d-flex align-items-center">
               <div class="icon-box bg-warning text-dark shadow-sm">

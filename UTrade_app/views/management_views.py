@@ -1922,10 +1922,10 @@ ACCOUNT_TYPES = [
 ]
 
 STAFF_ROLE_CHOICES = [
-    ('management', 'Management'),
     ('osas_sds', 'OSAS / SDS'),
     ('campus_admin', 'Campus Admin'),
     ('cbrgu_staff', 'CBRGU Staff'),
+    ('cashier', 'Cashier'),
 ]
 STAFF_ROLES = {value for value, _ in STAFF_ROLE_CHOICES}
 

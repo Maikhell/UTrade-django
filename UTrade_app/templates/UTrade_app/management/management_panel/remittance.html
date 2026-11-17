@@ -1,0 +1,233 @@
+{% extends 'UTrade_app/base.html' %}
+{% load static sidebar_tags %}
+{% load humanize %}
+{% load custom_filters %}
+
+{% block title %}
+ CBRGU | Organization Remittance 
+{% endblock %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'UTrade_app/css/sidebar.css' %}" />
+{% endblock %}
+
+{% block content %}
+<style>
+  @media (min-width: 1400px) {
+    .container,
+    .container-sm,
+    .container-md,
+    .container-lg,
+    .container-xl,
+    .container-xxl {
+      max-width: 1600px !important;
+    }
+  }
+
+  .hover-text-dark:hover { color: #212529 !important; }
+  .table > :not(caption) > * > * { padding-top: 0.9rem; padding-bottom: 0.9rem; }
+  .nav-link { transition: color 0.15s ease; }
+</style>
+
+<nav aria-label="breadcrumb" class="mb-3 px-3 px-md-0">
+<a href="{% url 'user.account' %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-2">
+  <i class="bi bi-arrow-left" aria-hidden="true"></i>
+  <span>Back to Account</span>
+</a>
+</nav>
+
+<div class="container-fluid">
+  <div class="row">
+
+  {% render_sidebar sidebar_role 'remittance' %}
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="col-md-9 col-lg-10 px-3 px-md-4">
+
+      <!-- Header -->
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div>
+          <h1 class="h3 fw-bold mb-1 text-dark">Platform Remittance</h1>
+          <p class="text-muted mb-0 small">
+            Platform fee cycles · <span class="fw-medium">3% of completed sales</span> · 30-day cycle
+          </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3 py-2 fw-medium">
+            <i class="bi bi-building me-1"></i>
+            {{ page_obj.paginator.count }} Organization{{ page_obj.paginator.count|pluralize }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Messages -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm border-0 rounded-3 mb-4" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Who records payments -->
+      <div class="alert alert-light border rounded-3 small d-flex align-items-start gap-2 mb-4" role="note">
+        <i class="bi bi-info-circle text-success mt-1" aria-hidden="true"></i>
+        <div>
+          You can view every organization's cycle and send reminders. <strong>Payments are recorded by the Cashier</strong>,
+          who also issues the receipt and starts the next cycle.
+        </div>
+      </div>
+
+      <!-- Sub Navigation -->
+      <div class="d-flex border-bottom mb-4 gap-1 overflow-auto">
+        <a href="{% url 'remittance_management' %}"
+           class="nav-link px-4 py-3 border-bottom border-3 border-success text-success fw-semibold text-nowrap">
+          <i class="bi bi-clock-history me-1"></i> Active Remittances
+        </a>
+        <a href="{% url 'remittance_logs' %}"
+           class="nav-link px-4 py-3 border-bottom border-3 border-transparent text-muted fw-medium text-nowrap hover-text-dark">
+          <i class="bi bi-receipt me-1"></i> Remittance Logs & Receipts
+        </a>
+      </div>
+
+      <!-- Main Card -->
+      <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr class="text-uppercase small text-muted fw-semibold">
+                  <th class="ps-4 py-3" style="min-width: 220px;">Organization</th>
+                  <th class="py-3" style="min-width: 160px;">Cycle Period</th>
+                  <th class="py-3">Due Date</th>
+                  <th class="text-end py-3">Accumulated Sales</th>
+                  <th class="text-end py-3">Amount Due (3%)</th>
+                  <th class="py-3">Status</th>
+                  <th class="text-center pe-4 py-3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for org in page_obj %}
+                  <tr class="border-bottom">
+                    <!-- Organization -->
+                    <td class="ps-4 py-3">
+                      <div class="fw-semibold text-dark">{{ org.full_name }}</div>
+                      <div class="small text-muted">{{ org.name }} · {{ org.course_code }}</div>
+                    </td>
+
+                    <!-- Cycle -->
+                    <td class="py-3">
+                      {% if org.cycle_start %}
+                        <div class="small text-muted">
+                          {{ org.cycle_start|date:"M d" }} → {{ org.cycle_due|date:"M d, Y" }}
+                        </div>
+                      {% else %}
+                        <span class="text-muted small">No active cycle</span>
+                      {% endif %}
+                    </td>
+
+                    <!-- Due Date -->
+                    <td class="py-3">
+                      {% if org.cycle_due %}
+                        <span class="fw-medium">{{ org.cycle_due|date:"M d, Y" }}</span>
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    </td>
+
+                    <!-- Sales -->
+                    <td class="text-end py-3">
+                      <span class="fw-medium">₱{{ org.accumulated_sales|default:"0.00"|floatformat:2|intcomma }}</span>
+                    </td>
+
+                    <!-- Amount Due -->
+                    <td class="text-end py-3">
+                      <span class="fw-bold {% if org.accumulated_fee and org.accumulated_fee > 0 %}text-success{% else %}text-muted{% endif %}">
+                        ₱{{ org.accumulated_fee|default:"0.00"|floatformat:2|intcomma }}
+                      </span>
+                    </td>
+
+                    <!-- Status -->
+                    <td class="py-3">
+                      {% if org.status == 'OPEN' %}
+                        <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3">Open</span>
+                      {% elif org.status == 'DUE' %}
+                        <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3">Due</span>
+                      {% elif org.status == 'PAID' %}
+                        <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-3">Paid</span>
+                      {% else %}
+                        <span class="badge rounded-pill bg-light text-muted border px-3">No Activity</span>
+                      {% endif %}
+                    </td>
+
+                    <!-- Action: notify only (the Cashier records payments) -->
+                    <td class="text-center pe-4 py-3">
+                      {% if org.latest_ledger_id and org.status != 'PAID' %}
+                        <form method="post" action="{% url 'notify_org_remittance' org.latest_ledger_id %}" class="d-inline">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-sm btn-outline-info rounded-pill px-3"
+                                  title="Send chat reminder about upcoming/overdue remittance">
+                            <i class="bi bi-chat-dots me-1"></i> Notify
+                          </button>
+                        </form>
+                      {% else %}
+                        <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" disabled
+                                title="No active unpaid ledger to notify">
+                          <i class="bi bi-chat-dots me-1"></i> Notify
+                        </button>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="7" class="text-center py-5">
+                      <div class="text-muted">
+                        <i class="bi bi-inbox display-6 d-block mb-3 opacity-50"></i>
+                        <div class="fw-medium">No organizations found</div>
+                        <div class="small">There are currently no active remittance cycles.</div>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      {% if page_obj.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4 d-flex justify-content-center">
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link rounded-start-pill" href="?page=1">&laquo; First</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+              </li>
+            {% endif %}
+
+            <li class="page-item disabled">
+              <span class="page-link px-3">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+              </span>
+            </li>
+
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link rounded-end-pill" href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+      {% endif %}
+
+    </main>
+  </div>
+</div>
+{% endblock %}

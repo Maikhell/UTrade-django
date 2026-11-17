@@ -47,6 +47,11 @@
               {% elif user.user_role == 'cbrgu_staff' %}
                 <span class="badge bg-primary rounded-pill px-3 py-2 text-uppercase fw-bold"
                       style="font-size:0.65rem; letter-spacing:1px;">CBRGU Staff</span>
+              {% elif user.user_role == 'cashier' %}
+                <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold"
+                      style="font-size:0.65rem; letter-spacing:1px; background:#146c43; color:#fff;">
+                  <i class="bi bi-cash-coin me-1"></i> Cashier
+                </span>
               {% elif user.user_role == 'campus_admin' %}
                 <span class="badge bg-primary rounded-pill px-3 py-2 text-uppercase fw-bold"
                       style="font-size:0.65rem; letter-spacing:1px;">Campus Admin</span>
@@ -175,6 +180,8 @@
                 <div class="col-md-6">
                   {% if user.user_role == 'management' %}
                     <label class="form-label small fw-bold text-secondary">Staff ID <span class="text-danger">*</span></label>
+                  {% elif user.user_role == 'cashier' %}
+                    <label class="form-label small fw-bold text-secondary">Cashier ID <span class="text-danger">*</span></label>
                   {% elif user.user_role == 'campus_admin' %}
                     <label class="form-label small fw-bold text-secondary">Campus Admin ID <span class="text-danger">*</span></label>
                   {% elif user.user_role == 'org_officer' %}
@@ -208,8 +215,8 @@
                   </div>
                 {% endif %}
 
-                <!-- Course / Section (not for management, admin, or org accounts) -->
-                {% if user.user_role != 'management' and user.user_role != 'campus_admin' and user.user_role != 'org_officer' %}
+                <!-- Course / Section (not for management, cashier, admin, or org accounts) -->
+                {% if user.user_role != 'management' and user.user_role != 'cashier' and user.user_role != 'campus_admin' and user.user_role != 'org_officer' %}
                   <div class="col-md-10">
                     <label class="form-label small fw-bold text-secondary">
                       Program / Major <span class="text-danger">*</span>

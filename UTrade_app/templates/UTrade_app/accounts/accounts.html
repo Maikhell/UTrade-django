@@ -157,6 +157,11 @@
                     style="font-size: 0.65rem; letter-spacing: 1px">
                 <i class="bi bi-person-workspace me-1"></i> CBRGU Staff
               </span>
+            {% elif user.user_role == 'cashier' %}
+              <span class="badge rounded-pill px-3 py-2 text-uppercase fw-bold"
+                    style="font-size: 0.65rem; letter-spacing: 1px; background: var(--ut-green-dark); color: #fff;">
+                <i class="bi bi-cash-coin me-1"></i> Cashier
+              </span>
             {% elif user.user_role == 'osas_sds' %}
               <span class="badge bg-info text-dark rounded-pill px-3 py-2 text-uppercase fw-bold"
                     style="font-size: 0.65rem; letter-spacing: 1px">
@@ -310,6 +315,54 @@
               <div class="ms-3 ms-md-4">
                 <h5 class="fw-bold mb-1">Add Product</h5>
                 <p class="text-muted small mb-0">List a new item</p>
+              </div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-sm-6">
+          <a href="{% url 'inbox' %}"
+             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark border-primary-hover">
+            {% if unread_messages_count %}
+              <span class="notif-bubble">{{ unread_messages_count }}</span>
+            {% endif %}
+            <div class="d-flex align-items-center">
+              <div class="icon-box bg-white text-primary shadow-sm">
+                <i class="bi bi-chat-left-dots fs-4"></i>
+              </div>
+              <div class="ms-3 ms-md-4">
+                <h5 class="fw-bold mb-1">Messages</h5>
+                <p class="text-muted small mb-0">Check notification inbox</p>
+              </div>
+            </div>
+          </a>
+        </div>
+
+      {% elif user.user_role == 'cashier' %}
+        {# Cashier — Remittance, Public Profile, Messages #}
+        <div class="col-12">
+          <a href="{% url 'cashier_remittance' %}"
+             class="card h-100 p-3 p-md-4 rounded-4 bg-light text-dark action-card border-success-hover text-decoration-none">
+            <div class="d-flex align-items-center">
+              <div class="icon-box text-white shadow-sm" style="background: var(--ut-green);">
+                <i class="bi bi-cash-coin fs-4"></i>
+              </div>
+              <div class="ms-3 ms-md-4">
+                <h5 class="fw-bold mb-1">Cashier Remittance</h5>
+                <p class="text-muted small mb-0">Record platform fee payments and issue receipts</p>
+              </div>
+            </div>
+          </a>
+        </div>
+        <div class="col-12 col-sm-6">
+          <a href="{% url 'user.profile' %}"
+             class="card h-100 p-3 p-md-4 rounded-4 bg-light action-card text-decoration-none text-dark border-success-hover">
+            <div class="d-flex align-items-center">
+              <div class="icon-box bg-white text-dark shadow-sm">
+                <i class="bi bi-person-bounding-box fs-4"></i>
+              </div>
+              <div class="ms-3 ms-md-4">
+                <h5 class="fw-bold mb-1">Public Profile</h5>
+                <p class="text-muted small mb-0">View your cashier profile</p>
               </div>
             </div>
           </a>

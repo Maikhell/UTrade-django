@@ -538,9 +538,14 @@ def order_history(request):
     all_items = newest_first(orders + preorders)   # ALL: every order, any status
     by_tab = {k: [] for k in ('to_pay', 'to_pickup', 'completed', 'cancelled', 'return')}
     for item in all_items:
-        if getattr(obj, 'can_pay_online', False):
-            return 'to_pay'
-        by_tab[_tab_of(item)].append(item)
+        # Attach payment information before deciding which tab should contain it.
+        # _decorate() above sets item.kind to either 'order' or 'preorder'.
+        _attach_payment_info(item, item.kind)
+
+        if getattr(item, 'can_pay_online', False):
+            by_tab['to_pay'].append(item)
+        else:
+            by_tab[_tab_of(item)].append(item)
 
     # Completed: unrated first, then newest (same behaviour as the old History tab)
     by_tab['completed'].sort(

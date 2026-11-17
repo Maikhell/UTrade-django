@@ -18,6 +18,15 @@ from ..models import (
        StagedVariant, StagedImage, CategoryAttribute, PreOrderRequest,
        Organization, Review, SellerReview,
    )
+from ..models import (
+    CartItem, Category, Organization, OrderItem, PreOrderRequest,
+    Product, Review, Wishlist,
+)
+from django.db.models import (
+    Avg, Count, F, IntegerField, Min, OuterRef, Q, Subquery, Sum,
+)
+from django.db.models.functions import Coalesce
+from django.views.generic import ListView
 from django.http import JsonResponse
 from django.utils import timezone
 import re
@@ -641,6 +650,56 @@ class BatchPreOrderView(LoginRequiredMixin, View):
         }, status=400)
 
 
+SOLD_ORDER_STATUSES = ['Completed']
+SOLD_PREORDER_STATUSES = ['COMPLETED']
+
+
+def annotate_card_stats(queryset):
+    """
+    Adds live card numbers to a Product queryset:
+      live_sold     - units from completed orders + completed pre-orders
+      live_rating   - average review rating (0 when none)
+      live_reviews  - number of reviews
+
+    Subqueries are used (not Avg/Sum over joins) so the extra joins used for
+    searching and price sorting can never inflate the totals.
+    Import and reuse this in the storefront view as well.
+    """
+    def units(qs):
+        return Coalesce(
+            Subquery(
+                qs.values('product_variant__product')
+                  .annotate(t=Sum('quantity'))
+                  .values('t'),
+                output_field=IntegerField(),
+            ),
+            0,
+        )
+
+    order_sold = units(OrderItem.objects.filter(
+        product_variant__product=OuterRef('pk'),
+        order__status__in=SOLD_ORDER_STATUSES,
+    ))
+    preorder_sold = units(PreOrderRequest.objects.filter(
+        product_variant__product=OuterRef('pk'),
+        status__in=SOLD_PREORDER_STATUSES,
+    ))
+
+    reviews = Review.objects.filter(product=OuterRef('pk')).values('product')
+
+    return queryset.annotate(
+        live_sold=order_sold + preorder_sold,
+        live_rating=Coalesce(
+            Subquery(reviews.annotate(a=Avg('rating')).values('a')), 0.0
+        ),
+        live_reviews=Coalesce(
+            Subquery(reviews.annotate(c=Count('pk')).values('c'),
+                     output_field=IntegerField()),
+            0,
+        ),
+    )
+
+
 class ProductListView(ListView):
     model = Product
     template_name = 'UTrade_app/products/marketplace.html'
@@ -653,6 +712,7 @@ class ProductListView(ListView):
             .select_related('category', 'seller', 'related_org', 'seller__org_link')
             .prefetch_related('images', 'variants')
         )
+        queryset = annotate_card_stats(queryset)
 
         query = self.request.GET.get('q')
         category_id = self.request.GET.get('category')
@@ -661,7 +721,7 @@ class ProductListView(ListView):
         sort = self.request.GET.get('sort')
 
         if query:
-            queryset = queryset.filter(
+            search_q = (
                 Q(name__icontains=query)
                 | Q(description__icontains=query)
                 | Q(category__name__icontains=query)
@@ -670,9 +730,12 @@ class ProductListView(ListView):
                 | Q(related_org__name__icontains=query)
                 | Q(related_org__full_name__icontains=query)
             )
-
+            # Matching by id is folded into the same filter. The old
+            # `queryset | Product.objects.filter(...)` mixed an annotated queryset
+            # with a plain one, which drops/breaks the annotations.
             if query.isdigit():
-                queryset = queryset | Product.objects.filter(id=int(query), status='Approved')
+                search_q |= Q(id=int(query))
+            queryset = queryset.filter(search_q)
 
         if category_id:
             queryset = queryset.filter(category_id=category_id)

@@ -230,9 +230,11 @@
 
                 <div class="mp-price">₱{{ product.get_price_range }}</div>
 
+                {# Live values from the view's annotations (always current) #}
                 <div class="mp-meta">
-                  <span><i class="bi bi-star-fill"></i> {{ product.average_rating }}</span>
-                  <span>{{ product.sold|default:0 }} sold</span>
+                  <span><i class="bi bi-star-fill"></i>
+                    {% if product.live_reviews %}{{ product.live_rating|floatformat:1 }}{% else %}New{% endif %}</span>
+                  <span>{{ product.live_sold|default:0 }} sold</span>
                 </div>
               </div>
             </article>

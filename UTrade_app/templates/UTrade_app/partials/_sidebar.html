@@ -35,6 +35,7 @@
                   <a class="disabled" href="#" aria-disabled="true" tabindex="-1">
                 {% endif %}
                   <i class="bi {{ item.icon }}"></i> {{ item.label }}
+                  {% if item.alert %}<span class="ut-dot" title="Needs attention" aria-label="Needs attention"></span>{% endif %}
                   {% if item.badge %}<span class="badge {{ item.badge.css }} rounded-pill">{{ item.badge.value }}</span>{% endif %}
                 </a>
               </li>
